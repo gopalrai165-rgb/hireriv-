@@ -1,0 +1,26 @@
+<%- include('partials/head') %>
+
+<section class="page-hero">
+  <div class="container narrow center">
+    <span class="eyebrow">Blog &amp; articles</span>
+    <h1>Hiring insights &amp; career advice</h1>
+    <p class="lead">Practical guides from our recruiters for employers and job seekers.</p>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container posts-grid">
+    <% posts.forEach(function (p) { %>
+      <a class="post-card" href="/blog/<%= p.slug %>">
+        <div class="post-thumb thumb-<%= p.category.toLowerCase() %>"><span><%= p.category %></span></div>
+        <div class="post-body">
+          <span class="muted small"><%= formatDate(p.date) %></span>
+          <h3><%= p.title %></h3>
+          <p><%= p.excerpt %></p>
+        </div>
+      </a>
+    <% }) %>
+  </div>
+</section>
+
+<%- include('partials/foot') %>

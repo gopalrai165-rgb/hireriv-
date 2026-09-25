@@ -1,0 +1,15 @@
+<%- include('partials/head') %>
+
+<section class="section">
+  <div class="container narrow center status-page">
+    <span class="status-icon <%= ok ? 'ok' : 'err' %>"><svg class="i"><use href="#<%= ok ? 'i-check' : 'i-plus' %>"/></svg></span>
+    <h1><%= title %></h1>
+    <p class="lead"><%= message %></p>
+    <div class="hero-ctas center">
+      <% if (ok) { %><a href="/" class="btn btn-primary">Back to home</a><a href="/jobs" class="btn btn-outline">Browse jobs</a>
+      <% } else { %><a href="javascript:history.back()" class="btn btn-primary">Go back and fix</a><% } %>
+    </div>
+  </div>
+</section>
+
+<%- include('partials/foot') %>

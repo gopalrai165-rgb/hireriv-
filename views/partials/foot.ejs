@@ -1,0 +1,60 @@
+</main>
+
+<section class="newsletter">
+  <div class="container newsletter-inner">
+    <div>
+      <h2>Get new roles &amp; hiring insights</h2>
+      <p>One short email a fortnight. No spam, unsubscribe anytime.</p>
+    </div>
+    <form class="newsletter-form js-form" action="/api/newsletter" method="post">
+      <label class="sr-only" for="nl-email">Email address</label>
+      <input id="nl-email" type="email" name="email" placeholder="you@company.com" required>
+      <button class="btn btn-accent" type="submit">Subscribe</button>
+    </form>
+  </div>
+</section>
+
+<footer class="site-footer">
+  <div class="container footer-grid">
+    <div class="footer-brand">
+      <a href="/" class="logo logo-light"><img src="/img/logo.svg" alt="" width="36" height="36"><span>Hire<b>riv</b></span></a>
+      <p><%= site.tagline %>.</p>
+      <div class="social">
+        <a href="<%= site.social.linkedin %>" aria-label="LinkedIn"><svg class="i"><use href="#i-linkedin"/></svg></a>
+        <a href="<%= site.social.instagram %>" aria-label="Instagram"><svg class="i"><use href="#i-instagram"/></svg></a>
+        <a href="<%= site.social.facebook %>" aria-label="Facebook"><svg class="i"><use href="#i-facebook"/></svg></a>
+        <a href="<%= site.social.x %>" aria-label="X"><svg class="i"><use href="#i-x"/></svg></a>
+      </div>
+    </div>
+    <div>
+      <h4>Company</h4>
+      <a href="/about">About Us</a>
+      <a href="/blog">Blog &amp; Articles</a>
+      <a href="/contact">Contact</a>
+    </div>
+    <div>
+      <h4>Recruitment</h4>
+      <a href="/hire">Hire a Team</a>
+      <a href="/jobs">Find Work</a>
+      <a href="/jobs#register">Submit your CV</a>
+    </div>
+    <div>
+      <h4>Get in touch</h4>
+      <p class="contact-line"><svg class="i"><use href="#i-pin"/></svg><%= site.address %></p>
+      <p class="contact-line"><svg class="i"><use href="#i-phone"/></svg><a href="tel:<%= site.phone.replace(/\s/g, '') %>"><%= site.phone %></a></p>
+      <p class="contact-line"><svg class="i"><use href="#i-mail"/></svg><a href="mailto:<%= site.email %>"><%= site.email %></a></p>
+    </div>
+  </div>
+  <div class="container footer-bottom">
+    <span>© <%= year %> <%= site.name %>. All rights reserved.</span>
+    <a href="#top">Back to top ↑</a>
+  </div>
+</footer>
+
+<a class="whatsapp-float" href="https://wa.me/<%= site.whatsapp %>?text=Hi%20Hireriv%2C%20I%27d%20like%20to%20know%20more" target="_blank" rel="noopener" aria-label="Chat on WhatsApp">
+  <svg class="i"><use href="#i-whatsapp"/></svg>
+</a>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<script src="/js/main.js" defer></script>
+</body>
+</html>

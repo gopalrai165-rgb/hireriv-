@@ -1,0 +1,34 @@
+<%- include('partials/head') %>
+
+<section class="page-hero page-hero-sm">
+  <div class="container narrow">
+    <a href="/blog" class="back-link">← All articles</a>
+    <span class="chip"><%= post.category %></span>
+    <h1><%= post.title %></h1>
+    <p class="muted"><%= formatDate(post.date) %> · <%= site.name %> Team</p>
+  </div>
+</section>
+
+<section class="section">
+  <article class="container narrow prose">
+    <% post.body.forEach(function (para) { %><p><%= para %></p><% }) %>
+  </article>
+</section>
+
+<% if (more.length) { %>
+<section class="section section-tint">
+  <div class="container">
+    <div class="section-head row"><h2>Keep reading</h2></div>
+    <div class="posts-grid">
+      <% more.forEach(function (p) { %>
+        <a class="post-card" href="/blog/<%= p.slug %>">
+          <div class="post-thumb thumb-<%= p.category.toLowerCase() %>"><span><%= p.category %></span></div>
+          <div class="post-body"><span class="muted small"><%= formatDate(p.date) %></span><h3><%= p.title %></h3><p><%= p.excerpt %></p></div>
+        </a>
+      <% }) %>
+    </div>
+  </div>
+</section>
+<% } %>
+
+<%- include('partials/foot') %>

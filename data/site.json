@@ -1,0 +1,21 @@
+{
+  "name": "Hireriv",
+  "tagline": "Tech-driven staffing & recruitment that moves businesses and careers forward",
+  "phone": "+91 00000 00000",
+  "whatsapp": "910000000000",
+  "email": "hello@hireriv.com",
+  "address": "Your office address, City, State - PIN",
+  "hours": "Mon – Sat, 9:30 AM – 7:00 PM",
+  "social": {
+    "linkedin": "#",
+    "instagram": "#",
+    "facebook": "#",
+    "x": "#"
+  },
+  "stats": [
+    { "value": 1200, "suffix": "+", "label": "Vacancies filled" },
+    { "value": 3500, "suffix": "+", "label": "Professionals placed" },
+    { "value": 98, "suffix": "%", "label": "Client satisfaction" },
+    { "value": 45, "suffix": "+", "label": "Recruitment experts" }
+  ]
+}

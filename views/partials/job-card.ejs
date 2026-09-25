@@ -1,0 +1,15 @@
+<article class="job-card reveal">
+  <div class="job-card-top">
+    <span class="tag tag-<%= job.mode.toLowerCase() %>"><%= job.mode %></span>
+    <span class="muted small"><%= daysAgo(job.posted) %></span>
+  </div>
+  <h3><a href="/jobs/<%= job.id %>"><%= job.title %></a></h3>
+  <p class="muted small"><%= job.company %> · <%= job.category %></p>
+  <ul class="job-meta">
+    <li><svg class="i"><use href="#i-pin"/></svg><%= job.location %></li>
+    <li><svg class="i"><use href="#i-briefcase"/></svg><%= job.experience %></li>
+    <li><svg class="i"><use href="#i-wallet"/></svg><%= job.salary %></li>
+  </ul>
+  <div class="chips"><% job.skills.slice(0, 4).forEach(function (s) { %><span class="chip"><%= s %></span><% }) %></div>
+  <a class="card-link" href="/jobs/<%= job.id %>">View &amp; apply <svg class="i"><use href="#i-arrow"/></svg></a>
+</article>

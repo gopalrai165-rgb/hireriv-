@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title><%= title %> | <%= site.name %></title>
+  <meta name="description" content="<%= site.name %> – <%= site.tagline %>. Permanent, contract and executive staffing across Technology, Finance, Marketing and Logistics.">
+  <link rel="icon" href="/img/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body class="page-<%= page || 'misc' %>">
+<%- include('icons') %>
+<header class="site-header" id="top">
+  <div class="container nav-wrap">
+    <a href="/" class="logo" aria-label="<%= site.name %> home">
+      <img src="/img/logo.svg" alt="" width="36" height="36">
+      <span>Hire<b>riv</b></span>
+    </a>
+    <nav class="main-nav" id="main-nav" aria-label="Main">
+      <a href="/" class="<%= page === 'home' ? 'active' : '' %>">Home</a>
+      <a href="/jobs" class="<%= page === 'jobs' ? 'active' : '' %>">Find Work</a>
+      <a href="/hire" class="<%= page === 'hire' ? 'active' : '' %>">Hire a Team</a>
+      <a href="/about" class="<%= page === 'about' ? 'active' : '' %>">About Us</a>
+      <a href="/blog" class="<%= page === 'blog' ? 'active' : '' %>">Blog</a>
+      <a href="/contact" class="<%= page === 'contact' ? 'active' : '' %>">Contact</a>
+      <a href="/hire" class="btn btn-primary btn-sm nav-cta">Get Talent</a>
+    </nav>
+    <button class="nav-toggle" aria-label="Open menu" aria-expanded="false" aria-controls="main-nav">
+      <svg class="i"><use href="#i-menu"/></svg>
+    </button>
+  </div>
+</header>
+<main>

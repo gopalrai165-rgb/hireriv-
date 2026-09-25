@@ -1,0 +1,71 @@
+<%- include('partials/head') %>
+
+<section class="page-hero">
+  <div class="container">
+    <span class="eyebrow">Find work</span>
+    <h1>Find your next role</h1>
+    <p class="lead">Hand-picked openings with verified employers. Apply in two minutes, and a real recruiter will get back to you.</p>
+    <form class="job-filters" action="/jobs" method="get" role="search">
+      <div class="filter-search">
+        <svg class="i"><use href="#i-search"/></svg>
+        <label class="sr-only" for="f-q">Keyword</label>
+        <input id="f-q" name="q" value="<%= filters.q %>" placeholder="Job title, skill or company">
+      </div>
+      <label class="sr-only" for="f-cat">Category</label>
+      <select id="f-cat" name="category">
+        <option value="">All categories</option>
+        <% categories.forEach(function (c) { %><option <%= filters.category === c ? 'selected' : '' %>><%= c %></option><% }) %>
+      </select>
+      <label class="sr-only" for="f-loc">Location</label>
+      <select id="f-loc" name="location">
+        <option value="">All locations</option>
+        <% locations.forEach(function (l) { %><option <%= filters.location === l ? 'selected' : '' %>><%= l %></option><% }) %>
+      </select>
+      <label class="sr-only" for="f-mode">Work mode</label>
+      <select id="f-mode" name="mode">
+        <option value="">Any work mode</option>
+        <% modes.forEach(function (m) { %><option <%= filters.mode === m ? 'selected' : '' %>><%= m %></option><% }) %>
+      </select>
+      <button class="btn btn-primary" type="submit">Search</button>
+    </form>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container">
+    <div class="results-head">
+      <p><b><%= results.length %></b> <%= results.length === 1 ? 'job' : 'jobs' %> found</p>
+      <% if (filters.q || filters.category || filters.location || filters.mode) { %><a href="/jobs" class="small">Clear filters</a><% } %>
+    </div>
+    <% if (results.length) { %>
+      <div class="jobs-grid">
+        <% results.forEach(function (job) { %><%- include('partials/job-card', { job: job }) %><% }) %>
+      </div>
+    <% } else { %>
+      <div class="empty">
+        <h3>No matching jobs right now</h3>
+        <p>New roles come in every week. Send us your CV below and we'll reach out when something fits.</p>
+      </div>
+    <% } %>
+  </div>
+</section>
+
+<section class="section section-tint" id="register">
+  <div class="container split">
+    <div>
+      <span class="eyebrow">Can't find the right role?</span>
+      <h2>Submit your CV to our talent network</h2>
+      <p class="lead-sm">Most of our roles are filled before they're ever advertised. Register once and our recruiters will match you with openings that fit your skills, salary expectations and preferred location.</p>
+      <ul class="checks">
+        <li>Free for candidates, always</li>
+        <li>Resume and interview feedback from recruiters</li>
+        <li>Your details are shared only with your consent</li>
+      </ul>
+    </div>
+    <div class="form-card">
+      <%- include('partials/apply-form', { jobId: 'general' }) %>
+    </div>
+  </div>
+</section>
+
+<%- include('partials/foot') %>

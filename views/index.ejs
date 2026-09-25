@@ -1,0 +1,313 @@
+<%- include('partials/head') %>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-bg" aria-hidden="true"></div>
+  <div class="container hero-grid">
+    <div class="hero-copy">
+      <span class="eyebrow"><svg class="i"><use href="#i-spark"/></svg> AI-assisted, recruiter-verified hiring</span>
+      <h1>Tech-driven staffing that <span class="grad">moves businesses</span> and careers forward</h1>
+      <p class="lead">Hireriv connects growing companies with pre-screened talent across Technology, Finance, Marketing and Logistics, and helps professionals find roles where they can do their best work.</p>
+      <div class="hero-ctas">
+        <a href="/hire" class="btn btn-primary btn-lg">Hire a Team <svg class="i"><use href="#i-arrow"/></svg></a>
+        <a href="/jobs" class="btn btn-outline btn-lg">Find Work</a>
+      </div>
+      <form class="hero-search" action="/jobs" method="get" role="search">
+        <svg class="i"><use href="#i-search"/></svg>
+        <label class="sr-only" for="hero-q">Search jobs</label>
+        <input id="hero-q" name="q" placeholder="Job title, skill or company">
+        <button class="btn btn-accent" type="submit">Search jobs</button>
+      </form>
+      <p class="hero-popular muted small">Popular:
+        <a href="/jobs?q=developer">Developer</a> · <a href="/jobs?q=accountant">Accountant</a> · <a href="/jobs?q=marketing">Marketing</a> · <a href="/jobs?q=logistics">Logistics</a>
+      </p>
+    </div>
+    <div class="hero-visual" aria-hidden="true">
+      <div class="float-card fc-main">
+        <div class="fc-head"><span class="avatar">AK</span><div><b>Senior Cloud Engineer</b><span class="muted small">Shortlisted for FinPay</span></div></div>
+        <div class="match"><span>Profile match</span><b>94%</b></div>
+        <div class="bar"><i style="width:94%"></i></div>
+        <div class="chips"><span class="chip">AWS</span><span class="chip">Kubernetes</span><span class="chip">Terraform</span></div>
+      </div>
+      <div class="float-card fc-small fc-a"><svg class="i ok"><use href="#i-check"/></svg><div><b>Background check</b><span class="muted small">Verified</span></div></div>
+      <div class="float-card fc-small fc-b"><svg class="i"><use href="#i-clock"/></svg><div><b>Avg. time to shortlist</b><span class="muted small">72 hours</span></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- STATS -->
+<section class="stats">
+  <div class="container stats-grid">
+    <% site.stats.forEach(function (s) { %>
+      <div class="stat">
+        <b><span class="counter" data-target="<%= s.value %>">0</span><%= s.suffix %></b>
+        <span><%= s.label %></span>
+      </div>
+    <% }) %>
+  </div>
+</section>
+
+<!-- TWO PATHS -->
+<section class="section">
+  <div class="container">
+    <div class="section-head">
+      <span class="eyebrow">How we help</span>
+      <h2>One partner for both sides of the hire</h2>
+      <p>Whether you're building a team or taking the next step in your career, we make the process faster, fairer and more human.</p>
+    </div>
+    <div class="paths">
+      <div class="path-card path-employer reveal">
+        <span class="path-icon"><svg class="i"><use href="#i-users"/></svg></span>
+        <h3>For employers</h3>
+        <p>Recruiter-assessed, AI-matched candidates delivered to your inbox, with a dedicated expert from brief to joining.</p>
+        <ul class="checks">
+          <li>Shortlists in as little as 72 hours</li>
+          <li>Permanent, contract &amp; bulk hiring</li>
+          <li>Background checks included</li>
+          <li>Replacement guarantee on placements</li>
+        </ul>
+        <a href="/hire" class="btn btn-primary">Start hiring <svg class="i"><use href="#i-arrow"/></svg></a>
+      </div>
+      <div class="path-card path-candidate reveal">
+        <span class="path-icon"><svg class="i"><use href="#i-briefcase"/></svg></span>
+        <h3>For job seekers</h3>
+        <p>Personalised job recommendations, honest career advice and a recruiter who keeps you updated at every step.</p>
+        <ul class="checks">
+          <li>Remote, hybrid &amp; on-site roles</li>
+          <li>Competitive salaries with top employers</li>
+          <li>Interview preparation &amp; resume feedback</li>
+          <li>Free for candidates, always</li>
+        </ul>
+        <a href="/jobs" class="btn btn-dark">Browse jobs <svg class="i"><use href="#i-arrow"/></svg></a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SERVICES -->
+<section class="section section-tint" id="services">
+  <div class="container">
+    <div class="section-head">
+      <span class="eyebrow">Our services</span>
+      <h2>End-to-end staffing &amp; HR solutions</h2>
+      <p>Pick one service or let us act as your extended HR department. We scale with you.</p>
+    </div>
+    <div class="services-grid">
+      <% [
+        ['i-users', 'Permanent Staffing', 'Full-time hires matched to your skills needs, culture and budget, from junior to senior roles.'],
+        ['i-clock', 'Contract & Temp Staffing', 'Flexible talent for projects and seasonal peaks. We handle payroll, compliance and benefits.'],
+        ['i-target', 'Executive Search', 'Confidential, research-led search for leadership and niche roles where every hire matters.'],
+        ['i-chart', 'Bulk & RPO Hiring', 'High-volume hiring drives and recruitment process outsourcing with clear SLAs and reporting.'],
+        ['i-shield', 'Background Verification', 'Employment, education, address and criminal checks so every hire is one you can trust.'],
+        ['i-graduation', 'Corporate Training', 'Skill-building and onboarding programmes run by experienced corporate HR professionals.']
+      ].forEach(function (s) { %>
+        <div class="service-card reveal">
+          <span class="service-icon"><svg class="i"><use href="#<%= s[0] %>"/></svg></span>
+          <h3><%= s[1] %></h3>
+          <p><%= s[2] %></p>
+        </div>
+      <% }) %>
+    </div>
+  </div>
+</section>
+
+<!-- INDUSTRIES -->
+<section class="section" id="industries">
+  <div class="container">
+    <div class="section-head">
+      <span class="eyebrow">Specialised talent</span>
+      <h2>Recruiters who know your industry</h2>
+      <p>Specialist desks for the functions that drive growth, plus expanding coverage across e-commerce, FMCG, EdTech, retail, BFSI and hospitality.</p>
+    </div>
+    <div class="tabs" role="tablist">
+      <% const industries = [
+        { key: 'tech', icon: 'i-code', name: 'Technology', text: 'Engineers, data and cloud specialists who can ship from day one.', roles: ['Full-Stack Developer', 'Cloud Engineer', 'AI / ML Engineer', 'Cybersecurity Analyst', 'DevOps Engineer', 'Mobile Developer', 'Data Scientist', 'QA Analyst', 'UI/UX Designer'] },
+        { key: 'fin', icon: 'i-finance', name: 'Finance & Accounting', text: 'Finance professionals who keep the numbers right and the business compliant.', roles: ['Financial Analyst', 'Senior Accountant', 'Internal Auditor', 'Financial Controller', 'Payroll Manager', 'Budget Controller', 'Tax Consultant'] },
+        { key: 'mkt', icon: 'i-megaphone', name: 'Marketing & Creative', text: 'Storytellers and growth marketers who turn attention into revenue.', roles: ['Creative Designer', 'Digital Marketing Specialist', 'Content Strategist', 'Brand Manager', 'Product Designer', 'Social Media Manager', 'Performance Marketer'] },
+        { key: 'log', icon: 'i-truck', name: 'Logistics & Operations', text: 'Operators who keep supply chains, hubs and projects running on time.', roles: ['Logistics Coordinator', 'Project Manager', 'Procurement Officer', 'Supply Chain Analyst', 'Operations Manager', 'Warehouse Supervisor', 'Hub Manager', 'Fleet Manager'] }
+      ] %>
+      <% industries.forEach(function (ind, i) { %>
+        <button role="tab" class="tab<%= i === 0 ? ' active' : '' %>" aria-selected="<%= i === 0 %>" aria-controls="panel-<%= ind.key %>" id="tab-<%= ind.key %>">
+          <svg class="i"><use href="#<%= ind.icon %>"/></svg><%= ind.name %>
+        </button>
+      <% }) %>
+    </div>
+    <% industries.forEach(function (ind, i) { %>
+      <div class="tab-panel<%= i === 0 ? ' active' : '' %>" role="tabpanel" id="panel-<%= ind.key %>" aria-labelledby="tab-<%= ind.key %>" <%= i === 0 ? '' : 'hidden' %>>
+        <div>
+          <h3><%= ind.name %></h3>
+          <p><%= ind.text %></p>
+          <a href="/jobs?category=<%= encodeURIComponent(ind.name) %>" class="card-link">See open roles <svg class="i"><use href="#i-arrow"/></svg></a>
+        </div>
+        <div>
+          <p class="muted small upper">Trending roles</p>
+          <div class="chips chips-lg"><% ind.roles.forEach(function (r) { %><span class="chip"><%= r %></span><% }) %></div>
+        </div>
+      </div>
+    <% }) %>
+  </div>
+</section>
+
+<!-- PROCESS -->
+<section class="section section-dark" id="process">
+  <div class="container">
+    <div class="section-head light">
+      <span class="eyebrow">Our 6-stage filter</span>
+      <h2>A shortlist you can trust, every time</h2>
+      <p>Every profile passes through six checkpoints before it reaches you, so you spend time interviewing, not screening.</p>
+    </div>
+    <ol class="process">
+      <% [
+        ['Need analysis', 'We learn the role, the team and what success looks like in the first six months.'],
+        ['Sourcing', 'Our database, referral network and targeted outreach surface the right people.'],
+        ['Candidate evaluation', 'Skill assessments and structured screening calls check ability and fit.'],
+        ['Interview presentation', 'You receive a curated shortlist with a recruiter note on every profile.'],
+        ['Background checks', 'Employment, education and reference verification before any offer.'],
+        ['Offer & closure', 'We manage negotiation, notice periods and follow up until day one.']
+      ].forEach(function (p, i) { %>
+        <li class="process-step reveal">
+          <span class="step-num"><%= String(i + 1).padStart(2, '0') %></span>
+          <h3><%= p[0] %></h3>
+          <p><%= p[1] %></p>
+        </li>
+      <% }) %>
+    </ol>
+  </div>
+</section>
+
+<!-- WHY US -->
+<section class="section">
+  <div class="container why-grid">
+    <div>
+      <span class="eyebrow">Why Hireriv</span>
+      <h2>Your extended HR department, without the overhead</h2>
+      <p class="lead-sm">We take a consultative approach grounded in current market data, and we're accountable for results, not just CVs.</p>
+      <div class="why-list">
+        <div><svg class="i"><use href="#i-clock"/></svg><div><b>Faster time-to-hire</b><p>A ready talent pool and a proven process cut weeks from your hiring cycle.</p></div></div>
+        <div><svg class="i"><use href="#i-wallet"/></svg><div><b>Lower hiring costs</b><p>Reduce admin, payroll and overtime costs by letting us run the process end to end.</p></div></div>
+        <div><svg class="i"><use href="#i-phone"/></svg><div><b>24/7 support</b><p>A dedicated account manager who picks up the phone, for clients and candidates alike.</p></div></div>
+        <div><svg class="i"><use href="#i-shield"/></svg><div><b>Quality guaranteed</b><p>Free replacement if a placement doesn't work out within the guarantee period.</p></div></div>
+      </div>
+    </div>
+    <div class="quote-stack">
+      <figure class="quote-card reveal">
+        <svg class="i quote-mark"><use href="#i-quote"/></svg>
+        <blockquote>Train people well enough so they can leave. Treat them well enough so they don't want to.</blockquote>
+        <figcaption>Richard Branson</figcaption>
+      </figure>
+      <figure class="quote-card quote-alt reveal">
+        <svg class="i quote-mark"><use href="#i-quote"/></svg>
+        <blockquote>Human resources isn't a thing we do. It's the thing that runs our business.</blockquote>
+        <figcaption>Steve Wynn</figcaption>
+      </figure>
+    </div>
+  </div>
+</section>
+
+<!-- LATEST JOBS -->
+<section class="section section-tint">
+  <div class="container">
+    <div class="section-head row">
+      <div>
+        <span class="eyebrow">Latest openings</span>
+        <h2>Jobs hiring right now</h2>
+      </div>
+      <a href="/jobs" class="btn btn-outline">View all jobs <svg class="i"><use href="#i-arrow"/></svg></a>
+    </div>
+    <div class="jobs-grid">
+      <% jobs.forEach(function (job) { %><%- include('partials/job-card', { job: job }) %><% }) %>
+    </div>
+  </div>
+</section>
+
+<!-- TESTIMONIALS -->
+<section class="section">
+  <div class="container">
+    <div class="section-head">
+      <span class="eyebrow">Testimonials</span>
+      <h2>What clients and candidates say</h2>
+    </div>
+    <div class="testimonials">
+      <% [
+        ['We needed eight engineers in a month. Hireriv sent a shortlist in three days, and every person we hired is still with us.', 'Head of Engineering', 'Fintech startup', 'HE'],
+        ['Their recruiter understood what I wanted better than any job portal. I had two offers within three weeks.', 'Data Analyst', 'Placed candidate', 'DA'],
+        ['The background verification and onboarding support took a huge load off our small HR team.', 'HR Manager', 'Logistics company', 'HM']
+      ].forEach(function (t) { %>
+        <figure class="testimonial reveal">
+          <div class="stars" aria-label="5 out of 5">★★★★★</div>
+          <blockquote>“<%= t[0] %>”</blockquote>
+          <figcaption><span class="avatar"><%= t[3] %></span><div><b><%= t[1] %></b><span class="muted small"><%= t[2] %></span></div></figcaption>
+        </figure>
+      <% }) %>
+    </div>
+  </div>
+</section>
+
+<!-- FAQ -->
+<section class="section section-tint" id="faq">
+  <div class="container faq-wrap">
+    <div class="section-head left">
+      <span class="eyebrow">FAQ</span>
+      <h2>Questions, answered</h2>
+      <p>Can't find what you're looking for? <a href="/contact">Talk to our team</a>.</p>
+    </div>
+    <div class="faq">
+      <% [
+        ['What makes Hireriv different from other staffing agencies?', 'We combine AI-assisted matching with a six-stage human screening process, specialist recruiters for each industry, and a dedicated account manager, so you get fewer, better profiles and a faster hire.'],
+        ['Which industries do you specialise in?', 'Technology, Finance & Accounting, Marketing & Creative, and Logistics & Operations, with growing coverage across e-commerce, FMCG, EdTech, retail, BFSI, media and hospitality.'],
+        ['How quickly can you share candidates?', 'For most roles we share a first shortlist within 72 hours of the brief. Niche and leadership roles typically take one to two weeks.'],
+        ['Do you only help with hiring, or offer end-to-end HR support?', 'Both. Beyond recruitment we offer contract staffing with payroll, background verification, onboarding and corporate training, so we can act as your extended HR team.'],
+        ['What is the six-stage filter?', 'Need analysis, sourcing, candidate evaluation, interview presentation, background checks, and offer negotiation & closure. Every candidate passes all six before joining.'],
+        ['Can you handle urgent or high-volume hiring?', 'Yes. Our bulk hiring and RPO teams run hiring drives for dozens to hundreds of roles, with clear SLAs and weekly reporting.'],
+        ['Is it free for job seekers?', 'Always. Candidates never pay Hireriv for job placement, interview preparation or career advice.'],
+        ['How do we get started?', 'Share your requirement on the Hire a Team page or call us. A client partner will set up a short brief call, agree on terms and start sourcing the same day.']
+      ].forEach(function (f, i) { %>
+        <details class="faq-item"<%= i === 0 ? ' open' : '' %>>
+          <summary><%= f[0] %><svg class="i"><use href="#i-plus"/></svg></summary>
+          <p><%= f[1] %></p>
+        </details>
+      <% }) %>
+    </div>
+  </div>
+</section>
+
+<!-- BLOG -->
+<section class="section">
+  <div class="container">
+    <div class="section-head row">
+      <div>
+        <span class="eyebrow">News &amp; articles</span>
+        <h2>From the Hireriv blog</h2>
+      </div>
+      <a href="/blog" class="btn btn-outline">All articles <svg class="i"><use href="#i-arrow"/></svg></a>
+    </div>
+    <div class="posts-grid">
+      <% posts.forEach(function (p) { %>
+        <a class="post-card reveal" href="/blog/<%= p.slug %>">
+          <div class="post-thumb thumb-<%= p.category.toLowerCase() %>"><span><%= p.category %></span></div>
+          <div class="post-body">
+            <span class="muted small"><%= formatDate(p.date) %></span>
+            <h3><%= p.title %></h3>
+            <p><%= p.excerpt %></p>
+          </div>
+        </a>
+      <% }) %>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section class="cta-band">
+  <div class="container cta-inner">
+    <div>
+      <h2>Ready to build your dream team?</h2>
+      <p>Tell us what you need. We'll send the right people.</p>
+    </div>
+    <div class="cta-actions">
+      <a href="/hire" class="btn btn-light btn-lg">Share a requirement</a>
+      <a href="tel:<%= site.phone.replace(/\s/g, '') %>" class="btn btn-ghost-light btn-lg"><svg class="i"><use href="#i-phone"/></svg> Call us</a>
+    </div>
+  </div>
+</section>
+
+<%- include('partials/foot') %>

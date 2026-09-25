@@ -1,0 +1,37 @@
+<%- include('partials/head') %>
+
+<section class="page-hero">
+  <div class="container narrow center">
+    <span class="eyebrow">Contact</span>
+    <h1>Let's talk</h1>
+    <p class="lead">Questions about hiring, a role, or partnering with us? We usually reply within a few hours.</p>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container split">
+    <div class="contact-cards">
+      <a class="contact-card" href="tel:<%= site.phone.replace(/\s/g, '') %>"><span class="service-icon"><svg class="i"><use href="#i-phone"/></svg></span><div><b>Call us</b><span><%= site.phone %></span></div></a>
+      <a class="contact-card" href="mailto:<%= site.email %>"><span class="service-icon"><svg class="i"><use href="#i-mail"/></svg></span><div><b>Email</b><span><%= site.email %></span></div></a>
+      <a class="contact-card" href="https://wa.me/<%= site.whatsapp %>" target="_blank" rel="noopener"><span class="service-icon"><svg class="i"><use href="#i-whatsapp"/></svg></span><div><b>WhatsApp</b><span>Book a quick consultation</span></div></a>
+      <div class="contact-card"><span class="service-icon"><svg class="i"><use href="#i-pin"/></svg></span><div><b>Visit us</b><span><%= site.address %></span><span class="muted small"><%= site.hours %></span></div></div>
+    </div>
+    <div class="form-card">
+      <h2>Send us a message</h2>
+      <form class="form js-form" action="/api/contact" method="post">
+        <div class="form-grid">
+          <label>Name*<input name="name" required autocomplete="name"></label>
+          <label>Email*<input type="email" name="email" required autocomplete="email"></label>
+          <label>Phone<input type="tel" name="phone" autocomplete="tel"></label>
+          <label>Subject
+            <select name="subject"><option>I want to hire</option><option>I'm looking for a job</option><option>Partnership</option><option>Other</option></select>
+          </label>
+          <label class="span-2">Message*<textarea name="message" rows="5" required></textarea></label>
+        </div>
+        <button class="btn btn-primary btn-block" type="submit">Send message</button>
+      </form>
+    </div>
+  </div>
+</section>
+
+<%- include('partials/foot') %>

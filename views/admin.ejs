@@ -1,0 +1,37 @@
+<%- include('partials/head') %>
+
+<section class="section admin">
+  <div class="container">
+    <h1>Submissions</h1>
+    <div class="tabs">
+      <% tabs.forEach(function (t) { %>
+        <a class="tab<%= t === tab ? ' active' : '' %>" href="/admin?tab=<%= t %>"><%= t.replace('-', ' ') %> <span class="count"><%= counts[t] %></span></a>
+      <% }) %>
+    </div>
+    <% if (!rows.length) { %>
+      <div class="empty"><p>No <%= tab.replace('-', ' ') %> yet.</p></div>
+    <% } else { %>
+      <% const cols = Object.keys(rows[0]).filter(function (k) { return k !== 'id'; }); %>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><% cols.forEach(function (c) { %><th><%= c %></th><% }) %></tr></thead>
+          <tbody>
+            <% rows.forEach(function (r) { %>
+              <tr>
+                <% cols.forEach(function (c) { %>
+                  <td>
+                    <% if (c === 'resume' && r[c]) { %><a href="/admin/resume/<%= encodeURIComponent(r[c]) %>">Download</a>
+                    <% } else if (c === 'createdAt') { %><%= new Date(r[c]).toLocaleString('en-IN') %>
+                    <% } else { %><%= r[c] %><% } %>
+                  </td>
+                <% }) %>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+    <% } %>
+  </div>
+</section>
+
+<%- include('partials/foot') %>

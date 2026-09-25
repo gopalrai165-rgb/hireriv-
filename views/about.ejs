@@ -1,0 +1,72 @@
+<%- include('partials/head') %>
+
+<section class="page-hero">
+  <div class="container narrow center">
+    <span class="eyebrow">About us</span>
+    <h1>We help good people and great companies find each other</h1>
+    <p class="lead">Hireriv brings recruitment, staffing and HR services under one roof, so businesses can grow faster and professionals can build careers they're proud of.</p>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container split">
+    <div>
+      <span class="eyebrow">Our story</span>
+      <h2>Built by recruiters who were tired of CV-forwarding</h2>
+      <p>Hireriv was founded by HR and consulting professionals with years of experience hiring for global firms. We saw the same problem again and again: companies drowning in irrelevant profiles, and talented candidates who never heard back.</p>
+      <p>So we built a different kind of staffing partner, one that combines smart technology with specialist recruiters who actually understand the roles they hire for. Today we serve IT, e-commerce, logistics, finance and many more sectors with staffing, executive search, training and background verification.</p>
+    </div>
+    <div class="vm-cards">
+      <div class="vm-card"><span class="service-icon"><svg class="i"><use href="#i-target"/></svg></span><h3>Our vision</h3><p>To be the most trusted HR partner, making hiring faster, smarter and more people-focused.</p></div>
+      <div class="vm-card"><span class="service-icon"><svg class="i"><use href="#i-spark"/></svg></span><h3>Our mission</h3><p>To deliver the right talent at the right time, and to empower people through continuous training, for mutual success.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="stats">
+  <div class="container stats-grid">
+    <% site.stats.forEach(function (s) { %>
+      <div class="stat"><b><span class="counter" data-target="<%= s.value %>">0</span><%= s.suffix %></b><span><%= s.label %></span></div>
+    <% }) %>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container">
+    <div class="section-head">
+      <span class="eyebrow">Our values</span>
+      <h2>What we stand for</h2>
+    </div>
+    <div class="services-grid">
+      <div class="service-card"><span class="service-icon"><svg class="i"><use href="#i-users"/></svg></span><h3>People first</h3><p>Every candidate gets a reply, and every client gets a partner, not a vendor.</p></div>
+      <div class="service-card"><span class="service-icon"><svg class="i"><use href="#i-shield"/></svg></span><h3>Integrity</h3><p>Honest feedback, transparent pricing and verified profiles, with no shortcuts.</p></div>
+      <div class="service-card"><span class="service-icon"><svg class="i"><use href="#i-chart"/></svg></span><h3>Accountability</h3><p>We measure ourselves on retention and outcomes, not just positions filled.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="section section-tint">
+  <div class="container">
+    <div class="section-head">
+      <span class="eyebrow">What we do</span>
+      <h2>Specialist recruitment across industries</h2>
+    </div>
+    <div class="about-cols">
+      <p>We started as a technology staffing specialist, connecting employers with talent in Big Data, Data Science, Mobile, Cloud, QA, AI, Cybersecurity, DevOps, UI/UX and Creative Design.</p>
+      <p>Today we're expanding into Logistics, E-Commerce, FMCG, EdTech, Retail, Media, Hospitality and Banking, each served by recruiters with hands-on industry experience.</p>
+      <p>Our 24/7 support team builds lasting relationships with employers and candidates alike, and our industry-specific training programmes are run by experienced corporate HR professionals.</p>
+    </div>
+  </div>
+</section>
+
+<section class="cta-band">
+  <div class="container cta-inner">
+    <div><h2>Let's grow together</h2><p>Hiring, or looking for your next role? We'd love to hear from you.</p></div>
+    <div class="cta-actions">
+      <a href="/hire" class="btn btn-light btn-lg">Hire a Team</a>
+      <a href="/jobs" class="btn btn-ghost-light btn-lg">Find Work</a>
+    </div>
+  </div>
+</section>
+
+<%- include('partials/foot') %>

@@ -1,0 +1,53 @@
+<%- include('partials/head') %>
+
+<section class="page-hero page-hero-sm">
+  <div class="container">
+    <a href="/jobs" class="back-link">← All jobs</a>
+    <div class="job-title-row">
+      <div>
+        <div class="chips"><span class="tag tag-<%= job.mode.toLowerCase() %>"><%= job.mode %></span><span class="chip"><%= job.type %></span><span class="chip"><%= job.category %></span></div>
+        <h1><%= job.title %></h1>
+        <p class="lead"><%= job.company %></p>
+      </div>
+      <a href="#apply" class="btn btn-primary btn-lg">Apply now</a>
+    </div>
+    <ul class="job-meta job-meta-lg">
+      <li><svg class="i"><use href="#i-pin"/></svg><%= job.location %></li>
+      <li><svg class="i"><use href="#i-briefcase"/></svg><%= job.experience %></li>
+      <li><svg class="i"><use href="#i-wallet"/></svg><%= job.salary %></li>
+      <li><svg class="i"><use href="#i-clock"/></svg>Posted <%= daysAgo(job.posted).toLowerCase() %></li>
+    </ul>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container job-layout">
+    <article class="job-body">
+      <h2>About the role</h2>
+      <p><%= job.description %></p>
+      <h2>What you'll do</h2>
+      <ul class="checks"><% job.responsibilities.forEach(function (r) { %><li><%= r %></li><% }) %></ul>
+      <h2>Key skills</h2>
+      <div class="chips chips-lg"><% job.skills.forEach(function (s) { %><span class="chip"><%= s %></span><% }) %></div>
+      <h2>Why apply through Hireriv?</h2>
+      <p>You'll work with a dedicated recruiter who shares honest feedback, helps you prepare for each interview round and negotiates on your behalf. It's completely free for candidates.</p>
+    </article>
+    <aside class="form-card sticky" id="apply">
+      <h2>Apply for this job</h2>
+      <%- include('partials/apply-form', { jobId: job.id }) %>
+    </aside>
+  </div>
+</section>
+
+<% if (related.length) { %>
+<section class="section section-tint">
+  <div class="container">
+    <div class="section-head row"><h2>Similar jobs</h2></div>
+    <div class="jobs-grid">
+      <% related.forEach(function (job) { %><%- include('partials/job-card', { job: job }) %><% }) %>
+    </div>
+  </div>
+</section>
+<% } %>
+
+<%- include('partials/foot') %>
