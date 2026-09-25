@@ -99,6 +99,7 @@ function createMailer(site) {
         html:
           p(`Your application for <b>${esc(a.jobTitle)}</b> is with our recruitment team.`) +
           p('A recruiter will review your profile and get back to you within 2 working days. If your experience is a strong match, we\'ll call you to talk about the role and next steps.') +
+          p(`You can follow your application any time at <a href="${esc(baseUrl)}/account/login" style="color:#0e8a8f">My applications</a> (sign in with this email address).`) +
           p(`Meanwhile, take a look at our other <a href="${esc(baseUrl)}/jobs" style="color:#0e8a8f">open roles</a>.`),
       });
     },
@@ -210,6 +211,29 @@ function createMailer(site) {
           p(`Someone asked to reset the password for the <b>${esc(emp.company)}</b> client portal. If that was you, use the button below.`) +
           button(link, 'Choose a new password') +
           p(`<span style="color:#6b7690;font-size:13px">This link works once and expires in ${hours} hours. Didn't ask for this? Ignore this email and your password stays the same.</span>`),
+      });
+    },
+
+    candidateSignIn(email, link, minutes) {
+      send(site, {
+        to: email,
+        subject: `Your ${site.name} sign-in link`,
+        heading: 'Sign in to My applications',
+        html:
+          p('Use the button below to see the status of your applications, upcoming interviews and your profile.') +
+          button(link, 'Sign in') +
+          p(`<span style="color:#6b7690;font-size:13px">This link works once and expires in ${minutes} minutes. Didn't ask for it? You can ignore this email.</span>`),
+      });
+    },
+
+    applicationWithdrawn(a) {
+      send(site, {
+        to: teamInbox,
+        replyTo: a.email,
+        subject: `Withdrawn: ${a.name} – ${a.jobTitle}`,
+        heading: 'A candidate withdrew their application',
+        html: detailsTable([['Candidate', a.name], ['Email', a.email], ['Job', a.jobTitle], ['Stage at withdrawal', a.status || 'New']]) +
+          p('Any scheduled interviews for this application were cancelled.'),
       });
     },
 

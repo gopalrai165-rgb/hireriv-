@@ -9,6 +9,8 @@ const { skillMatch, buildPool, searchPool } = require('./match');
 const { parsePost, parseSettings, SOCIAL } = require('./content');
 const interviews = require('./interviews');
 const employers = require('./employers');
+const candidates = require('./candidates');
+const { interviewIcs } = require('./ics');
 
 const PORT = process.env.PORT || 3004;
 const ADMIN_USER = process.env.ADMIN_USER || 'admin';
@@ -421,6 +423,10 @@ const clients = employers.register(app, {
   dataDir: DATA_DIR, site, mailer, baseUrl: BASE_URL, adminAuth, sameOrigin, adminUrl, limit,
   readSubmissions, saveSubmission, getJobs: () => jobs, appStatuses: APP_STATUSES,
   writeSubmissions, uploadsDir: UPLOADS_DIR, skillMatch,
+});
+candidates.register(app, {
+  mailer, baseUrl: BASE_URL, sameOrigin, limit, readSubmissions, writeSubmissions,
+  uploadsDir: UPLOADS_DIR, getJobs: () => jobs, formatIst: interviews.formatIst, interviewIcs, site,
 });
 
 app.get('/admin', adminAuth, (req, res) => {

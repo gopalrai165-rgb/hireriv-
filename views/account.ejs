@@ -1,0 +1,80 @@
+<%- include('partials/head') %>
+
+<section class="section admin portal">
+  <div class="container">
+    <div class="admin-head">
+      <div>
+        <span class="eyebrow">My applications</span>
+        <h1>Hi <%= String(profile.name || '').split(' ')[0] || 'there' %></h1>
+        <p class="muted">Signed in as <%= email %></p>
+      </div>
+      <form method="post" action="/account/logout"><button class="btn btn-outline btn-sm" type="submit">Log out</button></form>
+    </div>
+    <% if (msg) { %><p class="notice" role="status"><%= msg %></p><% } %>
+
+    <section class="dash-card dash-wide app-list">
+      <div class="dash-head"><h2>Your applications</h2><a class="small" href="/jobs">Find more jobs</a></div>
+      <% if (!apps.length) { %><p class="muted dash-empty">No applications found.</p><% } %>
+      <% apps.forEach(function (a) { %>
+        <article class="my-app">
+          <div class="my-app-head">
+            <div>
+              <h3><% if (a.jobId && a.jobOpen) { %><a href="/jobs/<%= a.jobId %>"><%= a.jobTitle %></a><% } else { %><%= a.jobTitle %><% } %></h3>
+              <p class="muted small">Applied <%= formatDate(a.createdAt) %></p>
+            </div>
+            <span class="pill <%= a.withdrawn || a.stage === 'Not selected' ? 'st-rejected' : a.stage === 'Hired' || a.stage === 'Offer' ? 'st-hired' : 'st-interview' %>"><%= a.stage %></span>
+          </div>
+          <% if (!a.withdrawn && a.stage !== 'Not selected') { %>
+            <ol class="steps" aria-label="Progress">
+              <% steps.forEach(function (s, i) { %><li class="<%= i < a.stepIndex ? 'done' : i === a.stepIndex ? 'current' : '' %>"<%= i === a.stepIndex ? ' aria-current="step"' : '' %>><span><%= s %></span></li><% }) %>
+            </ol>
+          <% } else if (a.stage === 'Not selected') { %>
+            <p class="small muted">The team went ahead with other candidates for this role. Your profile stays in our talent pool for future matches.</p>
+          <% } %>
+          <% a.interviews.forEach(function (iv) { %>
+            <div class="my-iv">
+              <b>Interview: <%= formatIst(iv.at) %></b> · <%= iv.duration %> min · <%= iv.mode %>
+              <% if (/^https:\/\//.test(iv.where)) { %> · <a href="<%= iv.where %>" target="_blank" rel="noopener noreferrer">Join link</a><% } else if (iv.where) { %> · <%= iv.where %><% } %>
+              · <a href="/account/interviews/<%= a.id %>/<%= iv.id %>.ics">Add to calendar</a>
+            </div>
+          <% }) %>
+          <% if (!a.withdrawn && !a.closedOut) { %>
+            <form method="post" action="/account/applications/<%= a.id %>/withdraw" data-confirm="Withdraw your application for <%= a.jobTitle %>? This can't be undone."><button class="link-btn small withdraw">Withdraw application</button></form>
+          <% } %>
+        </article>
+      <% }) %>
+    </section>
+
+    <div class="dash-grid">
+      <section class="dash-card">
+        <div class="dash-head"><h2>Your profile</h2></div>
+        <p class="muted small">Keep this up to date and recruiters will match you to new roles faster. Changes apply to all your applications.</p>
+        <form class="form" method="post" action="/account/profile">
+          <div class="form-grid">
+            <label class="span-2">Key skills<input name="skills" maxlength="500" value="<%= profile.skills || '' %>" placeholder="e.g. React, Node.js, AWS"></label>
+            <label>Experience
+              <select name="experience"><option value="">Select…</option><% experienceOptions.forEach(function (o) { %><option<%= o === profile.experience ? ' selected' : '' %>><%= o %></option><% }) %></select>
+            </label>
+            <label>Notice period
+              <select name="noticePeriod"><option value="">Select…</option><% noticeOptions.forEach(function (o) { %><option<%= o === profile.noticePeriod ? ' selected' : '' %>><%= o %></option><% }) %></select>
+            </label>
+            <label class="span-2">Current city<input name="location" maxlength="120" value="<%= profile.location || '' %>"></label>
+            <label class="span-2">LinkedIn / portfolio<input type="url" name="linkedin" maxlength="300" value="<%= profile.linkedin || '' %>" placeholder="https://"></label>
+          </div>
+          <button class="btn btn-primary" type="submit">Save profile</button>
+        </form>
+      </section>
+
+      <section class="dash-card">
+        <div class="dash-head"><h2>Your data</h2></div>
+        <p class="muted small">You can ask us to delete everything we hold about you: all applications, resumes, job alerts and newsletter subscription. This can't be undone.</p>
+        <form class="form delete-data" method="post" action="/account/delete" data-confirm="Permanently delete all your data?">
+          <label>Type DELETE to confirm<input name="confirm" autocomplete="off" required pattern="[Dd][Ee][Ll][Ee][Tt][Ee]"></label>
+          <button class="btn btn-sm btn-danger" type="submit">Delete my data</button>
+        </form>
+      </section>
+    </div>
+  </div>
+</section>
+
+<%- include('partials/foot') %>

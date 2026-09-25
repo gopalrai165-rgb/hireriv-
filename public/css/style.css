@@ -696,3 +696,24 @@ a.contact-card:hover { border-color: var(--primary); color: var(--text); }
 .share-client form { display: grid; gap: 6px; margin-top: 6px; }
 .share-client select, .share-client textarea { padding: .45em .6em; font-size: .85rem; }
 .share-client .btn { justify-self: start; }
+
+/* ============ Candidate account ============ */
+.app-list { margin-bottom: 16px; }
+.my-app { padding: 16px 0; border-bottom: 1px solid var(--line); }
+.my-app:last-child { border-bottom: 0; padding-bottom: 0; }
+.my-app-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+.my-app-head h3 { margin: 0; font-size: 1.05rem; }
+.my-app-head h3 a { color: var(--ink); }
+.my-app-head p { margin: 2px 0 0; }
+.steps { list-style: none; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 4px; padding: 0; margin: 14px 0 6px; counter-reset: step; }
+.steps li { position: relative; padding-top: 12px; font-size: .78rem; color: var(--muted); text-align: center; }
+.steps li::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 6px; border-radius: 99px; background: var(--line); }
+.steps li.done::before, .steps li.current::before { background: var(--primary); }
+.steps li.current { color: var(--ink); font-weight: 700; }
+.my-iv { margin-top: 10px; padding: 10px 12px; border-radius: 10px; background: #f3e8ff; color: #581c87; font-size: .88rem; }
+.my-iv a { color: #7e22ce; font-weight: 600; }
+.withdraw { margin-top: 10px; color: var(--err); }
+.delete-data { display: grid; gap: 10px; }
+.delete-data label { display: flex; flex-direction: column; gap: 6px; font-size: .85rem; font-weight: 600; color: var(--ink); }
+.delete-data .btn { justify-self: start; }
+@media (max-width: 520px) { .steps li span { display: none; } .steps li.current span { display: inline; position: absolute; left: 0; white-space: nowrap; } .steps { margin-bottom: 22px; } }

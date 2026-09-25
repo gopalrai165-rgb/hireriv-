@@ -100,7 +100,7 @@
           <tbody>
             <% rows.forEach(function (r) { %>
               <tr>
-                <td><b><%= r.name %></b><br><a href="mailto:<%= r.email %>"><%= r.email %></a><br><%= r.phone %>
+                <td><b><%= r.name %></b><% if (r.withdrawnAt) { %> <span class="pill st-rejected" title="Withdrawn <%= formatDate(r.withdrawnAt) %>">Withdrawn</span><% } %><br><a href="mailto:<%= r.email %>"><%= r.email %></a><br><%= r.phone %>
                   <% if (r.linkedin) { %><br><a href="<%= /^https?:\/\//i.test(r.linkedin) ? r.linkedin : '#' %>" target="_blank" rel="noopener noreferrer">LinkedIn / portfolio</a><% } %>
                   <% if (r.resume) { %><br><a href="/admin/resume/<%= encodeURIComponent(r.resume) %>">Download resume</a><% } %>
                 </td>

@@ -1,0 +1,29 @@
+<%- include('partials/head') %>
+
+<section class="section auth-section">
+  <div class="container auth-wrap">
+    <div class="form-card auth-card">
+      <span class="eyebrow">My applications</span>
+      <% if (typeof deleted !== 'undefined' && deleted) { %>
+        <h1>Your data is deleted</h1>
+        <p class="muted">We've removed your applications, resumes, job alerts and newsletter subscription. Thanks for considering <%= site.name %>.</p>
+        <a class="btn btn-primary btn-block" href="/jobs">Browse jobs</a>
+      <% } else if (sent) { %>
+        <h1>Check your email</h1>
+        <p class="notice" role="status">If you've applied with that address, a sign-in link is on its way. It works once and expires in 30 minutes.</p>
+        <p class="small auth-links">Didn't get it? Check spam, or <a href="/account/login">try again</a>.</p>
+      <% } else { %>
+        <h1>Track your applications</h1>
+        <p class="muted">Enter the email you applied with. We'll send you a one-time sign-in link, no password needed.</p>
+        <% if (errors.length) { %><p class="notice notice-err" role="alert"><%= errors.join(' ') %></p><% } %>
+        <form class="form" method="post" action="/account/login">
+          <div class="form-grid"><label class="span-2">Email<input type="email" name="email" required autocomplete="email"></label></div>
+          <button class="btn btn-primary btn-block" type="submit">Email me a sign-in link</button>
+        </form>
+        <p class="small auth-links">Haven't applied yet? <a href="/jobs">Find your next role</a></p>
+      <% } %>
+    </div>
+  </div>
+</section>
+
+<%- include('partials/foot') %>
