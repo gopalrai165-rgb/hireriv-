@@ -223,3 +223,32 @@ if (shareRow) {
     nativeBtn.addEventListener('click', () => navigator.share({ title, url }).catch(() => {}));
   }
 }
+
+// "Go back and fix" on form error pages.
+document.querySelectorAll('[data-history-back]').forEach((a) => {
+  a.addEventListener('click', (e) => {
+    if (history.length > 1) {
+      e.preventDefault();
+      history.back();
+    }
+  });
+});
+
+// Admin interview form: adapt the location field to the chosen format.
+const ivMode = document.getElementById('iv-mode');
+if (ivMode) {
+  const where = document.getElementById('iv-where');
+  const label = document.getElementById('iv-where-label');
+  const copy = {
+    'Video call': ['Meeting link*', 'https://meet.google.com/abc-defg-hij'],
+    Phone: ["Number we will call (defaults to the candidate's phone)", ivMode.dataset.candidatePhone || ''],
+    'In person': ['Office address*', 'e.g. 4th floor, 12 MG Road, Bengaluru'],
+  };
+  const sync = () => {
+    const c = copy[ivMode.value];
+    label.textContent = c[0];
+    where.placeholder = c[1];
+  };
+  ivMode.addEventListener('change', sync);
+  sync();
+}

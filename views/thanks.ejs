@@ -7,7 +7,7 @@
     <p class="lead"><%= message %></p>
     <div class="hero-ctas center">
       <% if (ok) { %><a href="/" class="btn btn-primary">Back to home</a><a href="/jobs" class="btn btn-outline">Browse jobs</a>
-      <% } else { %><a href="javascript:history.back()" class="btn btn-primary">Go back and fix</a><% } %>
+      <% } else { %><a href="/" class="btn btn-primary" data-history-back>Go back and fix</a><% } %>
     </div>
   </div>
 </section>

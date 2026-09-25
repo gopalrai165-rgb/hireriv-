@@ -76,3 +76,19 @@ Everything the site stores (jobs, blog posts, settings, applications, requests, 
 - Client and candidate sign-ins are stored in the database, so restarting the server keeps everyone signed in.
 
 > The testimonials, stats and sample jobs are placeholders. Replace them with real ones before going live.
+
+## Deploy
+Hireriv is one Node.js process with a SQLite file, so any host that runs **Node 22.13+** with a **persistent disk** works. Keep the database and `uploads/` on that disk, and put the site behind HTTPS.
+
+**Settings** – copy `.env.example` to `.env` and fill it in (`SITE_URL` with https, `ADMIN_PASS`, the `SMTP_*` values, `TRUST_PROXY=1` behind a proxy). Run with `npm run start:env`, or set the same variables in your host's dashboard. With `NODE_ENV=production` the server prints a warning at startup for anything important that is missing.
+
+**Docker** (on a VPS):
+```bash
+docker build -t hireriv .
+docker run -d --name hireriv -p 3004:3004 --env-file .env -v hireriv-data:/var/lib/hireriv --restart unless-stopped hireriv
+```
+The image keeps the database and resumes in the `hireriv-data` volume and checks `/healthz` every 30 seconds. Put Nginx or Caddy in front for HTTPS.
+
+**Render / Railway** – create a Node web service from this repo (build: `npm ci`, start: `node server.js`), attach a persistent disk mounted at e.g. `/var/data`, and set `DB_FILE=/var/data/hireriv.db`, `UPLOADS_DIR=/var/data/uploads`, `TRUST_PROXY=1` plus the settings above. Use `/healthz` as the health check path.
+
+**Built in:** security headers (Content-Security-Policy with no inline scripts, anti-framing, nosniff, referrer and permissions policies, HSTS on https), `/healthz` (checks the database), private areas hidden from search engines, and cache-busted CSS/JS.

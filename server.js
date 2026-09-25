@@ -21,7 +21,7 @@ const BASE_URL = (process.env.SITE_URL || `http://localhost:${PORT}`).replace(/\
 
 const DATA_DIR = path.join(__dirname, 'data');
 const SUBMISSIONS_DIR = path.join(DATA_DIR, 'submissions');
-const UPLOADS_DIR = path.join(__dirname, 'uploads');
+const UPLOADS_DIR = process.env.UPLOADS_DIR ? path.resolve(process.env.UPLOADS_DIR) : path.join(__dirname, 'uploads');
 fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 
 // ---------- database (SQLite) ----------
@@ -163,6 +163,44 @@ app.set('views', path.join(__dirname, 'views'));
 app.disable('x-powered-by');
 app.use(express.urlencoded({ extended: false, limit: '100kb' }));
 app.use(express.json({ limit: '100kb' }));
+// Security headers. The CSP only allows our own scripts (no inline JS), Google
+// Fonts for type, and never lets another site frame these pages.
+const CSP = [
+  "default-src 'self'",
+  "script-src 'self'",
+  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+  "font-src 'self' https://fonts.gstatic.com",
+  "img-src 'self' data:",
+  "connect-src 'self'",
+  "form-action 'self'",
+  "frame-ancestors 'none'",
+  "base-uri 'self'",
+  "object-src 'none'",
+].join('; ');
+const HTTPS = /^https:/.test(BASE_URL);
+app.use((req, res, next) => {
+  res.set({
+    'Content-Security-Policy': CSP,
+    'X-Content-Type-Options': 'nosniff',
+    'X-Frame-Options': 'DENY',
+    'Referrer-Policy': 'strict-origin-when-cross-origin',
+    'Permissions-Policy': 'camera=(), microphone=(), geolocation=(), payment=()',
+    'Cross-Origin-Opener-Policy': 'same-origin',
+  });
+  if (HTTPS) res.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+  next();
+});
+
+// Health check for hosts and uptime monitors: confirms the database answers.
+app.get('/healthz', (req, res) => {
+  try {
+    db.count('jobs');
+    res.set('Cache-Control', 'no-store').json({ ok: true, uptime: Math.round(process.uptime()) });
+  } catch (err) {
+    res.status(503).json({ ok: false });
+  }
+});
+
 app.use(express.static(path.join(__dirname, 'public'), { maxAge: '1h' }));
 
 app.locals.site = site;
@@ -198,6 +236,9 @@ app.get('/robots.txt', (req, res) =>
   res.type('text/plain').send(`User-agent: *
 Disallow: /admin
 Disallow: /api/
+Disallow: /account
+Disallow: /employer
+Disallow: /healthz
 
 Sitemap: ${BASE_URL}/sitemap.xml
 `)
@@ -744,6 +785,16 @@ for (const signal of ['SIGINT', 'SIGTERM']) {
     db.close();
     process.exit(0);
   });
+}
+
+// Warn loudly about settings a live site needs.
+if (process.env.NODE_ENV === 'production') {
+  const missing = [];
+  if (!process.env.SITE_URL) missing.push('SITE_URL (links, sitemap and Google data will say localhost)');
+  if (!ADMIN_PASS) missing.push('ADMIN_PASS (admin panel is disabled)');
+  if (!process.env.SMTP_HOST) missing.push('SMTP_HOST (emails are only saved to data/outbox)');
+  if (process.env.SITE_URL && !HTTPS) missing.push('SITE_URL should use https://');
+  for (const m of missing) console.warn(`[config] Missing or insecure: ${m}`);
 }
 
 app.listen(PORT, () => console.log(`Hireriv running at http://localhost:${PORT} · email: ${mailer.mode}`));

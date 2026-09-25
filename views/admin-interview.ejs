@@ -14,7 +14,7 @@
           <select name="duration"><% durations.forEach(function (d) { %><option value="<%= d %>"<%= d === Number(f.duration) ? ' selected' : '' %>><%= d %> minutes</option><% }) %></select>
         </label>
         <label>Format
-          <select name="mode" id="iv-mode"><% modes.forEach(function (m) { %><option<%= m === f.mode ? ' selected' : '' %>><%= m %></option><% }) %></select>
+          <select name="mode" id="iv-mode" data-candidate-phone="<%= a.phone %>"><% modes.forEach(function (m) { %><option<%= m === f.mode ? ' selected' : '' %>><%= m %></option><% }) %></select>
         </label>
         <label class="span-2"><span id="iv-where-label">Meeting link / address / phone</span><input name="where" id="iv-where" value="<%= f.where %>" placeholder="https://meet.google.com/… or office address"></label>
         <label class="span-2">Interviewer<input name="interviewer" value="<%= f.interviewer %>" placeholder="e.g. Priya Sharma, Engineering Manager"></label>
@@ -27,21 +27,5 @@
   </div>
 </section>
 
-<script>
-  // Adapt the location field to the chosen format.
-  (function () {
-    var mode = document.getElementById('iv-mode');
-    var where = document.getElementById('iv-where');
-    var label = document.getElementById('iv-where-label');
-    var copy = {
-      'Video call': ['Meeting link*', 'https://meet.google.com/abc-defg-hij'],
-      'Phone': ['Number we will call (defaults to the candidate\'s phone)', '<%= a.phone %>'],
-      'In person': ['Office address*', 'e.g. 4th floor, 12 MG Road, Bengaluru'],
-    };
-    function sync() { var c = copy[mode.value]; label.textContent = c[0]; where.placeholder = c[1]; }
-    mode.addEventListener('change', sync);
-    sync();
-  })();
-</script>
 
 <%- include('partials/foot') %>
