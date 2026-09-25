@@ -8,7 +8,11 @@ A complete website for a tech-driven staffing and recruitment company, built wit
 - **Hire a Team** (`/hire`): employer requirement form, engagement models and the hiring process
 - **About**, **Blog** (with articles) and **Contact** pages
 - Newsletter signup, a floating WhatsApp button, and a mobile-responsive layout
-- **Admin panel** (`/admin`): view every application, hiring request, contact message and newsletter signup, and download resumes
+- **Admin panel** (`/admin`):
+  - **Jobs**: post, edit, close/reopen and delete openings. Closed jobs drop out of listings, keep their page, and stop taking applications
+  - **Applications pipeline**: move candidates through New → Screening → Interview → Offered → Hired / Rejected, add recruiter notes, filter by stage and download resumes
+  - Hiring requests, contact messages and newsletter signups, with delete on every entry
+  - **Export CSV** on every tab (Excel-ready)
 
 ## Run it
 ```bash
@@ -25,7 +29,7 @@ Then open http://localhost:3000/admin and log in as `admin` (change the username
 | What | Where |
 |---|---|
 | Phone, email, address, WhatsApp, social links, stats | `data/site.json` |
-| Job listings | `data/jobs.json` |
+| Job listings | `/admin` → Jobs (saved to `data/jobs.json`) |
 | Blog posts | `data/posts.json` |
 | Colours & fonts | CSS variables at the top of `public/css/style.css` |
 | Page content | `views/*.ejs` |

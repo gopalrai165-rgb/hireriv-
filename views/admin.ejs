@@ -2,29 +2,100 @@
 
 <section class="section admin">
   <div class="container">
-    <h1>Submissions</h1>
+    <div class="admin-head">
+      <h1>Admin</h1>
+      <div class="admin-actions">
+        <% if (tab === 'jobs') { %><a class="btn btn-primary btn-sm" href="/admin/jobs/new">+ Post a job</a><% } %>
+        <% if (rows.length) { %><a class="btn btn-outline btn-sm" href="/admin/export/<%= tab %>.csv">Export CSV</a><% } %>
+      </div>
+    </div>
+    <% if (msg) { %><p class="notice" role="status"><%= msg %></p><% } %>
     <div class="tabs">
       <% tabs.forEach(function (t) { %>
         <a class="tab<%= t === tab ? ' active' : '' %>" href="/admin?tab=<%= t %>"><%= t.replace('-', ' ') %> <span class="count"><%= counts[t] %></span></a>
       <% }) %>
     </div>
+
+    <% if (tab === 'applications') { %>
+      <div class="pipeline">
+        <a class="pill<%= !status ? ' active' : '' %>" href="/admin?tab=applications">All <b><%= counts.applications %></b></a>
+        <% statuses.forEach(function (s) { %>
+          <a class="pill st-<%= s.toLowerCase() %><%= s === status ? ' active' : '' %>" href="/admin?tab=applications&status=<%= s %>"><%= s %> <b><%= statusCounts[s] %></b></a>
+        <% }) %>
+      </div>
+    <% } %>
+
     <% if (!rows.length) { %>
-      <div class="empty"><p>No <%= tab.replace('-', ' ') %> yet.</p></div>
-    <% } else { %>
-      <% const cols = Object.keys(rows[0]).filter(function (k) { return k !== 'id'; }); %>
+      <div class="empty"><p>No <%= status ? status.toLowerCase() + ' ' : '' %><%= tab.replace('-', ' ') %> yet.</p></div>
+
+    <% } else if (tab === 'jobs') { %>
       <div class="table-wrap">
         <table>
-          <thead><tr><% cols.forEach(function (c) { %><th><%= c %></th><% }) %></tr></thead>
+          <thead><tr><th>Job</th><th>Location</th><th>Posted</th><th>Applicants</th><th>Status</th><th></th></tr></thead>
+          <tbody>
+            <% rows.forEach(function (j) { %>
+              <tr>
+                <td><a href="/jobs/<%= j.id %>" target="_blank" rel="noopener"><b><%= j.title %></b></a><br><span class="muted"><%= j.company %> · <%= j.category %> · <%= j.id %></span></td>
+                <td><%= j.location %><br><span class="muted"><%= j.mode %> · <%= j.type %></span></td>
+                <td><%= formatDate(j.posted) %></td>
+                <td><a href="/admin?tab=applications"><%= applicants[j.id] || 0 %></a></td>
+                <td><span class="pill st-<%= j.status === 'open' ? 'hired' : 'rejected' %>"><%= j.status === 'open' ? 'Open' : 'Closed' %></span></td>
+                <td class="row-actions">
+                  <a class="btn btn-outline btn-sm" href="/admin/jobs/<%= j.id %>/edit">Edit</a>
+                  <form method="post" action="/admin/jobs/<%= j.id %>/toggle"><button class="btn btn-outline btn-sm"><%= j.status === 'open' ? 'Close' : 'Reopen' %></button></form>
+                  <form method="post" action="/admin/jobs/<%= j.id %>/delete" data-confirm="Delete this job permanently? Existing applications are kept."><button class="btn btn-sm btn-danger">Delete</button></form>
+                </td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+
+    <% } else if (tab === 'applications') { %>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Candidate</th><th>Job</th><th>Profile</th><th>Received</th><th>Pipeline</th><th></th></tr></thead>
+          <tbody>
+            <% rows.forEach(function (r) { %>
+              <tr>
+                <td><b><%= r.name %></b><br><a href="mailto:<%= r.email %>"><%= r.email %></a><br><%= r.phone %>
+                  <% if (r.linkedin) { %><br><a href="<%= /^https?:\/\//i.test(r.linkedin) ? r.linkedin : '#' %>" target="_blank" rel="noopener noreferrer">LinkedIn / portfolio</a><% } %>
+                  <% if (r.resume) { %><br><a href="/admin/resume/<%= encodeURIComponent(r.resume) %>">Download resume</a><% } %>
+                </td>
+                <td><%= r.jobTitle %></td>
+                <td><%= r.experience %><br><span class="muted"><%= r.location || '—' %> · notice <%= r.noticePeriod %></span>
+                  <% if (r.message) { %><details><summary>Message</summary><%= r.message %></details><% } %>
+                </td>
+                <td><%= new Date(r.createdAt).toLocaleString('en-IN') %></td>
+                <td>
+                  <form class="form status-form" method="post" action="/admin/applications/<%= r.id %>/status">
+                    <input type="hidden" name="filter" value="<%= status %>">
+                    <select name="status" aria-label="Status for <%= r.name %>">
+                      <% statuses.forEach(function (s) { %><option<%= s === (r.status || 'New') ? ' selected' : '' %>><%= s %></option><% }) %>
+                    </select>
+                    <textarea name="notes" rows="2" placeholder="Recruiter notes" aria-label="Notes for <%= r.name %>"><%= r.notes || '' %></textarea>
+                    <button class="btn btn-primary btn-sm">Save</button>
+                  </form>
+                </td>
+                <td><form method="post" action="/admin/applications/<%= r.id %>/delete" data-confirm="Delete this application and its resume?"><button class="btn btn-sm btn-danger">Delete</button></form></td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+
+    <% } else { %>
+      <% const cols = [...new Set(rows.flatMap(function (r) { return Object.keys(r); }))].filter(function (k) { return k !== 'id'; }); %>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><% cols.forEach(function (c) { %><th><%= c %></th><% }) %><th></th></tr></thead>
           <tbody>
             <% rows.forEach(function (r) { %>
               <tr>
                 <% cols.forEach(function (c) { %>
-                  <td>
-                    <% if (c === 'resume' && r[c]) { %><a href="/admin/resume/<%= encodeURIComponent(r[c]) %>">Download</a>
-                    <% } else if (c === 'createdAt') { %><%= new Date(r[c]).toLocaleString('en-IN') %>
-                    <% } else { %><%= r[c] %><% } %>
-                  </td>
+                  <td><% if (c === 'createdAt') { %><%= new Date(r[c]).toLocaleString('en-IN') %><% } else { %><%= r[c] %><% } %></td>
                 <% }) %>
+                <td><form method="post" action="/admin/<%= tab %>/<%= r.id %>/delete" data-confirm="Delete this entry?"><button class="btn btn-sm btn-danger">Delete</button></form></td>
               </tr>
             <% }) %>
           </tbody>

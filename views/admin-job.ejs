@@ -1,0 +1,39 @@
+<%- include('partials/head') %>
+
+<section class="section admin">
+  <div class="container narrow">
+    <a href="/admin?tab=jobs" class="back-link">← All jobs</a>
+    <h1><%= title %></h1>
+    <% if (errors.length) { %><p class="notice notice-err" role="alert">Please fix: <%= errors.join(', ') %></p><% } %>
+    <form class="form form-card" method="post" action="/admin/jobs<%= job.id ? '/' + job.id : '' %>">
+      <div class="form-grid">
+        <label class="span-2">Job title*<input name="title" required value="<%= job.title || '' %>" placeholder="e.g. Senior Java Developer"></label>
+        <label>Company / client*<input name="company" required value="<%= job.company || '' %>" placeholder="e.g. Fintech Client"></label>
+        <label>Location*<input name="location" required value="<%= job.location || '' %>" placeholder="e.g. Bengaluru"></label>
+        <label>Work mode
+          <select name="mode"><% modes.forEach(function (m) { %><option<%= m === job.mode ? ' selected' : '' %>><%= m %></option><% }) %></select>
+        </label>
+        <label>Job type
+          <select name="type"><% jobTypes.forEach(function (t) { %><option<%= t === job.type ? ' selected' : '' %>><%= t %></option><% }) %></select>
+        </label>
+        <label>Category*<input name="category" required list="job-categories" value="<%= job.category || '' %>"></label>
+        <datalist id="job-categories"><% jobCategories.forEach(function (c) { %><option value="<%= c %>"><% }) %></datalist>
+        <label>Experience<input name="experience" value="<%= job.experience || '' %>" placeholder="e.g. 3-5 years"></label>
+        <label>Salary<input name="salary" value="<%= job.salary || '' %>" placeholder="e.g. ₹14 – 20 LPA"></label>
+        <label>Status
+          <select name="status">
+            <option value="open"<%= job.status !== 'closed' ? ' selected' : '' %>>Open – accepting applications</option>
+            <option value="closed"<%= job.status === 'closed' ? ' selected' : '' %>>Closed – hidden from listings</option>
+          </select>
+        </label>
+        <label class="span-2">Key skills <span class="muted small">(comma separated)</span><input name="skills" value="<%= (job.skills || []).join(', ') %>" placeholder="React, Node.js, AWS"></label>
+        <label class="span-2">About the role*<textarea name="description" rows="3" required><%= job.description || '' %></textarea></label>
+        <label class="span-2">Responsibilities <span class="muted small">(one per line)</span><textarea name="responsibilities" rows="5"><%= (job.responsibilities || []).join('\n') %></textarea></label>
+      </div>
+      <button class="btn btn-primary" type="submit"><%= job.id ? 'Save changes' : 'Publish job' %></button>
+      <a class="btn btn-outline" href="/admin?tab=jobs">Cancel</a>
+    </form>
+  </div>
+</section>
+
+<%- include('partials/foot') %>

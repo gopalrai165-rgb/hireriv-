@@ -482,6 +482,29 @@ a.contact-card:hover { border-color: var(--primary); color: var(--text); }
 .admin th, .admin td { padding: 10px 14px; text-align: left; border-bottom: 1px solid var(--line); vertical-align: top; }
 .admin th { background: var(--tint); color: var(--ink); white-space: nowrap; }
 .admin td { max-width: 320px; }
+.admin-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 18px; }
+.admin-head h1 { margin: 0; }
+.admin-actions { display: flex; gap: 10px; }
+.notice { background: var(--primary-50); color: var(--primary-600); border-radius: var(--radius-sm); padding: 12px 16px; font-weight: 600; }
+.notice-err { background: #fee2e2; color: var(--err); }
+.btn-danger { background: #fff; border-color: #fecaca; color: var(--err); }
+.btn-danger:hover { background: #fee2e2; color: var(--err); }
+.row-actions { white-space: nowrap; }
+.row-actions form { display: inline; }
+.pipeline { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 18px; }
+.pill { display: inline-block; padding: .3em .85em; border-radius: 999px; font-size: .82rem; font-weight: 700; background: var(--tint); color: var(--ink); border: 1px solid transparent; }
+.pipeline .pill.active { border-color: currentColor; }
+.pill b { opacity: .7; margin-left: 4px; }
+.st-new { background: #e7efff; color: #2352c7; }
+.st-screening { background: #fff1e6; color: #b85410; }
+.st-interview { background: #f3e8ff; color: #7e22ce; }
+.st-offered { background: var(--primary-50); color: var(--primary-600); }
+.st-hired { background: #dcfce7; color: #15803d; }
+.st-rejected { background: #fee2e2; color: #b91c1c; }
+.status-form { display: grid; gap: 6px; min-width: 190px; }
+.status-form select, .status-form textarea { padding: .45em .6em; font-size: .85rem; }
+.admin details summary { cursor: pointer; color: var(--primary); font-weight: 600; margin-top: 4px; }
+.admin form.form-card .btn + .btn { margin-left: 8px; }
 
 /* ============ Reveal on scroll ============ */
 .js .reveal { opacity: 0; transform: translateY(18px); transition: opacity .6s ease, transform .6s ease; }

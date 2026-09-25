@@ -9,7 +9,7 @@
         <h1><%= job.title %></h1>
         <p class="lead"><%= job.company %></p>
       </div>
-      <a href="#apply" class="btn btn-primary btn-lg">Apply now</a>
+      <% if (job.status !== 'closed') { %><a href="#apply" class="btn btn-primary btn-lg">Apply now</a><% } else { %><span class="pill st-rejected">No longer accepting applications</span><% } %>
     </div>
     <ul class="job-meta job-meta-lg">
       <li><svg class="i"><use href="#i-pin"/></svg><%= job.location %></li>
@@ -33,8 +33,14 @@
       <p>You'll work with a dedicated recruiter who shares honest feedback, helps you prepare for each interview round and negotiates on your behalf. It's completely free for candidates.</p>
     </article>
     <aside class="form-card sticky" id="apply">
-      <h2>Apply for this job</h2>
-      <%- include('partials/apply-form', { jobId: job.id }) %>
+      <% if (job.status === 'closed') { %>
+        <h2>This role is closed</h2>
+        <p class="muted">We're no longer accepting applications for this job. Browse our open roles or send us your CV, and we'll match you to the next one.</p>
+        <a href="/jobs" class="btn btn-primary btn-block">See open jobs</a>
+      <% } else { %>
+        <h2>Apply for this job</h2>
+        <%- include('partials/apply-form', { jobId: job.id }) %>
+      <% } %>
     </aside>
   </div>
 </section>
