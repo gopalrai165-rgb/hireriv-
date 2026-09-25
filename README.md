@@ -49,7 +49,7 @@ Without SMTP settings, every email is saved to `data/outbox/*.eml` (open these i
 | `SMTP_HOST` | `smtp.gmail.com` | Turns on real sending |
 | `SMTP_PORT` | `587` | `465` uses SSL |
 | `SMTP_USER` / `SMTP_PASS` | `you@gmail.com` / app password | Gmail needs an App Password |
-| `MAIL_FROM` | `"Hireriv" <jobs@hireriv.com>` | Defaults to the email in `data/site.json` |
+| `MAIL_FROM` | `"Hireriv" <jobs@hireriv.com>` | Defaults to the site email in Admin → Settings |
 | `NOTIFY_EMAIL` | `recruiters@hireriv.com` | Where team alerts go; defaults to the site email |
 | `SITE_URL` | `https://hireriv.com` | Your live domain: used in emails, canonical URLs, the sitemap and job structured data. **Set it in production.** |
 
