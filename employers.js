@@ -47,30 +47,29 @@ function parseCookies(header) {
 }
 
 function register(app, deps) {
-  const { dataDir, site, mailer, baseUrl, adminAuth, sameOrigin, adminUrl, limit, readSubmissions, saveSubmission, getJobs, appStatuses } = deps;
-  const FILE = path.join(dataDir, 'submissions', 'employers.json');
-  const read = () => (fs.existsSync(FILE) ? JSON.parse(fs.readFileSync(FILE, 'utf8')) : []);
-  const write = (list) => fs.writeFileSync(FILE, JSON.stringify(list, null, 2));
+  const { db, site, mailer, baseUrl, adminAuth, sameOrigin, adminUrl, limit, readSubmissions, saveSubmission, getJobs, appStatuses } = deps;
+  const read = () => db.all('employers');
+  const write = (list) => db.replaceAll('employers', list);
   const secureCookie = /^https:/.test(baseUrl);
 
-  // ---------- sessions (in memory: a restart just asks clients to log in again) ----------
-  const sessions = new Map();
+  // ---------- sessions (stored in the database, so restarts keep clients signed in) ----------
+  const endAllSessions = (employerId) => db.sessions.deleteSubject('employer', employerId);
   function startSession(res, employerId) {
     const token = newToken();
-    sessions.set(sha(token), { employerId, exp: Date.now() + SESSION_DAYS * 86400000 });
+    db.sessions.set('employer', sha(token), employerId, Date.now() + SESSION_DAYS * 86400000);
     res.cookie(COOKIE, token, { httpOnly: true, sameSite: 'lax', secure: secureCookie, maxAge: SESSION_DAYS * 86400000, path: '/' });
   }
   function endSession(req, res) {
     const token = parseCookies(req.headers.cookie)[COOKIE];
-    if (token) sessions.delete(sha(token));
+    if (token) db.sessions.delete('employer', sha(token));
     res.clearCookie(COOKIE, { path: '/' });
   }
   function currentEmployer(req) {
     const token = parseCookies(req.headers.cookie)[COOKIE];
     if (!token) return null;
-    const s = sessions.get(sha(token));
-    if (!s || s.exp < Date.now()) return null;
-    const emp = read().find((e) => e.id === s.employerId);
+    const s = db.sessions.get('employer', sha(token));
+    if (!s) return null;
+    const emp = read().find((e) => e.id === s.subject);
     return emp && emp.active ? emp : null;
   }
   const requireEmployer = (req, res, next) => {
@@ -80,7 +79,7 @@ function register(app, deps) {
     res.locals.employer = emp;
     next();
   };
-  setInterval(() => { for (const [k, s] of sessions) if (s.exp < Date.now()) sessions.delete(k); }, 3600000).unref();
+  setInterval(() => db.sessions.purgeExpired(), 3600000).unref();
 
   // One link kind at a time per account; issuing a new link voids the old one.
   function issueLink(emp, kind, hours) {
@@ -135,7 +134,7 @@ function register(app, deps) {
     emp.active = !emp.active;
     write(list);
     // Deactivating signs the client out everywhere.
-    if (!emp.active) for (const [k, s] of sessions) if (s.employerId === emp.id) sessions.delete(k);
+    if (!emp.active) endAllSessions(emp.id);
     res.redirect(adminUrl('clients', `${emp.company} ${emp.active ? 're-activated' : 'deactivated'}`));
   });
 
@@ -158,7 +157,7 @@ function register(app, deps) {
       emp.passwordSetAt = new Date().toISOString();
       write(list);
       // A password change ends every other session for this account.
-      for (const [k, s] of sessions) if (s.employerId === emp.id) sessions.delete(k);
+      endAllSessions(emp.id);
       startSession(res, emp.id);
       res.redirect(kind === 'invite' ? '/employer?welcome=1' : '/employer?msg=' + encodeURIComponent('Password updated. You are signed in.'));
     });

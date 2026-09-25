@@ -28,17 +28,15 @@ function parseCookies(header) {
 }
 
 function register(app, deps) {
-  const { mailer, baseUrl, sameOrigin, limit, readSubmissions, writeSubmissions, uploadsDir, getJobs, formatIst, interviewIcs, site } = deps;
+  const { db, mailer, baseUrl, sameOrigin, limit, readSubmissions, writeSubmissions, uploadsDir, getJobs, formatIst, interviewIcs, site } = deps;
   const secureCookie = /^https:/.test(baseUrl);
-  const links = new Map(); // sha(token) -> { email, exp }
-  const sessions = new Map(); // sha(token) -> { email, exp }
 
   const mine = (email) => readSubmissions('applications').filter((a) => String(a.email).toLowerCase() === email);
 
   function currentEmail(req) {
     const token = parseCookies(req.headers.cookie)[COOKIE];
-    const s = token && sessions.get(sha(token));
-    return s && s.exp > Date.now() ? s.email : null;
+    const s = token && db.sessions.get('candidate', sha(token));
+    return s ? s.subject : null;
   }
   const requireCandidate = (req, res, next) => {
     const email = currentEmail(req);
@@ -46,10 +44,7 @@ function register(app, deps) {
     req.candidateEmail = email;
     next();
   };
-  setInterval(() => {
-    const now = Date.now();
-    for (const m of [links, sessions]) for (const [k, v] of m) if (v.exp < now) m.delete(k);
-  }, 600000).unref();
+  setInterval(() => db.sessions.purgeExpired(), 600000).unref();
 
   const page = (res, view, locals, status = 200) => res.status(status).render(view, { page: 'account', noindex: true, errors: [], ...locals });
   const back = (res, msg) => res.redirect('/account?msg=' + encodeURIComponent(msg));
@@ -66,7 +61,7 @@ function register(app, deps) {
     // Only emails that have applied get a link; the reply is identical either way.
     if (mine(email).length) {
       const token = newToken();
-      links.set(sha(token), { email, exp: Date.now() + LINK_MINUTES * 60000 });
+      db.sessions.set('candidate-link', sha(token), email, Date.now() + LINK_MINUTES * 60000);
       mailer.candidateSignIn(email, `${baseUrl}/account/verify/${token}`, LINK_MINUTES);
     }
     page(res, 'account-login', { title: 'Check your email', sent: true });
@@ -74,25 +69,25 @@ function register(app, deps) {
 
   // GET shows a button (mail scanners prefetch links); POST consumes the token.
   app.get('/account/verify/:token', (req, res) => {
-    const l = links.get(sha(req.params.token));
-    if (!l || l.exp < Date.now()) return page(res, 'account-login', { title: 'Link expired', sent: false, errors: ['That sign-in link has expired or was already used. Enter your email for a new one.'] }, 410);
-    page(res, 'account-verify', { title: 'Sign in', email: l.email });
+    const l = db.sessions.get('candidate-link', sha(req.params.token));
+    if (!l) return page(res, 'account-login', { title: 'Link expired', sent: false, errors: ['That sign-in link has expired or was already used. Enter your email for a new one.'] }, 410);
+    page(res, 'account-verify', { title: 'Sign in', email: l.subject });
   });
 
   app.post('/account/verify/:token', sameOrigin, (req, res) => {
     const key = sha(req.params.token);
-    const l = links.get(key);
-    links.delete(key);
-    if (!l || l.exp < Date.now()) return page(res, 'account-login', { title: 'Link expired', sent: false, errors: ['That sign-in link has expired or was already used. Enter your email for a new one.'] }, 410);
+    const l = db.sessions.get('candidate-link', key);
+    db.sessions.delete('candidate-link', key);
+    if (!l) return page(res, 'account-login', { title: 'Link expired', sent: false, errors: ['That sign-in link has expired or was already used. Enter your email for a new one.'] }, 410);
     const token = newToken();
-    sessions.set(sha(token), { email: l.email, exp: Date.now() + SESSION_DAYS * 86400000 });
+    db.sessions.set('candidate', sha(token), l.subject, Date.now() + SESSION_DAYS * 86400000);
     res.cookie(COOKIE, token, { httpOnly: true, sameSite: 'lax', secure: secureCookie, maxAge: SESSION_DAYS * 86400000, path: '/' });
     res.redirect('/account');
   });
 
   app.post('/account/logout', sameOrigin, (req, res) => {
     const token = parseCookies(req.headers.cookie)[COOKIE];
-    if (token) sessions.delete(sha(token));
+    if (token) db.sessions.delete('candidate', sha(token));
     res.clearCookie(COOKIE, { path: '/' });
     res.redirect('/account/login');
   });
@@ -186,7 +181,7 @@ function register(app, deps) {
       const rest = subs.filter((s) => String(s.email).toLowerCase() !== req.candidateEmail);
       if (rest.length !== subs.length) writeSubmissions(type, rest);
     }
-    for (const [k, s] of sessions) if (s.email === req.candidateEmail) sessions.delete(k);
+    db.sessions.deleteSubject('candidate', req.candidateEmail);
     res.clearCookie(COOKIE, { path: '/' });
     page(res, 'account-login', { title: 'Your data has been deleted', sent: false, deleted: true });
   });

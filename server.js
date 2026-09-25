@@ -4,6 +4,7 @@ const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
 const { createMailer } = require('./mailer');
+const { open: openDb } = require('./db');
 const seo = require('./seo');
 const { skillMatch, buildPool, searchPool } = require('./match');
 const { parsePost, parseSettings, SOCIAL } = require('./content');
@@ -21,27 +22,38 @@ const BASE_URL = (process.env.SITE_URL || `http://localhost:${PORT}`).replace(/\
 const DATA_DIR = path.join(__dirname, 'data');
 const SUBMISSIONS_DIR = path.join(DATA_DIR, 'submissions');
 const UPLOADS_DIR = path.join(__dirname, 'uploads');
-fs.mkdirSync(SUBMISSIONS_DIR, { recursive: true });
 fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 
-const readJson = (file) => JSON.parse(fs.readFileSync(path.join(DATA_DIR, file), 'utf8'));
-const site = readJson('site.json');
+// ---------- database (SQLite) ----------
+// All mutable data lives in one SQLite file. data/*.json are seed content for a
+// fresh install, and old data/submissions/*.json files are imported once.
+const db = openDb(process.env.DB_FILE || path.join(DATA_DIR, 'hireriv.db'));
+const FORM_TYPES = ['applications', 'hire-requests', 'contacts', 'newsletter', 'job-alerts'];
+for (const type of [...FORM_TYPES, 'employers']) {
+  const n = db.importOnce(type, path.join(SUBMISSIONS_DIR, `${type}.json`));
+  if (n) console.log(`Imported ${n} ${type} from data/submissions/${type}.json`);
+}
+db.importOnce('jobs', path.join(DATA_DIR, 'jobs.json'));
+db.importOnce('posts', path.join(DATA_DIR, 'posts.json'));
+db.importOnce('site', path.join(DATA_DIR, 'site.json'));
+
+const site = db.all('site')[0];
+const saveSite = () => db.replaceAll('site', [site]);
 const mailer = createMailer(site);
-// Posts are edited from /admin and written back to data/posts.json. The array is
-// mutated in place so every route keeps seeing the same list.
-const POSTS_FILE = path.join(DATA_DIR, 'posts.json');
-const posts = readJson('posts.json').map((p) => ({ status: 'published', ...p }));
+
+// Posts are edited from /admin. The array is mutated in place so every route
+// keeps seeing the same list; savePosts() writes it back to the database.
+const posts = db.all('posts').map((p) => ({ status: 'published', ...p }));
 const sortPosts = () => posts.sort((a, b) => b.date.localeCompare(a.date));
 sortPosts();
 function savePosts() {
   sortPosts();
-  fs.writeFileSync(POSTS_FILE, JSON.stringify(posts, null, 2));
+  db.replaceAll('posts', posts);
 }
 const livePosts = () => posts.filter((p) => p.status === 'published');
 
-// ---------- jobs (editable from /admin, persisted back to data/jobs.json) ----------
-const JOBS_FILE = path.join(DATA_DIR, 'jobs.json');
-let jobs = readJson('jobs.json').map((j) => ({ status: 'open', ...j }));
+// ---------- jobs (editable from /admin) ----------
+let jobs = db.all('jobs').map((j) => ({ status: 'open', ...j }));
 // Jobs that were live before job alerts existed count as already announced.
 for (const j of jobs) if (j.status === 'open' && !j.alertsSentAt) j.alertsSentAt = j.posted;
 const sortJobs = () => jobs.sort((a, b) => b.posted.localeCompare(a.posted));
@@ -49,7 +61,7 @@ sortJobs();
 
 function saveJobs() {
   sortJobs();
-  fs.writeFileSync(JOBS_FILE, JSON.stringify(jobs, null, 2));
+  db.replaceAll('jobs', jobs);
 }
 
 const openJobs = () => jobs.filter((j) => j.status === 'open');
@@ -61,23 +73,13 @@ const JOB_TYPES = ['Full-time', 'Contract', 'Part-time', 'Internship'];
 // Application pipeline stages a recruiter moves a candidate through.
 const APP_STATUSES = ['New', 'Screening', 'Interview', 'Offered', 'Hired', 'Rejected'];
 
-// ---------- submission storage (JSON files, one per form type) ----------
-const FORM_TYPES = ['applications', 'hire-requests', 'contacts', 'newsletter', 'job-alerts'];
-
-function readSubmissions(type) {
-  const file = path.join(SUBMISSIONS_DIR, `${type}.json`);
-  return fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')) : [];
-}
-
-function writeSubmissions(type, list) {
-  fs.writeFileSync(path.join(SUBMISSIONS_DIR, `${type}.json`), JSON.stringify(list, null, 2));
-}
+// ---------- submissions (one collection per form type, newest first) ----------
+const readSubmissions = (type) => db.all(type);
+const writeSubmissions = (type, list) => db.replaceAll(type, list);
 
 function saveSubmission(type, record) {
-  const list = readSubmissions(type);
   const entry = { id: crypto.randomUUID(), createdAt: new Date().toISOString(), ...record };
-  list.unshift(entry);
-  writeSubmissions(type, list);
+  db.prepend(type, entry);
   return entry;
 }
 
@@ -420,12 +422,12 @@ const adminUrl = (tab, msg) => `/admin?tab=${tab}${msg ? `&msg=${encodeURICompon
 
 interviews.register(app, { adminAuth, sameOrigin, readSubmissions, writeSubmissions, mailer, site, adminUrl });
 const clients = employers.register(app, {
-  dataDir: DATA_DIR, site, mailer, baseUrl: BASE_URL, adminAuth, sameOrigin, adminUrl, limit,
+  db, site, mailer, baseUrl: BASE_URL, adminAuth, sameOrigin, adminUrl, limit,
   readSubmissions, saveSubmission, getJobs: () => jobs, appStatuses: APP_STATUSES,
   writeSubmissions, uploadsDir: UPLOADS_DIR, skillMatch,
 });
 candidates.register(app, {
-  mailer, baseUrl: BASE_URL, sameOrigin, limit, readSubmissions, writeSubmissions,
+  db, mailer, baseUrl: BASE_URL, sameOrigin, limit, readSubmissions, writeSubmissions,
   uploadsDir: UPLOADS_DIR, getJobs: () => jobs, formatIst: interviews.formatIst, interviewIcs, site,
 });
 
@@ -624,7 +626,7 @@ app.post('/admin/settings', adminAuth, sameOrigin, (req, res) => {
     return res.status(400).render('admin', { title: 'Admin', page: 'admin', tab: 'settings', tabs: ADMIN_TABS, counts: {}, status: '', msg: '', rows: [], form: settings, errors, social: SOCIAL });
   }
   Object.assign(site, settings);
-  fs.writeFileSync(path.join(DATA_DIR, 'site.json'), JSON.stringify(site, null, 2));
+  saveSite();
   res.redirect(adminUrl('settings', 'Settings saved. The website is updated.'));
 });
 
@@ -695,6 +697,13 @@ app.post('/admin/:type/:id/delete', adminAuth, sameOrigin, (req, res, next) => {
   res.redirect(adminUrl(type, 'Deleted 1 entry'));
 });
 
+// Full database snapshot (VACUUM INTO) for backups; safe while the site runs.
+app.get('/admin/backup', adminAuth, (req, res) => {
+  const file = path.join(require('os').tmpdir(), `hireriv-backup-${Date.now()}.db`);
+  db.backupTo(file);
+  res.download(file, `hireriv-${new Date().toISOString().slice(0, 10)}.db`, () => fs.unlink(file, () => {}));
+});
+
 // Leading = + - @ would be run as a formula by Excel/Sheets, so neutralise it.
 function csvCell(v) {
   let s = Array.isArray(v) ? v.join('; ') : String(v ?? '');
@@ -728,5 +737,13 @@ app.use((err, req, res, next) => {
   console.error(err);
   res.status(500).render('thanks', { title: 'Something went wrong', page: '', ok: false, message: 'Something went wrong on our side. Please try again.', noindex: true });
 });
+
+// Flush and close the database cleanly on shutdown.
+for (const signal of ['SIGINT', 'SIGTERM']) {
+  process.on(signal, () => {
+    db.close();
+    process.exit(0);
+  });
+}
 
 app.listen(PORT, () => console.log(`Hireriv running at http://localhost:${PORT} · email: ${mailer.mode}`));

@@ -4,3 +4,6 @@ uploads/*
 data/submissions/
 .env
 data/outbox/
+data/*.db
+data/*.db-wal
+data/*.db-shm
