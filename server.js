@@ -6,6 +6,7 @@ const crypto = require('crypto');
 const { createMailer } = require('./mailer');
 const seo = require('./seo');
 const { skillMatch, buildPool, searchPool } = require('./match');
+const { parsePost } = require('./content');
 
 const PORT = process.env.PORT || 3004;
 const ADMIN_USER = process.env.ADMIN_USER || 'admin';
@@ -22,7 +23,17 @@ fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 const readJson = (file) => JSON.parse(fs.readFileSync(path.join(DATA_DIR, file), 'utf8'));
 const site = readJson('site.json');
 const mailer = createMailer(site);
-const posts = readJson('posts.json').sort((a, b) => b.date.localeCompare(a.date));
+// Posts are edited from /admin and written back to data/posts.json. The array is
+// mutated in place so every route keeps seeing the same list.
+const POSTS_FILE = path.join(DATA_DIR, 'posts.json');
+const posts = readJson('posts.json').map((p) => ({ status: 'published', ...p }));
+const sortPosts = () => posts.sort((a, b) => b.date.localeCompare(a.date));
+sortPosts();
+function savePosts() {
+  sortPosts();
+  fs.writeFileSync(POSTS_FILE, JSON.stringify(posts, null, 2));
+}
+const livePosts = () => posts.filter((p) => p.status === 'published');
 
 // ---------- jobs (editable from /admin, persisted back to data/jobs.json) ----------
 const JOBS_FILE = path.join(DATA_DIR, 'jobs.json');
@@ -179,13 +190,13 @@ Sitemap: ${BASE_URL}/sitemap.xml
 );
 
 app.get('/sitemap.xml', (req, res) =>
-  res.type('application/xml').send(seo.sitemap(BASE_URL, { jobs: openJobs(), posts, staticPaths: ['/', '/jobs', '/hire', '/about', '/blog', '/contact'] }))
+  res.type('application/xml').send(seo.sitemap(BASE_URL, { jobs: openJobs(), posts: livePosts(), staticPaths: ['/', '/jobs', '/hire', '/about', '/blog', '/contact'] }))
 );
 
 // ---------- pages ----------
 app.get('/', (req, res) => {
   const live = openJobs();
-  res.render('index', { title: 'Staffing & Recruitment Solutions', page: 'home', jobs: live.slice(0, 6), posts: posts.slice(0, 3), categories: categoriesOf(live), jsonLd: seo.homePage(site, BASE_URL) });
+  res.render('index', { title: 'Staffing & Recruitment Solutions', page: 'home', jobs: live.slice(0, 6), posts: livePosts().slice(0, 3), categories: categoriesOf(live), jsonLd: seo.homePage(site, BASE_URL) });
 });
 
 app.get('/jobs', (req, res) => {
@@ -241,11 +252,11 @@ app.get('/saved/cards', (req, res) => {
 app.get('/hire', (req, res) => res.render('hire', { title: 'Hire a Team', page: 'hire' }));
 app.get('/about', (req, res) => res.render('about', { title: 'About Us', page: 'about' }));
 app.get('/contact', (req, res) => res.render('contact', { title: 'Contact Us', page: 'contact' }));
-app.get('/blog', (req, res) => res.render('blog', { title: 'Blog & Articles', page: 'blog', posts }));
+app.get('/blog', (req, res) => res.render('blog', { title: 'Blog & Articles', page: 'blog', posts: livePosts() }));
 app.get('/blog/:slug', (req, res, next) => {
-  const post = posts.find((p) => p.slug === req.params.slug);
+  const post = livePosts().find((p) => p.slug === req.params.slug);
   if (!post) return next();
-  res.render('post', { title: post.title, page: 'blog', post, more: posts.filter((p) => p !== post).slice(0, 2), metaDescription: post.excerpt, jsonLd: seo.article(post, site, BASE_URL) });
+  res.render('post', { title: post.title, page: 'blog', post, more: livePosts().filter((p) => p !== post).slice(0, 2), metaDescription: post.excerpt, jsonLd: seo.article(post, site, BASE_URL) });
 });
 
 // ---------- form endpoints ----------
@@ -392,13 +403,13 @@ function sameOrigin(req, res, next) {
   res.status(403).send('Cross-site request blocked');
 }
 
-const ADMIN_TABS = ['dashboard', 'jobs', 'talent', ...FORM_TYPES];
+const ADMIN_TABS = ['dashboard', 'jobs', 'talent', ...FORM_TYPES, 'blog'];
 const adminUrl = (tab, msg) => `/admin?tab=${tab}${msg ? `&msg=${encodeURIComponent(msg)}` : ''}`;
 
 app.get('/admin', adminAuth, (req, res) => {
   const tab = ADMIN_TABS.includes(req.query.tab) ? req.query.tab : 'dashboard';
   const applications = readSubmissions('applications');
-  const counts = { dashboard: '', jobs: jobs.length, talent: new Set(applications.map((a) => String(a.email).toLowerCase())).size, ...Object.fromEntries(FORM_TYPES.map((t) => [t, readSubmissions(t).length])) };
+  const counts = { dashboard: '', blog: posts.length, jobs: jobs.length, talent: new Set(applications.map((a) => String(a.email).toLowerCase())).size, ...Object.fromEntries(FORM_TYPES.map((t) => [t, readSubmissions(t).length])) };
   const locals = { title: 'Admin', page: 'admin', tab, tabs: ADMIN_TABS, counts, status: '', msg: String(req.query.msg || '') };
 
   if (tab === 'dashboard') return res.render('admin', { ...locals, rows: [], dash: buildDashboard(applications) });
@@ -417,6 +428,7 @@ app.get('/admin', adminAuth, (req, res) => {
     if (sort) rows = rows.sort((a, b) => (b.match?.score ?? -1) - (a.match?.score ?? -1));
     return res.render('admin', { ...locals, rows, statuses: APP_STATUSES, statusCounts, status, sort });
   }
+  if (tab === 'blog') return res.render('admin', { ...locals, rows: posts });
   if (tab === 'talent') {
     const EXPERIENCE = ['Fresher', '0-1 years', '1-3 years', '3-5 years', '5-10 years', '10+ years'];
     const NOTICE = ['Immediate', '15 days', '30 days', '60 days', '90 days'];
@@ -569,6 +581,45 @@ app.post('/admin/jobs/:id/delete', adminAuth, sameOrigin, (req, res, next) => {
   res.redirect(adminUrl('jobs', `Deleted "${job.title}"`));
 });
 
+// ----- blog -----
+const postFormLocals = (post, errors) => ({ title: post.slug && post._editing ? 'Edit article' : 'Write an article', page: 'admin', post, errors });
+
+app.get('/admin/blog/new', adminAuth, (req, res) =>
+  res.render('admin-post', postFormLocals({ date: new Date().toISOString().slice(0, 10), status: 'published', body: [] }, []))
+);
+
+app.get('/admin/blog/:slug/edit', adminAuth, (req, res, next) => {
+  const post = posts.find((p) => p.slug === req.params.slug);
+  if (!post) return next();
+  res.render('admin-post', postFormLocals({ ...post, _editing: post.slug }, []));
+});
+
+app.post('/admin/blog', adminAuth, sameOrigin, (req, res) => {
+  const { post, errors } = parsePost(req.body, posts, null);
+  if (errors.length) return res.status(400).render('admin-post', postFormLocals(post, errors));
+  posts.push(post);
+  savePosts();
+  res.redirect(adminUrl('blog', `${post.status === 'draft' ? 'Saved draft' : 'Published'} "${post.title}"`));
+});
+
+app.post('/admin/blog/:slug', adminAuth, sameOrigin, (req, res, next) => {
+  const existing = posts.find((p) => p.slug === req.params.slug);
+  if (!existing) return next();
+  const { post, errors } = parsePost(req.body, posts, existing.slug);
+  if (errors.length) return res.status(400).render('admin-post', postFormLocals({ ...post, _editing: existing.slug }, errors));
+  Object.assign(existing, post);
+  savePosts();
+  res.redirect(adminUrl('blog', `Saved "${existing.title}"`));
+});
+
+app.post('/admin/blog/:slug/delete', adminAuth, sameOrigin, (req, res, next) => {
+  const i = posts.findIndex((p) => p.slug === req.params.slug);
+  if (i === -1) return next();
+  const [removed] = posts.splice(i, 1);
+  savePosts();
+  res.redirect(adminUrl('blog', `Deleted "${removed.title}"`));
+});
+
 // ----- submissions -----
 app.post('/admin/applications/:id/status', adminAuth, sameOrigin, (req, res, next) => {
   const list = readSubmissions('applications');
@@ -607,7 +658,7 @@ function csvCell(v) {
 app.get('/admin/export/:type.csv', adminAuth, (req, res, next) => {
   const { type } = req.params;
   if (!ADMIN_TABS.includes(type)) return next();
-  if (type === 'dashboard') return next();
+  if (type === 'dashboard' || type === 'blog') return next();
   const rows =
     type === 'jobs' ? jobs
     : type === 'talent' ? buildPool(readSubmissions('applications')).map(({ skillsAll, ...c }) => ({ ...c, jobsApplied: c.jobsApplied.join('; ') }))

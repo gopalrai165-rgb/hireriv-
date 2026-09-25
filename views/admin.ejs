@@ -6,7 +6,8 @@
       <h1>Admin</h1>
       <div class="admin-actions">
         <% if (tab === 'jobs') { %><a class="btn btn-primary btn-sm" href="/admin/jobs/new">+ Post a job</a><% } %>
-        <% if (rows.length) { %><a class="btn btn-outline btn-sm" href="/admin/export/<%= tab %>.csv">Export CSV</a><% } %>
+        <% if (tab === 'blog') { %><a class="btn btn-primary btn-sm" href="/admin/blog/new">+ Write an article</a><% } %>
+        <% if (rows.length && tab !== 'blog') { %><a class="btn btn-outline btn-sm" href="/admin/export/<%= tab %>.csv">Export CSV</a><% } %>
       </div>
     </div>
     <% if (msg) { %><p class="notice" role="status"><%= msg %></p><% } %>
@@ -34,6 +35,28 @@
 
     <% } else if (!rows.length && tab !== 'talent') { %>
       <div class="empty"><p>No <%= status ? status.toLowerCase() + ' ' : '' %><%= tab.replace('-', ' ') %> yet.</p></div>
+
+    <% } else if (tab === 'blog') { %>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Article</th><th>Category</th><th>Date</th><th>Status</th><th></th></tr></thead>
+          <tbody>
+            <% rows.forEach(function (p) { %>
+              <tr>
+                <td><b><%= p.title %></b><br><span class="muted">/blog/<%= p.slug %></span></td>
+                <td><%= p.category %></td>
+                <td><%= formatDate(p.date) %></td>
+                <td><span class="pill st-<%= p.status === 'draft' ? 'screening' : 'hired' %>"><%= p.status === 'draft' ? 'Draft' : 'Published' %></span></td>
+                <td class="row-actions">
+                  <% if (p.status !== 'draft') { %><a class="btn btn-outline btn-sm" href="/blog/<%= p.slug %>" target="_blank" rel="noopener">View</a><% } %>
+                  <a class="btn btn-outline btn-sm" href="/admin/blog/<%= p.slug %>/edit">Edit</a>
+                  <form method="post" action="/admin/blog/<%= p.slug %>/delete" data-confirm="Delete this article permanently?"><button class="btn btn-sm btn-danger">Delete</button></form>
+                </td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
 
     <% } else if (tab === 'talent') { %>
       <%- include('partials/admin-talent') %>

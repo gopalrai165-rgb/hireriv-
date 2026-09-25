@@ -1,0 +1,29 @@
+<%- include('partials/head') %>
+
+<section class="section admin">
+  <div class="container narrow">
+    <a href="/admin?tab=blog" class="back-link">← All articles</a>
+    <h1><%= title %></h1>
+    <% if (errors.length) { %><p class="notice notice-err" role="alert">Please fix: <%= errors.join(', ') %></p><% } %>
+    <form class="form form-card" method="post" action="/admin/blog<%= post._editing ? '/' + post._editing : '' %>">
+      <div class="form-grid">
+        <label class="span-2">Title*<input name="title" required maxlength="200" value="<%= post.title || '' %>" placeholder="e.g. 5 interview questions that reveal a great hire"></label>
+        <label>Link <span class="muted small">(leave empty to build it from the title)</span><input name="slug" value="<%= post.slug || '' %>" placeholder="5-interview-questions"></label>
+        <label>Category<input name="category" value="<%= post.category || '' %>" placeholder="e.g. Hiring, Careers"></label>
+        <label>Publish date<input type="date" name="date" value="<%= post.date || '' %>"></label>
+        <label>Status
+          <select name="status">
+            <option value="published"<%= post.status !== 'draft' ? ' selected' : '' %>>Published – visible on the blog</option>
+            <option value="draft"<%= post.status === 'draft' ? ' selected' : '' %>>Draft – hidden</option>
+          </select>
+        </label>
+        <label class="span-2">Summary* <span class="muted small">(shown on blog cards and in Google results)</span><textarea name="excerpt" rows="2" required maxlength="300"><%= post.excerpt || '' %></textarea></label>
+        <label class="span-2">Article* <span class="muted small">(leave a blank line between paragraphs)</span><textarea name="body" rows="14" required><%= (post.body || []).join('\n\n') %></textarea></label>
+      </div>
+      <button class="btn btn-primary" type="submit"><%= post._editing ? 'Save changes' : 'Save article' %></button>
+      <a class="btn btn-outline" href="/admin?tab=blog">Cancel</a>
+    </form>
+  </div>
+</section>
+
+<%- include('partials/foot') %>
