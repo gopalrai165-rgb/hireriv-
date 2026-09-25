@@ -21,6 +21,7 @@
     <div class="form-card">
       <h2>Tell us what you need</h2>
       <form class="form js-form" action="/api/hire" method="post">
+  <%- include('partials/honeypot') %>
         <div class="form-grid">
           <label>Company name*<input name="company" required autocomplete="organization"></label>
           <label>Your name*<input name="name" required autocomplete="name"></label>

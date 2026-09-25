@@ -94,6 +94,34 @@ function respond(req, res, errors, message) {
   return res.render('thanks', { title: 'Thank you', page: '', ok: true, message, noindex: true });
 }
 
+// ---------- spam protection ----------
+// Hidden "website" field: people never see it, form-filling bots do. Bots get a
+// normal success reply so they have no signal to adapt to, but nothing is kept.
+const isBot = (body) => Boolean(body && String(body.website || '').trim());
+
+// Small in-memory sliding-window limiter, keyed by bucket + client IP.
+const hits = new Map();
+function overLimit(key, max, windowMs) {
+  const now = Date.now();
+  const recent = (hits.get(key) || []).filter((t) => now - t < windowMs);
+  recent.push(now);
+  hits.set(key, recent);
+  return recent.length > max;
+}
+setInterval(() => {
+  const cutoff = Date.now() - 60 * 60 * 1000;
+  for (const [key, times] of hits) if (times[times.length - 1] < cutoff) hits.delete(key);
+}, 10 * 60 * 1000).unref();
+
+function limit(bucket, max, windowMs = 10 * 60 * 1000) {
+  return (req, res, next) => {
+    if (!overLimit(`${bucket}:${req.ip}`, max, windowMs)) return next();
+    const message = 'Too many submissions from your connection. Please wait a few minutes and try again.';
+    if ((req.get('Accept') || '').includes('application/json')) return res.status(429).json({ ok: false, errors: [message] });
+    res.status(429).render('thanks', { title: 'Please slow down', page: '', ok: false, message, noindex: true });
+  };
+}
+
 // ---------- uploads ----------
 const upload = multer({
   storage: multer.diskStorage({
@@ -110,6 +138,8 @@ const upload = multer({
 
 // ---------- app ----------
 const app = express();
+// Behind a reverse proxy (Nginx, Render, etc.) set TRUST_PROXY=1 so req.ip is the visitor, not the proxy.
+if (process.env.TRUST_PROXY) app.set('trust proxy', Number(process.env.TRUST_PROXY) || process.env.TRUST_PROXY);
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 app.disable('x-powered-by');
@@ -218,8 +248,12 @@ app.get('/blog/:slug', (req, res, next) => {
 });
 
 // ---------- form endpoints ----------
-app.post('/api/apply', (req, res) => {
+app.post('/api/apply', limit('apply', 6), (req, res) => {
   upload.single('resume')(req, res, (err) => {
+    if (!err && isBot(req.body)) {
+      if (req.file) fs.unlink(req.file.path, () => {});
+      return respond(req, res, [], 'Thanks! Your application is in.');
+    }
     if (err) return respond(req, res, [err.code === 'LIMIT_FILE_SIZE' ? 'Resume must be under 5 MB' : err.message]);
     const data = clean(req.body, ['jobId', 'name', 'email', 'phone', 'experience', 'location', 'noticePeriod', 'linkedin', 'message']);
     const errors = validate(data, ['name', 'email', 'phone']);
@@ -236,14 +270,16 @@ app.post('/api/apply', (req, res) => {
   });
 });
 
-app.post('/api/hire', (req, res) => {
+app.post('/api/hire', limit('hire', 5), (req, res) => {
+  if (isBot(req.body)) return respond(req, res, [], 'Thank you! Our client partner will be in touch.');
   const data = clean(req.body, ['company', 'name', 'email', 'phone', 'roles', 'headcount', 'hiringType', 'location', 'timeline', 'message']);
   const errors = validate(data, ['company', 'name', 'email', 'phone', 'roles']);
   if (!errors.length) mailer.hireRequestReceived(saveSubmission('hire-requests', data));
   respond(req, res, errors, 'Thank you! Our client partner will call you within one working day to understand your hiring needs.');
 });
 
-app.post('/api/contact', (req, res) => {
+app.post('/api/contact', limit('contact', 5), (req, res) => {
+  if (isBot(req.body)) return respond(req, res, [], "Thanks for reaching out. We'll get back to you shortly.");
   const data = clean(req.body, ['name', 'email', 'phone', 'subject', 'message']);
   const errors = validate(data, ['name', 'email', 'message']);
   if (!errors.length) mailer.contactReceived(saveSubmission('contacts', data));
@@ -265,7 +301,8 @@ function sendJobAlerts(job) {
   return subs.length;
 }
 
-app.post('/api/job-alerts', (req, res) => {
+app.post('/api/job-alerts', limit('job-alerts', 5), (req, res) => {
+  if (isBot(req.body)) return respond(req, res, [], 'Almost done! Check your inbox and click the link to switch on your job alert.');
   const data = clean(req.body, ['email', 'category', 'location']);
   const errors = validate(data, ['email']);
   if (data.category && !categoriesOf(jobs).includes(data.category)) errors.push('category is invalid');
@@ -313,7 +350,8 @@ app.post('/job-alerts/unsubscribe/:token', (req, res) => {
   res.render('thanks', { title: "You're unsubscribed", page: '', ok: true, message: "You won't get this job alert any more. You can set up a new one any time on the Find Work page.", noindex: true });
 });
 
-app.post('/api/newsletter', (req, res) => {
+app.post('/api/newsletter', limit('newsletter', 5), (req, res) => {
+  if (isBot(req.body)) return respond(req, res, [], "You're subscribed!");
   const data = clean(req.body, ['email']);
   const errors = validate(data, ['email']);
   if (!errors.length && !readSubmissions('newsletter').some((s) => s.email.toLowerCase() === data.email.toLowerCase())) {
@@ -323,14 +361,22 @@ app.post('/api/newsletter', (req, res) => {
 });
 
 // ---------- admin (HTTP Basic auth, enabled only when ADMIN_PASS is set) ----------
+const failedLogins = new Map();
+
 function adminAuth(req, res, next) {
   if (!ADMIN_PASS) return res.status(503).send('Admin is disabled. Set the ADMIN_PASS environment variable to enable it.');
+  const fails = (failedLogins.get(req.ip) || []).filter((t) => Date.now() - t < 15 * 60 * 1000);
+  if (fails.length >= 10) return res.status(429).send('Too many failed login attempts. Try again in 15 minutes.');
   const [scheme, encoded] = (req.get('Authorization') || '').split(' ');
   if (scheme === 'Basic' && encoded) {
     const [user, ...rest] = Buffer.from(encoded, 'base64').toString().split(':');
     const pass = rest.join(':');
     const safeEq = (a, b) => a.length === b.length && crypto.timingSafeEqual(Buffer.from(a), Buffer.from(b));
-    if (safeEq(user, ADMIN_USER) && safeEq(pass, ADMIN_PASS)) return next();
+    if (safeEq(user, ADMIN_USER) && safeEq(pass, ADMIN_PASS)) {
+      failedLogins.delete(req.ip);
+      return next();
+    }
+    failedLogins.set(req.ip, [...fails, Date.now()]);
   }
   res.set('WWW-Authenticate', 'Basic realm="Hireriv Admin"').status(401).send('Authentication required');
 }

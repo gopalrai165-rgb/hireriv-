@@ -598,3 +598,6 @@ a.contact-card:hover { border-color: var(--primary); color: var(--text); }
 .activity .pill { justify-self: start; }
 .activity-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 @media (max-width: 620px) { .activity li a { grid-template-columns: 1fr; gap: 4px; } }
+
+/* Honeypot: off-screen, not display:none, so naive bots still fill it */
+.hp { position: absolute; left: -10000px; width: 1px; height: 1px; overflow: hidden; }

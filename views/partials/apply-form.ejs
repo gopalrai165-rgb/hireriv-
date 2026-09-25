@@ -1,4 +1,5 @@
 <form class="form js-form" action="/api/apply" method="post" enctype="multipart/form-data">
+  <%- include('honeypot') %>
   <input type="hidden" name="jobId" value="<%= jobId %>">
   <div class="form-grid">
     <label>Full name*<input name="name" required autocomplete="name"></label>

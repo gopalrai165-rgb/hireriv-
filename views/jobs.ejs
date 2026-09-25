@@ -61,6 +61,7 @@
         </div>
       </div>
       <form class="form js-form alert-form" action="/api/job-alerts" method="post">
+  <%- include('partials/honeypot') %>
         <label class="sr-only" for="a-email">Email</label>
         <input id="a-email" type="email" name="email" required autocomplete="email" placeholder="Your email">
         <label class="sr-only" for="a-cat">Category</label>
