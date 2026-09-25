@@ -11,6 +11,7 @@ A complete website for a tech-driven staffing and recruitment company, built wit
 - **Job alerts** (`/jobs`): candidates pick a category and/or city, confirm by email (double opt-in), then get an email the first time each matching job goes live. Remote jobs match every city. Every alert has a one-click unsubscribe, and subscribers are listed under Admin → Job alerts
 - **Saved jobs** (`/saved`): a bookmark button on every job card and job page, with a count in the header. Saved jobs are stored in the visitor's browser, so no account is needed. Closed jobs stay listed and marked Closed, and deleted jobs drop off automatically
 - **Spam protection**: every public form has a hidden bot trap and a per-IP limit (5–6 submissions per 10 minutes), and the admin locks out an IP for 15 minutes after 10 wrong passwords. Behind a reverse proxy, set `TRUST_PROXY=1` so limits apply per visitor
+- **Share a job**: WhatsApp, LinkedIn, copy-link and the phone's share sheet on every open job, using the public `SITE_URL` address
 - **SEO**: Google for Jobs structured data (JobPosting) on every open job, Organization/WebSite/BlogPosting data, `/sitemap.xml`, `/robots.txt`, canonical and Open Graph tags. Closed jobs are removed from the sitemap and marked `noindex`
 - **Admin panel** (`/admin`):
   - **Dashboard** (opens first): key numbers, a 14-day applications chart, the candidate pipeline funnel, most-applied jobs and recent activity

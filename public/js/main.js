@@ -203,3 +203,23 @@ if (savedList) {
   });
 }
 paintSaved();
+
+// Share a job: copy link, and the phone's native share sheet when available.
+const shareRow = document.querySelector('.share-row');
+if (shareRow) {
+  const url = shareRow.dataset.shareUrl;
+  const title = shareRow.dataset.shareTitle;
+  shareRow.querySelector('[data-copy-link]').addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(url);
+      toast('Link copied. Paste it anywhere to share this job.');
+    } catch {
+      window.prompt('Copy this link:', url);
+    }
+  });
+  const nativeBtn = shareRow.querySelector('[data-native-share]');
+  if (navigator.share) {
+    nativeBtn.hidden = false;
+    nativeBtn.addEventListener('click', () => navigator.share({ title, url }).catch(() => {}));
+  }
+}

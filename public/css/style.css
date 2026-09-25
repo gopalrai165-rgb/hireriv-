@@ -629,3 +629,13 @@ a.contact-card:hover { border-color: var(--primary); color: var(--text); }
 .stat-edit label { display: flex; flex-direction: column; gap: 6px; font-size: .82rem; font-weight: 600; color: var(--ink); }
 .settings-actions { position: sticky; bottom: 16px; }
 @media (max-width: 620px) { .stats-grid { grid-template-columns: minmax(0, 1fr); } }
+
+/* ============ Share a job ============ */
+.share-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 20px; }
+.share-label { font-size: .85rem; font-weight: 600; color: var(--muted); margin-right: 4px; }
+.share-btn { display: inline-flex; align-items: center; gap: 6px; padding: .45em .9em; border-radius: 999px; border: 1px solid var(--line); background: #fff; color: var(--ink); font: inherit; font-size: .85rem; font-weight: 600; cursor: pointer; transition: border-color .2s, color .2s; }
+.share-btn:hover { border-color: var(--primary); color: var(--primary); }
+.share-btn .i { width: 16px; height: 16px; }
+.share-btn[hidden] { display: none; }
+.share-wa .i { color: #16a34a; }
+.share-li .i { color: #0a66c2; }
