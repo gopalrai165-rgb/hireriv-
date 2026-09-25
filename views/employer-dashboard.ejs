@@ -37,6 +37,40 @@
         <% } %>
       </section>
 
+      <section class="dash-card dash-wide" id="shortlist">
+        <div class="dash-head"><h2>Shortlisted candidates</h2><span class="muted small"><%= shortlist.length %> shared with you</span></div>
+        <% if (!shortlist.length) { %>
+          <p class="muted dash-empty">When your account manager shortlists candidates for your roles, they appear here for your review.</p>
+        <% } else { %>
+          <div class="shortlist">
+            <% shortlist.forEach(function (c) { %>
+              <article class="cand-card<%= c.feedback ? ' has-feedback' : '' %>">
+                <div class="cand-top">
+                  <div><h3><%= c.name %></h3><p class="muted small"><%= c.jobTitle %> · shared <%= formatDate(c.sharedAt) %></p></div>
+                  <% if (c.match) { %><%- include('partials/match-chip', { match: c.match }) %><% } %>
+                </div>
+                <ul class="job-meta">
+                  <li><svg class="i"><use href="#i-briefcase"/></svg><%= c.experience || '—' %></li>
+                  <li><svg class="i"><use href="#i-pin"/></svg><%= c.location || '—' %></li>
+                  <li><svg class="i"><use href="#i-clock"/></svg>Notice: <%= c.noticePeriod || '—' %></li>
+                </ul>
+                <% if (c.skills) { %><div class="chips"><% c.skills.split(',').map(function (s) { return s.trim(); }).filter(Boolean).slice(0, 8).forEach(function (s) { %><span class="chip"><%= s %></span><% }) %></div><% } %>
+                <% if (c.summary) { %><p class="cand-note"><b>Recruiter's note:</b> <%= c.summary %></p><% } %>
+                <% if (c.hasResume) { %><a class="small cand-resume" href="/employer/resume/<%= c.id %>">Download resume</a><% } %>
+                <form class="form cand-feedback" method="post" action="/employer/candidates/<%= c.id %>/feedback">
+                  <div class="decision-row" role="radiogroup" aria-label="Your decision on <%= c.name %>">
+                    <% decisions.forEach(function (d) { %><label class="decision decision-<%= d.toLowerCase().split(' ').join('-') %>"><input type="radio" name="decision" value="<%= d %>" required<%= c.feedback && c.feedback.decision === d ? ' checked' : '' %>><span><%= d %></span></label><% }) %>
+                  </div>
+                  <textarea name="comment" rows="2" maxlength="1000" placeholder="Comment for your account manager (optional)"><%= c.feedback ? c.feedback.comment : '' %></textarea>
+                  <button class="btn btn-primary btn-sm" type="submit"><%= c.feedback ? 'Update feedback' : 'Send feedback' %></button>
+                  <% if (c.feedback) { %><span class="muted small">Sent <%= formatDate(c.feedback.at) %> by <%= c.feedback.by %></span><% } %>
+                </form>
+              </article>
+            <% }) %>
+          </div>
+        <% } %>
+      </section>
+
       <section class="dash-card">
         <div class="dash-head"><h2>Send a new requirement</h2></div>
         <form class="form" method="post" action="/employer/requirements">

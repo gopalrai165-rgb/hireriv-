@@ -212,7 +212,7 @@ function register(app, deps) {
         return { ...j, total: forJob.length, stages: Object.fromEntries(appStatuses.map((s) => [s, forJob.filter((a) => statusOf(a) === s).length])) };
       });
     const requirements = readSubmissions('hire-requests').filter((h) => h.employerId === emp.id);
-    page(res, 'employer-dashboard', { title: `${emp.company} · Client portal`, myJobs, requirements, stages: appStatuses, welcome: req.query.welcome === '1', msg: String(req.query.msg || '') });
+    page(res, 'employer-dashboard', { title: `${emp.company} · Client portal`, myJobs, requirements, stages: appStatuses, shortlist: shortlistFor(emp), decisions: DECISIONS, welcome: req.query.welcome === '1', msg: String(req.query.msg || '') });
   });
 
   app.post('/employer/requirements', requireEmployer, limit('employer-req', 10), sameOrigin, (req, res) => {
@@ -225,7 +225,79 @@ function register(app, deps) {
     res.redirect('/employer?msg=' + encodeURIComponent('Requirement sent. Your account manager will be in touch within one working day.'));
   });
 
-  return { read, currentEmployer };
+  // ---------- shortlist sharing ----------
+  const { writeSubmissions, uploadsDir, skillMatch } = deps;
+  const DECISIONS = ['Interested', 'Maybe', 'Not a fit'];
+
+  // What a client may see about a candidate: no email or phone, so introductions
+  // always go through the recruiter.
+  const clientView = (a) => {
+    const job = getJobs().find((j) => j.id === a.jobId);
+    return {
+      id: a.id, name: a.name, jobTitle: a.jobTitle, experience: a.experience, location: a.location,
+      noticePeriod: a.noticePeriod, skills: a.skills, hasResume: Boolean(a.resume),
+      summary: a.shared.summary, sharedAt: a.shared.sharedAt, feedback: a.shared.feedback || null,
+      match: skillMatch(a, job),
+    };
+  };
+
+  app.post('/admin/applications/:id/share', adminAuth, sameOrigin, (req, res, next) => {
+    const list = readSubmissions('applications');
+    const a = list.find((x) => x.id === req.params.id);
+    if (!a) return next();
+    const emp = read().find((e) => e.id === req.body.employerId && e.active);
+    if (!emp) return res.redirect(adminUrl('applications', 'Pick an active client to share with'));
+    const alreadyWithThisClient = a.shared && a.shared.employerId === emp.id;
+    a.shared = {
+      employerId: emp.id,
+      sharedAt: alreadyWithThisClient ? a.shared.sharedAt : new Date().toISOString(),
+      summary: String(req.body.summary || '').trim().slice(0, 1000),
+      feedback: alreadyWithThisClient ? a.shared.feedback : null,
+    };
+    writeSubmissions('applications', list);
+    if (!alreadyWithThisClient) mailer.candidateShared(emp, a, `${baseUrl}/employer#shortlist`);
+    res.redirect(adminUrl('applications', alreadyWithThisClient ? `Updated the summary ${emp.company} sees for ${a.name}` : `Shared ${a.name} with ${emp.company} · client emailed`));
+  });
+
+  app.post('/admin/applications/:id/unshare', adminAuth, sameOrigin, (req, res, next) => {
+    const list = readSubmissions('applications');
+    const a = list.find((x) => x.id === req.params.id);
+    if (!a || !a.shared) return next();
+    const emp = read().find((e) => e.id === a.shared.employerId);
+    delete a.shared;
+    writeSubmissions('applications', list);
+    res.redirect(adminUrl('applications', `${a.name} is no longer shared${emp ? ` with ${emp.company}` : ''}`));
+  });
+
+  // Portal data for the dashboard view.
+  const shortlistFor = (emp) =>
+    readSubmissions('applications')
+      .filter((a) => a.shared && a.shared.employerId === emp.id)
+      .sort((x, y) => y.shared.sharedAt.localeCompare(x.shared.sharedAt))
+      .map(clientView);
+
+  app.get('/employer/resume/:appId', requireEmployer, (req, res, next) => {
+    const a = readSubmissions('applications').find((x) => x.id === req.params.appId);
+    // Only candidates shared with this client, never by guessing ids.
+    if (!a || !a.shared || a.shared.employerId !== req.employer.id || !a.resume) return next();
+    const file = path.basename(a.resume);
+    const safeName = `${String(a.name).replace(/[^a-z0-9]+/gi, '-')}-resume${path.extname(file)}`;
+    res.download(path.join(uploadsDir, file), safeName, (err) => err && !res.headersSent && res.status(404).end());
+  });
+
+  app.post('/employer/candidates/:appId/feedback', requireEmployer, limit('employer-feedback', 60), sameOrigin, (req, res, next) => {
+    const list = readSubmissions('applications');
+    const a = list.find((x) => x.id === req.params.appId);
+    if (!a || !a.shared || a.shared.employerId !== req.employer.id) return next();
+    const decision = String(req.body.decision || '');
+    if (!DECISIONS.includes(decision)) return res.redirect('/employer?msg=' + encodeURIComponent('Choose Interested, Maybe or Not a fit.') + '#shortlist');
+    a.shared.feedback = { decision, comment: String(req.body.comment || '').trim().slice(0, 1000), by: req.employer.name, at: new Date().toISOString() };
+    writeSubmissions('applications', list);
+    mailer.clientFeedback(req.employer, a, a.shared.feedback, `${baseUrl}/admin?tab=applications`);
+    res.redirect('/employer?msg=' + encodeURIComponent(`Thanks! Your feedback on ${a.name} was sent to your account manager.`) + '#shortlist');
+  });
+
+  return { read, currentEmployer, shortlistFor, DECISIONS };
 }
 
 module.exports = { register, hashPassword, checkPassword };

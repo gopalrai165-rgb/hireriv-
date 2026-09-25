@@ -663,3 +663,36 @@ a.contact-card:hover { border-color: var(--primary); color: var(--text); }
 .client-add { grid-template-columns: repeat(3, minmax(0, 1fr)) auto; }
 @media (max-width: 900px) { .client-add { grid-template-columns: minmax(0, 1fr); } }
 @media (max-width: 560px) { .portal .dash-card .form-grid { grid-template-columns: minmax(0, 1fr); } .activity-row { grid-template-columns: 1fr; gap: 4px; } }
+
+/* ============ Shortlist sharing ============ */
+.shortlist { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(340px, 100%), 1fr)); gap: 16px; }
+.cand-card { border: 1px solid var(--line); border-radius: var(--radius); padding: 18px 20px; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.cand-card.has-feedback { background: var(--tint); }
+.cand-top { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
+.cand-top h3 { margin: 0; font-size: 1.1rem; }
+.cand-top p { margin: 2px 0 0; }
+.cand-top .match-chip { margin-top: 0; }
+.cand-card .job-meta { margin: 10px 0; }
+.cand-note { font-size: .9rem; margin: 10px 0 0; padding: 10px 12px; border-left: 3px solid var(--primary); background: var(--primary-50); border-radius: 0 8px 8px 0; }
+.cand-resume { font-weight: 600; margin-top: 8px; }
+.cand-feedback { display: grid; gap: 8px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); }
+.cand-feedback textarea { padding: .55em .7em; font-size: .88rem; }
+.cand-feedback .btn { justify-self: start; }
+.decision-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.decision { position: relative; cursor: pointer; }
+.decision input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.decision span { display: inline-block; padding: .4em .9em; border-radius: 999px; border: 1.5px solid var(--line); font-size: .85rem; font-weight: 600; color: var(--ink); background: #fff; }
+.decision input:focus-visible + span { outline: 3px solid color-mix(in srgb, var(--blue) 60%, transparent); outline-offset: 2px; }
+.decision-interested input:checked + span { background: #dcfce7; border-color: #16a34a; color: #15803d; }
+.decision-maybe input:checked + span { background: #fef3c7; border-color: #d97706; color: #a16207; }
+.decision-not-a-fit input:checked + span { background: #fee2e2; border-color: #dc2626; color: #b91c1c; }
+.share-status { margin-top: 10px; font-size: .82rem; }
+.share-status form { display: inline; }
+.fb-interested { background: #dcfce7; color: #15803d; }
+.fb-maybe { background: #fef3c7; color: #a16207; }
+.fb-not-a-fit { background: #fee2e2; color: #b91c1c; }
+.share-client { margin-top: 8px; }
+.share-client summary { cursor: pointer; color: var(--primary); font-weight: 600; }
+.share-client form { display: grid; gap: 6px; margin-top: 6px; }
+.share-client select, .share-client textarea { padding: .45em .6em; font-size: .85rem; }
+.share-client .btn { justify-self: start; }

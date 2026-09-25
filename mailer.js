@@ -173,6 +173,33 @@ function createMailer(site) {
       });
     },
 
+    candidateShared(emp, a, link) {
+      send(site, {
+        to: emp.email,
+        replyTo: teamInbox,
+        subject: `New candidate for ${a.jobTitle}: ${a.name}`,
+        heading: 'A new candidate is on your shortlist',
+        html:
+          p(`Hi ${first(emp.name)}, we've shortlisted <b>${esc(a.name)}</b> for <b>${esc(a.jobTitle)}</b>.`) +
+          detailsTable([['Experience', a.experience], ['Location', a.location], ['Notice period', a.noticePeriod], ['Skills', a.skills]]) +
+          (a.shared && a.shared.summary ? p(`<b>Recruiter's note:</b> ${esc(a.shared.summary)}`) : '') +
+          button(link, 'Review in your portal') +
+          p('<span style="color:#6b7690;font-size:13px">Let us know if you\'re interested and we\'ll arrange the next step.</span>'),
+      });
+    },
+
+    clientFeedback(emp, a, fb, link) {
+      send(site, {
+        to: teamInbox,
+        replyTo: emp.email,
+        subject: `${emp.company}: ${fb.decision} – ${a.name} (${a.jobTitle})`,
+        heading: `Client feedback: ${fb.decision}`,
+        html:
+          detailsTable([['Client', `${emp.company} (${fb.by})`], ['Candidate', a.name], ['Job', a.jobTitle], ['Decision', fb.decision], ['Comment', fb.comment]]) +
+          button(link, 'Open applications'),
+      });
+    },
+
     employerReset(emp, link, hours) {
       send(site, {
         to: emp.email,

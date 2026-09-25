@@ -163,6 +163,13 @@ app.use(express.static(path.join(__dirname, 'public'), { maxAge: '1h' }));
 
 app.locals.site = site;
 app.locals.formatIst = interviews.formatIst;
+// Fingerprint the CSS/JS so browsers fetch fresh copies after every change,
+// despite the 1-hour static cache.
+app.locals.assetVersion = crypto
+  .createHash('sha1')
+  .update(['public/css/style.css', 'public/js/main.js'].map((f) => fs.readFileSync(path.join(__dirname, f))).join(''))
+  .digest('hex')
+  .slice(0, 10);
 app.locals.year = new Date().getFullYear();
 app.locals.formatDate = (d) =>
   new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
@@ -413,6 +420,7 @@ interviews.register(app, { adminAuth, sameOrigin, readSubmissions, writeSubmissi
 const clients = employers.register(app, {
   dataDir: DATA_DIR, site, mailer, baseUrl: BASE_URL, adminAuth, sameOrigin, adminUrl, limit,
   readSubmissions, saveSubmission, getJobs: () => jobs, appStatuses: APP_STATUSES,
+  writeSubmissions, uploadsDir: UPLOADS_DIR, skillMatch,
 });
 
 app.get('/admin', adminAuth, (req, res) => {
@@ -435,7 +443,7 @@ app.get('/admin', adminAuth, (req, res) => {
     let rows = (status ? applications.filter((a) => statusOf(a) === status) : applications)
       .map((a) => ({ ...a, match: skillMatch(a, jobs.find((j) => j.id === a.jobId)) }));
     if (sort) rows = rows.sort((a, b) => (b.match?.score ?? -1) - (a.match?.score ?? -1));
-    return res.render('admin', { ...locals, rows, statuses: APP_STATUSES, statusCounts, status, sort });
+    return res.render('admin', { ...locals, rows, statuses: APP_STATUSES, statusCounts, status, sort, clientOptions: clients.read().filter((c) => c.active), jobClient: Object.fromEntries(jobs.map((j) => [j.id, j.employerId || ''])) });
   }
   if (tab === 'blog') return res.render('admin', { ...locals, rows: posts });
   if (tab === 'clients') {
