@@ -50,6 +50,35 @@
   </div>
 </section>
 
+<section class="section section-alert" id="alerts">
+  <div class="container">
+    <div class="alert-band">
+      <div class="alert-copy">
+        <span class="alert-icon"><svg class="i"><use href="#i-mail"/></svg></span>
+        <div>
+          <h2>Get new jobs by email</h2>
+          <p class="muted">Be the first to apply. We'll email you as soon as a matching role is posted. No spam, unsubscribe any time.</p>
+        </div>
+      </div>
+      <form class="form js-form alert-form" action="/api/job-alerts" method="post">
+        <label class="sr-only" for="a-email">Email</label>
+        <input id="a-email" type="email" name="email" required autocomplete="email" placeholder="Your email">
+        <label class="sr-only" for="a-cat">Category</label>
+        <select id="a-cat" name="category">
+          <option value="">All categories</option>
+          <% categories.forEach(function (c) { %><option <%= filters.category === c ? 'selected' : '' %>><%= c %></option><% }) %>
+        </select>
+        <label class="sr-only" for="a-loc">Location</label>
+        <select id="a-loc" name="location">
+          <option value="">Any location</option>
+          <% locations.forEach(function (l) { %><option <%= filters.location === l ? 'selected' : '' %>><%= l %></option><% }) %>
+        </select>
+        <button class="btn btn-accent" type="submit">Create alert</button>
+      </form>
+    </div>
+  </div>
+</section>
+
 <section class="section section-tint" id="register">
   <div class="container split">
     <div>

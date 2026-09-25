@@ -1,0 +1,20 @@
+<%- include('partials/head') %>
+
+<section class="section">
+  <div class="container narrow center status-page">
+    <% if (sub) { %>
+      <h1>Unsubscribe from this job alert?</h1>
+      <p class="lead">You'll stop getting emails about <b><%= [sub.category || 'all', 'jobs', sub.location ? 'in ' + sub.location : ''].filter(Boolean).join(' ') %></b> sent to <b><%= sub.email %></b>.</p>
+      <form method="post" class="hero-ctas center">
+        <button class="btn btn-primary" type="submit">Yes, unsubscribe</button>
+        <a href="/jobs" class="btn btn-outline">Keep my alert</a>
+      </form>
+    <% } else { %>
+      <h1>You're not subscribed</h1>
+      <p class="lead">This job alert has already been removed, or the link is no longer valid.</p>
+      <div class="hero-ctas center"><a href="/jobs" class="btn btn-primary">Browse jobs</a></div>
+    <% } %>
+  </div>
+</section>
+
+<%- include('partials/foot') %>

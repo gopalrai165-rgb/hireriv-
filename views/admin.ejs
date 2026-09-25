@@ -87,7 +87,7 @@
       </div>
 
     <% } else { %>
-      <% const cols = [...new Set(rows.flatMap(function (r) { return Object.keys(r); }))].filter(function (k) { return k !== 'id'; }); %>
+      <% const cols = [...new Set(rows.flatMap(function (r) { return Object.keys(r); }))].filter(function (k) { return k !== 'id' && k !== 'token'; }); %>
       <div class="table-wrap">
         <table>
           <thead><tr><% cols.forEach(function (c) { %><th><%= c %></th><% }) %><th></th></tr></thead>

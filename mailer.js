@@ -43,11 +43,13 @@ function detailsTable(rows) {
   return `<table role="presentation" cellpadding="0" cellspacing="0" style="font-size:14px;margin:0 0 16px">${tr}</table>`;
 }
 
+const describeAlert = (sub) => [sub.category || 'all', 'jobs', sub.location ? `in ${sub.location}` : ''].filter(Boolean).join(' ');
+
 const button = (href, label) =>
   `<p style="margin:20px 0 0"><a href="${esc(href)}" style="background:#0e8a8f;color:#fff;padding:12px 22px;border-radius:999px;text-decoration:none;font-weight:bold;display:inline-block">${esc(label)}</a></p>`;
 
 // Never let a mail failure break a form submission; log it and move on.
-async function send(site, { to, subject, heading, html, replyTo }) {
+async function send(site, { to, subject, heading, html, replyTo, headers }) {
   if (!to) return;
   try {
     const info = await transport.sendMail({
@@ -56,6 +58,7 @@ async function send(site, { to, subject, heading, html, replyTo }) {
       replyTo,
       subject: subject.replace(/[\r\n]+/g, ' '),
       html: layout(site, heading, html),
+      headers,
     });
     if (!SMTP_HOST) {
       fs.mkdirSync(OUTBOX_DIR, { recursive: true });
@@ -121,6 +124,36 @@ function createMailer(site) {
         subject: `New message${c.subject ? `: ${c.subject}` : ''} from ${c.name}`,
         heading: 'New contact message',
         html: detailsTable([['Name', c.name], ['Email', c.email], ['Phone', c.phone], ['Subject', c.subject], ['Message', c.message]]),
+      });
+    },
+
+    jobAlertConfirm(sub) {
+      const what = describeAlert(sub);
+      send(site, {
+        to: sub.email,
+        subject: 'Confirm your Hireriv job alert',
+        heading: 'One click to switch on your job alert',
+        html:
+          p(`You asked us to email you about <b>${esc(what)}</b>. Please confirm it's really you.`) +
+          button(`${baseUrl}/job-alerts/confirm/${sub.token}`, 'Confirm job alert') +
+          p(`<span style="color:#6b7690;font-size:13px">Didn't ask for this? Just ignore this email and you won't hear from us.</span>`),
+      });
+    },
+
+    jobAlert(sub, job) {
+      const unsubscribe = `${baseUrl}/job-alerts/unsubscribe/${sub.token}`;
+      send(site, {
+        to: sub.email,
+        subject: `New job: ${job.title} in ${job.location}`,
+        heading: 'A new job matches your alert',
+        headers: { 'List-Unsubscribe': `<${unsubscribe}>`, 'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click' },
+        html:
+          `<h2 style="font-size:18px;margin:0 0 4px">${esc(job.title)}</h2>` +
+          p(`<span style="color:#6b7690">${esc(job.company)}</span>`) +
+          detailsTable([['Location', `${job.location} (${job.mode})`], ['Type', job.type], ['Experience', job.experience], ['Salary', job.salary], ['Skills', job.skills.join(', ')]]) +
+          p(esc(job.description)) +
+          button(`${baseUrl}/jobs/${job.id}`, 'View job & apply') +
+          p(`<span style="color:#6b7690;font-size:12px">You're getting this because you set up an alert for ${esc(describeAlert(sub))}. <a href="${esc(unsubscribe)}" style="color:#6b7690">Unsubscribe</a></span>`),
       });
     },
 

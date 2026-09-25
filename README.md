@@ -8,6 +8,7 @@ A complete website for a tech-driven staffing and recruitment company, built wit
 - **Hire a Team** (`/hire`): employer requirement form, engagement models and the hiring process
 - **About**, **Blog** (with articles) and **Contact** pages
 - Newsletter signup, a floating WhatsApp button, and a mobile-responsive layout
+- **Job alerts** (`/jobs`): candidates pick a category and/or city, confirm by email (double opt-in), then get an email the first time each matching job goes live. Remote jobs match every city. Every alert has a one-click unsubscribe, and subscribers are listed under Admin → Job alerts
 - **SEO**: Google for Jobs structured data (JobPosting) on every open job, Organization/WebSite/BlogPosting data, `/sitemap.xml`, `/robots.txt`, canonical and Open Graph tags. Closed jobs are removed from the sitemap and marked `noindex`
 - **Admin panel** (`/admin`):
   - **Jobs**: post, edit, close/reopen and delete openings. Closed jobs drop out of listings, keep their page, and stop taking applications

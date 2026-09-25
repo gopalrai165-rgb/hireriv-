@@ -26,6 +26,8 @@ const posts = readJson('posts.json').sort((a, b) => b.date.localeCompare(a.date)
 // ---------- jobs (editable from /admin, persisted back to data/jobs.json) ----------
 const JOBS_FILE = path.join(DATA_DIR, 'jobs.json');
 let jobs = readJson('jobs.json').map((j) => ({ status: 'open', ...j }));
+// Jobs that were live before job alerts existed count as already announced.
+for (const j of jobs) if (j.status === 'open' && !j.alertsSentAt) j.alertsSentAt = j.posted;
 const sortJobs = () => jobs.sort((a, b) => b.posted.localeCompare(a.posted));
 sortJobs();
 
@@ -44,7 +46,7 @@ const JOB_TYPES = ['Full-time', 'Contract', 'Part-time', 'Internship'];
 const APP_STATUSES = ['New', 'Screening', 'Interview', 'Offered', 'Hired', 'Rejected'];
 
 // ---------- submission storage (JSON files, one per form type) ----------
-const FORM_TYPES = ['applications', 'hire-requests', 'contacts', 'newsletter'];
+const FORM_TYPES = ['applications', 'hire-requests', 'contacts', 'newsletter', 'job-alerts'];
 
 function readSubmissions(type) {
   const file = path.join(SUBMISSIONS_DIR, `${type}.json`);
@@ -238,6 +240,69 @@ app.post('/api/contact', (req, res) => {
   respond(req, res, errors, "Thanks for reaching out. We'll get back to you shortly.");
 });
 
+// ---------- job alerts (double opt-in) ----------
+const alertMatches = (sub, job) =>
+  sub.confirmed &&
+  (!sub.category || sub.category === job.category) &&
+  (!sub.location || sub.location === job.location || job.mode === 'Remote');
+
+// Alert each job at most once, the first time it goes live.
+function sendJobAlerts(job) {
+  if (job.status !== 'open' || job.alertsSentAt) return 0;
+  job.alertsSentAt = new Date().toISOString();
+  const subs = readSubmissions('job-alerts').filter((s) => alertMatches(s, job));
+  for (const sub of subs) mailer.jobAlert(sub, job);
+  return subs.length;
+}
+
+app.post('/api/job-alerts', (req, res) => {
+  const data = clean(req.body, ['email', 'category', 'location']);
+  const errors = validate(data, ['email']);
+  if (data.category && !categoriesOf(jobs).includes(data.category)) errors.push('category is invalid');
+  if (data.location && !locationsOf(jobs).includes(data.location)) errors.push('location is invalid');
+  if (!errors.length) {
+    const email = data.email.toLowerCase();
+    const existing = readSubmissions('job-alerts').find((s) => s.email === email && s.category === data.category && s.location === data.location);
+    // Same reply either way, so the form can't be used to discover who is subscribed.
+    if (!existing) {
+      const sub = saveSubmission('job-alerts', { email, category: data.category, location: data.location, confirmed: false, token: crypto.randomBytes(24).toString('hex') });
+      mailer.jobAlertConfirm(sub);
+    } else if (!existing.confirmed) {
+      mailer.jobAlertConfirm(existing);
+    }
+  }
+  respond(req, res, errors, 'Almost done! Check your inbox and click the link to switch on your job alert.');
+});
+
+function findAlert(token) {
+  const list = readSubmissions('job-alerts');
+  return { list, sub: /^[a-f0-9]{48}$/.test(token) ? list.find((s) => s.token === token) : undefined };
+}
+
+app.get('/job-alerts/confirm/:token', (req, res) => {
+  const { list, sub } = findAlert(req.params.token);
+  if (!sub) return res.status(404).render('thanks', { title: 'Link expired', page: '', ok: false, message: 'This job alert link is no longer valid. You can set up a new alert on the Find Work page.', noindex: true });
+  if (!sub.confirmed) {
+    Object.assign(sub, { confirmed: true, confirmedAt: new Date().toISOString() });
+    writeSubmissions('job-alerts', list);
+  }
+  const what = [sub.category || 'all', 'jobs', sub.location ? `in ${sub.location}` : ''].filter(Boolean).join(' ');
+  res.render('thanks', { title: 'Job alert switched on', page: '', ok: true, message: `You'll get an email whenever we post ${what}.`, noindex: true });
+});
+
+// GET shows a button (mail scanners prefetch links); POST does the unsubscribe,
+// which also serves RFC 8058 one-click List-Unsubscribe.
+app.get('/job-alerts/unsubscribe/:token', (req, res) => {
+  const { sub } = findAlert(req.params.token);
+  res.render('unsubscribe', { title: 'Unsubscribe from job alerts', page: '', sub, noindex: true });
+});
+
+app.post('/job-alerts/unsubscribe/:token', (req, res) => {
+  const { list, sub } = findAlert(req.params.token);
+  if (sub) writeSubmissions('job-alerts', list.filter((s) => s !== sub));
+  res.render('thanks', { title: "You're unsubscribed", page: '', ok: true, message: "You won't get this job alert any more. You can set up a new one any time on the Find Work page.", noindex: true });
+});
+
 app.post('/api/newsletter', (req, res) => {
   const data = clean(req.body, ['email']);
   const errors = validate(data, ['email']);
@@ -318,6 +383,8 @@ function parseJob(body) {
   return { job, errors };
 }
 
+const alertedNote = (n) => (n ? ` · job alert sent to ${n} subscriber${n === 1 ? '' : 's'}` : '');
+
 function nextJobId() {
   const max = jobs.reduce((n, j) => Math.max(n, Number((j.id.match(/^hr-(\d+)$/) || [])[1]) || 0), 100);
   return `hr-${max + 1}`;
@@ -342,8 +409,9 @@ app.post('/admin/jobs', adminAuth, sameOrigin, (req, res) => {
   if (errors.length) return res.status(400).render('admin-job', jobFormLocals(job, errors));
   const created = { id: nextJobId(), ...job, posted: new Date().toISOString().slice(0, 10) };
   jobs.push(created);
+  const alerted = sendJobAlerts(created);
   saveJobs();
-  res.redirect(adminUrl('jobs', `Posted "${created.title}"`));
+  res.redirect(adminUrl('jobs', `Posted "${created.title}"${alertedNote(alerted)}`));
 });
 
 app.post('/admin/jobs/:id', adminAuth, sameOrigin, (req, res, next) => {
@@ -352,16 +420,18 @@ app.post('/admin/jobs/:id', adminAuth, sameOrigin, (req, res, next) => {
   const { job, errors } = parseJob(req.body);
   if (errors.length) return res.status(400).render('admin-job', jobFormLocals({ ...job, id: existing.id }, errors));
   Object.assign(existing, job);
+  const alerted = sendJobAlerts(existing);
   saveJobs();
-  res.redirect(adminUrl('jobs', `Saved "${existing.title}"`));
+  res.redirect(adminUrl('jobs', `Saved "${existing.title}"${alertedNote(alerted)}`));
 });
 
 app.post('/admin/jobs/:id/toggle', adminAuth, sameOrigin, (req, res, next) => {
   const job = jobs.find((j) => j.id === req.params.id);
   if (!job) return next();
   job.status = job.status === 'open' ? 'closed' : 'open';
+  const alerted = sendJobAlerts(job);
   saveJobs();
-  res.redirect(adminUrl('jobs', `${job.status === 'open' ? 'Reopened' : 'Closed'} "${job.title}"`));
+  res.redirect(adminUrl('jobs', `${job.status === 'open' ? 'Reopened' : 'Closed'} "${job.title}"${alertedNote(alerted)}`));
 });
 
 app.post('/admin/jobs/:id/delete', adminAuth, sameOrigin, (req, res, next) => {
@@ -411,7 +481,7 @@ app.get('/admin/export/:type.csv', adminAuth, (req, res, next) => {
   const { type } = req.params;
   if (!ADMIN_TABS.includes(type)) return next();
   const rows = type === 'jobs' ? jobs : readSubmissions(type);
-  const cols = [...new Set(rows.flatMap((r) => Object.keys(r)))];
+  const cols = [...new Set(rows.flatMap((r) => Object.keys(r)))].filter((c) => c !== 'token');
   const csv = [cols.map(csvCell).join(','), ...rows.map((r) => cols.map((c) => csvCell(r[c])).join(','))].join('\r\n');
   res.set('Content-Type', 'text/csv; charset=utf-8');
   res.attachment(`hireriv-${type}-${new Date().toISOString().slice(0, 10)}.csv`);
