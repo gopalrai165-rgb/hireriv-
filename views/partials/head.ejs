@@ -35,8 +35,10 @@
       <a href="/about" class="<%= page === 'about' ? 'active' : '' %>">About Us</a>
       <a href="/blog" class="<%= page === 'blog' ? 'active' : '' %>">Blog</a>
       <a href="/contact" class="<%= page === 'contact' ? 'active' : '' %>">Contact</a>
+      <a href="/saved" class="nav-saved <%= page === 'saved' ? 'active' : '' %>"><svg class="i"><use href="#i-bookmark"/></svg>Saved<span class="saved-count" hidden></span></a>
       <a href="/hire" class="btn btn-primary btn-sm nav-cta">Get Talent</a>
     </nav>
+    <a href="/saved" class="mobile-saved" aria-label="Saved jobs"><svg class="i"><use href="#i-bookmark"/></svg><span class="saved-count" hidden></span></a>
     <button class="nav-toggle" aria-label="Open menu" aria-expanded="false" aria-controls="main-nav">
       <svg class="i"><use href="#i-menu"/></svg>
     </button>

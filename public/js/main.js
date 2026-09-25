@@ -108,3 +108,98 @@ document.querySelectorAll('form[data-confirm]').forEach((form) => {
     if (!confirm(form.dataset.confirm)) e.preventDefault();
   });
 });
+
+// Saved jobs: ids kept in this browser (newest first). Storage can be blocked
+// (private mode, strict settings), so every access is guarded.
+const SAVED_KEY = 'hireriv:saved-jobs';
+
+function readSaved() {
+  try {
+    const ids = JSON.parse(localStorage.getItem(SAVED_KEY) || '[]');
+    return Array.isArray(ids) ? ids.filter((id) => typeof id === 'string') : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeSaved(ids) {
+  try {
+    localStorage.setItem(SAVED_KEY, JSON.stringify(ids));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function paintSaved() {
+  const ids = readSaved();
+  document.querySelectorAll('[data-save-job]').forEach((btn) => {
+    const saved = ids.includes(btn.dataset.saveJob);
+    btn.classList.toggle('saved', saved);
+    btn.setAttribute('aria-pressed', String(saved));
+    btn.title = saved ? 'Remove from saved jobs' : 'Save job';
+    const label = btn.querySelector('.save-label');
+    if (label) label.textContent = saved ? 'Saved' : 'Save job';
+  });
+  document.querySelectorAll('.saved-count').forEach((el) => {
+    el.textContent = ids.length;
+    el.hidden = !ids.length;
+  });
+}
+
+document.addEventListener('click', (e) => {
+  const btn = e.target.closest('[data-save-job]');
+  if (!btn) return;
+  e.preventDefault();
+  const id = btn.dataset.saveJob;
+  const ids = readSaved();
+  const wasSaved = ids.includes(id);
+  const next = wasSaved ? ids.filter((x) => x !== id) : [id, ...ids];
+  if (!writeSaved(next)) return toast('Your browser is blocking saved jobs on this site.', true);
+  paintSaved();
+  toast(wasSaved ? 'Removed from saved jobs' : 'Saved! Find it any time under "Saved".');
+  if (wasSaved && savedList) {
+    btn.closest('.job-card')?.remove();
+    renderSavedSummary(next.length);
+  }
+});
+
+// Keep several open tabs in sync.
+window.addEventListener('storage', (e) => { if (e.key === SAVED_KEY) paintSaved(); });
+
+const savedList = document.getElementById('saved-list');
+
+function renderSavedSummary(count) {
+  document.getElementById('saved-summary').innerHTML = count ? `<b>${count}</b> saved ${count === 1 ? 'job' : 'jobs'}` : '';
+  document.getElementById('saved-empty').hidden = count > 0;
+  document.getElementById('saved-clear').hidden = count === 0;
+}
+
+async function loadSavedPage() {
+  const ids = readSaved();
+  if (!ids.length) return renderSavedSummary(0);
+  try {
+    const res = await fetch(`/saved/cards?ids=${encodeURIComponent(ids.join(','))}`);
+    savedList.innerHTML = await res.text();
+    // Jobs deleted by the site owner disappear from the list for good.
+    const found = [...savedList.querySelectorAll('[data-save-job]')].map((b) => b.dataset.saveJob);
+    if (found.length !== ids.length) writeSaved(ids.filter((id) => found.includes(id)));
+    savedList.querySelectorAll('.reveal').forEach((el) => el.classList.add('in'));
+    renderSavedSummary(found.length);
+    paintSaved();
+  } catch {
+    document.getElementById('saved-summary').textContent = 'Could not load your saved jobs. Please refresh the page.';
+  }
+}
+
+if (savedList) {
+  loadSavedPage();
+  document.getElementById('saved-clear').addEventListener('click', () => {
+    if (!confirm('Remove all saved jobs?')) return;
+    writeSaved([]);
+    savedList.innerHTML = '';
+    renderSavedSummary(0);
+    paintSaved();
+  });
+}
+paintSaved();

@@ -1,0 +1,27 @@
+<%- include('partials/head') %>
+
+<section class="page-hero page-hero-sm">
+  <div class="container">
+    <span class="eyebrow">Your shortlist</span>
+    <h1>Saved jobs</h1>
+    <p class="lead">Jobs you bookmark are kept on this device, so you can come back and apply when you're ready.</p>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container">
+    <div class="results-head">
+      <p id="saved-summary">Loading your saved jobs…</p>
+      <button type="button" class="small link-btn" id="saved-clear" hidden>Clear all</button>
+    </div>
+    <div class="jobs-grid" id="saved-list"></div>
+    <div class="empty" id="saved-empty" hidden>
+      <h3>No saved jobs yet</h3>
+      <p>Tap the bookmark icon on any job to save it here.</p>
+      <a href="/jobs" class="btn btn-primary">Browse jobs</a>
+    </div>
+    <noscript><div class="empty"><p>Saved jobs need JavaScript switched on in your browser.</p></div></noscript>
+  </div>
+</section>
+
+<%- include('partials/foot') %>

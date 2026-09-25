@@ -9,7 +9,7 @@
         <h1><%= job.title %></h1>
         <p class="lead"><%= job.company %></p>
       </div>
-      <% if (job.status !== 'closed') { %><a href="#apply" class="btn btn-primary btn-lg">Apply now</a><% } else { %><span class="pill st-rejected">No longer accepting applications</span><% } %>
+      <% if (job.status !== 'closed') { %><div class="job-actions"><button type="button" class="btn btn-outline btn-lg save-btn save-btn-lg" data-save-job="<%= job.id %>" aria-pressed="false"><svg class="i"><use href="#i-bookmark"/></svg><span class="save-label">Save job</span></button><a href="#apply" class="btn btn-primary btn-lg">Apply now</a></div><% } else { %><span class="pill st-rejected">No longer accepting applications</span><% } %>
     </div>
     <ul class="job-meta job-meta-lg">
       <li><svg class="i"><use href="#i-pin"/></svg><%= job.location %></li>

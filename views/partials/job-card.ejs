@@ -1,7 +1,10 @@
-<article class="job-card reveal">
+<article class="job-card reveal<%= job.status === 'closed' ? ' is-closed' : '' %>">
   <div class="job-card-top">
     <span class="tag tag-<%= job.mode.toLowerCase() %>"><%= job.mode %></span>
-    <span class="muted small"><%= daysAgo(job.posted) %></span>
+    <span class="job-card-side">
+      <% if (job.status === 'closed') { %><span class="pill st-rejected">Closed</span><% } else { %><span class="muted small"><%= daysAgo(job.posted) %></span><% } %>
+      <button type="button" class="save-btn" data-save-job="<%= job.id %>" aria-pressed="false" aria-label="Save <%= job.title %>" title="Save job"><svg class="i"><use href="#i-bookmark"/></svg></button>
+    </span>
   </div>
   <h3><a href="/jobs/<%= job.id %>"><%= job.title %></a></h3>
   <p class="muted small"><%= job.company %> · <%= job.category %></p>

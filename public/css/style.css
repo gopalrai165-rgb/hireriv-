@@ -526,3 +526,25 @@ a.contact-card:hover { border-color: var(--primary); color: var(--text); }
 .alert-form { display: grid; grid-template-columns: 1.4fr 1fr 1fr auto; gap: 10px; }
 .alert-form input, .alert-form select { padding: .7em .8em; }
 @media (max-width: 620px) { .alert-band { padding: 22px; } .alert-form { grid-template-columns: 1fr; } }
+
+/* ============ Saved jobs ============ */
+.save-btn { display: none; }
+.js .save-btn { display: inline-flex; }
+.save-btn:not(.btn) { align-items: center; justify-content: center; width: 34px; height: 34px; padding: 0; border-radius: 50%; border: 1px solid var(--line); background: #fff; color: var(--muted); cursor: pointer; transition: color .2s, border-color .2s, background .2s; }
+.save-btn:not(.btn):hover { color: var(--primary); border-color: var(--primary); }
+.save-btn .i { width: 18px; height: 18px; fill: none; }
+.save-btn.saved { color: var(--accent); border-color: #fed7aa; background: #fff7ed; }
+.save-btn.saved .i { fill: currentColor; }
+.save-btn-lg { gap: 8px; }
+.job-card-side { display: inline-flex; align-items: center; gap: 10px; }
+.job-card.is-closed { opacity: .75; }
+.job-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.nav-saved { display: inline-flex; align-items: center; gap: 6px; }
+.nav-saved .i { width: 16px; height: 16px; fill: none; }
+.saved-count { background: var(--accent); color: #fff; border-radius: 99px; font-size: .72rem; font-weight: 700; padding: 0 .5em; line-height: 1.6; }
+.link-btn { background: none; border: 0; padding: 0; color: var(--primary); font: inherit; font-weight: 600; cursor: pointer; }
+.link-btn:hover { text-decoration: underline; }
+.mobile-saved { display: none; position: relative; margin-left: auto; margin-right: 4px; padding: 8px; color: var(--ink); }
+.mobile-saved .i { width: 24px; height: 24px; fill: none; }
+.mobile-saved .saved-count { position: absolute; top: 0; right: -2px; }
+@media (max-width: 960px) { .mobile-saved { display: inline-flex; } }

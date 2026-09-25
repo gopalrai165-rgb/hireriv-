@@ -197,6 +197,16 @@ app.get('/jobs/:id', (req, res, next) => {
   });
 });
 
+// Saved jobs live in the visitor's browser (localStorage); the page asks the
+// server to render cards for those ids. Closed jobs stay listed so people see why.
+app.get('/saved', (req, res) => res.render('saved', { title: 'Saved jobs', page: 'saved', noindex: true }));
+
+app.get('/saved/cards', (req, res) => {
+  const ids = String(req.query.ids || '').split(',').filter((id) => /^[A-Za-z0-9_-]{1,40}$/.test(id)).slice(0, 100);
+  const list = ids.map((id) => jobs.find((j) => j.id === id)).filter(Boolean);
+  res.set('X-Robots-Tag', 'noindex').render('partials/saved-cards', { list });
+});
+
 app.get('/hire', (req, res) => res.render('hire', { title: 'Hire a Team', page: 'hire' }));
 app.get('/about', (req, res) => res.render('about', { title: 'About Us', page: 'about' }));
 app.get('/contact', (req, res) => res.render('contact', { title: 'Contact Us', page: 'contact' }));
