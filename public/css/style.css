@@ -601,3 +601,19 @@ a.contact-card:hover { border-color: var(--primary); color: var(--text); }
 
 /* Honeypot: off-screen, not display:none, so naive bots still fill it */
 .hp { position: absolute; left: -10000px; width: 1px; height: 1px; overflow: hidden; }
+
+/* ============ Talent pool & skill match ============ */
+.match-chip { display: inline-flex; gap: 4px; margin-top: 6px; padding: .2em .7em; border-radius: 999px; font-size: .76rem; white-space: nowrap; cursor: help; }
+.match-high { background: #dcfce7; color: #15803d; }
+.match-mid { background: #fef3c7; color: #a16207; }
+.match-low { background: #f1f5f9; color: #475569; }
+.pipeline-sort { margin-left: auto; font-size: .85rem; color: var(--muted); align-self: center; }
+.pipeline-sort a { color: var(--muted); font-weight: 600; }
+.pipeline-sort a.active { color: var(--primary); }
+.talent-search { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px 14px; align-items: end; padding: 20px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--tint); margin-bottom: 14px; }
+.talent-search label { display: flex; flex-direction: column; gap: 6px; font-size: .82rem; font-weight: 600; color: var(--ink); }
+.talent-search input, .talent-search select { padding: .6em .75em; }
+.talent-actions { display: flex; align-items: center; gap: 14px; }
+.talent-summary { margin: 0 0 12px; }
+@media (max-width: 900px) { .talent-search { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 520px) { .talent-search { grid-template-columns: minmax(0, 1fr); } }

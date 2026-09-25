@@ -20,16 +20,23 @@
       <div class="pipeline">
         <a class="pill<%= !status ? ' active' : '' %>" href="/admin?tab=applications">All <b><%= counts.applications %></b></a>
         <% statuses.forEach(function (s) { %>
-          <a class="pill st-<%= s.toLowerCase() %><%= s === status ? ' active' : '' %>" href="/admin?tab=applications&status=<%= s %>"><%= s %> <b><%= statusCounts[s] %></b></a>
+          <a class="pill st-<%= s.toLowerCase() %><%= s === status ? ' active' : '' %>" href="/admin?tab=applications&status=<%= s %><%= sort ? '&sort=match' : '' %>"><%= s %> <b><%= statusCounts[s] %></b></a>
         <% }) %>
+        <span class="pipeline-sort">Sort:
+          <a class="<%= !sort ? 'active' : '' %>" href="/admin?tab=applications<%= status ? '&status=' + status : '' %>">Newest</a> ·
+          <a class="<%= sort ? 'active' : '' %>" href="/admin?tab=applications<%= status ? '&status=' + status : '' %>&sort=match">Best skill match</a>
+        </span>
       </div>
     <% } %>
 
     <% if (tab === 'dashboard') { %>
       <%- include('partials/admin-dashboard', { dash: dash }) %>
 
-    <% } else if (!rows.length) { %>
+    <% } else if (!rows.length && tab !== 'talent') { %>
       <div class="empty"><p>No <%= status ? status.toLowerCase() + ' ' : '' %><%= tab.replace('-', ' ') %> yet.</p></div>
+
+    <% } else if (tab === 'talent') { %>
+      <%- include('partials/admin-talent') %>
 
     <% } else if (tab === 'jobs') { %>
       <div class="table-wrap">
@@ -65,7 +72,7 @@
                   <% if (r.linkedin) { %><br><a href="<%= /^https?:\/\//i.test(r.linkedin) ? r.linkedin : '#' %>" target="_blank" rel="noopener noreferrer">LinkedIn / portfolio</a><% } %>
                   <% if (r.resume) { %><br><a href="/admin/resume/<%= encodeURIComponent(r.resume) %>">Download resume</a><% } %>
                 </td>
-                <td><%= r.jobTitle %></td>
+                <td><%= r.jobTitle %><% if (r.match) { %><br><%- include('partials/match-chip', { match: r.match }) %><% } %><% if (r.skills) { %><br><span class="muted small">Skills: <%= r.skills %></span><% } %></td>
                 <td><%= r.experience %><br><span class="muted"><%= r.location || '—' %> · notice <%= r.noticePeriod %></span>
                   <% if (r.message) { %><details><summary>Message</summary><%= r.message %></details><% } %>
                 </td>

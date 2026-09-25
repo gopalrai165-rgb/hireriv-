@@ -5,6 +5,7 @@ const fs = require('fs');
 const crypto = require('crypto');
 const { createMailer } = require('./mailer');
 const seo = require('./seo');
+const { skillMatch, buildPool, searchPool } = require('./match');
 
 const PORT = process.env.PORT || 3004;
 const ADMIN_USER = process.env.ADMIN_USER || 'admin';
@@ -255,7 +256,7 @@ app.post('/api/apply', limit('apply', 6), (req, res) => {
       return respond(req, res, [], 'Thanks! Your application is in.');
     }
     if (err) return respond(req, res, [err.code === 'LIMIT_FILE_SIZE' ? 'Resume must be under 5 MB' : err.message]);
-    const data = clean(req.body, ['jobId', 'name', 'email', 'phone', 'experience', 'location', 'noticePeriod', 'linkedin', 'message']);
+    const data = clean(req.body, ['jobId', 'name', 'email', 'phone', 'skills', 'experience', 'location', 'noticePeriod', 'linkedin', 'message']);
     const errors = validate(data, ['name', 'email', 'phone']);
     if (!req.file) errors.push('resume is required');
     const job = jobs.find((j) => j.id === data.jobId);
@@ -391,13 +392,13 @@ function sameOrigin(req, res, next) {
   res.status(403).send('Cross-site request blocked');
 }
 
-const ADMIN_TABS = ['dashboard', 'jobs', ...FORM_TYPES];
+const ADMIN_TABS = ['dashboard', 'jobs', 'talent', ...FORM_TYPES];
 const adminUrl = (tab, msg) => `/admin?tab=${tab}${msg ? `&msg=${encodeURIComponent(msg)}` : ''}`;
 
 app.get('/admin', adminAuth, (req, res) => {
   const tab = ADMIN_TABS.includes(req.query.tab) ? req.query.tab : 'dashboard';
   const applications = readSubmissions('applications');
-  const counts = { dashboard: '', jobs: jobs.length, ...Object.fromEntries(FORM_TYPES.map((t) => [t, readSubmissions(t).length])) };
+  const counts = { dashboard: '', jobs: jobs.length, talent: new Set(applications.map((a) => String(a.email).toLowerCase())).size, ...Object.fromEntries(FORM_TYPES.map((t) => [t, readSubmissions(t).length])) };
   const locals = { title: 'Admin', page: 'admin', tab, tabs: ADMIN_TABS, counts, status: '', msg: String(req.query.msg || '') };
 
   if (tab === 'dashboard') return res.render('admin', { ...locals, rows: [], dash: buildDashboard(applications) });
@@ -410,8 +411,25 @@ app.get('/admin', adminAuth, (req, res) => {
     const statusOf = (a) => a.status || 'New';
     const statusCounts = Object.fromEntries(APP_STATUSES.map((s) => [s, applications.filter((a) => statusOf(a) === s).length]));
     const status = APP_STATUSES.includes(req.query.status) ? req.query.status : '';
-    const rows = status ? applications.filter((a) => statusOf(a) === status) : applications;
-    return res.render('admin', { ...locals, rows, statuses: APP_STATUSES, statusCounts, status });
+    const sort = req.query.sort === 'match' ? 'match' : '';
+    let rows = (status ? applications.filter((a) => statusOf(a) === status) : applications)
+      .map((a) => ({ ...a, match: skillMatch(a, jobs.find((j) => j.id === a.jobId)) }));
+    if (sort) rows = rows.sort((a, b) => (b.match?.score ?? -1) - (a.match?.score ?? -1));
+    return res.render('admin', { ...locals, rows, statuses: APP_STATUSES, statusCounts, status, sort });
+  }
+  if (tab === 'talent') {
+    const EXPERIENCE = ['Fresher', '0-1 years', '1-3 years', '3-5 years', '5-10 years', '10+ years'];
+    const NOTICE = ['Immediate', '15 days', '30 days', '60 days', '90 days'];
+    const f = {
+      q: String(req.query.q || '').slice(0, 100),
+      experience: EXPERIENCE.includes(req.query.experience) ? req.query.experience : '',
+      notice: NOTICE.includes(req.query.notice) ? req.query.notice : '',
+      status: APP_STATUSES.includes(req.query.status) ? req.query.status : '',
+      jobId: String(req.query.job || ''),
+    };
+    const job = jobs.find((j) => j.id === f.jobId) || null;
+    const rows = searchPool(buildPool(applications), { ...f, job });
+    return res.render('admin', { ...locals, rows, f, matchJob: job, jobOptions: jobs, statuses: APP_STATUSES, experienceOptions: EXPERIENCE, noticeOptions: NOTICE });
   }
   res.render('admin', { ...locals, rows: readSubmissions(tab) });
 });
@@ -589,7 +607,11 @@ function csvCell(v) {
 app.get('/admin/export/:type.csv', adminAuth, (req, res, next) => {
   const { type } = req.params;
   if (!ADMIN_TABS.includes(type)) return next();
-  const rows = type === 'jobs' ? jobs : readSubmissions(type);
+  if (type === 'dashboard') return next();
+  const rows =
+    type === 'jobs' ? jobs
+    : type === 'talent' ? buildPool(readSubmissions('applications')).map(({ skillsAll, ...c }) => ({ ...c, jobsApplied: c.jobsApplied.join('; ') }))
+    : readSubmissions(type);
   const cols = [...new Set(rows.flatMap((r) => Object.keys(r)))].filter((c) => c !== 'token');
   const csv = [cols.map(csvCell).join(','), ...rows.map((r) => cols.map((c) => csvCell(r[c])).join(','))].join('\r\n');
   res.set('Content-Type', 'text/csv; charset=utf-8');

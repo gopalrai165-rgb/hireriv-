@@ -86,7 +86,7 @@ function createMailer(site) {
         heading: 'New job application',
         html:
           detailsTable([
-            ['Job', a.jobTitle], ['Name', a.name], ['Email', a.email], ['Phone', a.phone],
+            ['Job', a.jobTitle], ['Name', a.name], ['Email', a.email], ['Phone', a.phone], ['Skills', a.skills],
             ['Experience', a.experience], ['Location', a.location], ['Notice period', a.noticePeriod],
             ['LinkedIn', a.linkedin], ['Message', a.message],
           ]) + button(`${baseUrl}/admin?tab=applications`, 'Review in admin'),

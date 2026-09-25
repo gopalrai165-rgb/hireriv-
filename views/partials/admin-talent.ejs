@@ -1,0 +1,52 @@
+<form class="form talent-search" method="get" action="/admin">
+  <input type="hidden" name="tab" value="talent">
+  <label class="span-2">Search candidates<input name="q" value="<%= f.q %>" placeholder="Name, skill, city, job or note, e.g. react bengaluru"></label>
+  <label>Rank against job
+    <select name="job">
+      <option value="">No ranking</option>
+      <% jobOptions.forEach(function (j) { %><option value="<%= j.id %>"<%= j.id === f.jobId ? ' selected' : '' %>><%= j.title %> · <%= j.location %><%= j.status === 'closed' ? ' (closed)' : '' %></option><% }) %>
+    </select>
+  </label>
+  <label>Experience
+    <select name="experience"><option value="">Any</option><% experienceOptions.forEach(function (o) { %><option<%= o === f.experience ? ' selected' : '' %>><%= o %></option><% }) %></select>
+  </label>
+  <label>Notice period
+    <select name="notice"><option value="">Any</option><% noticeOptions.forEach(function (o) { %><option<%= o === f.notice ? ' selected' : '' %>><%= o %></option><% }) %></select>
+  </label>
+  <label>Latest stage
+    <select name="status"><option value="">Any</option><% statuses.forEach(function (o) { %><option<%= o === f.status ? ' selected' : '' %>><%= o %></option><% }) %></select>
+  </label>
+  <div class="talent-actions">
+    <button class="btn btn-primary btn-sm" type="submit">Search</button>
+    <% if (f.q || f.jobId || f.experience || f.notice || f.status) { %><a class="small" href="/admin?tab=talent">Clear</a><% } %>
+  </div>
+</form>
+
+<p class="muted small talent-summary">
+  <b><%= rows.length %></b> <%= rows.length === 1 ? 'candidate' : 'candidates' %>
+  <% if (matchJob) { %>ranked by skill match for <b><%= matchJob.title %></b> (needs <%= matchJob.skills.join(', ') || 'no listed skills' %>)<% } %>
+</p>
+
+<% if (!rows.length) { %>
+  <div class="empty"><p>No candidates match these filters.</p></div>
+<% } else { %>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><% if (matchJob) { %><th>Match</th><% } %><th>Candidate</th><th>Skills</th><th>Profile</th><th>Applied for</th><th>Latest stage</th></tr></thead>
+      <tbody>
+        <% rows.forEach(function (c) { %>
+          <tr>
+            <% if (matchJob) { %><td><% if (c.match) { %><%- include('match-chip', { match: c.match }) %><% } else { %><span class="muted small">No skills listed on job</span><% } %></td><% } %>
+            <td><b><%= c.name %></b><br><a href="mailto:<%= c.email %>"><%= c.email %></a><br><%= c.phone %>
+              <% if (c.resume) { %><br><a href="/admin/resume/<%= encodeURIComponent(c.resume) %>">Latest resume</a><% } %>
+            </td>
+            <td><%= c.skills || '—' %></td>
+            <td><%= c.experience || '—' %><br><span class="muted"><%= c.location || '—' %> · notice <%= c.noticePeriod || '—' %></span></td>
+            <td><%= c.jobsApplied.join(', ') %><% if (c.applicationCount > 1) { %><br><span class="muted small"><%= c.applicationCount %> applications</span><% } %></td>
+            <td><span class="pill st-<%= c.status.toLowerCase() %>"><%= c.status %></span><% if (c.notes) { %><br><span class="muted small"><%= c.notes %></span><% } %></td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+<% } %>

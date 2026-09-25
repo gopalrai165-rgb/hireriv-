@@ -1,0 +1,1 @@
+<span class="match-chip match-<%= match.score >= 70 ? 'high' : match.score >= 40 ? 'mid' : 'low' %>" title="<%= match.matched.length ? 'Has: ' + match.matched.join(', ') : 'None of the listed skills' %><%= match.missing.length ? ' · Missing: ' + match.missing.join(', ') : '' %>"><b><%= match.score %>%</b> skill match</span>
