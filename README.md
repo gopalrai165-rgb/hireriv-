@@ -17,13 +17,13 @@ A complete website for a tech-driven staffing and recruitment company, built wit
 ## Run it
 ```bash
 npm install
-npm start            # http://localhost:3000
+npm start            # http://localhost:3004
 ```
 To enable the admin panel, set a password first:
 ```powershell
 $env:ADMIN_PASS="choose-a-strong-password"; npm start   # PowerShell
 ```
-Then open http://localhost:3000/admin and log in as `admin` (change the username with `ADMIN_USER`).
+Then open http://localhost:3004/admin and log in as `admin` (change the username with `ADMIN_USER`).
 
 ## Customise
 | What | Where |
