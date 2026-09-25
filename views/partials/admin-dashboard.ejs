@@ -56,6 +56,18 @@
     </ul>
   </section>
 
+  <section class="dash-card dash-wide">
+    <div class="dash-head"><h2>Upcoming interviews</h2><a class="small" href="/admin?tab=interviews">All interviews</a></div>
+    <% if (!dash.interviews.length) { %><p class="muted dash-empty">No interviews booked.</p>
+    <% } else { %>
+      <ul class="activity">
+        <% dash.interviews.forEach(function (iv) { %>
+          <li><a href="/admin?tab=interviews"><span class="pill st-interview"><%= iv.mode %></span><span class="activity-text"><b><%= iv.app.name %></b> · <%= iv.app.jobTitle %></span><span class="muted small"><%= formatIst(iv.at) %></span></a></li>
+        <% }) %>
+      </ul>
+    <% } %>
+  </section>
+
   <section class="dash-card">
     <div class="dash-head"><h2>Most applied jobs</h2><a class="small" href="/admin?tab=jobs">All jobs</a></div>
     <% if (!dash.topJobs.length) { %><p class="muted dash-empty">No applications yet.</p>

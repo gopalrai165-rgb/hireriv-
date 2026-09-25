@@ -7,7 +7,7 @@
       <div class="admin-actions">
         <% if (tab === 'jobs') { %><a class="btn btn-primary btn-sm" href="/admin/jobs/new">+ Post a job</a><% } %>
         <% if (tab === 'blog') { %><a class="btn btn-primary btn-sm" href="/admin/blog/new">+ Write an article</a><% } %>
-        <% if (rows.length && tab !== 'blog') { %><a class="btn btn-outline btn-sm" href="/admin/export/<%= tab %>.csv">Export CSV</a><% } %>
+        <% if (rows.length && !['blog', 'interviews'].includes(tab)) { %><a class="btn btn-outline btn-sm" href="/admin/export/<%= tab %>.csv">Export CSV</a><% } %>
       </div>
     </div>
     <% if (msg) { %><p class="notice" role="status"><%= msg %></p><% } %>
@@ -32,6 +32,9 @@
 
     <% if (tab === 'dashboard') { %>
       <%- include('partials/admin-dashboard', { dash: dash }) %>
+
+    <% } else if (tab === 'interviews') { %>
+      <%- include('partials/admin-interviews') %>
 
     <% } else if (!rows.length && tab !== 'talent' && tab !== 'settings') { %>
       <div class="empty"><p>No <%= status ? status.toLowerCase() + ' ' : '' %><%= tab.replace('-', ' ') %> yet.</p></div>
@@ -114,6 +117,9 @@
                     <% if (r.lastEmailedStatus) { %><span class="muted small">Last emailed: <%= r.lastEmailedStatus %></span><% } %>
                     <button class="btn btn-primary btn-sm">Save</button>
                   </form>
+                  <% const nextIv = (r.interviews || []).filter(function (iv) { return iv.status === 'scheduled' && new Date(iv.at) > new Date(); }).sort(function (x, y) { return x.at.localeCompare(y.at); })[0]; %>
+                  <% if (nextIv) { %><p class="iv-next">Interview: <b><%= formatIst(nextIv.at) %></b></p><% } %>
+                  <a class="small iv-link" href="/admin/applications/<%= r.id %>/interview">+ Schedule interview</a>
                 </td>
                 <td><form method="post" action="/admin/applications/<%= r.id %>/delete" data-confirm="Delete this application and its resume?"><button class="btn btn-sm btn-danger">Delete</button></form></td>
               </tr>

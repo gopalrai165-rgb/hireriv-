@@ -1,0 +1,45 @@
+<h2 class="iv-heading">Upcoming <span class="muted">(<%= rows.length %>)</span></h2>
+<% if (!rows.length) { %>
+  <div class="empty"><p>No interviews booked. Open an application and choose <b>+ Schedule interview</b>.</p></div>
+<% } else { %>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>When</th><th>Candidate</th><th>Job</th><th>Format</th><th>Interviewer</th><th></th></tr></thead>
+      <tbody>
+        <% rows.forEach(function (iv) { %>
+          <tr>
+            <td><b><%= formatIst(iv.at) %></b><br><span class="muted small"><%= iv.duration %> min</span></td>
+            <td><b><%= iv.app.name %></b><br><a href="mailto:<%= iv.app.email %>"><%= iv.app.email %></a><br><%= iv.app.phone %></td>
+            <td><%= iv.app.jobTitle %></td>
+            <td><%= iv.mode %><br><% if (/^https?:\/\//.test(iv.where)) { %><a href="<%= iv.where %>" target="_blank" rel="noopener noreferrer">Join link</a><% } else { %><span class="muted small"><%= iv.where %></span><% } %></td>
+            <td><%= iv.interviewer || '—' %></td>
+            <td class="row-actions">
+              <a class="btn btn-outline btn-sm" href="/admin/interviews/<%= iv.app.id %>/<%= iv.id %>.ics">.ics</a>
+              <form method="post" action="/admin/interviews/<%= iv.app.id %>/<%= iv.id %>/cancel" data-confirm="Cancel this interview? The candidate will be emailed and it will be removed from their calendar."><button class="btn btn-sm btn-danger">Cancel</button></form>
+            </td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+<% } %>
+
+<% if (past.length) { %>
+  <h2 class="iv-heading">Past &amp; cancelled</h2>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>When</th><th>Candidate</th><th>Job</th><th>Format</th><th>Status</th></tr></thead>
+      <tbody>
+        <% past.forEach(function (iv) { %>
+          <tr class="<%= iv.status === 'cancelled' ? 'iv-cancelled' : '' %>">
+            <td><%= formatIst(iv.at) %></td>
+            <td><%= iv.app.name %></td>
+            <td><%= iv.app.jobTitle %></td>
+            <td><%= iv.mode %></td>
+            <td><span class="pill st-<%= iv.status === 'cancelled' ? 'rejected' : 'hired' %>"><%= iv.status === 'cancelled' ? 'Cancelled' : 'Done' %></span></td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+<% } %>

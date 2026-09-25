@@ -7,6 +7,7 @@ const { createMailer } = require('./mailer');
 const seo = require('./seo');
 const { skillMatch, buildPool, searchPool } = require('./match');
 const { parsePost, parseSettings, SOCIAL } = require('./content');
+const interviews = require('./interviews');
 
 const PORT = process.env.PORT || 3004;
 const ADMIN_USER = process.env.ADMIN_USER || 'admin';
@@ -160,6 +161,7 @@ app.use(express.json({ limit: '100kb' }));
 app.use(express.static(path.join(__dirname, 'public'), { maxAge: '1h' }));
 
 app.locals.site = site;
+app.locals.formatIst = interviews.formatIst;
 app.locals.year = new Date().getFullYear();
 app.locals.formatDate = (d) =>
   new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
@@ -403,13 +405,15 @@ function sameOrigin(req, res, next) {
   res.status(403).send('Cross-site request blocked');
 }
 
-const ADMIN_TABS = ['dashboard', 'jobs', 'talent', ...FORM_TYPES, 'blog', 'settings'];
+const ADMIN_TABS = ['dashboard', 'jobs', 'talent', 'interviews', ...FORM_TYPES, 'blog', 'settings'];
 const adminUrl = (tab, msg) => `/admin?tab=${tab}${msg ? `&msg=${encodeURIComponent(msg)}` : ''}`;
+
+interviews.register(app, { adminAuth, sameOrigin, readSubmissions, writeSubmissions, mailer, site, adminUrl });
 
 app.get('/admin', adminAuth, (req, res) => {
   const tab = ADMIN_TABS.includes(req.query.tab) ? req.query.tab : 'dashboard';
   const applications = readSubmissions('applications');
-  const counts = { dashboard: '', settings: '', blog: posts.length, jobs: jobs.length, talent: new Set(applications.map((a) => String(a.email).toLowerCase())).size, ...Object.fromEntries(FORM_TYPES.map((t) => [t, readSubmissions(t).length])) };
+  const counts = { dashboard: '', settings: '', blog: posts.length, interviews: interviews.upcoming(applications).length, jobs: jobs.length, talent: new Set(applications.map((a) => String(a.email).toLowerCase())).size, ...Object.fromEntries(FORM_TYPES.map((t) => [t, readSubmissions(t).length])) };
   const locals = { title: 'Admin', page: 'admin', tab, tabs: ADMIN_TABS, counts, status: '', msg: String(req.query.msg || '') };
 
   if (tab === 'dashboard') return res.render('admin', { ...locals, rows: [], dash: buildDashboard(applications) });
@@ -429,6 +433,11 @@ app.get('/admin', adminAuth, (req, res) => {
     return res.render('admin', { ...locals, rows, statuses: APP_STATUSES, statusCounts, status, sort });
   }
   if (tab === 'blog') return res.render('admin', { ...locals, rows: posts });
+  if (tab === 'interviews') {
+    const up = interviews.upcoming(applications);
+    const past = interviews.allInterviews(applications).filter((iv) => !up.some((u) => u.id === iv.id)).sort((a, b) => b.at.localeCompare(a.at));
+    return res.render('admin', { ...locals, rows: up, past, formatIst: interviews.formatIst });
+  }
   if (tab === 'settings') return res.render('admin', { ...locals, rows: [], form: site, errors: [], social: SOCIAL });
   if (tab === 'talent') {
     const EXPERIENCE = ['Fresher', '0-1 years', '1-3 years', '3-5 years', '5-10 years', '10+ years'];
@@ -496,6 +505,7 @@ function buildDashboard(applications) {
     funnel: APP_STATUSES.map((s) => ({ status: s, count: applications.filter((a) => statusOf(a) === s).length })),
     topJobs,
     recent,
+    interviews: interviews.upcoming(applications, 5),
   };
 }
 
@@ -671,7 +681,7 @@ function csvCell(v) {
 app.get('/admin/export/:type.csv', adminAuth, (req, res, next) => {
   const { type } = req.params;
   if (!ADMIN_TABS.includes(type)) return next();
-  if (['dashboard', 'blog', 'settings'].includes(type)) return next();
+  if (['dashboard', 'blog', 'settings', 'interviews'].includes(type)) return next();
   const rows =
     type === 'jobs' ? jobs
     : type === 'talent' ? buildPool(readSubmissions('applications')).map(({ skillsAll, ...c }) => ({ ...c, jobsApplied: c.jobsApplied.join('; ') }))

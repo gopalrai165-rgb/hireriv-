@@ -639,3 +639,11 @@ a.contact-card:hover { border-color: var(--primary); color: var(--text); }
 .share-btn[hidden] { display: none; }
 .share-wa .i { color: #16a34a; }
 .share-li .i { color: #0a66c2; }
+
+/* ============ Interviews ============ */
+.iv-heading { font-size: 1.1rem; margin: 8px 0 12px; }
+.iv-heading + .empty, .iv-heading + .table-wrap { margin-bottom: 28px; }
+.iv-next { margin: 8px 0 0; font-size: .8rem; color: #7e22ce; }
+.iv-link { display: inline-block; margin-top: 6px; font-weight: 600; }
+.iv-cancelled td { color: var(--muted); text-decoration: line-through; }
+.iv-cancelled td:last-child { text-decoration: none; }

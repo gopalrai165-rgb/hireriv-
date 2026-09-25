@@ -49,7 +49,7 @@ const button = (href, label) =>
   `<p style="margin:20px 0 0"><a href="${esc(href)}" style="background:#0e8a8f;color:#fff;padding:12px 22px;border-radius:999px;text-decoration:none;font-weight:bold;display:inline-block">${esc(label)}</a></p>`;
 
 // Never let a mail failure break a form submission; log it and move on.
-async function send(site, { to, subject, heading, html, replyTo, headers }) {
+async function send(site, { to, subject, heading, html, replyTo, headers, icalEvent }) {
   if (!to) return;
   try {
     const info = await transport.sendMail({
@@ -59,6 +59,7 @@ async function send(site, { to, subject, heading, html, replyTo, headers }) {
       subject: subject.replace(/[\r\n]+/g, ' '),
       html: layout(site, heading, html),
       headers,
+      icalEvent,
     });
     if (!SMTP_HOST) {
       fs.mkdirSync(OUTBOX_DIR, { recursive: true });
@@ -124,6 +125,38 @@ function createMailer(site) {
         subject: `New message${c.subject ? `: ${c.subject}` : ''} from ${c.name}`,
         heading: 'New contact message',
         html: detailsTable([['Name', c.name], ['Email', c.email], ['Phone', c.phone], ['Subject', c.subject], ['Message', c.message]]),
+      });
+    },
+
+    // The calendar invite rides along as a text/calendar part, so mail apps show
+    // Accept/Decline and add it to the calendar.
+    interviewScheduled(a, iv, ics, when) {
+      const joinLink = /^https?:\/\//.test(iv.where) ? iv.where : '';
+      send(site, {
+        to: a.email,
+        replyTo: teamInbox,
+        subject: `Interview scheduled: ${a.jobTitle} on ${when}`,
+        heading: `Your interview is confirmed, ${String(a.name).split(' ')[0]}`,
+        icalEvent: { method: 'REQUEST', filename: 'interview.ics', content: ics },
+        html:
+          p(`Great news! Here are the details for your interview for <b>${esc(a.jobTitle)}</b>.`) +
+          detailsTable([['When', when], ['Duration', `${iv.duration} minutes`], ['Format', iv.mode], [iv.mode === 'In person' ? 'Address' : iv.mode === 'Phone' ? 'Phone' : 'Link', iv.where], ['Interviewer', iv.interviewer]]) +
+          (iv.message ? p(esc(iv.message)) : '') +
+          (joinLink ? button(joinLink, 'Join the interview') : '') +
+          p(`<span style="color:#6b7690;font-size:13px">The invite is attached, so you can add it to your calendar. Need to reschedule? Just reply to this email or call ${esc(site.phone)}.</span>`),
+      });
+    },
+
+    interviewCancelled(a, iv, ics, when) {
+      send(site, {
+        to: a.email,
+        replyTo: teamInbox,
+        subject: `Interview cancelled: ${a.jobTitle} on ${when}`,
+        heading: 'Your interview has been cancelled',
+        icalEvent: { method: 'CANCEL', filename: 'interview.ics', content: ics },
+        html:
+          p(`Hi ${first(a.name)}, the interview for <b>${esc(a.jobTitle)}</b> on <b>${esc(when)}</b> has been cancelled, and we've removed it from your calendar.`) +
+          p('Your recruiter will be in touch about next steps. If you have questions, just reply to this email.'),
       });
     },
 

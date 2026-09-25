@@ -1,0 +1,47 @@
+<%- include('partials/head') %>
+
+<section class="section admin">
+  <div class="container narrow">
+    <a href="/admin?tab=applications" class="back-link">← Applications</a>
+    <h1>Schedule interview</h1>
+    <p class="lead"><b><%= a.name %></b> for <%= a.jobTitle %> · <a href="mailto:<%= a.email %>"><%= a.email %></a> · <%= a.phone %></p>
+    <% if (errors.length) { %><p class="notice notice-err" role="alert">Please fix: <%= errors.join(', ') %></p><% } %>
+    <form class="form form-card" method="post" action="/admin/applications/<%= a.id %>/interview">
+      <div class="form-grid">
+        <label>Date*<input type="date" name="date" required value="<%= f.date %>"></label>
+        <label>Time (India time)*<input type="time" name="time" required value="<%= f.time %>"></label>
+        <label>Duration
+          <select name="duration"><% durations.forEach(function (d) { %><option value="<%= d %>"<%= d === Number(f.duration) ? ' selected' : '' %>><%= d %> minutes</option><% }) %></select>
+        </label>
+        <label>Format
+          <select name="mode" id="iv-mode"><% modes.forEach(function (m) { %><option<%= m === f.mode ? ' selected' : '' %>><%= m %></option><% }) %></select>
+        </label>
+        <label class="span-2"><span id="iv-where-label">Meeting link / address / phone</span><input name="where" id="iv-where" value="<%= f.where %>" placeholder="https://meet.google.com/… or office address"></label>
+        <label class="span-2">Interviewer<input name="interviewer" value="<%= f.interviewer %>" placeholder="e.g. Priya Sharma, Engineering Manager"></label>
+        <label class="span-2">Message to the candidate <span class="muted small">(optional)</span><textarea name="message" rows="3" placeholder="e.g. Please keep your ID and latest payslip handy."><%= f.message %></textarea></label>
+      </div>
+      <p class="muted small">The candidate gets an email with a calendar invite. If they're still New or in Screening, they move to Interview.</p>
+      <button class="btn btn-primary" type="submit">Book interview &amp; email invite</button>
+      <a class="btn btn-outline" href="/admin?tab=applications">Cancel</a>
+    </form>
+  </div>
+</section>
+
+<script>
+  // Adapt the location field to the chosen format.
+  (function () {
+    var mode = document.getElementById('iv-mode');
+    var where = document.getElementById('iv-where');
+    var label = document.getElementById('iv-where-label');
+    var copy = {
+      'Video call': ['Meeting link*', 'https://meet.google.com/abc-defg-hij'],
+      'Phone': ['Number we will call (defaults to the candidate\'s phone)', '<%= a.phone %>'],
+      'In person': ['Office address*', 'e.g. 4th floor, 12 MG Road, Bengaluru'],
+    };
+    function sync() { var c = copy[mode.value]; label.textContent = c[0]; where.placeholder = c[1]; }
+    mode.addEventListener('change', sync);
+    sync();
+  })();
+</script>
+
+<%- include('partials/foot') %>
