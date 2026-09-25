@@ -7,7 +7,7 @@
       <div class="admin-actions">
         <% if (tab === 'jobs') { %><a class="btn btn-primary btn-sm" href="/admin/jobs/new">+ Post a job</a><% } %>
         <% if (tab === 'blog') { %><a class="btn btn-primary btn-sm" href="/admin/blog/new">+ Write an article</a><% } %>
-        <% if (rows.length && !['blog', 'interviews'].includes(tab)) { %><a class="btn btn-outline btn-sm" href="/admin/export/<%= tab %>.csv">Export CSV</a><% } %>
+        <% if (rows.length && !['blog', 'interviews', 'clients'].includes(tab)) { %><a class="btn btn-outline btn-sm" href="/admin/export/<%= tab %>.csv">Export CSV</a><% } %>
       </div>
     </div>
     <% if (msg) { %><p class="notice" role="status"><%= msg %></p><% } %>
@@ -32,6 +32,9 @@
 
     <% if (tab === 'dashboard') { %>
       <%- include('partials/admin-dashboard', { dash: dash }) %>
+
+    <% } else if (tab === 'clients') { %>
+      <%- include('partials/admin-clients') %>
 
     <% } else if (tab === 'interviews') { %>
       <%- include('partials/admin-interviews') %>

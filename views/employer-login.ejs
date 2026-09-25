@@ -1,0 +1,22 @@
+<%- include('partials/head') %>
+
+<section class="section auth-section">
+  <div class="container auth-wrap">
+    <div class="form-card auth-card">
+      <span class="eyebrow">Client portal</span>
+      <h1>Log in</h1>
+      <p class="muted">Track your open roles and send new hiring requirements to your <%= site.name %> account manager.</p>
+      <% if (errors.length) { %><p class="notice notice-err" role="alert"><%= errors.join(' ') %></p><% } %>
+      <form class="form" method="post" action="/employer/login">
+        <div class="form-grid">
+          <label class="span-2">Work email<input type="email" name="email" required autocomplete="username" value="<%= email %>"></label>
+          <label class="span-2">Password<input type="password" name="password" required autocomplete="current-password"></label>
+        </div>
+        <button class="btn btn-primary btn-block" type="submit">Log in</button>
+      </form>
+      <p class="small auth-links"><a href="/employer/forgot">Forgot password?</a> · Not a client yet? <a href="/hire">Tell us what you need</a></p>
+    </div>
+  </div>
+</section>
+
+<%- include('partials/foot') %>

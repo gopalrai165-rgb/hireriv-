@@ -1,0 +1,36 @@
+<form class="form talent-search client-add" method="post" action="/admin/clients">
+  <label>Company*<input name="company" required maxlength="120" placeholder="e.g. Acme Fintech"></label>
+  <label>Contact name*<input name="name" required maxlength="120"></label>
+  <label>Work email*<input type="email" name="email" required maxlength="160"></label>
+  <div class="talent-actions"><button class="btn btn-primary btn-sm" type="submit">+ Add client &amp; email invite</button></div>
+</form>
+<p class="muted small talent-summary">Clients get a secure invite link to set their password. Link a job to a client from the job's edit page so it appears in their portal.</p>
+
+<% if (!rows.length) { %>
+  <div class="empty"><p>No clients yet.</p></div>
+<% } else { %>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Client</th><th>Contact</th><th>Account</th><th>Jobs</th><th>Requirements</th><th></th></tr></thead>
+      <tbody>
+        <% rows.forEach(function (c) { %>
+          <tr>
+            <td><b><%= c.company %></b><br><span class="muted small">Added <%= formatDate(c.createdAt) %></span></td>
+            <td><%= c.name %><br><a href="mailto:<%= c.email %>"><%= c.email %></a></td>
+            <td>
+              <% if (!c.active) { %><span class="pill st-rejected">Deactivated</span>
+              <% } else if (c.passwordHash) { %><span class="pill st-hired">Active</span>
+              <% } else { %><span class="pill st-screening">Invite pending</span><% } %>
+            </td>
+            <td><%= c.jobCount %></td>
+            <td><%= c.requestCount %></td>
+            <td class="row-actions">
+              <% if (c.active) { %><form method="post" action="/admin/clients/<%= c.id %>/invite"><button class="btn btn-outline btn-sm"><%= c.passwordHash ? 'Send reset link' : 'Resend invite' %></button></form><% } %>
+              <form method="post" action="/admin/clients/<%= c.id %>/toggle"<% if (c.active) { %> data-confirm="Deactivate this client? They will be signed out and can't log in."<% } %>><button class="btn btn-sm <%= c.active ? 'btn-danger' : 'btn-outline' %>"><%= c.active ? 'Deactivate' : 'Re-activate' %></button></form>
+            </td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+<% } %>

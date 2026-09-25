@@ -647,3 +647,19 @@ a.contact-card:hover { border-color: var(--primary); color: var(--text); }
 .iv-link { display: inline-block; margin-top: 6px; font-weight: 600; }
 .iv-cancelled td { color: var(--muted); text-decoration: line-through; }
 .iv-cancelled td:last-child { text-decoration: none; }
+
+/* ============ Client portal ============ */
+.auth-section { background: var(--tint); }
+.auth-wrap { display: flex; justify-content: center; }
+.auth-card { width: 100%; max-width: 460px; }
+.auth-card h1 { font-size: 2rem; }
+.auth-links { margin: 16px 0 0; text-align: center; color: var(--muted); }
+.portal .admin-head { align-items: flex-start; }
+.portal .admin-head h1 { margin: 0 0 4px; }
+.portal .admin-head p { margin: 0; }
+.portal .dash-card .form-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+.activity-row { display: grid; grid-template-columns: 110px 1fr auto; gap: 12px; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--line); font-size: .9rem; color: var(--ink); }
+.activity li:last-child .activity-row { border-bottom: 0; }
+.client-add { grid-template-columns: repeat(3, minmax(0, 1fr)) auto; }
+@media (max-width: 900px) { .client-add { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 560px) { .portal .dash-card .form-grid { grid-template-columns: minmax(0, 1fr); } .activity-row { grid-template-columns: 1fr; gap: 4px; } }

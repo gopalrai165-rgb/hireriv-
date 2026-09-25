@@ -1,0 +1,23 @@
+<%- include('partials/head') %>
+
+<section class="section auth-section">
+  <div class="container auth-wrap">
+    <div class="form-card auth-card">
+      <span class="eyebrow">Client portal</span>
+      <h1>Reset your password</h1>
+      <% if (sent) { %>
+        <p class="notice" role="status">If that email belongs to a client account, a reset link is on its way. It expires in 2 hours.</p>
+        <p class="small auth-links"><a href="/employer/login">Back to login</a></p>
+      <% } else { %>
+        <p class="muted">Enter your work email and we'll send you a link to choose a new password.</p>
+        <form class="form" method="post" action="/employer/forgot">
+          <div class="form-grid"><label class="span-2">Work email<input type="email" name="email" required autocomplete="username"></label></div>
+          <button class="btn btn-primary btn-block" type="submit">Send reset link</button>
+        </form>
+        <p class="small auth-links"><a href="/employer/login">Back to login</a></p>
+      <% } %>
+    </div>
+  </div>
+</section>
+
+<%- include('partials/foot') %>

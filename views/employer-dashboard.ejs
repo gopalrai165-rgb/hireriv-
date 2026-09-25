@@ -1,0 +1,75 @@
+<%- include('partials/head') %>
+
+<section class="section admin portal">
+  <div class="container">
+    <div class="admin-head">
+      <div>
+        <span class="eyebrow">Client portal</span>
+        <h1><%= employer.company %></h1>
+        <p class="muted">Signed in as <%= employer.name %> · <%= employer.email %></p>
+      </div>
+      <form method="post" action="/employer/logout"><button class="btn btn-outline btn-sm" type="submit">Log out</button></form>
+    </div>
+    <% if (welcome) { %><p class="notice" role="status">Your account is ready. Welcome aboard!</p><% } %>
+    <% if (msg) { %><p class="notice" role="status"><%= msg %></p><% } %>
+
+    <div class="dash-grid">
+      <section class="dash-card dash-wide">
+        <div class="dash-head"><h2>Your open roles</h2><span class="muted small"><%= myJobs.length %> <%= myJobs.length === 1 ? 'role' : 'roles' %></span></div>
+        <% if (!myJobs.length) { %>
+          <p class="muted dash-empty">No roles linked to your account yet. Send a requirement below and your account manager will set it up.</p>
+        <% } else { %>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Role</th><th>Applicants</th><% stages.forEach(function (s) { %><th><%= s %></th><% }) %></tr></thead>
+              <tbody>
+                <% myJobs.forEach(function (j) { %>
+                  <tr>
+                    <td><b><%= j.title %></b><br><span class="muted small"><%= j.location %> · <%= j.status === 'open' ? 'Open' : 'Closed' %></span></td>
+                    <td><b><%= j.total %></b></td>
+                    <% stages.forEach(function (s) { %><td><%= j.stages[s] || '·' %></td><% }) %>
+                  </tr>
+                <% }) %>
+              </tbody>
+            </table>
+          </div>
+          <p class="muted small">Your account manager screens every applicant and shares the strongest profiles with you.</p>
+        <% } %>
+      </section>
+
+      <section class="dash-card">
+        <div class="dash-head"><h2>Send a new requirement</h2></div>
+        <form class="form" method="post" action="/employer/requirements">
+          <div class="form-grid">
+            <label class="span-2">Role(s) needed*<input name="roles" required maxlength="300" placeholder="e.g. 2 Senior Java developers"></label>
+            <label>Headcount<input name="headcount" inputmode="numeric" maxlength="10" placeholder="e.g. 2"></label>
+            <label>Hiring type
+              <select name="hiringType"><option>Permanent</option><option>Contract</option><option>Contract-to-hire</option><option>Bulk / RPO</option></select>
+            </label>
+            <label>Location<input name="location" maxlength="120" placeholder="City or Remote"></label>
+            <label>Start by
+              <select name="timeline"><option>Immediately</option><option>Within 2 weeks</option><option>Within a month</option><option>1–3 months</option></select>
+            </label>
+            <label class="span-2">Budget <span class="muted small">(optional)</span><input name="budget" maxlength="120" placeholder="e.g. ₹18–24 LPA"></label>
+            <label class="span-2">Details<textarea name="message" rows="3" placeholder="Skills, experience, team, interview process…"></textarea></label>
+          </div>
+          <button class="btn btn-primary" type="submit">Send requirement</button>
+        </form>
+      </section>
+
+      <section class="dash-card">
+        <div class="dash-head"><h2>Your requirements</h2></div>
+        <% if (!requirements.length) { %><p class="muted dash-empty">Nothing sent yet.</p>
+        <% } else { %>
+          <ul class="activity">
+            <% requirements.forEach(function (r) { %>
+              <li><span class="activity-row"><span class="pill"><%= r.status || 'Received' %></span><span class="activity-text"><%= r.roles %><%= r.headcount ? ' × ' + r.headcount : '' %></span><span class="muted small"><%= formatDate(r.createdAt) %></span></span></li>
+            <% }) %>
+          </ul>
+        <% } %>
+      </section>
+    </div>
+  </div>
+</section>
+
+<%- include('partials/foot') %>

@@ -20,6 +20,12 @@
         <datalist id="job-categories"><% jobCategories.forEach(function (c) { %><option value="<%= c %>"><% }) %></datalist>
         <label>Experience<input name="experience" value="<%= job.experience || '' %>" placeholder="e.g. 3-5 years"></label>
         <label>Salary<input name="salary" value="<%= job.salary || '' %>" placeholder="e.g. ₹14 – 20 LPA"></label>
+        <label>Client <span class="muted small">(lets this client see the job in their portal)</span>
+          <select name="employerId">
+            <option value="">No client (Hireriv job)</option>
+            <% clientOptions.forEach(function (c) { %><option value="<%= c.id %>"<%= c.id === job.employerId ? ' selected' : '' %>><%= c.company %> · <%= c.name %></option><% }) %>
+          </select>
+        </label>
         <label>Status
           <select name="status">
             <option value="open"<%= job.status !== 'closed' ? ' selected' : '' %>>Open – accepting applications</option>

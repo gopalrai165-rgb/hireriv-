@@ -113,7 +113,7 @@ function createMailer(site) {
           detailsTable([
             ['Company', h.company], ['Contact', h.name], ['Email', h.email], ['Phone', h.phone],
             ['Roles', h.roles], ['Headcount', h.headcount], ['Hiring type', h.hiringType],
-            ['Location', h.location], ['Timeline', h.timeline], ['Message', h.message],
+            ['Location', h.location], ['Timeline', h.timeline], ['Budget', h.budget], ['Source', h.source], ['Message', h.message],
           ]) + button(`${baseUrl}/admin?tab=hire-requests`, 'Open in admin'),
       });
     },
@@ -157,6 +157,32 @@ function createMailer(site) {
         html:
           p(`Hi ${first(a.name)}, the interview for <b>${esc(a.jobTitle)}</b> on <b>${esc(when)}</b> has been cancelled, and we've removed it from your calendar.`) +
           p('Your recruiter will be in touch about next steps. If you have questions, just reply to this email.'),
+      });
+    },
+
+    employerInvite(emp, link, hours) {
+      send(site, {
+        to: emp.email,
+        replyTo: teamInbox,
+        subject: `Your ${site.name} client portal is ready`,
+        heading: `Welcome to ${site.name}, ${String(emp.name).split(' ')[0]}`,
+        html:
+          p(`We've set up a client portal for <b>${esc(emp.company)}</b>. Use it to send new hiring requirements and follow the progress of your open roles.`) +
+          button(link, 'Set your password') +
+          p(`<span style="color:#6b7690;font-size:13px">This link works once and expires in ${hours} hours. If it expires, ask your account manager for a new one.</span>`),
+      });
+    },
+
+    employerReset(emp, link, hours) {
+      send(site, {
+        to: emp.email,
+        replyTo: teamInbox,
+        subject: `Reset your ${site.name} client portal password`,
+        heading: 'Choose a new password',
+        html:
+          p(`Someone asked to reset the password for the <b>${esc(emp.company)}</b> client portal. If that was you, use the button below.`) +
+          button(link, 'Choose a new password') +
+          p(`<span style="color:#6b7690;font-size:13px">This link works once and expires in ${hours} hours. Didn't ask for this? Ignore this email and your password stays the same.</span>`),
       });
     },
 

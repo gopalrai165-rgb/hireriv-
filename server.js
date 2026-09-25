@@ -8,6 +8,7 @@ const seo = require('./seo');
 const { skillMatch, buildPool, searchPool } = require('./match');
 const { parsePost, parseSettings, SOCIAL } = require('./content');
 const interviews = require('./interviews');
+const employers = require('./employers');
 
 const PORT = process.env.PORT || 3004;
 const ADMIN_USER = process.env.ADMIN_USER || 'admin';
@@ -405,15 +406,19 @@ function sameOrigin(req, res, next) {
   res.status(403).send('Cross-site request blocked');
 }
 
-const ADMIN_TABS = ['dashboard', 'jobs', 'talent', 'interviews', ...FORM_TYPES, 'blog', 'settings'];
+const ADMIN_TABS = ['dashboard', 'jobs', 'talent', 'interviews', 'clients', ...FORM_TYPES, 'blog', 'settings'];
 const adminUrl = (tab, msg) => `/admin?tab=${tab}${msg ? `&msg=${encodeURIComponent(msg)}` : ''}`;
 
 interviews.register(app, { adminAuth, sameOrigin, readSubmissions, writeSubmissions, mailer, site, adminUrl });
+const clients = employers.register(app, {
+  dataDir: DATA_DIR, site, mailer, baseUrl: BASE_URL, adminAuth, sameOrigin, adminUrl, limit,
+  readSubmissions, saveSubmission, getJobs: () => jobs, appStatuses: APP_STATUSES,
+});
 
 app.get('/admin', adminAuth, (req, res) => {
   const tab = ADMIN_TABS.includes(req.query.tab) ? req.query.tab : 'dashboard';
   const applications = readSubmissions('applications');
-  const counts = { dashboard: '', settings: '', blog: posts.length, interviews: interviews.upcoming(applications).length, jobs: jobs.length, talent: new Set(applications.map((a) => String(a.email).toLowerCase())).size, ...Object.fromEntries(FORM_TYPES.map((t) => [t, readSubmissions(t).length])) };
+  const counts = { dashboard: '', settings: '', blog: posts.length, interviews: interviews.upcoming(applications).length, clients: clients.read().length, jobs: jobs.length, talent: new Set(applications.map((a) => String(a.email).toLowerCase())).size, ...Object.fromEntries(FORM_TYPES.map((t) => [t, readSubmissions(t).length])) };
   const locals = { title: 'Admin', page: 'admin', tab, tabs: ADMIN_TABS, counts, status: '', msg: String(req.query.msg || '') };
 
   if (tab === 'dashboard') return res.render('admin', { ...locals, rows: [], dash: buildDashboard(applications) });
@@ -433,6 +438,10 @@ app.get('/admin', adminAuth, (req, res) => {
     return res.render('admin', { ...locals, rows, statuses: APP_STATUSES, statusCounts, status, sort });
   }
   if (tab === 'blog') return res.render('admin', { ...locals, rows: posts });
+  if (tab === 'clients') {
+    const rows = clients.read().map((c) => ({ ...c, jobCount: jobs.filter((j) => j.employerId === c.id).length, requestCount: readSubmissions('hire-requests').filter((h) => h.employerId === c.id).length }));
+    return res.render('admin', { ...locals, rows });
+  }
   if (tab === 'interviews') {
     const up = interviews.upcoming(applications);
     const past = interviews.allInterviews(applications).filter((iv) => !up.some((u) => u.id === iv.id)).sort((a, b) => b.at.localeCompare(a.at));
@@ -529,6 +538,7 @@ function parseJob(body) {
     description: data.description,
     responsibilities: data.responsibilities.split(/\r?\n/).map((s) => s.trim()).filter(Boolean),
     status: data.status === 'closed' ? 'closed' : 'open',
+    employerId: clients.read().some((c) => c.id === body.employerId) ? body.employerId : '',
   };
   return { job, errors };
 }
@@ -541,7 +551,7 @@ function nextJobId() {
 }
 
 const jobFormLocals = (job, errors) => ({
-  title: job.id ? 'Edit job' : 'Post a job', page: 'admin', job, errors, modes, jobTypes: JOB_TYPES, jobCategories: categoriesOf(jobs),
+  title: job.id ? 'Edit job' : 'Post a job', page: 'admin', job, errors, modes, jobTypes: JOB_TYPES, jobCategories: categoriesOf(jobs), clientOptions: clients.read(),
 });
 
 app.get('/admin/jobs/new', adminAuth, (req, res) =>
@@ -681,7 +691,7 @@ function csvCell(v) {
 app.get('/admin/export/:type.csv', adminAuth, (req, res, next) => {
   const { type } = req.params;
   if (!ADMIN_TABS.includes(type)) return next();
-  if (['dashboard', 'blog', 'settings', 'interviews'].includes(type)) return next();
+  if (['dashboard', 'blog', 'settings', 'interviews', 'clients'].includes(type)) return next();
   const rows =
     type === 'jobs' ? jobs
     : type === 'talent' ? buildPool(readSubmissions('applications')).map(({ skillsAll, ...c }) => ({ ...c, jobsApplied: c.jobsApplied.join('; ') }))
