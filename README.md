@@ -12,6 +12,7 @@ A complete website for a tech-driven staffing and recruitment company, built wit
 - **Saved jobs** (`/saved`): a bookmark button on every job card and job page, with a count in the header. Saved jobs are stored in the visitor's browser, so no account is needed. Closed jobs stay listed and marked Closed, and deleted jobs drop off automatically
 - **SEO**: Google for Jobs structured data (JobPosting) on every open job, Organization/WebSite/BlogPosting data, `/sitemap.xml`, `/robots.txt`, canonical and Open Graph tags. Closed jobs are removed from the sitemap and marked `noindex`
 - **Admin panel** (`/admin`):
+  - **Dashboard** (opens first): key numbers, a 14-day applications chart, the candidate pipeline funnel, most-applied jobs and recent activity
   - **Jobs**: post, edit, close/reopen and delete openings. Closed jobs drop out of listings, keep their page, and stop taking applications
   - **Applications pipeline**: move candidates through New → Screening → Interview → Offered → Hired / Rejected, add recruiter notes, filter by stage and download resumes
   - Hiring requests, contact messages and newsletter signups, with delete on every entry

@@ -1,0 +1,82 @@
+<div class="kpis">
+  <% dash.kpis.forEach(function (k) { %>
+    <a class="kpi" href="/admin?tab=<%= k.tab %>">
+      <span class="kpi-label"><%= k.label %></span>
+      <span class="kpi-value"><%= k.value.toLocaleString('en-IN') %></span>
+      <span class="kpi-note"><%= k.note %></span>
+    </a>
+  <% }) %>
+</div>
+
+<div class="dash-grid">
+  <% const maxDay = Math.max.apply(null, dash.days.map(function (d) { return d.count; })); %>
+  <% const peakIdx = dash.days.findIndex(function (d) { return d.count === maxDay; }); %>
+  <section class="dash-card dash-wide">
+    <div class="dash-head">
+      <h2>Applications, last 14 days</h2>
+      <span class="muted small"><%= dash.days.reduce(function (n, d) { return n + d.count; }, 0) %> total</span>
+    </div>
+    <% if (maxDay === 0) { %>
+      <p class="muted dash-empty">No applications in the last 14 days.</p>
+    <% } else { %>
+      <div class="colchart" role="img" aria-label="Applications per day for the last 14 days, peaking at <%= maxDay %> on <%= dash.days[peakIdx].label %>">
+        <span class="colchart-max"><%= maxDay %></span>
+        <% dash.days.forEach(function (d, i) { %>
+          <div class="colchart-slot" tabindex="0">
+            <span class="colchart-tip"><b><%= d.count %></b> <%= d.count === 1 ? 'application' : 'applications' %><br><%= d.label %></span>
+            <% if (d.count && (i === peakIdx || i === dash.days.length - 1)) { %><span class="colchart-val" style="bottom: calc(<%= (d.count / maxDay) * 100 %>% + 4px)"><%= d.count %></span><% } %>
+            <div class="colchart-bar" style="height: <%= d.count ? Math.max((d.count / maxDay) * 100, 2) : 0 %>%"></div>
+          </div>
+        <% }) %>
+      </div>
+      <div class="colchart-axis">
+        <% dash.days.forEach(function (d, i) { %><span><%= i % 3 === 1 || i === dash.days.length - 1 ? (i === dash.days.length - 1 ? 'Today' : d.label) : '' %></span><% }) %>
+      </div>
+      <details class="table-toggle">
+        <summary>Show as table</summary>
+        <table><thead><tr><th>Day</th><th>Applications</th></tr></thead>
+          <tbody><% dash.days.forEach(function (d) { %><tr><td><%= d.label %></td><td><%= d.count %></td></tr><% }) %></tbody>
+        </table>
+      </details>
+    <% } %>
+  </section>
+
+  <section class="dash-card">
+    <div class="dash-head"><h2>Candidate pipeline</h2><a class="small" href="/admin?tab=applications">Open</a></div>
+    <% const maxStage = Math.max.apply(null, dash.funnel.map(function (f) { return f.count; }).concat(1)); %>
+    <ul class="funnel">
+      <% dash.funnel.forEach(function (f) { %>
+        <li>
+          <a href="/admin?tab=applications&status=<%= f.status %>" class="funnel-row" title="<%= f.count %> <%= f.status %>">
+            <span class="funnel-label"><%= f.status %></span>
+            <span class="funnel-track"><span class="funnel-fill"><span class="funnel-bar" style="width: <%= f.count ? Math.max((f.count / maxStage) * 100, 3) : 0 %>%"></span></span><span class="funnel-val"><%= f.count %></span></span>
+          </a>
+        </li>
+      <% }) %>
+    </ul>
+  </section>
+
+  <section class="dash-card">
+    <div class="dash-head"><h2>Most applied jobs</h2><a class="small" href="/admin?tab=jobs">All jobs</a></div>
+    <% if (!dash.topJobs.length) { %><p class="muted dash-empty">No applications yet.</p>
+    <% } else { %>
+      <ol class="top-jobs">
+        <% dash.topJobs.forEach(function (t) { %>
+          <li><a href="/jobs/<%= t.id %>" target="_blank" rel="noopener"><%= t.job.title %></a><span class="muted small"><%= t.job.location %><%= t.job.status === 'closed' ? ' · closed' : '' %></span><b><%= t.count %></b></li>
+        <% }) %>
+      </ol>
+    <% } %>
+  </section>
+
+  <section class="dash-card dash-wide">
+    <div class="dash-head"><h2>Recent activity</h2></div>
+    <% if (!dash.recent.length) { %><p class="muted dash-empty">Nothing yet. New applications, requests and messages will show up here.</p>
+    <% } else { %>
+      <ul class="activity">
+        <% dash.recent.forEach(function (r) { %>
+          <li><a href="/admin?tab=<%= r.tab %>"><span class="pill"><%= r.kind %></span><span class="activity-text"><%= r.text %></span><span class="muted small"><%= new Date(r.at).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit', timeZone: 'Asia/Kolkata' }) %></span></a></li>
+        <% }) %>
+      </ul>
+    <% } %>
+  </section>
+</div>

@@ -345,15 +345,16 @@ function sameOrigin(req, res, next) {
   res.status(403).send('Cross-site request blocked');
 }
 
-const ADMIN_TABS = ['jobs', ...FORM_TYPES];
+const ADMIN_TABS = ['dashboard', 'jobs', ...FORM_TYPES];
 const adminUrl = (tab, msg) => `/admin?tab=${tab}${msg ? `&msg=${encodeURIComponent(msg)}` : ''}`;
 
 app.get('/admin', adminAuth, (req, res) => {
-  const tab = ADMIN_TABS.includes(req.query.tab) ? req.query.tab : 'applications';
+  const tab = ADMIN_TABS.includes(req.query.tab) ? req.query.tab : 'dashboard';
   const applications = readSubmissions('applications');
-  const counts = { jobs: jobs.length, ...Object.fromEntries(FORM_TYPES.map((t) => [t, readSubmissions(t).length])) };
+  const counts = { dashboard: '', jobs: jobs.length, ...Object.fromEntries(FORM_TYPES.map((t) => [t, readSubmissions(t).length])) };
   const locals = { title: 'Admin', page: 'admin', tab, tabs: ADMIN_TABS, counts, status: '', msg: String(req.query.msg || '') };
 
+  if (tab === 'dashboard') return res.render('admin', { ...locals, rows: [], dash: buildDashboard(applications) });
   if (tab === 'jobs') {
     const applicants = {};
     for (const a of applications) applicants[a.jobId] = (applicants[a.jobId] || 0) + 1;
@@ -368,6 +369,58 @@ app.get('/admin', adminAuth, (req, res) => {
   }
   res.render('admin', { ...locals, rows: readSubmissions(tab) });
 });
+
+// ----- dashboard -----
+const DAY_MS = 86400000;
+// Day buckets follow India time so "today" matches the recruiters' calendar.
+const dayKey = (d) => new Date(d).toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+
+function buildDashboard(applications) {
+  const hires = readSubmissions('hire-requests');
+  const contacts = readSubmissions('contacts');
+  const alerts = readSubmissions('job-alerts');
+  const weekAgo = Date.now() - 7 * DAY_MS;
+  const lastWeek = (list) => list.filter((s) => new Date(s.createdAt) >= weekAgo).length;
+  const statusOf = (a) => a.status || 'New';
+
+  const days = [];
+  for (let i = 13; i >= 0; i--) {
+    const d = new Date(Date.now() - i * DAY_MS);
+    days.push({ key: dayKey(d), label: d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', timeZone: 'Asia/Kolkata' }), count: 0 });
+  }
+  const byKey = Object.fromEntries(days.map((d) => [d.key, d]));
+  for (const a of applications) if (byKey[dayKey(a.createdAt)]) byKey[dayKey(a.createdAt)].count++;
+
+  const perJob = {};
+  for (const a of applications) perJob[a.jobId] = (perJob[a.jobId] || 0) + 1;
+  const topJobs = Object.entries(perJob)
+    .map(([id, count]) => ({ id, count, job: jobs.find((j) => j.id === id) }))
+    .filter((t) => t.job)
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 5);
+
+  const recent = [
+    ...applications.map((s) => ({ at: s.createdAt, kind: 'Application', text: `${s.name} applied for ${s.jobTitle}`, tab: 'applications' })),
+    ...hires.map((s) => ({ at: s.createdAt, kind: 'Hiring request', text: `${s.company} needs ${s.roles}`, tab: 'hire-requests' })),
+    ...contacts.map((s) => ({ at: s.createdAt, kind: 'Message', text: `${s.name}: ${s.subject || s.message}`, tab: 'contacts' })),
+    ...alerts.filter((s) => s.confirmed).map((s) => ({ at: s.confirmedAt || s.createdAt, kind: 'Job alert', text: `${s.email} subscribed`, tab: 'job-alerts' })),
+  ].sort((a, b) => b.at.localeCompare(a.at)).slice(0, 8);
+
+  return {
+    kpis: [
+      { label: 'Open jobs', value: openJobs().length, note: `${jobs.length - openJobs().length} closed`, tab: 'jobs' },
+      { label: 'Applications', value: applications.length, note: `+${lastWeek(applications)} this week`, tab: 'applications' },
+      { label: 'In progress', value: applications.filter((a) => ['Screening', 'Interview', 'Offered'].includes(statusOf(a))).length, note: `${applications.filter((a) => statusOf(a) === 'New').length} new to review`, tab: 'applications' },
+      { label: 'Hired', value: applications.filter((a) => statusOf(a) === 'Hired').length, note: 'placements', tab: 'applications' },
+      { label: 'Hiring requests', value: hires.length, note: `+${lastWeek(hires)} this week`, tab: 'hire-requests' },
+      { label: 'Alert subscribers', value: alerts.filter((a) => a.confirmed).length, note: `${alerts.filter((a) => !a.confirmed).length} unconfirmed`, tab: 'job-alerts' },
+    ],
+    days,
+    funnel: APP_STATUSES.map((s) => ({ status: s, count: applications.filter((a) => statusOf(a) === s).length })),
+    topJobs,
+    recent,
+  };
+}
 
 // ----- jobs -----
 function parseJob(body) {
