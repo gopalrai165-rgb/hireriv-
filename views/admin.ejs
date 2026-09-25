@@ -13,7 +13,7 @@
     <% if (msg) { %><p class="notice" role="status"><%= msg %></p><% } %>
     <div class="tabs">
       <% tabs.forEach(function (t) { %>
-        <a class="tab<%= t === tab ? ' active' : '' %>" href="/admin?tab=<%= t %>"><%= t.replace('-', ' ') %><% if (counts[t] !== '') { %> <span class="count"><%= counts[t] %></span><% } %></a>
+        <a class="tab<%= t === tab ? ' active' : '' %>" href="/admin?tab=<%= t %>"><%= t.replace('-', ' ') %><% if (counts[t] !== '' && counts[t] !== undefined) { %> <span class="count"><%= counts[t] %></span><% } %></a>
       <% }) %>
     </div>
 
@@ -33,8 +33,11 @@
     <% if (tab === 'dashboard') { %>
       <%- include('partials/admin-dashboard', { dash: dash }) %>
 
-    <% } else if (!rows.length && tab !== 'talent') { %>
+    <% } else if (!rows.length && tab !== 'talent' && tab !== 'settings') { %>
       <div class="empty"><p>No <%= status ? status.toLowerCase() + ' ' : '' %><%= tab.replace('-', ' ') %> yet.</p></div>
+
+    <% } else if (tab === 'settings') { %>
+      <%- include('partials/admin-settings') %>
 
     <% } else if (tab === 'blog') { %>
       <div class="table-wrap">

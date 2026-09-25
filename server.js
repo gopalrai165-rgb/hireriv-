@@ -6,7 +6,7 @@ const crypto = require('crypto');
 const { createMailer } = require('./mailer');
 const seo = require('./seo');
 const { skillMatch, buildPool, searchPool } = require('./match');
-const { parsePost } = require('./content');
+const { parsePost, parseSettings, SOCIAL } = require('./content');
 
 const PORT = process.env.PORT || 3004;
 const ADMIN_USER = process.env.ADMIN_USER || 'admin';
@@ -403,13 +403,13 @@ function sameOrigin(req, res, next) {
   res.status(403).send('Cross-site request blocked');
 }
 
-const ADMIN_TABS = ['dashboard', 'jobs', 'talent', ...FORM_TYPES, 'blog'];
+const ADMIN_TABS = ['dashboard', 'jobs', 'talent', ...FORM_TYPES, 'blog', 'settings'];
 const adminUrl = (tab, msg) => `/admin?tab=${tab}${msg ? `&msg=${encodeURIComponent(msg)}` : ''}`;
 
 app.get('/admin', adminAuth, (req, res) => {
   const tab = ADMIN_TABS.includes(req.query.tab) ? req.query.tab : 'dashboard';
   const applications = readSubmissions('applications');
-  const counts = { dashboard: '', blog: posts.length, jobs: jobs.length, talent: new Set(applications.map((a) => String(a.email).toLowerCase())).size, ...Object.fromEntries(FORM_TYPES.map((t) => [t, readSubmissions(t).length])) };
+  const counts = { dashboard: '', settings: '', blog: posts.length, jobs: jobs.length, talent: new Set(applications.map((a) => String(a.email).toLowerCase())).size, ...Object.fromEntries(FORM_TYPES.map((t) => [t, readSubmissions(t).length])) };
   const locals = { title: 'Admin', page: 'admin', tab, tabs: ADMIN_TABS, counts, status: '', msg: String(req.query.msg || '') };
 
   if (tab === 'dashboard') return res.render('admin', { ...locals, rows: [], dash: buildDashboard(applications) });
@@ -429,6 +429,7 @@ app.get('/admin', adminAuth, (req, res) => {
     return res.render('admin', { ...locals, rows, statuses: APP_STATUSES, statusCounts, status, sort });
   }
   if (tab === 'blog') return res.render('admin', { ...locals, rows: posts });
+  if (tab === 'settings') return res.render('admin', { ...locals, rows: [], form: site, errors: [], social: SOCIAL });
   if (tab === 'talent') {
     const EXPERIENCE = ['Fresher', '0-1 years', '1-3 years', '3-5 years', '5-10 years', '10+ years'];
     const NOTICE = ['Immediate', '15 days', '30 days', '60 days', '90 days'];
@@ -581,6 +582,18 @@ app.post('/admin/jobs/:id/delete', adminAuth, sameOrigin, (req, res, next) => {
   res.redirect(adminUrl('jobs', `Deleted "${job.title}"`));
 });
 
+// ----- site settings -----
+// `site` is shared by every view (app.locals) and the mailer, so it is updated in place.
+app.post('/admin/settings', adminAuth, sameOrigin, (req, res) => {
+  const { settings, errors } = parseSettings(req.body, site);
+  if (errors.length) {
+    return res.status(400).render('admin', { title: 'Admin', page: 'admin', tab: 'settings', tabs: ADMIN_TABS, counts: {}, status: '', msg: '', rows: [], form: settings, errors, social: SOCIAL });
+  }
+  Object.assign(site, settings);
+  fs.writeFileSync(path.join(DATA_DIR, 'site.json'), JSON.stringify(site, null, 2));
+  res.redirect(adminUrl('settings', 'Settings saved. The website is updated.'));
+});
+
 // ----- blog -----
 const postFormLocals = (post, errors) => ({ title: post.slug && post._editing ? 'Edit article' : 'Write an article', page: 'admin', post, errors });
 
@@ -658,7 +671,7 @@ function csvCell(v) {
 app.get('/admin/export/:type.csv', adminAuth, (req, res, next) => {
   const { type } = req.params;
   if (!ADMIN_TABS.includes(type)) return next();
-  if (type === 'dashboard' || type === 'blog') return next();
+  if (['dashboard', 'blog', 'settings'].includes(type)) return next();
   const rows =
     type === 'jobs' ? jobs
     : type === 'talent' ? buildPool(readSubmissions('applications')).map(({ skillsAll, ...c }) => ({ ...c, jobsApplied: c.jobsApplied.join('; ') }))

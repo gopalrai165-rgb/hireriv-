@@ -617,3 +617,15 @@ a.contact-card:hover { border-color: var(--primary); color: var(--text); }
 .talent-summary { margin: 0 0 12px; }
 @media (max-width: 900px) { .talent-search { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 520px) { .talent-search { grid-template-columns: minmax(0, 1fr); } }
+
+/* ============ Site settings ============ */
+.settings-form { display: grid; gap: 18px; max-width: 900px; }
+.settings-form .form-card h2 { font-size: 1.15rem; margin-bottom: .2em; }
+.settings-form .form-card > p { margin: 0 0 16px; }
+.settings-form .form-grid { margin-bottom: 0; }
+.stats-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.stat-edit { text-align: left; border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 12px 14px 14px; margin: 0; display: grid; grid-template-columns: minmax(0, 1fr) 80px; gap: 10px; }
+.stat-edit legend { font-weight: 700; font-size: .85rem; color: var(--ink); padding: 0 6px; }
+.stat-edit label { display: flex; flex-direction: column; gap: 6px; font-size: .82rem; font-weight: 600; color: var(--ink); }
+.settings-actions { position: sticky; bottom: 16px; }
+@media (max-width: 620px) { .stats-grid { grid-template-columns: minmax(0, 1fr); } }

@@ -37,4 +37,41 @@ function parsePost(body, posts, currentSlug) {
   return { post, errors };
 }
 
-module.exports = { parsePost, slugify };
+// Site settings form → the shape of data/site.json. Links must be http(s) so a
+// saved value can never become a javascript: URL in the footer.
+const SOCIAL = ['linkedin', 'instagram', 'facebook', 'x'];
+
+function parseSettings(body, current) {
+  const get = (k, max = 200) => String(body[k] ?? '').trim().slice(0, max);
+  const errors = [];
+  const next = {
+    ...current,
+    tagline: get('tagline', 160) || current.tagline,
+    phone: get('phone', 40),
+    whatsapp: get('whatsapp', 20).replace(/[^\d]/g, ''),
+    email: get('email', 120),
+    address: get('address', 240),
+    hours: get('hours', 120),
+    social: {},
+    stats: [],
+  };
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(next.email)) errors.push('email is invalid');
+  if (!/^\d{10,15}$/.test(next.whatsapp)) errors.push('WhatsApp number needs the country code, digits only (e.g. 919876543210)');
+  if (!next.phone) errors.push('phone is required');
+  for (const k of SOCIAL) {
+    const url = get(`social_${k}`, 300);
+    if (url && !/^https?:\/\/[^\s"'<>]+$/i.test(url)) errors.push(`${k} link must start with https://`);
+    next.social[k] = url || '#';
+  }
+  for (let i = 0; i < 4; i++) {
+    const value = Number(get(`stat_value_${i}`, 12));
+    const label = get(`stat_label_${i}`, 40);
+    if (!label) continue;
+    if (!Number.isFinite(value) || value < 0) errors.push(`stat ${i + 1} needs a number`);
+    next.stats.push({ value: Math.round(value) || 0, suffix: get(`stat_suffix_${i}`, 3), label });
+  }
+  if (!next.stats.length) errors.push('add at least one homepage stat');
+  return { settings: next, errors };
+}
+
+module.exports = { parsePost, slugify, parseSettings, SOCIAL };

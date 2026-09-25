@@ -19,6 +19,7 @@ A complete website for a tech-driven staffing and recruitment company, built wit
   - **Skill match**: candidates list their key skills when applying; each application shows a % match against the job's required skills (hover for matched/missing) and can be sorted by best match
   - **Talent pool**: one searchable record per candidate across all their applications. Search by name, skill, city, job or notes, filter by experience, notice period and stage, and rank the whole pool against any job to fill new roles from past applicants
   - **Blog**: write, edit and delete articles (title, link, category, date, summary, paragraphs) and keep drafts hidden until they are ready
+  - **Settings**: edit phone, WhatsApp, email, address, hours, tagline, social links and the homepage stats. Changes go live instantly and are saved to `data/site.json`
   - Hiring requests, contact messages and newsletter signups, with delete on every entry
   - **Export CSV** on every tab (Excel-ready)
 - **Email notifications**: your team is alerted on every application, hiring request and contact message (Reply-To is the sender), candidates get an "application received" email, and recruiters can email a candidate when they move to Interview, Offered, Hired or Rejected
@@ -53,7 +54,7 @@ $env:SMTP_HOST="smtp.gmail.com"; $env:SMTP_USER="you@gmail.com"; $env:SMTP_PASS=
 ## Customise
 | What | Where |
 |---|---|
-| Phone, email, address, WhatsApp, social links, stats | `data/site.json` |
+| Phone, email, address, WhatsApp, social links, stats | `/admin` → Settings (saved to `data/site.json`) |
 | Job listings | `/admin` → Jobs (saved to `data/jobs.json`) |
 | Blog posts | `/admin` → Blog (saved to `data/posts.json`) |
 | Colours & fonts | CSS variables at the top of `public/css/style.css` |

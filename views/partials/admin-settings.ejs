@@ -1,0 +1,42 @@
+<% if (errors.length) { %><p class="notice notice-err" role="alert">Please fix: <%= errors.join(', ') %></p><% } %>
+<form class="form settings-form" method="post" action="/admin/settings">
+  <section class="form-card">
+    <h2>Contact details</h2>
+    <p class="muted small">Shown in the header, footer, contact page, WhatsApp button and emails.</p>
+    <div class="form-grid">
+      <label>Phone*<input name="phone" required value="<%= form.phone %>" placeholder="+91 98765 43210"></label>
+      <label>WhatsApp number* <span class="muted small">(country code, digits only)</span><input name="whatsapp" required inputmode="numeric" value="<%= form.whatsapp %>" placeholder="919876543210"></label>
+      <label>Email*<input type="email" name="email" required value="<%= form.email %>"></label>
+      <label>Office hours<input name="hours" value="<%= form.hours %>" placeholder="Mon – Sat, 9:30 AM – 7:00 PM"></label>
+      <label class="span-2">Office address<input name="address" value="<%= form.address %>"></label>
+      <label class="span-2">Tagline<input name="tagline" maxlength="160" value="<%= form.tagline %>"></label>
+    </div>
+  </section>
+
+  <section class="form-card">
+    <h2>Social links</h2>
+    <p class="muted small">Paste the full profile address, starting with https://. Leave empty to hide the link target.</p>
+    <div class="form-grid">
+      <% social.forEach(function (k) { %>
+        <label><%= k === 'x' ? 'X (Twitter)' : k === 'linkedin' ? 'LinkedIn' : k.charAt(0).toUpperCase() + k.slice(1) %><input type="url" name="social_<%= k %>" value="<%= form.social[k] === '#' ? '' : form.social[k] %>" placeholder="https://"></label>
+      <% }) %>
+    </div>
+  </section>
+
+  <section class="form-card">
+    <h2>Homepage numbers</h2>
+    <p class="muted small">The animated stats on the home and About pages. Leave a label empty to hide that stat.</p>
+    <div class="stats-grid">
+      <% for (var i = 0; i < 4; i++) { var s = form.stats[i] || { value: '', suffix: '', label: '' }; %>
+        <fieldset class="stat-edit">
+          <legend>Stat <%= i + 1 %></legend>
+          <label>Number<input type="number" min="0" name="stat_value_<%= i %>" value="<%= s.value %>"></label>
+          <label>Suffix<input name="stat_suffix_<%= i %>" maxlength="3" value="<%= s.suffix %>" placeholder="+ or %"></label>
+          <label class="span-2">Label<input name="stat_label_<%= i %>" maxlength="40" value="<%= s.label %>"></label>
+        </fieldset>
+      <% } %>
+    </div>
+  </section>
+
+  <div class="settings-actions"><button class="btn btn-primary" type="submit">Save settings</button></div>
+</form>
