@@ -74,6 +74,8 @@
                       <% statuses.forEach(function (s) { %><option<%= s === (r.status || 'New') ? ' selected' : '' %>><%= s %></option><% }) %>
                     </select>
                     <textarea name="notes" rows="2" placeholder="Recruiter notes" aria-label="Notes for <%= r.name %>"><%= r.notes || '' %></textarea>
+                    <label class="notify"><input type="checkbox" name="notify" value="1" checked> Email candidate on Interview / Offered / Hired / Rejected</label>
+                    <% if (r.lastEmailedStatus) { %><span class="muted small">Last emailed: <%= r.lastEmailedStatus %></span><% } %>
                     <button class="btn btn-primary btn-sm">Save</button>
                   </form>
                 </td>

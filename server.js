@@ -3,6 +3,7 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
+const { createMailer } = require('./mailer');
 
 const PORT = process.env.PORT || 3004;
 const ADMIN_USER = process.env.ADMIN_USER || 'admin';
@@ -16,6 +17,7 @@ fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 
 const readJson = (file) => JSON.parse(fs.readFileSync(path.join(DATA_DIR, file), 'utf8'));
 const site = readJson('site.json');
+const mailer = createMailer(site);
 const posts = readJson('posts.json').sort((a, b) => b.date.localeCompare(a.date));
 
 // ---------- jobs (editable from /admin, persisted back to data/jobs.json) ----------
@@ -178,7 +180,8 @@ app.post('/api/apply', (req, res) => {
       if (req.file) fs.unlink(req.file.path, () => {});
       return respond(req, res, errors);
     }
-    saveSubmission('applications', { ...data, jobTitle: job ? job.title : 'General application', resume: req.file.filename, status: 'New', notes: '' });
+    const entry = saveSubmission('applications', { ...data, jobTitle: job ? job.title : 'General application', resume: req.file.filename, status: 'New', notes: '' });
+    mailer.applicationReceived(entry);
     respond(req, res, [], `Thanks ${data.name.split(' ')[0]}! Your application is in. A recruiter will contact you within 2 working days.`);
   });
 });
@@ -186,14 +189,14 @@ app.post('/api/apply', (req, res) => {
 app.post('/api/hire', (req, res) => {
   const data = clean(req.body, ['company', 'name', 'email', 'phone', 'roles', 'headcount', 'hiringType', 'location', 'timeline', 'message']);
   const errors = validate(data, ['company', 'name', 'email', 'phone', 'roles']);
-  if (!errors.length) saveSubmission('hire-requests', data);
+  if (!errors.length) mailer.hireRequestReceived(saveSubmission('hire-requests', data));
   respond(req, res, errors, 'Thank you! Our client partner will call you within one working day to understand your hiring needs.');
 });
 
 app.post('/api/contact', (req, res) => {
   const data = clean(req.body, ['name', 'email', 'phone', 'subject', 'message']);
   const errors = validate(data, ['name', 'email', 'message']);
-  if (!errors.length) saveSubmission('contacts', data);
+  if (!errors.length) mailer.contactReceived(saveSubmission('contacts', data));
   respond(req, res, errors, "Thanks for reaching out. We'll get back to you shortly.");
 });
 
@@ -336,12 +339,16 @@ app.post('/admin/applications/:id/status', adminAuth, sameOrigin, (req, res, nex
   const list = readSubmissions('applications');
   const entry = list.find((a) => a.id === req.params.id);
   if (!entry) return next();
-  const { status, notes } = clean(req.body, ['status', 'notes']);
+  const { status, notes, notify } = clean(req.body, ['status', 'notes', 'notify']);
   if (!APP_STATUSES.includes(status)) return res.status(400).send('Invalid status');
+  const changed = (entry.status || 'New') !== status;
   Object.assign(entry, { status, notes, updatedAt: new Date().toISOString() });
+  // Email the candidate only on a real stage change the recruiter opted into.
+  const emailed = changed && notify === '1' && mailer.statusChanged(entry);
+  if (emailed) entry.lastEmailedStatus = status;
   writeSubmissions('applications', list);
   const back = req.body.filter && APP_STATUSES.includes(req.body.filter) ? `&status=${encodeURIComponent(req.body.filter)}` : '';
-  res.redirect(adminUrl('applications', `${entry.name} moved to ${status}`) + back);
+  res.redirect(adminUrl('applications', `${entry.name} moved to ${status}${emailed ? ' (candidate emailed)' : ''}`) + back);
 });
 
 app.post('/admin/:type/:id/delete', adminAuth, sameOrigin, (req, res, next) => {
@@ -385,4 +392,4 @@ app.use((err, req, res, next) => {
   res.status(500).render('thanks', { title: 'Something went wrong', page: '', ok: false, message: 'Something went wrong on our side. Please try again.' });
 });
 
-app.listen(PORT, () => console.log(`Hireriv running at http://localhost:${PORT}`));
+app.listen(PORT, () => console.log(`Hireriv running at http://localhost:${PORT} · email: ${mailer.mode}`));

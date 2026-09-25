@@ -503,6 +503,8 @@ a.contact-card:hover { border-color: var(--primary); color: var(--text); }
 .st-rejected { background: #fee2e2; color: #b91c1c; }
 .status-form { display: grid; gap: 6px; min-width: 190px; }
 .status-form select, .status-form textarea { padding: .45em .6em; font-size: .85rem; }
+.status-form .notify { display: flex; gap: 6px; align-items: flex-start; font-size: .78rem; color: var(--muted); font-weight: 500; }
+.status-form .notify input { width: auto; margin-top: 2px; }
 .admin details summary { cursor: pointer; color: var(--primary); font-weight: 600; margin-top: 4px; }
 .admin form.form-card .btn + .btn { margin-left: 8px; }
 

@@ -13,6 +13,7 @@ A complete website for a tech-driven staffing and recruitment company, built wit
   - **Applications pipeline**: move candidates through New → Screening → Interview → Offered → Hired / Rejected, add recruiter notes, filter by stage and download resumes
   - Hiring requests, contact messages and newsletter signups, with delete on every entry
   - **Export CSV** on every tab (Excel-ready)
+- **Email notifications**: your team is alerted on every application, hiring request and contact message (Reply-To is the sender), candidates get an "application received" email, and recruiters can email a candidate when they move to Interview, Offered, Hired or Rejected
 
 ## Run it
 ```bash
@@ -24,6 +25,22 @@ To enable the admin panel, set a password first:
 $env:ADMIN_PASS="choose-a-strong-password"; npm start   # PowerShell
 ```
 Then open http://localhost:3004/admin and log in as `admin` (change the username with `ADMIN_USER`).
+
+## Email setup
+Without SMTP settings, every email is saved to `data/outbox/*.eml` (open these in Outlook or any mail app to preview them). To send real email, set these before `npm start`:
+
+| Variable | Example | Notes |
+|---|---|---|
+| `SMTP_HOST` | `smtp.gmail.com` | Turns on real sending |
+| `SMTP_PORT` | `587` | `465` uses SSL |
+| `SMTP_USER` / `SMTP_PASS` | `you@gmail.com` / app password | Gmail needs an App Password |
+| `MAIL_FROM` | `"Hireriv" <jobs@hireriv.com>` | Defaults to the email in `data/site.json` |
+| `NOTIFY_EMAIL` | `recruiters@hireriv.com` | Where team alerts go; defaults to the site email |
+| `SITE_URL` | `https://hireriv.com` | Used for links inside emails |
+
+```powershell
+$env:SMTP_HOST="smtp.gmail.com"; $env:SMTP_USER="you@gmail.com"; $env:SMTP_PASS="app-password"; $env:ADMIN_PASS="secret"; npm start
+```
 
 ## Customise
 | What | Where |
