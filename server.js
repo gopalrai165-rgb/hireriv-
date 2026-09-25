@@ -4,10 +4,13 @@ const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
 const { createMailer } = require('./mailer');
+const seo = require('./seo');
 
 const PORT = process.env.PORT || 3004;
 const ADMIN_USER = process.env.ADMIN_USER || 'admin';
 const ADMIN_PASS = process.env.ADMIN_PASS || '';
+// Public origin used for canonical URLs, sitemap and structured data.
+const BASE_URL = (process.env.SITE_URL || `http://localhost:${PORT}`).replace(/\/$/, '');
 
 const DATA_DIR = path.join(__dirname, 'data');
 const SUBMISSIONS_DIR = path.join(DATA_DIR, 'submissions');
@@ -83,10 +86,10 @@ function respond(req, res, errors, message) {
   const wantsJson = (req.get('Accept') || '').includes('application/json');
   if (errors.length) {
     if (wantsJson) return res.status(400).json({ ok: false, errors });
-    return res.status(400).render('thanks', { title: 'Please check your details', page: '', ok: false, message: errors.join(', ') });
+    return res.status(400).render('thanks', { title: 'Please check your details', page: '', ok: false, message: errors.join(', '), noindex: true });
   }
   if (wantsJson) return res.json({ ok: true, message });
-  return res.render('thanks', { title: 'Thank you', page: '', ok: true, message });
+  return res.render('thanks', { title: 'Thank you', page: '', ok: true, message, noindex: true });
 }
 
 // ---------- uploads ----------
@@ -121,10 +124,35 @@ app.locals.daysAgo = (d) => {
   return days <= 0 ? 'Today' : days === 1 ? '1 day ago' : `${days} days ago`;
 };
 
+// Per-page SEO defaults; routes override these through render locals.
+app.use((req, res, next) => {
+  Object.assign(res.locals, {
+    canonical: BASE_URL + req.path,
+    metaDescription: `${site.name} – ${site.tagline}. Permanent, contract and executive staffing across Technology, Finance, Marketing and Logistics.`,
+    jsonLd: null,
+    noindex: req.path.startsWith('/admin'),
+    toJsonLd: seo.toJsonLd,
+  });
+  next();
+});
+
+app.get('/robots.txt', (req, res) =>
+  res.type('text/plain').send(`User-agent: *
+Disallow: /admin
+Disallow: /api/
+
+Sitemap: ${BASE_URL}/sitemap.xml
+`)
+);
+
+app.get('/sitemap.xml', (req, res) =>
+  res.type('application/xml').send(seo.sitemap(BASE_URL, { jobs: openJobs(), posts, staticPaths: ['/', '/jobs', '/hire', '/about', '/blog', '/contact'] }))
+);
+
 // ---------- pages ----------
 app.get('/', (req, res) => {
   const live = openJobs();
-  res.render('index', { title: 'Staffing & Recruitment Solutions', page: 'home', jobs: live.slice(0, 6), posts: posts.slice(0, 3), categories: categoriesOf(live) });
+  res.render('index', { title: 'Staffing & Recruitment Solutions', page: 'home', jobs: live.slice(0, 6), posts: posts.slice(0, 3), categories: categoriesOf(live), jsonLd: seo.homePage(site, BASE_URL) });
 });
 
 app.get('/jobs', (req, res) => {
@@ -154,7 +182,17 @@ app.get('/jobs/:id', (req, res, next) => {
   const job = jobs.find((j) => j.id === req.params.id);
   if (!job) return next();
   const related = openJobs().filter((j) => j.category === job.category && j.id !== job.id).slice(0, 3);
-  res.render('job', { title: job.title, page: 'jobs', job, related });
+  const open = job.status === 'open';
+  res.render('job', {
+    title: `${job.title} – ${job.location}`,
+    page: 'jobs',
+    job,
+    related,
+    metaDescription: `${job.title} (${job.type}, ${job.mode}) in ${job.location}${job.experience ? `, ${job.experience}` : ''}${job.salary ? `, ${job.salary}` : ''}. ${job.description}`.slice(0, 300),
+    // Google requires expired postings to drop their JobPosting markup.
+    jsonLd: open ? seo.jobPosting(job, site, BASE_URL) : null,
+    noindex: !open,
+  });
 });
 
 app.get('/hire', (req, res) => res.render('hire', { title: 'Hire a Team', page: 'hire' }));
@@ -164,7 +202,7 @@ app.get('/blog', (req, res) => res.render('blog', { title: 'Blog & Articles', pa
 app.get('/blog/:slug', (req, res, next) => {
   const post = posts.find((p) => p.slug === req.params.slug);
   if (!post) return next();
-  res.render('post', { title: post.title, page: 'blog', post, more: posts.filter((p) => p !== post).slice(0, 2) });
+  res.render('post', { title: post.title, page: 'blog', post, more: posts.filter((p) => p !== post).slice(0, 2), metaDescription: post.excerpt, jsonLd: seo.article(post, site, BASE_URL) });
 });
 
 // ---------- form endpoints ----------
@@ -386,10 +424,10 @@ app.get('/admin/resume/:file', adminAuth, (req, res) => {
 });
 
 // ---------- 404 / errors ----------
-app.use((req, res) => res.status(404).render('404', { title: 'Page not found', page: '' }));
+app.use((req, res) => res.status(404).render('404', { title: 'Page not found', page: '', noindex: true }));
 app.use((err, req, res, next) => {
   console.error(err);
-  res.status(500).render('thanks', { title: 'Something went wrong', page: '', ok: false, message: 'Something went wrong on our side. Please try again.' });
+  res.status(500).render('thanks', { title: 'Something went wrong', page: '', ok: false, message: 'Something went wrong on our side. Please try again.', noindex: true });
 });
 
 app.listen(PORT, () => console.log(`Hireriv running at http://localhost:${PORT} · email: ${mailer.mode}`));

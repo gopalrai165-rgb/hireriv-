@@ -8,6 +8,7 @@ A complete website for a tech-driven staffing and recruitment company, built wit
 - **Hire a Team** (`/hire`): employer requirement form, engagement models and the hiring process
 - **About**, **Blog** (with articles) and **Contact** pages
 - Newsletter signup, a floating WhatsApp button, and a mobile-responsive layout
+- **SEO**: Google for Jobs structured data (JobPosting) on every open job, Organization/WebSite/BlogPosting data, `/sitemap.xml`, `/robots.txt`, canonical and Open Graph tags. Closed jobs are removed from the sitemap and marked `noindex`
 - **Admin panel** (`/admin`):
   - **Jobs**: post, edit, close/reopen and delete openings. Closed jobs drop out of listings, keep their page, and stop taking applications
   - **Applications pipeline**: move candidates through New → Screening → Interview → Offered → Hired / Rejected, add recruiter notes, filter by stage and download resumes
@@ -36,7 +37,7 @@ Without SMTP settings, every email is saved to `data/outbox/*.eml` (open these i
 | `SMTP_USER` / `SMTP_PASS` | `you@gmail.com` / app password | Gmail needs an App Password |
 | `MAIL_FROM` | `"Hireriv" <jobs@hireriv.com>` | Defaults to the email in `data/site.json` |
 | `NOTIFY_EMAIL` | `recruiters@hireriv.com` | Where team alerts go; defaults to the site email |
-| `SITE_URL` | `https://hireriv.com` | Used for links inside emails |
+| `SITE_URL` | `https://hireriv.com` | Your live domain: used in emails, canonical URLs, the sitemap and job structured data. **Set it in production.** |
 
 ```powershell
 $env:SMTP_HOST="smtp.gmail.com"; $env:SMTP_USER="you@gmail.com"; $env:SMTP_PASS="app-password"; $env:ADMIN_PASS="secret"; npm start
