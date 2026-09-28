@@ -12,6 +12,29 @@
     </div>
     <% if (msg) { %><p class="notice" role="status"><%= msg %></p><% } %>
 
+    <% if (contracts.length) { %>
+      <section class="dash-card dash-wide app-list">
+        <div class="dash-head"><h2>Your contracts</h2><span class="muted small">Log your days every week</span></div>
+        <% contracts.forEach(function (c) { %>
+          <article class="my-app">
+            <div class="my-app-head">
+              <div>
+                <h3><%= c.jobTitle %> at <%= c.company %></h3>
+                <p class="muted small"><%= c.contractEnd ? 'Contract to ' + formatDate(c.contractEnd) : 'Ongoing contract' %></p>
+              </div>
+              <a class="btn btn-primary btn-sm" href="/account/timesheets/<%= c.id %>">Timesheets</a>
+            </div>
+            <p class="small">
+              <% if (c.rejected) { %><span class="pill st-rejected"><%= c.rejected %> sent back</span> <% } %>
+              <% if (c.missing) { %><span class="pill st-screening"><%= c.missing %> week<%= c.missing === 1 ? '' : 's' %> not logged</span> <% } %>
+              <% if (c.submitted) { %><span class="pill st-interview"><%= c.submitted %> waiting for approval</span><% } %>
+              <% if (!c.rejected && !c.missing && !c.submitted) { %><span class="muted">All caught up.</span><% } %>
+            </p>
+          </article>
+        <% }) %>
+      </section>
+    <% } %>
+
     <section class="dash-card dash-wide app-list">
       <div class="dash-head"><h2>Your applications</h2><a class="small" href="/jobs">Find more jobs</a></div>
       <% if (!apps.length) { %><p class="muted dash-empty">No applications found.</p><% } %>

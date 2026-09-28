@@ -47,7 +47,7 @@ function parseCookies(header) {
 }
 
 function register(app, deps) {
-  const { db, site, mailer, baseUrl, adminAuth, sameOrigin, adminUrl, limit, readSubmissions, saveSubmission, getJobs, appStatuses, placementsFor } = deps;
+  const { db, site, mailer, baseUrl, adminAuth, sameOrigin, adminUrl, limit, readSubmissions, saveSubmission, getJobs, appStatuses, placementsFor, timesheetsFor } = deps;
   const read = () => db.all('employers');
   const write = (list) => db.replaceAll('employers', list);
   const secureCookie = /^https:/.test(baseUrl);
@@ -211,7 +211,7 @@ function register(app, deps) {
         return { ...j, total: forJob.length, stages: Object.fromEntries(appStatuses.map((s) => [s, forJob.filter((a) => statusOf(a) === s).length])) };
       });
     const requirements = readSubmissions('hire-requests').filter((h) => h.employerId === emp.id);
-    page(res, 'employer-dashboard', { title: `${emp.company} · Client portal`, myJobs, requirements, stages: appStatuses, shortlist: shortlistFor(emp), placements: placementsFor(emp), decisions: DECISIONS, welcome: req.query.welcome === '1', msg: String(req.query.msg || '') });
+    page(res, 'employer-dashboard', { title: `${emp.company} · Client portal`, myJobs, requirements, stages: appStatuses, shortlist: shortlistFor(emp), placements: placementsFor(emp), timesheets: timesheetsFor(emp), decisions: DECISIONS, welcome: req.query.welcome === '1', msg: String(req.query.msg || '') });
   });
 
   app.post('/employer/requirements', requireEmployer, limit('employer-req', 10), sameOrigin, (req, res) => {

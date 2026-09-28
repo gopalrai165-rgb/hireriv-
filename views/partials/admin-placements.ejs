@@ -62,6 +62,7 @@
                   </div>
                 <% }) %>
                 <% if (recent.length > 3) { %><a class="small" href="/admin/placements/<%= p.id %>/bill"><%= recent.length - 3 %> earlier invoice<%= recent.length - 3 === 1 ? '' : 's' %></a><br><% } %>
+                <% if (p.timesheetsPending) { %><a class="pill st-screening" href="/admin/placements/<%= p.id %>/bill"><%= p.timesheetsPending %> timesheet<%= p.timesheetsPending === 1 ? '' : 's' %> waiting</a><br><% } %>
                 <% if (p.monthsDue.length) { %><span class="pill st-new">To bill: <%= p.monthsDue.map(monthLabel).join(', ') %></span><br><% } else if (!recent.length) { %><span class="muted small">No months billed yet</span><br><% } %>
                 <a class="btn btn-<%= p.monthsDue.length ? 'primary' : 'outline' %> btn-sm" href="/admin/placements/<%= p.id %>/bill">Bill a month</a>
               <% } else if (p.invoice) { %>

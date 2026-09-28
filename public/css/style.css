@@ -815,3 +815,15 @@ code { background: var(--tint); padding: 0 .3em; border-radius: 4px; font-size: 
 .hbars .funnel-track { grid-template-columns: 1fr minmax(56px, auto); }
 .hbars .funnel-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .kpi-value small { font-size: .9rem; font-weight: 600; color: var(--muted); }
+.ts-days { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(120px, 100%), 1fr)); gap: 10px; margin: 14px 0; }
+.ts-day { display: grid; gap: 4px; padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--radius-sm); font-size: .85rem; }
+.ts-day.is-off { background: var(--tint); color: var(--muted); }
+.ts-day select { padding: .4em .5em; font-size: .85rem; }
+.timesheet h2 { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; font-size: 1.15rem; }
+.ts-grid { list-style: none; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; margin: 10px 0; padding: 0; }
+.ts-grid li { display: grid; gap: 2px; text-align: center; padding: 6px 2px; border-radius: 8px; background: var(--primary-50); font-size: .78rem; }
+.ts-grid li.is-off { background: var(--tint); color: var(--muted); }
+.ts-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.ts-reject { display: flex; gap: 6px; flex: 1; min-width: 220px; }
+.ts-reject input, .ts-note { padding: .4em .6em; font-size: .85rem; max-width: 180px; }
+.ts-pending { margin-bottom: 16px; }

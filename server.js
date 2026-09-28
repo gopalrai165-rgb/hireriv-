@@ -15,6 +15,7 @@ const placements = require('./placements');
 const teamModule = require('./team');
 const bulk = require('./bulk');
 const reportsModule = require('./reports');
+const timesheetsModule = require('./timesheets');
 const { interviewIcs } = require('./ics');
 
 const PORT = process.env.PORT || 3004;
@@ -478,7 +479,7 @@ interviews.register(app, { adminAuth, sameOrigin, readSubmissions, writeSubmissi
 const clients = employers.register(app, {
   db, site, mailer, baseUrl: BASE_URL, adminAuth, sameOrigin, adminUrl, limit,
   readSubmissions, saveSubmission, getJobs: () => jobs, appStatuses: APP_STATUSES,
-  writeSubmissions, uploadsDir: UPLOADS_DIR, skillMatch, placementsFor: (emp) => billing.forClient(emp),
+  writeSubmissions, uploadsDir: UPLOADS_DIR, skillMatch, placementsFor: (emp) => billing.forClient(emp), timesheetsFor: (emp) => timesheets.forClient(emp),
 });
 const billing = placements.register(app, {
   db, site, mailer, baseUrl: BASE_URL, adminAuth, requireAdmin, sameOrigin, adminUrl, readSubmissions, writeSubmissions,
@@ -489,9 +490,14 @@ const templates = bulk.register(app, {
   getJobs: () => jobs, team, appStatuses: APP_STATUSES, uploadsDir: UPLOADS_DIR,
 });
 const reports = reportsModule.create({ readSubmissions, getJobs: () => jobs, getPlacements: () => billing.read(), team, appOwner });
-candidates.register(app, {
+const candidateAccounts = candidates.register(app, {
   db, mailer, baseUrl: BASE_URL, sameOrigin, limit, readSubmissions, writeSubmissions,
   uploadsDir: UPLOADS_DIR, getJobs: () => jobs, formatIst: interviews.formatIst, interviewIcs, site,
+  contractsFor: (email) => timesheets.forCandidate(email),
+});
+const timesheets = timesheetsModule.register(app, {
+  db, mailer, baseUrl: BASE_URL, sameOrigin, limit, adminAuth, requireAdmin, clients,
+  requireCandidate: candidateAccounts.requireCandidate, requireEmployer: clients.requireEmployer,
 });
 
 app.get('/admin', adminAuth, (req, res) => {

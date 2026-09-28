@@ -5,6 +5,7 @@
     <a href="/admin?tab=placements&view=contracts" class="back-link">← Contracts</a>
     <h1>Bill a month</h1>
     <p class="lead"><b><%= p.candidateName %></b> at <%= p.company %> as <%= p.jobTitle %> · <%= inr(p.monthlyRate) %>/month<%= p.contractEnd ? ' · contract to ' + formatYmd(p.contractEnd) : '' %></p>
+    <% if (msg) { %><p class="notice" role="status"><%= msg %></p><% } %>
     <% if (errors.length) { %><p class="notice notice-err" role="alert">Please fix: <%= errors.join(', ') %></p><% } %>
 
     <% if (!months.length) { %>
@@ -19,15 +20,46 @@
         <noscript><button class="btn btn-outline btn-sm">Choose</button></noscript>
       </form>
 
-      <form class="form form-card" method="post" action="/admin/placements/<%= p.id %>/bill" data-month-calc data-rate="<%= p.monthlyRate %>" data-days-in-month="<%= period.daysInMonth %>" data-gst="<%= gstPercent %>">
+      <% if (hasTs) { %>
+        <div class="remind-bar ts-summary">
+          <span>Timesheets for <%= monthLabel(month) %>: <b><%= ts.approvedDays %> approved day<%= ts.approvedDays === 1 ? '' : 's' %></b> (<%= ts.approvedWeeks %> week<%= ts.approvedWeeks === 1 ? '' : 's' %>)<% if (ts.pendingWeeks) { %> · <%= ts.pendingWeeks %> week<%= ts.pendingWeeks === 1 ? '' : 's' %> (<%= ts.pendingDays %> days) still waiting<% } %><% if (ts.rejectedWeeks) { %> · <%= ts.rejectedWeeks %> sent back<% } %>.</span>
+        </div>
+      <% } %>
+      <% if (pending.length) { %>
+        <div class="table-wrap ts-pending">
+          <table>
+            <thead><tr><th>Waiting for approval</th><th class="num">Days</th><th><%= portalClient && portalClient.active ? 'The client usually approves in their portal. Approve here only if they asked you to.' : "The client isn't on the portal, so approve here once they confirm." %></th></tr></thead>
+            <tbody>
+              <% pending.forEach(function (t) { %>
+                <tr>
+                  <td><%= weekLabel(t.week) %><% if (t.note) { %><br><span class="muted small">“<%= t.note %>”</span><% } %></td>
+                  <td class="num"><%= daysOf(t) %></td>
+                  <td class="row-actions">
+                    <form method="post" action="/admin/placements/<%= p.id %>/timesheets/<%= t.id %>/approve"><input type="hidden" name="month" value="<%= month %>"><button class="btn btn-primary btn-sm">Approve</button></form>
+                    <form class="inline-form" method="post" action="/admin/placements/<%= p.id %>/timesheets/<%= t.id %>/reject"><input type="hidden" name="month" value="<%= month %>"><input name="note" maxlength="300" required placeholder="Why?" aria-label="Reason for sending back" class="ts-note"><button class="btn btn-outline btn-sm">Send back</button></form>
+                  </td>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+      <% } %>
+
+      <form class="form form-card" method="post" action="/admin/placements/<%= p.id %>/bill" data-month-calc data-rate="<%= p.monthlyRate %>" data-calendar-days="<%= period.daysInMonth %>" data-working-days="<%= workingDays %>" data-gst="<%= gstPercent %>">
         <input type="hidden" name="month" value="<%= month %>">
-        <p class="muted small">Deployed <%= formatYmd(period.from) %> – <%= formatYmd(period.to) %>: <b><%= period.days %></b> of <%= period.daysInMonth %> days. Change the billable days for unpaid leave or a partial month (half days allowed).</p>
+        <p class="muted small">Deployed <%= formatYmd(period.from) %> – <%= formatYmd(period.to) %>: <b><%= period.days %></b> of <%= period.daysInMonth %> calendar days, <b><%= weekdaysDeployed %></b> of <%= workingDays %> working days (Mon–Fri).<%= hasTs ? ' Billable days are pre-filled from approved timesheets.' : '' %> Half days are allowed.</p>
         <div class="form-grid">
+          <label>Bill by
+            <select name="basis" data-month-basis>
+              <option value="working"<%= basis === 'working' ? ' selected' : '' %>>Working days: rate × days ÷ <%= workingDays %></option>
+              <option value="calendar"<%= basis === 'calendar' ? ' selected' : '' %>>Calendar days: rate × days ÷ <%= period.daysInMonth %></option>
+            </select>
+          </label>
           <label>Billable days*<input name="days" inputmode="decimal" required value="<%= f.days %>" data-month-days></label>
           <label>Adjustment (₹) <span class="muted small">(optional, minus for deductions)</span><input name="adjustment" inputmode="decimal" value="<%= f.adjustment %>" placeholder="e.g. 12000 or -5000" data-month-adj></label>
           <label class="span-2">Adjustment note<input name="adjustmentNote" maxlength="120" value="<%= f.adjustmentNote %>" placeholder="e.g. Overtime, 16 hours"></label>
         </div>
-        <p class="fee-preview" aria-live="polite">Invoice before GST: <b data-month-out><%= inr(p.monthlyRate * (Number(f.days) || 0) / period.daysInMonth + (Number(f.adjustment) || 0)) %></b> <span class="muted small">+ <%= gstPercent %>% GST</span></p>
+        <p class="fee-preview" aria-live="polite">Invoice before GST: <b data-month-out><%= inr(p.monthlyRate * (Number(f.days) || 0) / (basis === 'working' ? workingDays : period.daysInMonth) + (Number(f.adjustment) || 0)) %></b> <span class="muted small">+ <%= gstPercent %>% GST</span></p>
         <% if (portalClient && portalClient.active) { %><label class="notify-line"><input type="checkbox" name="email" value="1" checked> Email the invoice to <%= portalClient.email %></label><% } %>
         <button class="btn btn-primary" type="submit">Issue invoice for <%= monthLabel(month) %></button>
         <a class="btn btn-outline" href="/admin?tab=placements&view=contracts">Cancel</a>
@@ -44,7 +76,7 @@
               <tr>
                 <td><%= monthLabel(inv.period.month) %></td>
                 <td><a href="/admin/placements/<%= p.id %>/invoice?inv=<%= inv.id %>" target="_blank" rel="noopener"><%= inv.number %></a></td>
-                <td class="num"><%= inv.period.billedDays %>/<%= inv.period.daysInMonth %></td>
+                <td class="num"><%= inv.period.billedDays %>/<%= inv.period.basisDays || inv.period.daysInMonth %><%= inv.period.basis === 'working' ? ' working' : '' %></td>
                 <td class="num"><%= inr(inv.total) %></td>
                 <td><a href="/admin/placements/<%= p.id %>/payments?inv=<%= inv.id %>"><%= inv.status %></a></td>
               </tr>

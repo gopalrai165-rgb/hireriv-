@@ -1,0 +1,65 @@
+<%- include('partials/head') %>
+
+<section class="section admin portal">
+  <div class="container narrow">
+    <a href="/account" class="back-link">← My account</a>
+    <span class="eyebrow">Timesheets</span>
+    <h1><%= p.jobTitle %> at <%= p.company %></h1>
+    <p class="muted">Contract from <%= fmt(p.joiningDate, { day: 'numeric', month: 'short', year: 'numeric' }) %><%= p.contractEnd ? ' to ' + fmt(p.contractEnd, { day: 'numeric', month: 'short', year: 'numeric' }) : '' %>. Log each week, then <%= clientName ? clientName + ' approves it' : 'our team approves it' %>.</p>
+    <% if (msg) { %><p class="notice" role="status"><%= msg %></p><% } %>
+    <% if (errors.length) { %><p class="notice notice-err" role="alert">Please fix: <%= errors.join(', ') %></p><% } %>
+
+    <form class="form month-pick" method="get" action="/account/timesheets/<%= p.id %>">
+      <label>Week
+        <select name="week" data-autosubmit>
+          <% weeks.forEach(function (w) { const t = history.find(function (h) { return h.week === w; }); %>
+            <option value="<%= w %>"<%= w === week ? ' selected' : '' %>><%= weekLabel(w) %><%= t ? ' · ' + t.status : '' %></option>
+          <% }) %>
+        </select>
+      </label>
+      <noscript><button class="btn btn-outline btn-sm">Open</button></noscript>
+    </form>
+
+    <% const locked = existing && existing.status === 'Approved'; %>
+    <form class="form form-card timesheet" method="post" action="/account/timesheets/<%= p.id %>">
+      <input type="hidden" name="week" value="<%= week %>">
+      <h2><%= weekLabel(week) %>
+        <% if (existing) { %><span class="pill <%= existing.status === 'Approved' ? 'st-hired' : existing.status === 'Rejected' ? 'st-rejected' : 'st-screening' %>"><%= existing.status === 'Submitted' ? 'Waiting for approval' : existing.status === 'Rejected' ? 'Sent back' : 'Approved' %></span><% } %>
+      </h2>
+      <% if (existing && existing.status === 'Rejected' && existing.reviewNote) { %><p class="notice notice-err">Sent back by <%= existing.reviewedBy %>: “<%= existing.reviewNote %>”</p><% } %>
+      <div class="ts-days">
+        <% weekDates(week).forEach(function (d) { const open = inContract(p, d); %>
+          <label class="ts-day<%= open ? '' : ' is-off' %>">
+            <span><b><%= fmt(d, { weekday: 'short' }) %></b> <%= fmt(d, { day: 'numeric', month: 'short' }) %></span>
+            <select name="day_<%= d %>"<%= !open || locked ? ' disabled' : '' %> aria-label="<%= fmt(d, { weekday: 'long', day: 'numeric', month: 'long' }) %>">
+              <% [1, 0.5, 0].forEach(function (v) { %><option value="<%= v %>"<%= Number(days[d] || 0) === v ? ' selected' : '' %>><%= DAY_VALUES[v] %></option><% }) %>
+            </select>
+          </label>
+        <% }) %>
+      </div>
+      <label>Note <span class="muted small">(optional, e.g. leave taken, extra hours)</span><input name="note" maxlength="300" value="<%= note %>"<%= locked ? ' disabled' : '' %>></label>
+      <% if (locked) { %><p class="muted small">Approved by <%= existing.reviewedBy %>. Approved weeks can't be changed; contact your recruiter if something is wrong.</p>
+      <% } else { %><button class="btn btn-primary" type="submit"><%= existing ? 'Update and resubmit' : 'Submit for approval' %></button><% } %>
+    </form>
+
+    <% if (history.length) { %>
+      <h2 class="replace-head">Your timesheets</h2>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Week</th><th class="num">Days</th><th>Status</th></tr></thead>
+          <tbody>
+            <% history.forEach(function (t) { %>
+              <tr>
+                <td><a href="/account/timesheets/<%= p.id %>?week=<%= t.week %>"><%= weekLabel(t.week) %></a></td>
+                <td class="num"><%= daysOf(t) %></td>
+                <td><%= t.status === 'Submitted' ? 'Waiting for approval' : t.status === 'Rejected' ? 'Sent back' : 'Approved' %><% if (t.reviewNote) { %><br><span class="muted small">“<%= t.reviewNote %>”</span><% } %></td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+    <% } %>
+  </div>
+</section>
+
+<%- include('partials/foot') %>

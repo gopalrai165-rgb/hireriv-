@@ -3,6 +3,7 @@
 // with a numbered GST invoice. Placements are their own collection (not part of
 // the application), so billing records survive a candidate deleting their data.
 const crypto = require('crypto');
+const timesheets = require('./timesheets');
 
 const STATUSES = ['Awaiting joining', 'Joined', 'Did not join', 'Left in guarantee', 'Contract ended'];
 const TYPES = ['Permanent', 'Contract', 'Contract-to-hire'];
@@ -141,6 +142,7 @@ function describe(p) {
     overdue: Boolean(inv && isOverdue(inv)),
     invoices,
     monthsDue: monthsDue(p),
+    timesheetsPending: (p.timesheets || []).filter((t) => t.status === 'Submitted').length,
   };
 }
 
@@ -408,14 +410,30 @@ function register(app, deps) {
   });
 
   // ----- monthly contract invoices -----
+  // Weekdays (Mon–Fri) inside a deployed period.
+  const weekdaysIn = (period) => {
+    let n = 0;
+    for (let d = period.from; d <= period.to; d = addDays(d, 1)) if (![0, 6].includes(new Date(`${d}T00:00:00Z`).getUTCDay())) n++;
+    return n;
+  };
+
+  // With timesheets, a month is billed on working days (approved days out of the
+  // month's Mon–Fri); without them, on calendar days deployed.
   function billPage(res, p, ym, extra = {}, status = 200) {
     const months = billableMonths(p);
     const month = months.includes(ym) ? ym : months.find((m) => m < monthOf(todayIst())) || months[0] || '';
     const period = month ? monthPeriod(p, month) : null;
+    const ts = month ? timesheets.monthSummary(p, month) : null;
+    const hasTs = Boolean(ts && (ts.approvedWeeks || ts.pendingWeeks));
+    const basis = extra.basis || (hasTs ? 'working' : 'calendar');
+    const pending = (p.timesheets || []).filter((t) => t.status === 'Submitted' && Object.keys(t.days || {}).some((d) => d.startsWith(month)));
+    const defaultDays = !period ? '' : hasTs ? ts.approvedDays : basis === 'working' ? weekdaysIn(period) : period.days;
     res.status(status).render('admin-bill-month', {
       title: `Bill a month · ${p.candidateName}`, page: 'admin', noindex: true, p, months, month, period, monthLabel, inr, formatYmd,
-      portalClient: clientById(p.employerId), gstPercent: billingOf(site).gstPercent, errors: [],
-      f: { days: period ? period.days : '', adjustment: '', adjustmentNote: '' },
+      portalClient: clientById(p.employerId), gstPercent: billingOf(site).gstPercent, errors: [], msg: '',
+      ts, hasTs, basis, workingDays: month ? timesheets.workingDaysInMonth(month) : 0, weekdaysDeployed: period ? weekdaysIn(period) : 0,
+      pending, weekLabel: timesheets.weekLabel, daysOf: timesheets.daysOf,
+      f: { days: defaultDays, adjustment: '', adjustmentNote: '' },
       ...extra,
     });
   }
@@ -423,7 +441,7 @@ function register(app, deps) {
   app.get('/admin/placements/:id/bill', adminAuth, requireAdmin, (req, res, next) => {
     const { p } = findPlacement(req.params.id);
     if (!p || p.feeMode !== 'monthly') return next();
-    billPage(res, p, String(req.query.month || ''));
+    billPage(res, p, String(req.query.month || ''), { msg: String(req.query.msg || '') });
   });
 
   app.post('/admin/placements/:id/bill', adminAuth, requireAdmin, sameOrigin, (req, res, next) => {
@@ -432,6 +450,8 @@ function register(app, deps) {
     const month = String(req.body.month || '');
     const f = { days: String(req.body.days ?? '').trim(), adjustment: String(req.body.adjustment ?? '').trim(), adjustmentNote: String(req.body.adjustmentNote || '').trim().slice(0, 120) };
     const period = billableMonths(p).includes(month) ? monthPeriod(p, month) : null;
+    const basis = req.body.basis === 'working' ? 'working' : 'calendar';
+    const basisDays = period ? (basis === 'working' ? timesheets.workingDaysInMonth(month) : period.daysInMonth) : 0;
     const days = Number(f.days);
     const adjustment = f.adjustment === '' ? 0 : moneyIn(f.adjustment);
     const errors = [];
@@ -439,13 +459,13 @@ function register(app, deps) {
     else if (!Number.isFinite(days) || days < 0 || days > period.daysInMonth || Math.round(days * 2) !== days * 2) errors.push(`billable days must be between 0 and ${period.daysInMonth} (half days allowed)`);
     if (!Number.isFinite(adjustment)) errors.push('adjustment must be a number (use a minus sign for deductions)');
     if (adjustment && !f.adjustmentNote) errors.push('describe the adjustment (e.g. overtime, unpaid leave)');
-    const base = period && Number.isFinite(days) ? round2((p.monthlyRate * days) / period.daysInMonth) : 0;
+    const base = period && Number.isFinite(days) ? round2((p.monthlyRate * days) / basisDays) : 0;
     const subtotal = round2(base + (Number.isFinite(adjustment) ? adjustment : 0));
     if (!errors.length && !(subtotal > 0)) errors.push('the invoice total must be more than zero');
-    if (errors.length) return billPage(res, p, month, { errors, f }, 400);
-    const lines = [{ text: `Contract staffing – ${p.candidateName} as ${p.jobTitle}, ${monthLabel(month)} (${formatYmd(period.from)} – ${formatYmd(period.to)}): ${days} of ${period.daysInMonth} days at ${inr(p.monthlyRate)}/month`, amount: base }];
+    if (errors.length) return billPage(res, p, month, { errors, f, basis }, 400);
+    const lines = [{ text: `Contract staffing – ${p.candidateName} as ${p.jobTitle}, ${monthLabel(month)} (${formatYmd(period.from)} – ${formatYmd(period.to)}): ${days} of ${basisDays} ${basis === 'working' ? 'working days' : 'days'} at ${inr(p.monthlyRate)}/month`, amount: base }];
     if (adjustment) lines.push({ text: f.adjustmentNote, amount: round2(adjustment) });
-    const inv = newInvoice(p, subtotal, { id: crypto.randomUUID(), period: { ...period, billedDays: days }, lines, item: lines[0].text });
+    const inv = newInvoice(p, subtotal, { id: crypto.randomUUID(), period: { ...period, billedDays: days, basis, basisDays }, lines, item: lines[0].text });
     p.monthlyInvoices = [...(p.monthlyInvoices || []), inv];
     const client = clientById(p.employerId);
     const emailed = req.body.email === '1' && client && client.active;
@@ -766,6 +786,7 @@ function register(app, deps) {
       }
       if (p.status === 'Left in guarantee' && !p.replacedBy && !(p.invoice && (p.invoice.creditNotes || []).length)) items.push({ at: p.updatedAt.slice(0, 10), kind: 'Find replacement', cls: 'st-screening', text: `${p.candidateName} left ${p.company}` });
       if (p.feeMode !== 'monthly' && needsInvoice(p)) items.push({ at: p.joiningDate, kind: 'To invoice', cls: 'st-new', text: `${p.candidateName} at ${p.company} · ${inr(p.fee)}` });
+      if (p.timesheetsPending) items.push({ at: todayIst(), kind: 'Timesheets', cls: 'st-screening', text: `${p.timesheetsPending} waiting for approval · ${p.candidateName} at ${p.company}` });
       if (p.monthsDue.length) items.push({ at: `${p.monthsDue[0]}-28`, kind: 'Bill month', cls: 'st-new', text: `${p.candidateName} at ${p.company} · ${p.monthsDue.map(monthLabel).join(', ')}` });
     }
     return items.sort((a, b) => a.at.localeCompare(b.at)).slice(0, limit);

@@ -28,7 +28,7 @@ function parseCookies(header) {
 }
 
 function register(app, deps) {
-  const { db, mailer, baseUrl, sameOrigin, limit, readSubmissions, writeSubmissions, uploadsDir, getJobs, formatIst, interviewIcs, site } = deps;
+  const { db, mailer, baseUrl, sameOrigin, limit, readSubmissions, writeSubmissions, uploadsDir, getJobs, formatIst, interviewIcs, site, contractsFor } = deps;
   const secureCookie = /^https:/.test(baseUrl);
 
   const mine = (email) => readSubmissions('applications').filter((a) => String(a.email).toLowerCase() === email);
@@ -115,7 +115,7 @@ function register(app, deps) {
     }
     page(res, 'account', {
       title: 'My applications', email, apps, steps: STEPS, profile: latest,
-      experienceOptions: EXPERIENCE, noticeOptions: NOTICE, msg: String(req.query.msg || ''),
+      experienceOptions: EXPERIENCE, noticeOptions: NOTICE, msg: String(req.query.msg || ''), contracts: contractsFor(email),
     });
   });
 
@@ -185,6 +185,8 @@ function register(app, deps) {
     res.clearCookie(COOKIE, { path: '/' });
     page(res, 'account-login', { title: 'Your data has been deleted', sent: false, deleted: true });
   });
+
+  return { requireCandidate };
 }
 
 module.exports = { register, CANDIDATE_STAGE };

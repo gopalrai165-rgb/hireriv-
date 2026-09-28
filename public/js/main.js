@@ -265,10 +265,12 @@ if (monthForm) {
   const money = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 2 });
   const num = (el) => Number(String(el.value).replace(/[,₹\s]/g, '')) || 0;
   const update = () => {
-    const base = (Number(monthForm.dataset.rate) * num(monthForm.querySelector('[data-month-days]'))) / Number(monthForm.dataset.daysInMonth);
+    const basis = monthForm.querySelector('[data-month-basis]').value === 'working' ? monthForm.dataset.workingDays : monthForm.dataset.calendarDays;
+    const base = (Number(monthForm.dataset.rate) * num(monthForm.querySelector('[data-month-days]'))) / Number(basis);
     monthForm.querySelector('[data-month-out]').textContent = money.format(Math.round((base + num(monthForm.querySelector('[data-month-adj]'))) * 100) / 100);
   };
   monthForm.addEventListener('input', update);
+  monthForm.addEventListener('change', update);
 }
 
 // Placement form: show the right fee field and preview the fee as you type.

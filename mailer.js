@@ -233,6 +233,38 @@ function createMailer(site) {
       });
     },
 
+    // To the client's portal contact, or the team when the client isn't on the portal.
+    timesheetSubmitted(client, pl, ts, total, week, link) {
+      send(site, {
+        to: client ? client.email : teamInbox,
+        replyTo: client ? teamInbox : undefined,
+        subject: `Timesheet to approve: ${pl.candidateName}, ${week}`,
+        heading: 'A timesheet is waiting for approval',
+        html:
+          p(client
+            ? `Hi ${first(client.name)}, ${esc(pl.candidateName)} has submitted their timesheet. Please approve it, or send it back with a note if something needs changing.`
+            : `${esc(pl.candidateName)} submitted a timesheet for ${esc(pl.company)}, who isn't on the client portal. An Admin can approve it on the "Bill a month" page.`) +
+          detailsTable([['Contractor', `${pl.candidateName} (${pl.jobTitle})`], ['Week', week], ['Days worked', String(total)], ['Note', ts.note]]) +
+          button(link, client ? 'Review timesheet' : 'Open in admin'),
+      });
+    },
+
+    timesheetReviewed(pl, ts, total, week, link) {
+      const ok = ts.status === 'Approved';
+      send(site, {
+        to: pl.candidateEmail,
+        replyTo: teamInbox,
+        subject: `Timesheet ${ok ? 'approved' : 'needs changes'}: ${week}`,
+        heading: ok ? 'Your timesheet is approved' : 'Your timesheet needs a change',
+        html:
+          p(ok
+            ? `Your timesheet for <b>${esc(week)}</b> (${total} day${total === 1 ? '' : 's'}) at ${esc(pl.company)} has been approved.`
+            : `Your timesheet for <b>${esc(week)}</b> at ${esc(pl.company)} was sent back. Please update it and submit again.`) +
+          (ts.reviewNote ? detailsTable([['Note', ts.reviewNote]]) : '') +
+          button(link, ok ? 'View timesheets' : 'Update timesheet'),
+      });
+    },
+
     invoiceReminder(emp, inv, balance, daysOverdue, link) {
       const money = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(balance);
       const due = new Date(`${inv.dueDate}T00:00:00Z`).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });

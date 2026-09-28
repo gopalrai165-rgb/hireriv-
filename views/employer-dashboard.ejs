@@ -71,6 +71,31 @@
         <% } %>
       </section>
 
+      <% if (timesheets.length) { %>
+        <section class="dash-card dash-wide" id="timesheets">
+          <div class="dash-head"><h2>Timesheets to approve</h2><span class="muted small"><%= timesheets.length %> waiting</span></div>
+          <p class="muted small">Approved days are what we bill for that month. Send a week back with a note if something needs correcting.</p>
+          <% timesheets.forEach(function (t) { %>
+            <article class="cand-card ts-review">
+              <div class="cand-top"><div><h3><%= t.p.candidateName %></h3><p class="muted small"><%= t.p.jobTitle %> · <%= t.label %> · <b><%= t.total %> day<%= t.total === 1 ? '' : 's' %></b></p></div></div>
+              <ul class="ts-grid">
+                <% t.dates.forEach(function (d) { const v = Number(t.ts.days[d] || 0); %>
+                  <li class="<%= v ? '' : 'is-off' %>"><span><%= new Date(d + 'T00:00:00Z').toLocaleDateString('en-IN', { weekday: 'short', timeZone: 'UTC' }) %></span><b><%= v === 1 ? 'Full' : v === 0.5 ? 'Half' : 'Off' %></b></li>
+                <% }) %>
+              </ul>
+              <% if (t.ts.note) { %><p class="cand-note"><b>Note:</b> <%= t.ts.note %></p><% } %>
+              <div class="ts-actions">
+                <form method="post" action="/employer/timesheets/<%= t.p.id %>/<%= t.ts.id %>/approve"><button class="btn btn-primary btn-sm">Approve</button></form>
+                <form class="form ts-reject" method="post" action="/employer/timesheets/<%= t.p.id %>/<%= t.ts.id %>/reject">
+                  <input name="note" maxlength="300" required placeholder="What needs changing?" aria-label="Reason for sending back">
+                  <button class="btn btn-outline btn-sm">Send back</button>
+                </form>
+              </div>
+            </article>
+          <% }) %>
+        </section>
+      <% } %>
+
       <% if (placements.length) { %>
         <section class="dash-card dash-wide" id="billing">
           <div class="dash-head"><h2>Placements &amp; invoices</h2><span class="muted small"><%= placements.length %> hired through us</span></div>
