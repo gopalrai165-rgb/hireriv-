@@ -18,11 +18,12 @@
       <li><svg class="i"><use href="#i-clock"/></svg>Posted <%= daysAgo(job.posted).toLowerCase() %></li>
     </ul>
     <% if (job.status !== 'closed') { %>
-      <% const shareText = job.title + ' (' + job.location + ') – apply via ' + site.name + ': ' + canonical; %>
-      <div class="share-row" data-share-url="<%= canonical %>" data-share-title="<%= job.title %> – <%= site.name %>">
+      <%# Shared links carry utm_source so Reports can show which shares bring applicants. %>
+      <% const shareText = job.title + ' (' + job.location + ') – apply via ' + site.name + ': ' + canonical + '?utm_source=whatsapp'; %>
+      <div class="share-row" data-share-url="<%= canonical %>?utm_source=share" data-share-title="<%= job.title %> – <%= site.name %>">
         <span class="share-label">Share this job</span>
         <a class="share-btn share-wa" href="https://wa.me/?text=<%= encodeURIComponent(shareText) %>" target="_blank" rel="noopener noreferrer" aria-label="Share on WhatsApp"><svg class="i"><use href="#i-whatsapp"/></svg><span>WhatsApp</span></a>
-        <a class="share-btn share-li" href="https://www.linkedin.com/sharing/share-offsite/?url=<%= encodeURIComponent(canonical) %>" target="_blank" rel="noopener noreferrer" aria-label="Share on LinkedIn"><svg class="i"><use href="#i-linkedin"/></svg><span>LinkedIn</span></a>
+        <a class="share-btn share-li" href="https://www.linkedin.com/sharing/share-offsite/?url=<%= encodeURIComponent(canonical + '?utm_source=linkedin') %>" target="_blank" rel="noopener noreferrer" aria-label="Share on LinkedIn"><svg class="i"><use href="#i-linkedin"/></svg><span>LinkedIn</span></a>
         <button type="button" class="share-btn" data-copy-link aria-label="Copy link to this job"><svg class="i"><use href="#i-link"/></svg><span>Copy link</span></button>
         <button type="button" class="share-btn share-native" data-native-share hidden aria-label="More sharing options"><svg class="i"><use href="#i-share"/></svg><span>More</span></button>
       </div>

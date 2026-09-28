@@ -14,6 +14,7 @@ const candidates = require('./candidates');
 const placements = require('./placements');
 const teamModule = require('./team');
 const bulk = require('./bulk');
+const reportsModule = require('./reports');
 const { interviewIcs } = require('./ics');
 
 const PORT = process.env.PORT || 3004;
@@ -335,7 +336,8 @@ app.post('/api/apply', limit('apply', 6), (req, res) => {
       return respond(req, res, [], 'Thanks! Your application is in.');
     }
     if (err) return respond(req, res, [err.code === 'LIMIT_FILE_SIZE' ? 'Resume must be under 5 MB' : err.message]);
-    const data = clean(req.body, ['jobId', 'name', 'email', 'phone', 'skills', 'experience', 'location', 'noticePeriod', 'linkedin', 'message']);
+    const data = clean(req.body, ['jobId', 'name', 'email', 'phone', 'skills', 'experience', 'location', 'noticePeriod', 'linkedin', 'message', 'source']);
+    data.source = reportsModule.cleanSource(data.source);
     const errors = validate(data, ['name', 'email', 'phone']);
     if (!req.file) errors.push('resume is required');
     const job = jobs.find((j) => j.id === data.jobId);
@@ -456,7 +458,7 @@ function sameOrigin(req, res, next) {
   res.status(403).send('Cross-site request blocked');
 }
 
-const ADMIN_TABS = ['dashboard', 'jobs', 'talent', 'interviews', 'placements', 'clients', ...FORM_TYPES, 'templates', 'blog', 'settings', 'team', 'activity'];
+const ADMIN_TABS = ['dashboard', 'reports', 'jobs', 'talent', 'interviews', 'placements', 'clients', ...FORM_TYPES, 'templates', 'blog', 'settings', 'team', 'activity'];
 // Recruiters don't see these tabs.
 const ADMIN_ONLY_TABS = ['settings', 'team', 'activity'];
 const tabsFor = (user) => ADMIN_TABS.filter((t) => user.role === 'Admin' || !ADMIN_ONLY_TABS.includes(t));
@@ -486,6 +488,7 @@ const templates = bulk.register(app, {
   db, site, mailer, adminAuth, requireAdmin, sameOrigin, adminUrl, readSubmissions, writeSubmissions,
   getJobs: () => jobs, team, appStatuses: APP_STATUSES, uploadsDir: UPLOADS_DIR,
 });
+const reports = reportsModule.create({ readSubmissions, getJobs: () => jobs, getPlacements: () => billing.read(), team, appOwner });
 candidates.register(app, {
   db, mailer, baseUrl: BASE_URL, sameOrigin, limit, readSubmissions, writeSubmissions,
   uploadsDir: UPLOADS_DIR, getJobs: () => jobs, formatIst: interviews.formatIst, interviewIcs, site,
@@ -495,7 +498,7 @@ app.get('/admin', adminAuth, (req, res) => {
   const tabs = tabsFor(req.admin);
   const tab = tabs.includes(req.query.tab) ? req.query.tab : 'dashboard';
   const applications = readSubmissions('applications');
-  const counts = { dashboard: '', settings: '', activity: '', templates: templates.read().length, team: team.members().length, blog: posts.length, interviews: interviews.upcoming(applications).length, placements: billing.read().length, clients: clients.read().length, jobs: jobs.length, talent: new Set(applications.map((a) => String(a.email).toLowerCase())).size, ...Object.fromEntries(FORM_TYPES.map((t) => [t, readSubmissions(t).length])) };
+  const counts = { dashboard: '', reports: '', settings: '', activity: '', templates: templates.read().length, team: team.members().length, blog: posts.length, interviews: interviews.upcoming(applications).length, placements: billing.read().length, clients: clients.read().length, jobs: jobs.length, talent: new Set(applications.map((a) => String(a.email).toLowerCase())).size, ...Object.fromEntries(FORM_TYPES.map((t) => [t, readSubmissions(t).length])) };
   const members = team.members();
   const memberName = Object.fromEntries(members.map((u) => [u.id, u.name]));
   const locals = { title: 'Admin', page: 'admin', tab, tabs, counts, status: '', msg: String(req.query.msg || ''), members, memberName };
@@ -503,6 +506,7 @@ app.get('/admin', adminAuth, (req, res) => {
   if (tab === 'dashboard') return res.render('admin', { ...locals, rows: [], dash: buildDashboard(applications, req.admin) });
   if (tab === 'team') return res.render('admin', { ...locals, rows: team.list(), roles: team.ROLES });
   if (tab === 'templates') return res.render('admin', { ...locals, rows: templates.read(), placeholders: bulk.PLACEHOLDERS });
+  if (tab === 'reports') return res.render('admin', { ...locals, rows: [], report: reports.build({ period: String(req.query.period || ''), isAdmin: req.admin.role === 'Admin' }), inr: billing.inr });
   if (tab === 'activity') {
     const who = String(req.query.user || '');
     return res.render('admin', { ...locals, rows: team.activity({ userId: who }), who, people: team.list() });
@@ -805,6 +809,13 @@ app.get('/admin/backup', adminAuth, requireAdmin, (req, res) => {
   res.download(file, `hireriv-${new Date().toISOString().slice(0, 10)}.db`, () => fs.unlink(file, () => {}));
 });
 
+app.get('/admin/reports/:section.csv', adminAuth, (req, res, next) => {
+  const report = reports.build({ period: String(req.query.period || ''), isAdmin: req.admin.role === 'Admin' });
+  const rows = reports.csv(req.params.section, report);
+  if (!rows) return next();
+  sendCsv(res, `report-${req.params.section}-${report.period.key}`, rows);
+});
+
 // Leading = + - @ would be run as a formula by Excel/Sheets, so neutralise it.
 function csvCell(v) {
   let s = Array.isArray(v) ? v.join('; ') : String(v ?? '');
@@ -815,7 +826,7 @@ function csvCell(v) {
 app.get('/admin/export/:type.csv', adminAuth, (req, res, next) => {
   const { type } = req.params;
   if (!ADMIN_TABS.includes(type)) return next();
-  if (['dashboard', 'blog', 'settings', 'interviews', 'clients', 'team', 'templates'].includes(type)) return next();
+  if (['dashboard', 'reports', 'blog', 'settings', 'interviews', 'clients', 'team', 'templates'].includes(type)) return next();
   // Billing and the activity log are for Admins only.
   if (['placements', 'activity'].includes(type) && req.admin.role !== 'Admin') return requireAdmin(req, res, next);
   const rows =
@@ -824,12 +835,16 @@ app.get('/admin/export/:type.csv', adminAuth, (req, res, next) => {
     : type === 'activity' ? team.activity({ limit: 5000 })
     : type === 'talent' ? buildPool(readSubmissions('applications')).map(({ skillsAll, ...c }) => ({ ...c, jobsApplied: c.jobsApplied.join('; ') }))
     : readSubmissions(type);
+  sendCsv(res, type, rows);
+});
+
+function sendCsv(res, name, rows) {
   const cols = [...new Set(rows.flatMap((r) => Object.keys(r)))].filter((c) => c !== 'token');
   const csv = [cols.map(csvCell).join(','), ...rows.map((r) => cols.map((c) => csvCell(r[c])).join(','))].join('\r\n');
   res.set('Content-Type', 'text/csv; charset=utf-8');
-  res.attachment(`hireriv-${type}-${new Date().toISOString().slice(0, 10)}.csv`);
+  res.attachment(`hireriv-${name}-${new Date().toISOString().slice(0, 10)}.csv`);
   res.send('﻿' + csv); // BOM so Excel reads ₹ and other UTF-8 correctly
-});
+}
 
 app.get('/admin/resume/:file', adminAuth, (req, res) => {
   const file = path.basename(req.params.file);

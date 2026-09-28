@@ -1,0 +1,120 @@
+<% const r = report; %>
+<% const qs = '?period=' + r.period.key; %>
+<% const shortInr = function (n) { n = Number(n) || 0; return n >= 1e7 ? '₹' + (n / 1e7).toFixed(1).replace(/\.0$/, '') + ' Cr' : n >= 1e5 ? '₹' + (n / 1e5).toFixed(1).replace(/\.0$/, '') + ' L' : n >= 1e3 ? '₹' + (n / 1e3).toFixed(1).replace(/\.0$/, '') + 'K' : '₹' + Math.round(n); }; %>
+<% const days = function (d) { return d === null || d === undefined ? '—' : d + ' day' + (d === 1 ? '' : 's'); }; %>
+
+<div class="pipeline report-periods" role="group" aria-label="Report period">
+  <% r.periods.forEach(function (p) { %><a class="pill<%= p[0] === r.period.key ? ' active' : '' %>" href="/admin?tab=reports&period=<%= p[0] %>"><%= p[1] %></a><% }) %>
+</div>
+<p class="muted small talent-summary"><b><%= r.period.label %></b><%= r.period.key === 'all' ? '' : ' (' + formatDate(r.period.from) + ' – ' + formatDate(r.period.to) + ')' %>. Free replacement hires aren't counted as new placements.<%= r.isAdmin ? '' : ' Money figures are visible to Admins.' %></p>
+
+<div class="kpis">
+  <% r.kpis.forEach(function (k) { %>
+    <div class="kpi">
+      <span class="kpi-label"><%= k.label %></span>
+      <span class="kpi-value<%= k.money !== undefined ? ' kpi-money' : '' %>"><%= k.money !== undefined ? inr(k.money) : k.value === null ? '—' : k.value.toLocaleString('en-IN') %><% if (k.unit && k.value !== null) { %> <small><%= k.unit %></small><% } %></span>
+      <span class="kpi-note"><%= k.note %></span>
+    </div>
+  <% }) %>
+</div>
+
+<div class="dash-grid">
+  <section class="dash-card dash-wide">
+    <div class="dash-head"><h2>Placements per month</h2><span class="muted small">last 12 months · <a href="/admin/reports/months.csv<%= qs %>">CSV</a></span></div>
+    <%- include('report-colchart', { items: r.months.map(function (m) { return { label: m.label, full: m.full, value: m.placements }; }), fmt: function (v) { return String(v); }, noun: 'placements', empty: 'No placements recorded in the last 12 months.' }) %>
+  </section>
+
+  <% if (r.isAdmin) { %>
+    <section class="dash-card dash-wide">
+      <div class="dash-head"><h2>Billed per month</h2><span class="muted small">invoices incl. GST, net of credit notes · last 12 months</span></div>
+      <%- include('report-colchart', { items: r.months.map(function (m) { return { label: m.label, full: m.full, value: m.billed }; }), fmt: shortInr, noun: 'billed', empty: 'Nothing invoiced in the last 12 months.' }) %>
+    </section>
+  <% } %>
+
+  <section class="dash-card">
+    <div class="dash-head"><h2>Pipeline conversion</h2><a class="small" href="/admin/reports/conversion.csv<%= qs %>">CSV</a></div>
+    <% if (!r.conversion[0].count) { %><p class="muted dash-empty">No applications in this period.</p>
+    <% } else { %>
+      <ul class="funnel hbars">
+        <% r.conversion.forEach(function (c) { %>
+          <li><span class="funnel-row" title="<%= c.count %> of <%= r.conversion[0].count %> applications (<%= c.pct %>%)">
+            <span class="funnel-label"><%= c.stage %></span>
+            <span class="funnel-track"><span class="funnel-fill"><span class="funnel-bar" style="width: <%= c.count ? Math.max(c.pct, 2) : 0 %>%"></span></span><span class="funnel-val"><%= c.count %> · <%= c.pct %>%</span></span>
+          </span></li>
+        <% }) %>
+      </ul>
+      <p class="muted small">Of applications received in this period, how many reached each step. Based on each candidate's current stage and interviews.</p>
+    <% } %>
+  </section>
+
+  <section class="dash-card">
+    <div class="dash-head"><h2>Source of hire</h2><a class="small" href="/admin/reports/sources.csv<%= qs %>">CSV</a></div>
+    <% if (!r.sources.length) { %><p class="muted dash-empty">No applications in this period.</p>
+    <% } else { %>
+      <% const maxS = Math.max.apply(null, r.sources.map(function (s) { return s.applications; }).concat(1)); %>
+      <ul class="funnel hbars">
+        <% r.sources.slice(0, 8).forEach(function (s) { %>
+          <li><span class="funnel-row" title="<%= s.applications %> applications, <%= s.placements %> placements (<%= s.rate %>%)">
+            <span class="funnel-label"><%= s.name %></span>
+            <span class="funnel-track"><span class="funnel-fill"><span class="funnel-bar" style="width: <%= s.applications ? Math.max((s.applications / maxS) * 100, 2) : 0 %>%"></span></span><span class="funnel-val"><%= s.applications %><%= s.placements ? ' · ' + s.placements + ' hired' : '' %></span></span>
+          </span></li>
+        <% }) %>
+      </ul>
+      <p class="muted small">Applications by where the candidate arrived from (job-alert emails, share buttons, LinkedIn, Google…). Tracked for applications from now on.</p>
+    <% } %>
+  </section>
+
+  <section class="dash-card dash-wide">
+    <div class="dash-head"><h2>By recruiter</h2><a class="small" href="/admin/reports/recruiters.csv<%= qs %>">CSV</a></div>
+    <% if (!r.recruiters.length) { %><p class="muted dash-empty">No activity in this period.</p>
+    <% } else { %>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Recruiter</th><th class="num">Applications</th><th class="num">Interviews booked</th><th class="num">Placements</th><th class="num">Median time to hire</th><% if (r.isAdmin) { %><th class="num">Billed</th><% } %></tr></thead>
+          <tbody>
+            <% r.recruiters.forEach(function (x) { %>
+              <tr><td><b><%= x.name %></b></td><td class="num"><%= x.applications %></td><td class="num"><%= x.interviews %></td><td class="num"><%= x.placements %></td><td class="num"><%= days(x.medianDays) %></td><% if (r.isAdmin) { %><td class="num"><%= inr(x.billed) %></td><% } %></tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+      <p class="muted small">Candidates count for the recruiter who owns the application (or its job).</p>
+    <% } %>
+  </section>
+
+  <section class="dash-card dash-wide">
+    <div class="dash-head"><h2>By job category</h2><a class="small" href="/admin/reports/categories.csv<%= qs %>">CSV</a></div>
+    <% if (!r.categories.length) { %><p class="muted dash-empty">No applications in this period.</p>
+    <% } else { %>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Category</th><th class="num">Applications</th><th class="num">Placements</th><th class="num">Placement rate</th><th class="num">Median time to hire</th></tr></thead>
+          <tbody>
+            <% r.categories.forEach(function (c) { %>
+              <tr><td><b><%= c.name %></b></td><td class="num"><%= c.applications %></td><td class="num"><%= c.placements %></td><td class="num"><%= c.rate %>%</td><td class="num"><%= days(c.medianDays) %></td></tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+    <% } %>
+  </section>
+
+  <% if (r.isAdmin) { %>
+    <section class="dash-card dash-wide">
+      <div class="dash-head"><h2>Top clients</h2><a class="small" href="/admin/reports/clients.csv<%= qs %>">CSV</a></div>
+      <% if (!r.clients.length) { %><p class="muted dash-empty">No placements or invoices in this period.</p>
+      <% } else { %>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Client</th><th class="num">Placements</th><th class="num">Billed</th><th class="num">Collected</th></tr></thead>
+            <tbody>
+              <% r.clients.forEach(function (c) { %>
+                <tr><td><b><%= c.name %></b></td><td class="num"><%= c.placements %></td><td class="num"><%= inr(c.billed) %></td><td class="num"><%= inr(c.collected) %></td></tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+      <% } %>
+    </section>
+  <% } %>
+</div>

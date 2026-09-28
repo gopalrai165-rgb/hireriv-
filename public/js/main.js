@@ -322,3 +322,21 @@ if (bulkForm) {
   });
   refresh();
 }
+
+// Source of hire: remember where this visit came from (utm_source, or the
+// referring site) for the rest of the session, and send it with applications.
+(() => {
+  const KEY = 'hireriv:source';
+  let source = '';
+  try { source = sessionStorage.getItem(KEY) || ''; } catch (e) { /* storage blocked */ }
+  if (!source) {
+    const utm = new URLSearchParams(location.search).get('utm_source');
+    let ref = '';
+    try { ref = document.referrer ? new URL(document.referrer).hostname.replace(/^www\./, '') : ''; } catch (e) { ref = ''; }
+    const known = { 'linkedin.com': 'linkedin', 'lnkd.in': 'linkedin', 'google.': 'google', 'facebook.com': 'facebook', 'instagram.com': 'instagram', 'naukri.com': 'naukri', 'indeed.': 'indeed', 'whatsapp.com': 'whatsapp' };
+    const fromRef = ref && ref !== location.hostname ? Object.keys(known).find((k) => ref.includes(k)) : null;
+    source = (utm || (fromRef ? known[fromRef] : ref && ref !== location.hostname ? ref : 'direct')).toLowerCase().replace(/[^a-z0-9.-]/g, '').slice(0, 40);
+    try { sessionStorage.setItem(KEY, source); } catch (e) { /* storage blocked */ }
+  }
+  document.querySelectorAll('input[data-source]').forEach((el) => { el.value = source; });
+})();

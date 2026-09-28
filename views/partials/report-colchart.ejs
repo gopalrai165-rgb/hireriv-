@@ -1,0 +1,24 @@
+<%# Column chart for one series over time. Locals: items [{ label, full, value }], fmt (value -> text), noun, empty %>
+<% const maxV = Math.max.apply(null, items.map(function (d) { return d.value; })); %>
+<% const peak = items.findIndex(function (d) { return d.value === maxV; }); %>
+<% if (!(maxV > 0)) { %>
+  <p class="muted dash-empty"><%= empty %></p>
+<% } else { %>
+  <div class="colchart" role="img" aria-label="<%= noun %> per month for the last 12 months, highest in <%= items[peak].full %> at <%= fmt(maxV) %>">
+    <span class="colchart-max"><%= fmt(maxV) %></span>
+    <% items.forEach(function (d, i) { %>
+      <div class="colchart-slot" tabindex="0">
+        <span class="colchart-tip"><b><%= fmt(d.value) %></b> <%= noun %><br><%= d.full %></span>
+        <% if (d.value && (i === peak || i === items.length - 1)) { %><span class="colchart-val" style="bottom: calc(<%= (d.value / maxV) * 100 %>% + 4px)"><%= fmt(d.value) %></span><% } %>
+        <div class="colchart-bar" style="height: <%= d.value ? Math.max((d.value / maxV) * 100, 2) : 0 %>%"></div>
+      </div>
+    <% }) %>
+  </div>
+  <div class="colchart-axis"><% items.forEach(function (d, i) { %><span><%= i % 2 === 1 || i === items.length - 1 ? d.label : '' %></span><% }) %></div>
+  <details class="table-toggle">
+    <summary>Show as table</summary>
+    <table><thead><tr><th>Month</th><th><%= noun.charAt(0).toUpperCase() + noun.slice(1) %></th></tr></thead>
+      <tbody><% items.forEach(function (d) { %><tr><td><%= d.full %></td><td><%= fmt(d.value) %></td></tr><% }) %></tbody>
+    </table>
+  </details>
+<% } %>

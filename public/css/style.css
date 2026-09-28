@@ -810,3 +810,8 @@ a.contact-card:hover { border-color: var(--primary); color: var(--text); }
 .template-item form.form { margin-top: 14px; }
 .danger-link { color: var(--err); margin-top: 8px; }
 code { background: var(--tint); padding: 0 .3em; border-radius: 4px; font-size: .85em; }
+.report-periods { margin-bottom: 6px; }
+.hbars .funnel-row { grid-template-columns: minmax(90px, 150px) 1fr; }
+.hbars .funnel-track { grid-template-columns: 1fr minmax(56px, auto); }
+.hbars .funnel-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.kpi-value small { font-size: .9rem; font-weight: 600; color: var(--muted); }
