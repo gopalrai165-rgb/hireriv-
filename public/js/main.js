@@ -296,3 +296,29 @@ if (feeForm) {
   feeForm.addEventListener('change', update);
   update();
 }
+
+// Applications: bulk actions on ticked rows.
+const bulkForm = document.querySelector('form[data-bulk]');
+if (bulkForm) {
+  const checks = () => [...document.querySelectorAll('[data-row-check]')];
+  const all = document.querySelector('[data-select-all]');
+  const count = bulkForm.querySelector('[data-bulk-count]');
+  const action = bulkForm.querySelector('[data-bulk-action]');
+  const notify = bulkForm.querySelector('[data-bulk-notify]');
+  const refresh = () => {
+    const n = checks().filter((c) => c.checked).length;
+    count.textContent = n ? `${n} selected` : 'Tick candidates below to act on several at once';
+    bulkForm.classList.toggle('has-selection', n > 0);
+    if (all) all.checked = n > 0 && n === checks().length;
+    notify.hidden = !action.value.startsWith('stage:');
+  };
+  if (all) all.addEventListener('change', () => { checks().forEach((c) => { c.checked = all.checked; }); refresh(); });
+  document.addEventListener('change', (e) => { if (e.target.matches('[data-row-check]')) refresh(); });
+  action.addEventListener('change', refresh);
+  bulkForm.addEventListener('submit', (e) => {
+    const n = checks().filter((c) => c.checked).length;
+    if (!n) { e.preventDefault(); count.textContent = 'Tick at least one candidate first'; return; }
+    if (action.value === 'delete' && !confirm(`Delete ${n} application${n === 1 ? '' : 's'} and their resumes? This can't be undone.`)) e.preventDefault();
+  });
+  refresh();
+}

@@ -1,0 +1,34 @@
+<%- include('partials/head') %>
+
+<section class="section admin">
+  <div class="container narrow">
+    <a href="<%= back %>" class="back-link">← Applications</a>
+    <h1>Email <%= sendable.length %> candidate<%= sendable.length === 1 ? '' : 's' %></h1>
+    <% if (errors.length) { %><p class="notice notice-err" role="alert">Please fix: <%= errors.join(', ') %></p><% } %>
+    <% if (skipped.length) { %><p class="notice" role="note"><%= skipped.length %> won't be emailed because they withdrew or have no valid email: <%= skipped.map(function (a) { return a.name; }).join(', ') %>.</p><% } %>
+
+    <form class="form form-card" method="post" action="/admin/applications/bulk-email">
+      <input type="hidden" name="back" value="<%= back %>">
+      <input type="hidden" name="templateName" value="<%= f.templateName %>">
+      <% chosen.forEach(function (a) { %><input type="hidden" name="ids" value="<%= a.id %>"><% }) %>
+      <p class="muted small">To: <%= sendable.map(function (a) { return a.name; }).join(', ') || 'nobody' %></p>
+      <label>Subject*<input name="subject" required maxlength="200" value="<%= f.subject %>"></label>
+      <label>Message*<textarea name="body" rows="10" required maxlength="5000"><%= f.body %></textarea></label>
+      <p class="muted small">Placeholders: <% Object.keys(placeholders).forEach(function (k, i) { %><%= i ? ', ' : '' %><code>{<%= k %>}</code><% }) %>. Replies come back to you.</p>
+      <% if (unknown.length) { %><p class="notice notice-err">Unknown placeholder<%= unknown.length === 1 ? '' : 's' %>: <%= unknown.map(function (k) { return '{' + k + '}'; }).join(', ') %>. Fix these before sending.</p><% } %>
+
+      <% if (preview) { %>
+        <div class="mail-preview">
+          <p class="eyebrow">Preview for <%= preview.to %></p>
+          <p><b><%= preview.subject %></b></p>
+          <div class="prewrap"><%= preview.body %></div>
+        </div>
+      <% } %>
+
+      <button class="btn btn-outline" type="submit" name="go" value="preview">Update preview</button>
+      <button class="btn btn-primary" type="submit" name="go" value="send"<%= sendable.length ? '' : ' disabled' %>>Send to <%= sendable.length %></button>
+    </form>
+  </div>
+</section>
+
+<%- include('partials/foot') %>

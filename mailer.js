@@ -343,6 +343,18 @@ function createMailer(site) {
       send(site, { to: a.email, subject: copy[0], heading: copy[1], html: copy[2] });
       return true;
     },
+
+    // A recruiter's own message (from a template or typed): plain text, blank
+    // lines start new paragraphs. Replies go to the recruiter who sent it.
+    candidateMessage(a, subject, text, replyTo) {
+      const html = String(text)
+        .split(/\r?\n\s*\r?\n/)
+        .map((para) => para.trim())
+        .filter(Boolean)
+        .map((para) => p(esc(para).replace(/\r?\n/g, '<br>')))
+        .join('');
+      send(site, { to: a.email, replyTo: replyTo || teamInbox, subject, heading: subject, html });
+    },
   };
 }
 

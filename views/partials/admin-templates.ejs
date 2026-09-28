@@ -1,0 +1,37 @@
+<p class="muted small talent-summary">Reusable emails for the Applications tab: tick candidates, choose <b>Email with template</b>, check the preview and send. Each candidate gets their own copy with these placeholders filled in:
+  <% Object.keys(placeholders).forEach(function (k, i) { %><%= i ? ' · ' : ' ' %><code>{<%= k %>}</code> <span class="muted"><%= placeholders[k].toLowerCase() %></span><% }) %>
+</p>
+
+<details class="form-card template-new">
+  <summary>+ New template</summary>
+  <form class="form" method="post" action="/admin/templates">
+    <div class="form-grid">
+      <label>Template name*<input name="name" required maxlength="80" placeholder="e.g. Interview prep"></label>
+      <label>Subject*<input name="subject" required maxlength="200" placeholder="e.g. Preparing for your {job} interview"></label>
+      <label class="span-2">Message*<textarea name="body" rows="8" required maxlength="5000" placeholder="Hi {first_name}, ..."></textarea></label>
+    </div>
+    <button class="btn btn-primary btn-sm" type="submit">Save template</button>
+  </form>
+</details>
+
+<% if (!rows.length) { %>
+  <div class="empty"><p>No templates yet.</p></div>
+<% } else { %>
+  <div class="template-list">
+    <% rows.forEach(function (t) { %>
+      <details class="form-card template-item">
+        <summary><b><%= t.name %></b> <span class="muted small">· <%= t.subject %></span></summary>
+        <form class="form" method="post" action="/admin/templates/<%= t.id %>">
+          <div class="form-grid">
+            <label>Template name*<input name="name" required maxlength="80" value="<%= t.name %>"></label>
+            <label>Subject*<input name="subject" required maxlength="200" value="<%= t.subject %>"></label>
+            <label class="span-2">Message*<textarea name="body" rows="8" required maxlength="5000"><%= t.body %></textarea></label>
+          </div>
+          <button class="btn btn-primary btn-sm" type="submit">Save changes</button>
+          <% if (t.updatedBy || t.createdBy) { %><span class="muted small">Last edited by <%= t.updatedBy || t.createdBy %></span><% } %>
+        </form>
+        <% if (isAdmin) { %><form method="post" action="/admin/templates/<%= t.id %>/delete" data-confirm="Delete the template “<%= t.name %>”?"><button class="link-btn small danger-link">Delete template</button></form><% } %>
+      </details>
+    <% }) %>
+  </div>
+<% } %>

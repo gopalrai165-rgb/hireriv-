@@ -795,3 +795,18 @@ a.contact-card:hover { border-color: var(--primary); color: var(--text); }
 .admin-userbar form { display: inline; }
 .owner-filter { align-items: center; }
 .nowrap { white-space: nowrap; }
+.bulk-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 10px 14px; margin-bottom: 12px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--tint); position: sticky; top: 76px; z-index: 5; }
+.bulk-bar.has-selection { border-color: var(--primary); background: var(--primary-50); }
+.bulk-bar select { width: auto; max-width: 100%; padding: .45em .6em; font-size: .88rem; }
+.bulk-bar .notify { display: flex; gap: 6px; align-items: center; font-size: .82rem; color: var(--muted); }
+.bulk-bar .notify input { width: auto; }
+.bulk-bar [hidden] { display: none; }
+.bulk-count { font-size: .88rem; font-weight: 600; color: var(--ink); }
+.admin .check-col { width: 36px; text-align: center; }
+.check-col input { width: 16px; height: 16px; }
+.mail-preview { margin: 16px 0; padding: 16px 18px; border: 1px dashed var(--line); border-radius: var(--radius-sm); background: var(--tint); }
+.template-item, .template-new { margin-bottom: 12px; padding: 16px 20px; }
+.template-item summary, .template-new summary { cursor: pointer; }
+.template-item form.form { margin-top: 14px; }
+.danger-link { color: var(--err); margin-top: 8px; }
+code { background: var(--tint); padding: 0 .3em; border-radius: 4px; font-size: .85em; }

@@ -13,6 +13,7 @@ const employers = require('./employers');
 const candidates = require('./candidates');
 const placements = require('./placements');
 const teamModule = require('./team');
+const bulk = require('./bulk');
 const { interviewIcs } = require('./ics');
 
 const PORT = process.env.PORT || 3004;
@@ -455,7 +456,7 @@ function sameOrigin(req, res, next) {
   res.status(403).send('Cross-site request blocked');
 }
 
-const ADMIN_TABS = ['dashboard', 'jobs', 'talent', 'interviews', 'placements', 'clients', ...FORM_TYPES, 'blog', 'settings', 'team', 'activity'];
+const ADMIN_TABS = ['dashboard', 'jobs', 'talent', 'interviews', 'placements', 'clients', ...FORM_TYPES, 'templates', 'blog', 'settings', 'team', 'activity'];
 // Recruiters don't see these tabs.
 const ADMIN_ONLY_TABS = ['settings', 'team', 'activity'];
 const tabsFor = (user) => ADMIN_TABS.filter((t) => user.role === 'Admin' || !ADMIN_ONLY_TABS.includes(t));
@@ -481,6 +482,10 @@ const billing = placements.register(app, {
   db, site, mailer, baseUrl: BASE_URL, adminAuth, requireAdmin, sameOrigin, adminUrl, readSubmissions, writeSubmissions,
   getJobs: () => jobs, clients, requireEmployer: clients.requireEmployer,
 });
+const templates = bulk.register(app, {
+  db, site, mailer, adminAuth, requireAdmin, sameOrigin, adminUrl, readSubmissions, writeSubmissions,
+  getJobs: () => jobs, team, appStatuses: APP_STATUSES, uploadsDir: UPLOADS_DIR,
+});
 candidates.register(app, {
   db, mailer, baseUrl: BASE_URL, sameOrigin, limit, readSubmissions, writeSubmissions,
   uploadsDir: UPLOADS_DIR, getJobs: () => jobs, formatIst: interviews.formatIst, interviewIcs, site,
@@ -490,13 +495,14 @@ app.get('/admin', adminAuth, (req, res) => {
   const tabs = tabsFor(req.admin);
   const tab = tabs.includes(req.query.tab) ? req.query.tab : 'dashboard';
   const applications = readSubmissions('applications');
-  const counts = { dashboard: '', settings: '', activity: '', team: team.members().length, blog: posts.length, interviews: interviews.upcoming(applications).length, placements: billing.read().length, clients: clients.read().length, jobs: jobs.length, talent: new Set(applications.map((a) => String(a.email).toLowerCase())).size, ...Object.fromEntries(FORM_TYPES.map((t) => [t, readSubmissions(t).length])) };
+  const counts = { dashboard: '', settings: '', activity: '', templates: templates.read().length, team: team.members().length, blog: posts.length, interviews: interviews.upcoming(applications).length, placements: billing.read().length, clients: clients.read().length, jobs: jobs.length, talent: new Set(applications.map((a) => String(a.email).toLowerCase())).size, ...Object.fromEntries(FORM_TYPES.map((t) => [t, readSubmissions(t).length])) };
   const members = team.members();
   const memberName = Object.fromEntries(members.map((u) => [u.id, u.name]));
   const locals = { title: 'Admin', page: 'admin', tab, tabs, counts, status: '', msg: String(req.query.msg || ''), members, memberName };
 
   if (tab === 'dashboard') return res.render('admin', { ...locals, rows: [], dash: buildDashboard(applications, req.admin) });
   if (tab === 'team') return res.render('admin', { ...locals, rows: team.list(), roles: team.ROLES });
+  if (tab === 'templates') return res.render('admin', { ...locals, rows: templates.read(), placeholders: bulk.PLACEHOLDERS });
   if (tab === 'activity') {
     const who = String(req.query.user || '');
     return res.render('admin', { ...locals, rows: team.activity({ userId: who }), who, people: team.list() });
@@ -518,7 +524,7 @@ app.get('/admin', adminAuth, (req, res) => {
       .map((a) => ({ ...a, owner: appOwner(a), match: skillMatch(a, jobs.find((j) => j.id === a.jobId)) }))
       .filter((a) => !owner || matchesOwner(a.owner, owner, req.admin));
     if (sort) rows = rows.sort((a, b) => (b.match?.score ?? -1) - (a.match?.score ?? -1));
-    return res.render('admin', { ...locals, rows, owner, statuses: APP_STATUSES, statusCounts, status, sort, clientOptions: clients.read().filter((c) => c.active), placedApps, jobClient: Object.fromEntries(jobs.map((j) => [j.id, j.employerId || ''])) });
+    return res.render('admin', { ...locals, rows, owner, statuses: APP_STATUSES, statusCounts, status, sort, clientOptions: clients.read().filter((c) => c.active), placedApps, templates: templates.read(), backUrl: req.originalUrl.replace(/&msg=[^&]*/, ''), jobClient: Object.fromEntries(jobs.map((j) => [j.id, j.employerId || ''])) });
   }
   if (tab === 'blog') return res.render('admin', { ...locals, rows: posts });
   if (tab === 'clients') {
@@ -809,7 +815,7 @@ function csvCell(v) {
 app.get('/admin/export/:type.csv', adminAuth, (req, res, next) => {
   const { type } = req.params;
   if (!ADMIN_TABS.includes(type)) return next();
-  if (['dashboard', 'blog', 'settings', 'interviews', 'clients', 'team'].includes(type)) return next();
+  if (['dashboard', 'blog', 'settings', 'interviews', 'clients', 'team', 'templates'].includes(type)) return next();
   // Billing and the activity log are for Admins only.
   if (['placements', 'activity'].includes(type) && req.admin.role !== 'Admin') return requireAdmin(req, res, next);
   const rows =
