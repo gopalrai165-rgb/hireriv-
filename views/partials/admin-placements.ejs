@@ -1,7 +1,7 @@
 <div class="kpis">
   <a class="kpi" href="/admin?tab=placements&view=awaiting"><span class="kpi-label">Awaiting joining</span><span class="kpi-value"><%= sum.awaitingJoining %></span><span class="kpi-note">offers accepted</span></a>
   <a class="kpi" href="/admin?tab=placements&view=guarantee"><span class="kpi-label">In guarantee</span><span class="kpi-value"><%= sum.inGuarantee %></span><span class="kpi-note">replacement period running</span></a>
-  <a class="kpi" href="/admin?tab=placements&view=to-invoice"><span class="kpi-label">To invoice</span><span class="kpi-value"><%= sum.toInvoice %></span><span class="kpi-note">joined, not billed</span></a>
+  <a class="kpi" href="/admin?tab=placements&view=to-invoice"><span class="kpi-label">To invoice</span><span class="kpi-value"><%= sum.toInvoice %></span><span class="kpi-note">fees to raise, months to bill</span></a>
   <a class="kpi" href="/admin?tab=placements&view=unpaid"><span class="kpi-label">Outstanding</span><span class="kpi-value kpi-money"><%= inr(sum.outstanding) %></span><span class="kpi-note<%= sum.overdueCount ? ' kpi-alert' : '' %>"><%= sum.overdueCount ? sum.overdueCount + ' overdue' : sum.unpaidCount + ' unpaid' %></span></a>
   <a class="kpi" href="/admin?tab=placements"><span class="kpi-label">Billed FY <%= sum.fy %></span><span class="kpi-value kpi-money"><%= inr(sum.billedFy) %></span><span class="kpi-note">incl. GST, net of credit notes</span></a>
   <a class="kpi" href="/admin/export/placements.csv"><span class="kpi-label">Received FY <%= sum.fy %></span><span class="kpi-value kpi-money"><%= inr(sum.receivedFy) %></span><span class="kpi-note">+ <%= inr(sum.tdsFy) %> TDS to claim<%= sum.refundsDue ? ' · ' + inr(sum.refundsDue) + ' refunds due' : '' %></span></a>
@@ -15,7 +15,7 @@
 <% } %>
 
 <div class="pipeline">
-  <% [['', 'All'], ['awaiting', 'Awaiting joining'], ['guarantee', 'In guarantee'], ['to-invoice', 'To invoice'], ['unpaid', 'Unpaid'], ['overdue', 'Overdue']].forEach(function (v) { %>
+  <% [['', 'All'], ['awaiting', 'Awaiting joining'], ['guarantee', 'In guarantee'], ['to-invoice', 'To invoice'], ['contracts', 'Contracts (' + sum.contracts + ' active)'], ['unpaid', 'Unpaid'], ['overdue', 'Overdue']].forEach(function (v) { %>
     <a class="pill<%= v[0] === view ? ' active' : '' %><%= v[0] === 'overdue' ? ' st-rejected' : '' %>" href="/admin?tab=placements<%= v[0] ? '&view=' + v[0] : '' %>"><%= v[1] %></a>
   <% }) %>
 </div>
@@ -44,11 +44,23 @@
               </form>
               <span class="small">Joins <%= formatYmd(p.joiningDate) %></span>
               <% if (p.inGuarantee) { %><br><span class="muted small">Guarantee until <%= formatYmd(p.guaranteeEnds) %> (<%= p.guaranteeDaysLeft %> day<%= p.guaranteeDaysLeft === 1 ? '' : 's' %> left)</span>
-              <% } else if (p.status === 'Joined' && p.guaranteeDays) { %><br><span class="muted small">Guarantee ended <%= formatYmd(p.guaranteeEnds) %></span><% } %>
+              <% } else if (p.status === 'Joined' && p.guaranteeDays && p.feeMode !== 'monthly') { %><br><span class="muted small">Guarantee ended <%= formatYmd(p.guaranteeEnds) %></span><% } %>
             </td>
-            <td><% if (p.feeMode === 'free') { %><b>Free</b><br><span class="muted small">Replacement under guarantee</span><% } else { %><b><%= inr(p.fee) %></b><br><span class="muted small"><%= p.feeMode === 'percent' ? p.feePercent + '% of ' + inr(p.ctc) : 'Fixed fee' %></span><% } %></td>
+            <td><% if (p.feeMode === 'monthly') { %><b><%= inr(p.monthlyRate) %></b> / month<br><span class="muted small"><%= p.contractEnd ? 'Contract to ' + formatYmd(p.contractEnd) : 'No end date' %></span><% } else if (p.feeMode === 'free') { %><b>Free</b><br><span class="muted small">Replacement under guarantee</span><% } else { %><b><%= inr(p.fee) %></b><br><span class="muted small"><%= p.feeMode === 'percent' ? p.feePercent + '% of ' + inr(p.ctc) : 'Fixed fee' %></span><% } %></td>
             <td>
-              <% if (p.invoice) { %>
+              <% if (p.feeMode === 'monthly') { %>
+                <% const recent = p.invoices.slice().sort(function (a, b) { return b.inv.period.month.localeCompare(a.inv.period.month); }); %>
+                <% recent.slice(0, 3).forEach(function (x) { %>
+                  <div class="month-inv">
+                    <a href="/admin/placements/<%= p.id %>/invoice?inv=<%= x.key %>" target="_blank" rel="noopener"><b><%= x.inv.number %></b></a> <span class="muted small"><%= monthLabel(x.inv.period.month) %></span><br>
+                    <%= inr(x.inv.total) %>
+                    <a class="pill <%= x.inv.status === 'Paid' ? 'st-hired' : x.overdue ? 'st-rejected' : x.inv.status === 'Credited' ? 'st-new' : 'st-screening' %>" href="/admin/placements/<%= p.id %>/payments?inv=<%= x.key %>"><%= x.overdue ? 'Overdue' : x.inv.status %></a>
+                  </div>
+                <% }) %>
+                <% if (recent.length > 3) { %><a class="small" href="/admin/placements/<%= p.id %>/bill"><%= recent.length - 3 %> earlier invoice<%= recent.length - 3 === 1 ? '' : 's' %></a><br><% } %>
+                <% if (p.monthsDue.length) { %><span class="pill st-new">To bill: <%= p.monthsDue.map(monthLabel).join(', ') %></span><br><% } else if (!recent.length) { %><span class="muted small">No months billed yet</span><br><% } %>
+                <a class="btn btn-<%= p.monthsDue.length ? 'primary' : 'outline' %> btn-sm" href="/admin/placements/<%= p.id %>/bill">Bill a month</a>
+              <% } else if (p.invoice) { %>
                 <a href="/admin/placements/<%= p.id %>/invoice" target="_blank" rel="noopener"><b><%= p.invoice.number %></b></a><br>
                 <%= inr(p.invoice.total) %>
                 <% if (p.invoice.status === 'Paid') { %><span class="pill st-hired">Paid <%= formatYmd(p.invoice.paidAt) %></span>
@@ -63,7 +75,7 @@
                 <% const rem = p.invoice.reminders || []; %>
                 <% if (rem.length) { %><br><span class="muted small">Reminded <%= rem.length %>×, last <%= new Date(rem[rem.length - 1].at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', timeZone: 'Asia/Kolkata' }) %></span><% } %>
                 <% if (p.overdue && p.employerId && clientById[p.employerId] && clientById[p.employerId].active) { %>
-                  <form class="inline-form" method="post" action="/admin/placements/<%= p.id %>/remind"><button class="link-btn small">Send reminder</button></form>
+                  <form class="inline-form" method="post" action="/admin/placements/<%= p.id %>/remind?inv=main"><button class="link-btn small">Send reminder</button></form>
                 <% } %>
               <% } else if (!(p.fee > 0)) { %>
                 <span class="muted small">No fee to invoice</span>
@@ -85,7 +97,7 @@
                 <% if (p.invoice.status === 'Unpaid' && !(p.invoice.payments || []).length && !(p.invoice.creditNotes || []).length) { %>
                   <form method="post" action="/admin/placements/<%= p.id %>/invoice/cancel" data-confirm="Cancel invoice <%= p.invoice.number %>? The number stays on record and you can issue a new invoice."><button class="btn btn-sm btn-danger">Cancel invoice</button></form>
                 <% } %>
-              <% } else if (!(p.cancelledInvoices || []).length) { %>
+              <% } else if (!p.invoices.length && !(p.cancelledInvoices || []).length) { %>
                 <form method="post" action="/admin/placements/<%= p.id %>/delete" data-confirm="Delete this placement?"><button class="btn btn-sm btn-danger">Delete</button></form>
               <% } %>
             </td>

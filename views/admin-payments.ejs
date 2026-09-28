@@ -8,7 +8,7 @@
         <h1>Invoice <%= inv.number %></h1>
         <p class="muted"><%= p.company %> · <%= p.candidateName %> (<%= p.jobTitle %>) · issued <%= formatYmd(inv.date) %>, due <%= formatYmd(inv.dueDate) %></p>
       </div>
-      <a class="btn btn-outline btn-sm" href="/admin/placements/<%= p.id %>/invoice" target="_blank" rel="noopener">View invoice</a>
+      <a class="btn btn-outline btn-sm" href="/admin/placements/<%= p.id %>/invoice?inv=<%= key %>" target="_blank" rel="noopener">View invoice</a>
     </div>
     <% if (msg) { %><p class="notice" role="status"><%= msg %></p><% } %>
     <% if (errors.length) { %><p class="notice notice-err" role="alert">Please fix: <%= errors.join(', ') %></p><% } %>
@@ -29,7 +29,7 @@
           <% } else { %>No payment reminders sent yet.<% } %>
         </span>
         <% if (portalClient && portalClient.active) { %>
-          <form method="post" action="/admin/placements/<%= p.id %>/remind"><input type="hidden" name="from" value="payments"><button class="btn btn-outline btn-sm">Email reminder to <%= portalClient.email %></button></form>
+          <form method="post" action="/admin/placements/<%= p.id %>/remind?inv=<%= key %>"><input type="hidden" name="from" value="payments"><button class="btn btn-outline btn-sm">Email reminder to <%= portalClient.email %></button></form>
         <% } else { %><span class="muted small">This client isn't on the portal, so follow up by phone or email.</span><% } %>
       </div>
     <% } %>
@@ -64,7 +64,7 @@
 
     <div class="pay-grid">
       <% if (acct.refundDue > 0) { %>
-        <form class="form form-card refund-card" method="post" action="/admin/placements/<%= p.id %>/refunds">
+        <form class="form form-card refund-card" method="post" action="/admin/placements/<%= p.id %>/refunds?inv=<%= key %>">
           <h2>Record the refund</h2>
           <p class="muted small">After the credit notes, the client has paid <b><%= inr(acct.refundDue) %></b> more than they owe. Record it here once you've sent the money back.</p>
           <div class="form-grid">
@@ -78,7 +78,7 @@
           <button class="btn btn-primary" type="submit">Record refund</button>
         </form>
       <% } %>
-      <form class="form form-card" method="post" action="/admin/placements/<%= p.id %>/payments">
+      <form class="form form-card" method="post" action="/admin/placements/<%= p.id %>/payments?inv=<%= key %>">
         <h2>Record a payment</h2>
         <% if (acct.balance <= 0) { %><p class="muted">Nothing left to collect on this invoice.</p><% } else { %>
           <p class="muted small">Enter what reached your bank and the TDS the client deducted (shown on their payment advice). Together they settle the invoice. We've pre-filled a <%= tdsPercent %>% TDS on the taxable value.</p>
@@ -95,7 +95,7 @@
         <% } %>
       </form>
 
-      <form class="form form-card" method="post" action="/admin/placements/<%= p.id %>/credit-notes" data-confirm="Issue a numbered GST credit note? Credit notes can't be deleted.">
+      <form class="form form-card" method="post" action="/admin/placements/<%= p.id %>/credit-notes?inv=<%= key %>" data-confirm="Issue a numbered GST credit note? Credit notes can't be deleted.">
         <h2>Issue a credit note</h2>
         <% if (acct.creditedTaxable >= inv.subtotal) { %><p class="muted">This invoice is fully credited.</p><% } else { %>
           <p class="muted small">Use this when a candidate doesn't join, leaves within the guarantee and no replacement is due, or the fee changes. GST is reversed at the invoice's rate. If the client has already paid, the difference shows as a refund due.</p>

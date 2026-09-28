@@ -259,6 +259,18 @@ document.querySelectorAll('[data-print]').forEach((btn) => btn.addEventListener(
 // Admin: selects that save as soon as they change (e.g. placement status).
 document.querySelectorAll('select[data-autosubmit]').forEach((sel) => sel.addEventListener('change', () => sel.form.submit()));
 
+// Bill a month: preview the invoice as days and adjustments change.
+const monthForm = document.querySelector('form[data-month-calc]');
+if (monthForm) {
+  const money = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 2 });
+  const num = (el) => Number(String(el.value).replace(/[,₹\s]/g, '')) || 0;
+  const update = () => {
+    const base = (Number(monthForm.dataset.rate) * num(monthForm.querySelector('[data-month-days]'))) / Number(monthForm.dataset.daysInMonth);
+    monthForm.querySelector('[data-month-out]').textContent = money.format(Math.round((base + num(monthForm.querySelector('[data-month-adj]'))) * 100) / 100);
+  };
+  monthForm.addEventListener('input', update);
+}
+
 // Placement form: show the right fee field and preview the fee as you type.
 const feeForm = document.querySelector('form[data-fee-calc]');
 if (feeForm) {
@@ -269,7 +281,14 @@ if (feeForm) {
     const mode = $('[data-fee-mode]').value;
     $('[data-fee-percent-wrap]').hidden = mode !== 'percent';
     $('[data-fee-flat-wrap]').hidden = mode !== 'flat';
+    feeForm.querySelectorAll('[data-fee-monthly-wrap]').forEach((el) => { el.hidden = mode !== 'monthly'; });
+    $('[data-fee-label]').textContent = mode === 'monthly' ? 'Billed every month, before GST:' : 'Fee before GST:';
     if (mode === 'free') { $('[data-fee-out]').textContent = 'Free replacement'; return; }
+    if (mode === 'monthly') {
+      const rate = num($('[data-fee-monthly]'));
+      $('[data-fee-out]').textContent = rate > 0 ? `${money.format(rate)} / month` : '—';
+      return;
+    }
     const fee = mode === 'flat' ? num($('[data-fee-flat]')) : (num($('[data-fee-ctc]')) * num($('[data-fee-percent]'))) / 100;
     $('[data-fee-out]').textContent = fee > 0 ? money.format(Math.round(fee * 100) / 100) : '—';
   };

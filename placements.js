@@ -4,7 +4,7 @@
 // the application), so billing records survive a candidate deleting their data.
 const crypto = require('crypto');
 
-const STATUSES = ['Awaiting joining', 'Joined', 'Did not join', 'Left in guarantee'];
+const STATUSES = ['Awaiting joining', 'Joined', 'Did not join', 'Left in guarantee', 'Contract ended'];
 const TYPES = ['Permanent', 'Contract', 'Contract-to-hire'];
 const DAY_MS = 86400000;
 
@@ -87,18 +87,60 @@ function refreshStatus(inv) {
   return inv;
 }
 
+// ----- many invoices per placement -----
+// A permanent placement has one fee invoice (p.invoice); a monthly contract has
+// one invoice per month (p.monthlyInvoices). Every invoice is addressed by its
+// key: its id, or "main" for the one-time invoice.
+const invoicesOf = (p) => [p.invoice, ...(p.monthlyInvoices || [])].filter(Boolean);
+const invKey = (inv) => inv.id || 'main';
+const isOverdue = (inv) => OPEN.includes(inv.status) && inv.dueDate < todayIst();
+
+// ----- monthly contract billing -----
+const monthOf = (ymd) => ymd.slice(0, 7);
+const daysInMonth = (ym) => new Date(Date.UTC(Number(ym.slice(0, 4)), Number(ym.slice(5, 7)), 0)).getUTCDate();
+const monthLabel = (ym) => new Date(`${ym}-01T00:00:00Z`).toLocaleDateString('en-IN', { month: 'long', year: 'numeric', timeZone: 'UTC' });
+const nextMonth = (ym) => {
+  const [y, m] = ym.split('-').map(Number);
+  return m === 12 ? `${y + 1}-01` : `${y}-${String(m + 1).padStart(2, '0')}`;
+};
+
+// The slice of a month the contractor was deployed: from joining to contract end.
+function monthPeriod(p, ym) {
+  const first = `${ym}-01`;
+  const last = `${ym}-${String(daysInMonth(ym)).padStart(2, '0')}`;
+  const from = p.joiningDate > first ? p.joiningDate : first;
+  const to = p.contractEnd && p.contractEnd < last ? p.contractEnd : last;
+  return from > to ? null : { month: ym, from, to, days: daysBetween(from, to) + 1, daysInMonth: daysInMonth(ym) };
+}
+
+// Months that can still be billed: joining month up to this month (or contract end).
+function billableMonths(p) {
+  if (p.feeMode !== 'monthly' || !p.joiningDate) return [];
+  const billed = new Set((p.monthlyInvoices || []).map((i) => i.period.month));
+  const stop = monthOf(p.contractEnd && p.contractEnd < todayIst() ? p.contractEnd : todayIst());
+  const out = [];
+  for (let ym = monthOf(p.joiningDate); ym <= stop && out.length < 60; ym = nextMonth(ym)) if (!billed.has(ym) && monthPeriod(p, ym)) out.push(ym);
+  return out;
+}
+
+// Completed months not yet billed (the current month is billed once it ends).
+const monthsDue = (p) => (['Joined', 'Contract ended'].includes(p.status) ? billableMonths(p).filter((ym) => ym < monthOf(todayIst())) : []);
+
 // Derived, display-only facts about a placement (never stored).
 function describe(p) {
   const today = todayIst();
   const guaranteeEnds = p.joiningDate ? addDays(p.joiningDate, p.guaranteeDays || 0) : '';
   const inv = p.invoice;
+  const invoices = invoicesOf(p).map((i) => ({ inv: i, key: invKey(i), acct: accountOf(i), overdue: isOverdue(i) }));
   return {
     ...p,
     guaranteeEnds,
-    inGuarantee: p.status === 'Joined' && guaranteeEnds && today <= guaranteeEnds,
+    inGuarantee: p.feeMode !== 'monthly' && p.status === 'Joined' && guaranteeEnds && today <= guaranteeEnds,
     guaranteeDaysLeft: guaranteeEnds ? daysBetween(today, guaranteeEnds) : null,
     acct: inv ? accountOf(inv) : null,
-    overdue: Boolean(inv && OPEN.includes(inv.status) && inv.dueDate < today),
+    overdue: Boolean(inv && isOverdue(inv)),
+    invoices,
+    monthsDue: monthsDue(p),
   };
 }
 
@@ -128,7 +170,9 @@ function parsePlacement(body) {
     taxType: get('taxType', 5) === 'intra' ? 'intra' : 'inter',
     joiningDate: get('joiningDate', 10),
     ctc: num('ctc'),
-    feeMode: ['flat', 'free'].includes(get('feeMode', 10)) ? get('feeMode', 10) : 'percent',
+    feeMode: ['flat', 'free', 'monthly'].includes(get('feeMode', 10)) ? get('feeMode', 10) : 'percent',
+    monthlyRate: num('monthlyRate'),
+    contractEnd: get('contractEnd', 10),
     feePercent: num('feePercent'),
     flatFee: num('flatFee'),
     guaranteeDays: num('guaranteeDays'),
@@ -151,15 +195,22 @@ function parsePlacement(body) {
     if (!(f.flatFee > 0)) errors.push('enter the fee amount');
     else fee = round2(f.flatFee);
     if (Number.isNaN(f.ctc)) f.ctc = 0;
+  } else if (f.feeMode === 'monthly') {
+    // Contract staffing: the client is billed every month at this rate.
+    if (f.type === 'Permanent') errors.push('monthly billing is for contract placements');
+    if (!(f.monthlyRate > 0)) errors.push('enter the monthly bill rate');
+    if (Number.isNaN(f.ctc)) f.ctc = 0;
   } else if (Number.isNaN(f.ctc)) {
     // Free replacement under the original placement's guarantee: no fee, no invoice.
     f.ctc = 0;
   }
+  if (f.contractEnd && (!/^\d{4}-\d{2}-\d{2}$/.test(f.contractEnd) || Number.isNaN(Date.parse(f.contractEnd)))) errors.push('contract end date is invalid');
+  else if (f.contractEnd && f.joiningDate && f.contractEnd < f.joiningDate) errors.push('contract end is before the joining date');
   if (f.ctc < 0) errors.push('CTC cannot be negative');
   if (!f.billingName) f.billingName = f.company;
   // Blank or invalid numbers are shown back as empty fields, not "NaN".
-  const numbers = { ctc: f.ctc, feePercent: f.feePercent, guaranteeDays: f.guaranteeDays };
-  for (const k of ['ctc', 'feePercent', 'flatFee', 'guaranteeDays']) if (Number.isNaN(f[k])) f[k] = '';
+  const numbers = { ctc: f.ctc, feePercent: f.feePercent, guaranteeDays: f.guaranteeDays, monthlyRate: f.monthlyRate };
+  for (const k of ['ctc', 'feePercent', 'flatFee', 'guaranteeDays', 'monthlyRate']) if (Number.isNaN(f[k])) f[k] = '';
   return {
     errors,
     f,
@@ -167,9 +218,16 @@ function parsePlacement(body) {
       type: f.type, company: f.company, billingName: f.billingName, billingAddress: f.billingAddress, clientGstin: f.clientGstin, taxType: f.taxType,
       joiningDate: f.joiningDate, ctc: numbers.ctc || 0, feeMode: f.feeMode, feePercent: f.feeMode === 'percent' ? numbers.feePercent : null, fee,
       guaranteeDays: numbers.guaranteeDays, status: f.status, notes: f.notes,
+      monthlyRate: f.feeMode === 'monthly' ? round2(numbers.monthlyRate) : null, contractEnd: f.contractEnd || null,
     },
   };
 }
+
+// Amounts typed as "1,50,000" or "₹1,50,000"; blank is 0.
+const moneyIn = (v) => {
+  const raw = String(v ?? '').replace(/[,₹\s]/g, '');
+  return raw === '' ? 0 : Number(raw);
+};
 
 function register(app, deps) {
   const { db, site, mailer, baseUrl, adminAuth, sameOrigin, adminUrl, readSubmissions, writeSubmissions, getJobs, clients, requireEmployer } = deps;
@@ -277,6 +335,8 @@ function register(app, deps) {
     const employerId = clientById(f.employerId) ? f.employerId : '';
     if (data.feeMode === 'free' && !p.replacementFor) errors.push('only a replacement can be free of charge');
     if (data.feeMode === 'free' && p.invoice) errors.push('this placement has an invoice; issue a credit note instead of making it free');
+    if (data.feeMode === 'monthly' && p.invoice) errors.push('this placement already has a one-time fee invoice');
+    if (data.feeMode !== 'monthly' && (p.monthlyInvoices || []).length) errors.push('this placement has monthly invoices, so it must stay on monthly billing');
     const replaces = p.replacementFor ? list.find((x) => x.id === p.replacementFor) : null;
     if (errors.length) return formPage(res, { a: { name: p.candidateName, email: p.candidateEmail, jobTitle: p.jobTitle }, replaces, p: { ...f, id: p.id, employerId, invoice: p.invoice }, errors }, 400);
     Object.assign(p, data, { employerId, updatedAt: new Date().toISOString() });
@@ -304,71 +364,131 @@ function register(app, deps) {
   app.post('/admin/placements/:id/delete', adminAuth, sameOrigin, (req, res, next) => {
     const { list, p } = findPlacement(req.params.id);
     if (!p) return next();
-    if (p.invoice || (p.cancelledInvoices || []).length) return res.redirect(adminUrl('placements', "Placements with an invoice can't be deleted (invoices are tax records)"));
+    if (invoicesOf(p).length || (p.cancelledInvoices || []).length) return res.redirect(adminUrl('placements', "Placements with an invoice can't be deleted (invoices are tax records)"));
     for (const x of list) if (x.replacedBy === p.id) x.replacedBy = null;
     write(list.filter((x) => x !== p));
     res.redirect(adminUrl('placements', `Deleted the placement for ${p.candidateName}`));
   });
 
   // ----- invoices -----
+  // Snapshot everything an invoice shows, so later edits never change an issued invoice.
+  function newInvoice(p, subtotal, extra) {
+    const b = billingOf(site);
+    const date = todayIst();
+    return {
+      number: nextInvoiceNumber(date), date, dueDate: addDays(date, b.paymentDays), gstPercent: b.gstPercent, taxType: p.taxType,
+      ...invoiceTotals(subtotal, b.gstPercent, p.taxType),
+      seller: { name: b.legalName || site.name, address: site.address, gstin: b.gstin, pan: b.pan, stateName: b.stateName, bank: b.bank, email: site.email, phone: site.phone },
+      buyer: { name: p.billingName || p.company, address: p.billingAddress, gstin: p.clientGstin },
+      // SAC codes: 998512 permanent placement, 998513 contract staffing.
+      sac: p.type === 'Contract' || p.feeMode === 'monthly' ? '998513' : '998512',
+      status: 'Unpaid', paidAt: null, sentAt: null, payments: [], creditNotes: [],
+      ...extra,
+    };
+  }
+  const invoiceLink = (p, inv) => `${baseUrl}/employer/invoices/${p.id}${inv.id ? `?inv=${inv.id}` : ''}`;
+
   app.post('/admin/placements/:id/invoice', adminAuth, sameOrigin, (req, res, next) => {
     const { list, p } = findPlacement(req.params.id);
     if (!p) return next();
     if (p.invoice) return res.redirect(adminUrl('placements', `Invoice ${p.invoice.number} is already issued`));
+    if (p.feeMode === 'monthly') return res.redirect(`/admin/placements/${p.id}/bill`);
     if (!(p.fee > 0)) return res.redirect(adminUrl('placements', 'Set a fee on the placement before invoicing'));
-    const b = billingOf(site);
-    const date = todayIst();
-    // Snapshot everything the invoice shows, so later edits never change an issued invoice.
-    p.invoice = {
-      number: nextInvoiceNumber(date), date, dueDate: addDays(date, b.paymentDays), gstPercent: b.gstPercent, taxType: p.taxType,
-      ...invoiceTotals(p.fee, b.gstPercent, p.taxType),
-      seller: { name: b.legalName || site.name, address: site.address, gstin: b.gstin, pan: b.pan, stateName: b.stateName, bank: b.bank, email: site.email, phone: site.phone },
-      buyer: { name: p.billingName || p.company, address: p.billingAddress, gstin: p.clientGstin },
+    p.invoice = newInvoice(p, p.fee, {
       item: `Recruitment fee – ${p.jobTitle} (${p.candidateName}), joined ${formatYmd(p.joiningDate)}${p.feeMode === 'percent' ? ` · ${p.feePercent}% of annual CTC ${inr(p.ctc)}` : ''}`,
-      // SAC codes: 998512 permanent placement, 998513 contract staffing.
-      sac: p.type === 'Contract' ? '998513' : '998512',
-      status: 'Unpaid', paidAt: null, sentAt: null, payments: [], creditNotes: [],
-    };
+    });
     const client = clientById(p.employerId);
     const emailed = req.body.email === '1' && client && client.active;
     if (emailed) {
       p.invoice.sentAt = new Date().toISOString();
-      mailer.invoiceIssued(client, p.invoice, `${baseUrl}/employer/invoices/${p.id}`);
+      mailer.invoiceIssued(client, p.invoice, invoiceLink(p, p.invoice));
     }
     write(list);
     res.redirect(adminUrl('placements', `Invoice ${p.invoice.number} issued for ${inr(p.invoice.total)}${emailed ? ` · emailed to ${client.email}` : ''}`));
   });
 
+  // ----- monthly contract invoices -----
+  function billPage(res, p, ym, extra = {}, status = 200) {
+    const months = billableMonths(p);
+    const month = months.includes(ym) ? ym : months.find((m) => m < monthOf(todayIst())) || months[0] || '';
+    const period = month ? monthPeriod(p, month) : null;
+    res.status(status).render('admin-bill-month', {
+      title: `Bill a month · ${p.candidateName}`, page: 'admin', noindex: true, p, months, month, period, monthLabel, inr, formatYmd,
+      portalClient: clientById(p.employerId), gstPercent: billingOf(site).gstPercent, errors: [],
+      f: { days: period ? period.days : '', adjustment: '', adjustmentNote: '' },
+      ...extra,
+    });
+  }
+
+  app.get('/admin/placements/:id/bill', adminAuth, (req, res, next) => {
+    const { p } = findPlacement(req.params.id);
+    if (!p || p.feeMode !== 'monthly') return next();
+    billPage(res, p, String(req.query.month || ''));
+  });
+
+  app.post('/admin/placements/:id/bill', adminAuth, sameOrigin, (req, res, next) => {
+    const { list, p } = findPlacement(req.params.id);
+    if (!p || p.feeMode !== 'monthly') return next();
+    const month = String(req.body.month || '');
+    const f = { days: String(req.body.days ?? '').trim(), adjustment: String(req.body.adjustment ?? '').trim(), adjustmentNote: String(req.body.adjustmentNote || '').trim().slice(0, 120) };
+    const period = billableMonths(p).includes(month) ? monthPeriod(p, month) : null;
+    const days = Number(f.days);
+    const adjustment = f.adjustment === '' ? 0 : moneyIn(f.adjustment);
+    const errors = [];
+    if (!period) errors.push('that month is already billed or outside the contract');
+    else if (!Number.isFinite(days) || days < 0 || days > period.daysInMonth || Math.round(days * 2) !== days * 2) errors.push(`billable days must be between 0 and ${period.daysInMonth} (half days allowed)`);
+    if (!Number.isFinite(adjustment)) errors.push('adjustment must be a number (use a minus sign for deductions)');
+    if (adjustment && !f.adjustmentNote) errors.push('describe the adjustment (e.g. overtime, unpaid leave)');
+    const base = period && Number.isFinite(days) ? round2((p.monthlyRate * days) / period.daysInMonth) : 0;
+    const subtotal = round2(base + (Number.isFinite(adjustment) ? adjustment : 0));
+    if (!errors.length && !(subtotal > 0)) errors.push('the invoice total must be more than zero');
+    if (errors.length) return billPage(res, p, month, { errors, f }, 400);
+    const lines = [{ text: `Contract staffing – ${p.candidateName} as ${p.jobTitle}, ${monthLabel(month)} (${formatYmd(period.from)} – ${formatYmd(period.to)}): ${days} of ${period.daysInMonth} days at ${inr(p.monthlyRate)}/month`, amount: base }];
+    if (adjustment) lines.push({ text: f.adjustmentNote, amount: round2(adjustment) });
+    const inv = newInvoice(p, subtotal, { id: crypto.randomUUID(), period: { ...period, billedDays: days }, lines, item: lines[0].text });
+    p.monthlyInvoices = [...(p.monthlyInvoices || []), inv];
+    const client = clientById(p.employerId);
+    const emailed = req.body.email === '1' && client && client.active;
+    if (emailed) {
+      inv.sentAt = new Date().toISOString();
+      mailer.invoiceIssued(client, inv, invoiceLink(p, inv));
+    }
+    write(list);
+    res.redirect(adminUrl('placements', `Invoice ${inv.number} for ${monthLabel(month)} issued for ${inr(inv.total)}${emailed ? ` · emailed to ${client.email}` : ''}`));
+  });
+
+  // Every invoice action names its invoice with ?inv= (or a hidden "inv" field);
+  // without it, the one-time fee invoice is meant.
+  const keyFrom = (req) => String(req.query.inv || req.body.inv || 'main');
+  const pickInvoice = (p, key) => (p ? invoicesOf(p).find((i) => invKey(i) === key) || null : null);
+
   // Cancelling keeps the number on record (no gaps are reused) and lets you reissue.
   // Once money or a credit note is recorded, use a credit note instead (GST rules).
   app.post('/admin/placements/:id/invoice/cancel', adminAuth, sameOrigin, (req, res, next) => {
     const { list, p } = findPlacement(req.params.id);
-    if (!p || !p.invoice) return next();
-    if ((p.invoice.payments || []).length || (p.invoice.creditNotes || []).length || p.invoice.status === 'Paid') {
-      return res.redirect(adminUrl('placements', `Invoice ${p.invoice.number} has payments or credit notes, so it can't be cancelled. Issue a credit note instead.`));
+    const current = pickInvoice(p, keyFrom(req));
+    if (!current) return next();
+    if ((current.payments || []).length || (current.creditNotes || []).length || current.status === 'Paid') {
+      return res.redirect(adminUrl('placements', `Invoice ${current.number} has payments or credit notes, so it can't be cancelled. Issue a credit note instead.`));
     }
-    const inv = { ...p.invoice, status: 'Cancelled', cancelledAt: todayIst() };
+    const inv = { ...current, status: 'Cancelled', cancelledAt: todayIst() };
     p.cancelledInvoices = [...(p.cancelledInvoices || []), inv];
-    p.invoice = null;
+    if (current === p.invoice) p.invoice = null;
+    else p.monthlyInvoices = p.monthlyInvoices.filter((i) => i !== current);
     write(list);
     res.redirect(adminUrl('placements', `Invoice ${inv.number} cancelled. You can issue a new one.`));
   });
 
   // ----- payments & credit notes -----
-  const paymentsUrl = (p, msg) => `/admin/placements/${p.id}/payments${msg ? `?msg=${encodeURIComponent(msg)}` : ''}`;
-  const moneyIn = (v) => {
-    const raw = String(v ?? '').replace(/[,₹\s]/g, '');
-    return raw === '' ? 0 : Number(raw);
-  };
+  const paymentsUrl = (p, inv, msg) => `/admin/placements/${p.id}/payments?inv=${invKey(inv)}${msg ? `&msg=${encodeURIComponent(msg)}` : ''}`;
 
-  function paymentsPage(res, p, extra = {}, status = 200) {
-    const inv = p.invoice;
+  function paymentsPage(res, p, inv, extra = {}, status = 200) {
     const acct = accountOf(inv);
     const b = billingOf(site);
     // Suggest the usual split: TDS on the taxable value, the rest in cash.
     const tds = Math.min(round2((inv.subtotal * b.tdsPercent) / 100), acct.balance);
     res.status(status).render('admin-payments', {
-      title: `Payments · ${inv.number}`, page: 'admin', noindex: true, p, inv, acct, inr, formatYmd, modes: PAY_MODES, reasons: CN_REASONS,
+      title: `Payments · ${inv.number}`, page: 'admin', noindex: true, p, inv, key: invKey(inv), acct, inr, formatYmd, modes: PAY_MODES, reasons: CN_REASONS,
       tdsPercent: b.tdsPercent, errors: [], msg: '', portalClient: clientById(p.employerId),
       pay: { date: todayIst(), amount: round2(acct.balance - tds) || '', tds: tds || '', mode: 'Bank transfer', reference: '' },
       cn: { amount: round2(inv.subtotal - acct.creditedTaxable) || '', reason: CN_REASONS[0], note: '' },
@@ -379,14 +499,15 @@ function register(app, deps) {
 
   app.get('/admin/placements/:id/payments', adminAuth, (req, res, next) => {
     const { p } = findPlacement(req.params.id);
-    if (!p || !p.invoice) return next();
-    paymentsPage(res, p, { msg: String(req.query.msg || '') });
+    const inv = pickInvoice(p, keyFrom(req));
+    if (!inv) return next();
+    paymentsPage(res, p, inv, { msg: String(req.query.msg || '') });
   });
 
   app.post('/admin/placements/:id/payments', adminAuth, sameOrigin, (req, res, next) => {
     const { list, p } = findPlacement(req.params.id);
-    if (!p || !p.invoice) return next();
-    const inv = p.invoice;
+    const inv = pickInvoice(p, keyFrom(req));
+    if (!inv) return next();
     const get = (k, max) => String(req.body[k] ?? '').trim().slice(0, max);
     const pay = { date: get('date', 10), amount: moneyIn(req.body.amount), tds: moneyIn(req.body.tds), mode: get('mode', 20), reference: get('reference', 120) };
     const errors = [];
@@ -399,21 +520,21 @@ function register(app, deps) {
     const settles = round2((pay.amount || 0) + (pay.tds || 0));
     if (!errors.length && settles <= 0) errors.push('enter the amount received and/or TDS deducted');
     if (!errors.length && settles > accountOf(inv).balance + 0.01) errors.push(`that is more than the balance of ${inr(accountOf(inv).balance)}`);
-    if (errors.length) return paymentsPage(res, p, { errors, pay: { ...pay, amount: req.body.amount, tds: req.body.tds } }, 400);
+    if (errors.length) return paymentsPage(res, p, inv, { errors, pay: { ...pay, amount: req.body.amount, tds: req.body.tds } }, 400);
     inv.payments = [...(inv.payments || []), { id: crypto.randomUUID(), ...pay, amount: round2(pay.amount), tds: round2(pay.tds), recordedAt: new Date().toISOString() }];
     refreshStatus(inv);
     write(list);
-    res.redirect(paymentsUrl(p, `Recorded ${inr(pay.amount)}${pay.tds ? ` + ${inr(pay.tds)} TDS` : ''} · invoice is ${inv.status.toLowerCase()}`));
+    res.redirect(paymentsUrl(p, inv, `Recorded ${inr(pay.amount)}${pay.tds ? ` + ${inr(pay.tds)} TDS` : ''} · invoice is ${inv.status.toLowerCase()}`));
   });
 
   app.post('/admin/placements/:id/payments/:payId/delete', adminAuth, sameOrigin, (req, res, next) => {
     const { list, p } = findPlacement(req.params.id);
-    const inv = p && p.invoice;
-    if (!inv || !(inv.payments || []).some((x) => x.id === req.params.payId)) return next();
+    const inv = p && invoicesOf(p).find((i) => (i.payments || []).some((x) => x.id === req.params.payId));
+    if (!inv) return next();
     inv.payments = inv.payments.filter((x) => x.id !== req.params.payId);
     refreshStatus(inv);
     write(list);
-    res.redirect(paymentsUrl(p, `Payment removed · invoice is ${inv.status.toLowerCase()}`));
+    res.redirect(paymentsUrl(p, inv, `Payment removed · invoice is ${inv.status.toLowerCase()}`));
   });
 
   // ----- replacements -----
@@ -433,8 +554,8 @@ function register(app, deps) {
   // ----- refunds -----
   app.post('/admin/placements/:id/refunds', adminAuth, sameOrigin, (req, res, next) => {
     const { list, p } = findPlacement(req.params.id);
-    if (!p || !p.invoice) return next();
-    const inv = p.invoice;
+    const inv = pickInvoice(p, keyFrom(req));
+    if (!inv) return next();
     const get = (k, max) => String(req.body[k] ?? '').trim().slice(0, max);
     const refund = { date: get('date', 10), amount: moneyIn(req.body.amount), mode: get('mode', 20), reference: get('reference', 120) };
     const due = accountOf(inv).refundDue;
@@ -444,44 +565,44 @@ function register(app, deps) {
     if (!(refund.amount > 0)) errors.push('enter the amount refunded');
     else if (refund.amount > due + 0.01) errors.push(`only ${inr(due)} is due as a refund`);
     if (!PAY_MODES.includes(refund.mode)) errors.push('refund mode is invalid');
-    if (errors.length) return paymentsPage(res, p, { errors, refund: { ...refund, amount: req.body.amount } }, 400);
+    if (errors.length) return paymentsPage(res, p, inv, { errors, refund: { ...refund, amount: req.body.amount } }, 400);
     inv.refunds = [...(inv.refunds || []), { id: crypto.randomUUID(), ...refund, amount: round2(refund.amount), recordedAt: new Date().toISOString() }];
     refreshStatus(inv);
     write(list);
-    res.redirect(paymentsUrl(p, `Refund of ${inr(refund.amount)} recorded`));
+    res.redirect(paymentsUrl(p, inv, `Refund of ${inr(refund.amount)} recorded`));
   });
 
   app.post('/admin/placements/:id/refunds/:refundId/delete', adminAuth, sameOrigin, (req, res, next) => {
     const { list, p } = findPlacement(req.params.id);
-    const inv = p && p.invoice;
-    if (!inv || !(inv.refunds || []).some((x) => x.id === req.params.refundId)) return next();
+    const inv = p && invoicesOf(p).find((i) => (i.refunds || []).some((x) => x.id === req.params.refundId));
+    if (!inv) return next();
     inv.refunds = inv.refunds.filter((x) => x.id !== req.params.refundId);
     refreshStatus(inv);
     write(list);
-    res.redirect(paymentsUrl(p, 'Refund entry removed'));
+    res.redirect(paymentsUrl(p, inv, 'Refund entry removed'));
   });
 
   // ----- payment reminders -----
   // Reminders go to the client's portal contact, who can open the invoice there.
   const REMINDER_GAP_DAYS = 7;
   const MAX_AUTO_REMINDERS = 4;
-  function sendReminder(p, auto) {
-    const inv = p.invoice;
+  function sendReminder(p, inv, auto) {
     const client = clientById(p.employerId);
     if (!client || !client.active || !OPEN.includes(inv.status)) return false;
     const daysOverdue = Math.max(daysBetween(inv.dueDate, todayIst()), 0);
-    mailer.invoiceReminder(client, inv, accountOf(inv).balance, daysOverdue, `${baseUrl}/employer/invoices/${p.id}`);
+    mailer.invoiceReminder(client, inv, accountOf(inv).balance, daysOverdue, invoiceLink(p, inv));
     inv.reminders = [...(inv.reminders || []), { at: new Date().toISOString(), auto }];
     return true;
   }
 
   app.post('/admin/placements/:id/remind', adminAuth, sameOrigin, (req, res, next) => {
     const { list, p } = findPlacement(req.params.id);
-    if (!p || !p.invoice) return next();
-    const back = req.body.from === 'payments' ? (m) => paymentsUrl(p, m) : (m) => adminUrl('placements', m);
-    if (!sendReminder(p, false)) return res.redirect(back('Reminders need an open invoice and an active client-portal account'));
+    const inv = pickInvoice(p, keyFrom(req));
+    if (!inv) return next();
+    const back = req.body.from === 'payments' ? (m) => paymentsUrl(p, inv, m) : (m) => adminUrl('placements', m);
+    if (!sendReminder(p, inv, false)) return res.redirect(back('Reminders need an open invoice and an active client-portal account'));
     write(list);
-    res.redirect(back(`Payment reminder for ${p.invoice.number} emailed to ${clientById(p.employerId).email}`));
+    res.redirect(back(`Payment reminder for ${inv.number} emailed to ${clientById(p.employerId).email}`));
   });
 
   // Automatic reminders (Settings → Billing): at most one a week per overdue
@@ -492,12 +613,13 @@ function register(app, deps) {
     const cutoff = Date.now() - REMINDER_GAP_DAYS * DAY_MS;
     let sent = 0;
     for (const p of list) {
-      const inv = p.invoice;
-      if (!inv || !OPEN.includes(inv.status) || inv.dueDate >= todayIst()) continue;
-      const reminders = inv.reminders || [];
-      if (reminders.filter((r) => r.auto).length >= MAX_AUTO_REMINDERS) continue;
-      if (reminders.some((r) => Date.parse(r.at) > cutoff)) continue;
-      if (sendReminder(p, true)) sent++;
+      for (const inv of invoicesOf(p)) {
+        if (!isOverdue(inv)) continue;
+        const reminders = inv.reminders || [];
+        if (reminders.filter((r) => r.auto).length >= MAX_AUTO_REMINDERS) continue;
+        if (reminders.some((r) => Date.parse(r.at) > cutoff)) continue;
+        if (sendReminder(p, inv, true)) sent++;
+      }
     }
     if (sent) write(list);
     return sent;
@@ -509,8 +631,8 @@ function register(app, deps) {
   // It carries GST at the invoice's rate and split, and its own number series.
   app.post('/admin/placements/:id/credit-notes', adminAuth, sameOrigin, (req, res, next) => {
     const { list, p } = findPlacement(req.params.id);
-    if (!p || !p.invoice) return next();
-    const inv = p.invoice;
+    const inv = pickInvoice(p, keyFrom(req));
+    if (!inv) return next();
     const amount = moneyIn(req.body.amount);
     const reason = String(req.body.reason || '');
     const note = String(req.body.note || '').trim().slice(0, 300);
@@ -520,7 +642,7 @@ function register(app, deps) {
     else if (amount > room + 0.01) errors.push(`you can credit at most ${inr(room)} before GST on this invoice`);
     if (!CN_REASONS.includes(reason)) errors.push('choose a reason');
     if (reason === 'Other' && !note) errors.push('describe the reason');
-    if (errors.length) return paymentsPage(res, p, { errors, cn: { amount: req.body.amount, reason, note } }, 400);
+    if (errors.length) return paymentsPage(res, p, inv, { errors, cn: { amount: req.body.amount, reason, note } }, 400);
     const date = todayIst();
     const cn = {
       id: crypto.randomUUID(), number: nextNumber('CN', date), date, reason, note,
@@ -536,7 +658,7 @@ function register(app, deps) {
     }
     write(list);
     const refund = accountOf(inv).refundDue;
-    res.redirect(paymentsUrl(p, `Credit note ${cn.number} issued for ${inr(cn.total)}${refund ? ` · refund due to client: ${inr(refund)}` : ''}${emailed ? ` · emailed to ${client.email}` : ''}`));
+    res.redirect(paymentsUrl(p, inv, `Credit note ${cn.number} issued for ${inr(cn.total)}${refund ? ` · refund due to client: ${inr(refund)}` : ''}${emailed ? ` · emailed to ${client.email}` : ''}`));
   });
 
   const invoicePage = (res, p, inv, back, cn = null, cnBase = '') =>
@@ -547,32 +669,43 @@ function register(app, deps) {
 
   app.get('/admin/placements/:id/invoice', adminAuth, (req, res, next) => {
     const { p } = findPlacement(req.params.id);
-    const inv = p && (req.query.n ? (p.cancelledInvoices || []).find((i) => i.number === req.query.n) : p.invoice);
+    const inv = p && (req.query.n ? (p.cancelledInvoices || []).find((i) => i.number === req.query.n) : pickInvoice(p, keyFrom(req)));
     if (!inv) return next();
     invoicePage(res, p, inv, '/admin?tab=placements', null, `/admin/placements/${p.id}/credit-notes`);
   });
 
+  // A credit note is found by its id across all of the placement's invoices.
+  const creditNoteIn = (p, cnId) => {
+    for (const inv of invoicesOf(p)) {
+      const cn = (inv.creditNotes || []).find((c) => c.id === cnId);
+      if (cn) return { inv, cn };
+    }
+    return null;
+  };
+
   app.get('/admin/placements/:id/credit-notes/:cnId', adminAuth, (req, res, next) => {
     const { p } = findPlacement(req.params.id);
-    const cn = p && p.invoice && (p.invoice.creditNotes || []).find((c) => c.id === req.params.cnId);
-    if (!cn) return next();
-    invoicePage(res, p, p.invoice, `/admin/placements/${p.id}/payments`, cn);
+    const hit = p && creditNoteIn(p, req.params.cnId);
+    if (!hit) return next();
+    invoicePage(res, p, hit.inv, paymentsUrl(p, hit.inv), hit.cn);
   });
 
   // ----- client portal -----
   app.get('/employer/invoices/:id', requireEmployer, (req, res, next) => {
     const { p } = findPlacement(req.params.id);
     // Only this client's own invoices, never by guessing ids.
-    if (!p || !p.invoice || p.employerId !== req.employer.id) return next();
-    invoicePage(res, p, p.invoice, '/employer#billing', null, `/employer/invoices/${p.id}/credit-notes`);
+    if (!p || p.employerId !== req.employer.id) return next();
+    const inv = pickInvoice(p, keyFrom(req));
+    if (!inv) return next();
+    invoicePage(res, p, inv, '/employer#billing', null, `/employer/invoices/${p.id}/credit-notes`);
   });
 
   app.get('/employer/invoices/:id/credit-notes/:cnId', requireEmployer, (req, res, next) => {
     const { p } = findPlacement(req.params.id);
-    if (!p || !p.invoice || p.employerId !== req.employer.id) return next();
-    const cn = (p.invoice.creditNotes || []).find((c) => c.id === req.params.cnId);
-    if (!cn) return next();
-    invoicePage(res, p, p.invoice, `/employer/invoices/${p.id}`, cn);
+    if (!p || p.employerId !== req.employer.id) return next();
+    const hit = creditNoteIn(p, req.params.cnId);
+    if (!hit) return next();
+    invoicePage(res, p, hit.inv, invoiceLink(p, hit.inv).replace(baseUrl, ''), hit.cn);
   });
 
   // What a client sees about their placements: no CTC, fee terms or notes beyond the invoice.
@@ -582,34 +715,38 @@ function register(app, deps) {
       .map(describe)
       .map((p) => ({
         id: p.id, candidateName: p.candidateName, jobTitle: p.jobTitle, joiningDate: p.joiningDate, status: p.status,
-        guaranteeEnds: p.guaranteeEnds, inGuarantee: p.inGuarantee, overdue: p.overdue,
-        invoice: p.invoice ? {
-          number: p.invoice.number, date: p.invoice.date, dueDate: p.invoice.dueDate, total: p.invoice.total, status: p.invoice.status,
-          balance: p.acct.balance, refundDue: p.acct.refundDue,
-          creditNotes: (p.invoice.creditNotes || []).map((c) => ({ id: c.id, number: c.number, total: c.total })),
-        } : null,
+        guaranteeEnds: p.guaranteeEnds, inGuarantee: p.inGuarantee, monthly: p.feeMode === 'monthly', contractEnd: p.contractEnd,
+        invoices: p.invoices.slice().reverse().map(({ inv, key, acct, overdue }) => ({
+          key, number: inv.number, date: inv.date, dueDate: inv.dueDate, total: inv.total, status: inv.status, overdue,
+          month: inv.period ? monthLabel(inv.period.month) : '', balance: acct.balance, refundDue: acct.refundDue,
+          creditNotes: (inv.creditNotes || []).map((c) => ({ id: c.id, number: c.number, total: c.total })),
+        })),
       }));
 
   // ----- admin tab & dashboard numbers -----
+  // Joined with an unbilled one-time fee, or a contract with a finished month to bill.
+  const needsInvoice = (p) => (p.feeMode === 'monthly' ? p.monthsDue.length > 0 : p.status === 'Joined' && !p.invoice && p.fee > 0);
+
   function summary(list = read().map(describe)) {
     const fy = financialYear(todayIst());
-    const issued = list.filter((p) => p.invoice);
-    const unpaid = issued.filter((p) => OPEN.includes(p.invoice.status));
+    const issued = list.flatMap((p) => p.invoices);
+    const unpaid = issued.filter((x) => OPEN.includes(x.inv.status));
     const inFy = (d) => financialYear(d) === fy;
-    const payments = issued.flatMap((p) => p.invoice.payments || []).filter((x) => inFy(x.date));
-    const credits = issued.flatMap((p) => p.invoice.creditNotes || []).filter((c) => inFy(c.date));
+    const payments = issued.flatMap((x) => x.inv.payments || []).filter((x) => inFy(x.date));
+    const credits = issued.flatMap((x) => x.inv.creditNotes || []).filter((c) => inFy(c.date));
     return {
       fy,
       count: list.length,
       // Net of credit notes issued in the same financial year.
-      billedFy: round2(issued.filter((p) => inFy(p.invoice.date)).reduce((n, p) => n + p.invoice.total, 0) - sum(credits, 'total')),
+      billedFy: round2(issued.filter((x) => inFy(x.inv.date)).reduce((n, x) => n + x.inv.total, 0) - sum(credits, 'total')),
       receivedFy: sum(payments, 'amount'),
       tdsFy: sum(payments, 'tds'),
-      refundsDue: round2(issued.reduce((n, p) => n + p.acct.refundDue, 0)),
-      outstanding: round2(unpaid.reduce((n, p) => n + p.acct.balance, 0)),
+      refundsDue: round2(issued.reduce((n, x) => n + x.acct.refundDue, 0)),
+      outstanding: round2(unpaid.reduce((n, x) => n + x.acct.balance, 0)),
       unpaidCount: unpaid.length,
-      overdueCount: list.filter((p) => p.overdue).length,
-      toInvoice: list.filter((p) => !p.invoice && p.status === 'Joined').length,
+      overdueCount: issued.filter((x) => x.overdue).length,
+      toInvoice: list.filter(needsInvoice).length,
+      contracts: list.filter((p) => p.feeMode === 'monthly' && p.status === 'Joined').length,
       awaitingJoining: list.filter((p) => p.status === 'Awaiting joining').length,
       inGuarantee: list.filter((p) => p.inGuarantee).length,
     };
@@ -623,10 +760,13 @@ function register(app, deps) {
     for (const p of read().map(describe)) {
       if (p.status === 'Awaiting joining' && p.joiningDate <= soon) items.push({ at: p.joiningDate, kind: p.joiningDate < today ? 'Confirm joining' : 'Joining', cls: 'st-screening', text: `${p.candidateName} at ${p.company}` });
       if (p.inGuarantee && p.guaranteeDaysLeft <= 14) items.push({ at: p.guaranteeEnds, kind: 'Guarantee ends', cls: 'st-offered', text: `${p.candidateName} at ${p.company}` });
-      if (p.overdue) items.push({ at: p.invoice.dueDate, kind: 'Overdue', cls: 'st-rejected', text: `${p.invoice.number} · ${p.company} · ${inr(p.acct.balance)} due` });
+      for (const x of p.invoices) {
+        if (x.overdue) items.push({ at: x.inv.dueDate, kind: 'Overdue', cls: 'st-rejected', text: `${x.inv.number} · ${p.company} · ${inr(x.acct.balance)} due` });
+        if (x.acct.refundDue) items.push({ at: x.inv.date, kind: 'Refund due', cls: 'st-interview', text: `${p.company} · ${inr(x.acct.refundDue)} (${x.inv.number})` });
+      }
       if (p.status === 'Left in guarantee' && !p.replacedBy && !(p.invoice && (p.invoice.creditNotes || []).length)) items.push({ at: p.updatedAt.slice(0, 10), kind: 'Find replacement', cls: 'st-screening', text: `${p.candidateName} left ${p.company}` });
-      if (p.acct && p.acct.refundDue) items.push({ at: p.invoice.date, kind: 'Refund due', cls: 'st-interview', text: `${p.company} · ${inr(p.acct.refundDue)} (${p.invoice.number})` });
-      if (p.status === 'Joined' && !p.invoice) items.push({ at: p.joiningDate, kind: 'To invoice', cls: 'st-new', text: `${p.candidateName} at ${p.company} · ${inr(p.fee)}` });
+      if (p.feeMode !== 'monthly' && needsInvoice(p)) items.push({ at: p.joiningDate, kind: 'To invoice', cls: 'st-new', text: `${p.candidateName} at ${p.company} · ${inr(p.fee)}` });
+      if (p.monthsDue.length) items.push({ at: `${p.monthsDue[0]}-28`, kind: 'Bill month', cls: 'st-new', text: `${p.candidateName} at ${p.company} · ${p.monthsDue.map(monthLabel).join(', ')}` });
     }
     return items.sort((a, b) => a.at.localeCompare(b.at)).slice(0, limit);
   }
@@ -634,7 +774,10 @@ function register(app, deps) {
   function csvRows() {
     return read().map(describe).map((p) => ({
       candidate: p.candidateName, email: p.candidateEmail, job: p.jobTitle, client: p.company, type: p.type, status: p.status,
-      joiningDate: p.joiningDate, guaranteeEnds: p.guaranteeEnds, ctc: p.ctc, feePercent: p.feePercent ?? '', fee: p.fee,
+      joiningDate: p.joiningDate, guaranteeEnds: p.feeMode === 'monthly' ? '' : p.guaranteeEnds, ctc: p.ctc, feePercent: p.feePercent ?? '', fee: p.fee,
+      monthlyRate: p.monthlyRate || '', contractEnd: p.contractEnd || '', monthlyInvoices: (p.monthlyInvoices || []).length || '',
+      monthlyBilled: (p.monthlyInvoices || []).length ? round2(p.invoices.filter((x) => x.inv.period).reduce((n, x) => n + x.inv.total - x.acct.credited, 0)) : '',
+      monthlyOutstanding: (p.monthlyInvoices || []).length ? round2(p.invoices.filter((x) => x.inv.period).reduce((n, x) => n + x.acct.balance, 0)) : '',
       invoiceNumber: p.invoice ? p.invoice.number : '', invoiceDate: p.invoice ? p.invoice.date : '', invoiceTotal: p.invoice ? p.invoice.total : '',
       invoiceStatus: p.invoice ? (p.overdue ? 'Overdue' : p.invoice.status) : '',
       received: p.acct ? p.acct.received : '', tds: p.acct ? p.acct.tds : '', credited: p.acct ? p.acct.credited : '',
@@ -652,16 +795,16 @@ function register(app, deps) {
       if (!p.employerId) continue;
       const t = (out[p.employerId] = out[p.employerId] || { placements: 0, billed: 0, received: 0, outstanding: 0 });
       t.placements++;
-      if (p.invoice) {
-        t.billed = round2(t.billed + p.invoice.total - p.acct.credited);
-        t.received = round2(t.received + p.acct.received + p.acct.tds - p.acct.refunded);
-        t.outstanding = round2(t.outstanding + p.acct.balance);
+      for (const x of p.invoices) {
+        t.billed = round2(t.billed + x.inv.total - x.acct.credited);
+        t.received = round2(t.received + x.acct.received + x.acct.tds - x.acct.refunded);
+        t.outstanding = round2(t.outstanding + x.acct.balance);
       }
     }
     return out;
   }
 
-  return { read, describe, summary, followUps, forClient, csvRows, byClient, autoRemind, STATUSES, inr };
+  return { read, describe, summary, followUps, forClient, csvRows, byClient, autoRemind, needsInvoice, monthLabel, STATUSES, inr };
 }
 
 const formatYmd = (ymd) => (ymd ? new Date(`${ymd}T00:00:00Z`).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' }) : '');

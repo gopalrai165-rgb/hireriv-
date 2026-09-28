@@ -47,15 +47,18 @@
         <label>Annual CTC (₹)<input name="ctc" inputmode="decimal" value="<%= p.ctc %>" placeholder="e.g. 1800000" data-fee-ctc></label>
         <label>Fee based on
           <select name="feeMode" data-fee-mode>
-            <option value="percent"<%= !['flat', 'free'].includes(p.feeMode) ? ' selected' : '' %>>% of annual CTC</option>
+            <option value="percent"<%= !['flat', 'free', 'monthly'].includes(p.feeMode) ? ' selected' : '' %>>% of annual CTC</option>
             <option value="flat"<%= p.feeMode === 'flat' ? ' selected' : '' %>>Fixed amount</option>
+            <option value="monthly"<%= p.feeMode === 'monthly' ? ' selected' : '' %>>Monthly billing (contract staffing)</option>
             <% if (replaces) { %><option value="free"<%= p.feeMode === 'free' ? ' selected' : '' %>>Free replacement (no invoice)</option><% } %>
           </select>
         </label>
         <label data-fee-percent-wrap>Fee %<input name="feePercent" inputmode="decimal" value="<%= p.feePercent ?? '' %>" data-fee-percent></label>
         <label data-fee-flat-wrap>Fee amount (₹)<input name="flatFee" inputmode="decimal" value="<%= p.flatFee %>" data-fee-flat></label>
+        <label data-fee-monthly-wrap>Monthly bill rate (₹)<input name="monthlyRate" inputmode="decimal" value="<%= p.monthlyRate ?? '' %>" placeholder="e.g. 150000" data-fee-monthly></label>
+        <label data-fee-monthly-wrap>Contract end <span class="muted small">(optional)</span><input type="date" name="contractEnd" value="<%= p.contractEnd || '' %>"></label>
       </div>
-      <p class="fee-preview" aria-live="polite">Fee before GST: <b data-fee-out><%= p.fee ? inr(p.fee) : '—' %></b> <span class="muted small">+ <%= billing.gstPercent %>% GST on the invoice</span></p>
+      <p class="fee-preview" aria-live="polite"><span data-fee-label>Fee before GST:</span> <b data-fee-out><%= p.fee ? inr(p.fee) : '—' %></b> <span class="muted small">+ <%= billing.gstPercent %>% GST on the invoice</span></p>
 
       <label>Internal notes <span class="muted small">(not shown to the client)</span><textarea name="notes" rows="2" maxlength="1000"><%= p.notes %></textarea></label>
 

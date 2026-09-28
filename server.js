@@ -523,16 +523,17 @@ app.get('/admin', adminAuth, (req, res) => {
   }
   if (tab === 'placements') {
     const all = billing.read().map(billing.describe);
-    const view = ['awaiting', 'guarantee', 'to-invoice', 'unpaid', 'overdue'].includes(req.query.view) ? req.query.view : '';
+    const view = ['awaiting', 'guarantee', 'to-invoice', 'contracts', 'unpaid', 'overdue'].includes(req.query.view) ? req.query.view : '';
     const test = {
       awaiting: (p) => p.status === 'Awaiting joining',
       guarantee: (p) => p.inGuarantee,
-      'to-invoice': (p) => p.status === 'Joined' && !p.invoice,
-      unpaid: (p) => p.invoice && ['Unpaid', 'Part paid'].includes(p.invoice.status),
-      overdue: (p) => p.overdue,
+      'to-invoice': billing.needsInvoice,
+      unpaid: (p) => p.invoices.some((x) => ['Unpaid', 'Part paid'].includes(x.inv.status)),
+      overdue: (p) => p.invoices.some((x) => x.overdue),
+      contracts: (p) => p.feeMode === 'monthly',
     }[view];
     const hired = applications.filter((a) => a.status === 'Hired' && !all.some((p) => p.appId === a.id));
-    return res.render('admin', { ...locals, rows: test ? all.filter(test) : all, view, sum: billing.summary(all), statuses: billing.STATUSES, inr: billing.inr, formatYmd: placements.formatYmd, unrecorded: hired, clientById: Object.fromEntries(clients.read().map((c) => [c.id, c])), nameById: Object.fromEntries(all.map((p) => [p.id, p.candidateName])) });
+    return res.render('admin', { ...locals, rows: test ? all.filter(test) : all, view, sum: billing.summary(all), statuses: billing.STATUSES, inr: billing.inr, formatYmd: placements.formatYmd, unrecorded: hired, clientById: Object.fromEntries(clients.read().map((c) => [c.id, c])), nameById: Object.fromEntries(all.map((p) => [p.id, p.candidateName])), monthLabel: billing.monthLabel });
   }
   if (tab === 'settings') return res.render('admin', { ...locals, rows: [], form: { ...site, jobCategories: jobCategories(), jobLocations: site.jobLocations || DEFAULT_JOB_LOCATIONS }, errors: [], social: SOCIAL, billingForm: placements.billingOf(site) });
   if (tab === 'talent') {

@@ -36,6 +36,7 @@
             <% } else { %>
               <dt>Invoice no.</dt><dd><%= inv.number %></dd>
               <dt>Date</dt><dd><%= formatYmd(inv.date) %></dd>
+              <% if (inv.period) { %><dt>Service period</dt><dd><%= formatYmd(inv.period.from) %> – <%= formatYmd(inv.period.to) %></dd><% } %>
               <dt>Due by</dt><dd><%= formatYmd(inv.dueDate) %></dd>
               <% if (inv.status === 'Paid' && inv.paidAt) { %><dt>Paid on</dt><dd><%= formatYmd(inv.paidAt) %></dd><% } %>
             <% } %>
@@ -54,7 +55,9 @@
           <% if (cn) { %>
             <tr><td>Credit against invoice <%= inv.number %>: <%= cn.reason %><%= cn.note ? ' (' + cn.note + ')' : '' %><br><span class="muted small">Original service: <%= inv.item %></span></td><td><%= inv.sac || '998512' %></td><td class="num"><%= inr(cn.subtotal) %></td></tr>
           <% } else { %>
-            <tr><td><%= inv.item %></td><td><%= inv.sac || '998512' %></td><td class="num"><%= inr(inv.subtotal) %></td></tr>
+            <% (inv.lines || [{ text: inv.item, amount: inv.subtotal }]).forEach(function (l) { %>
+              <tr><td><%= l.text %></td><td><%= inv.sac || '998512' %></td><td class="num"><%= inr(l.amount) %></td></tr>
+            <% }) %>
           <% } %>
         </tbody>
         <tfoot>

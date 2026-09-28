@@ -1,0 +1,59 @@
+<%- include('partials/head') %>
+
+<section class="section admin">
+  <div class="container narrow">
+    <a href="/admin?tab=placements&view=contracts" class="back-link">← Contracts</a>
+    <h1>Bill a month</h1>
+    <p class="lead"><b><%= p.candidateName %></b> at <%= p.company %> as <%= p.jobTitle %> · <%= inr(p.monthlyRate) %>/month<%= p.contractEnd ? ' · contract to ' + formatYmd(p.contractEnd) : '' %></p>
+    <% if (errors.length) { %><p class="notice notice-err" role="alert">Please fix: <%= errors.join(', ') %></p><% } %>
+
+    <% if (!months.length) { %>
+      <div class="empty"><p>Every month of this contract is billed so far. The next month becomes available on the 1st.</p></div>
+    <% } else { %>
+      <form class="form month-pick" method="get" action="/admin/placements/<%= p.id %>/bill">
+        <label>Month
+          <select name="month" data-autosubmit>
+            <% months.forEach(function (m) { %><option value="<%= m %>"<%= m === month ? ' selected' : '' %>><%= monthLabel(m) %></option><% }) %>
+          </select>
+        </label>
+        <noscript><button class="btn btn-outline btn-sm">Choose</button></noscript>
+      </form>
+
+      <form class="form form-card" method="post" action="/admin/placements/<%= p.id %>/bill" data-month-calc data-rate="<%= p.monthlyRate %>" data-days-in-month="<%= period.daysInMonth %>" data-gst="<%= gstPercent %>">
+        <input type="hidden" name="month" value="<%= month %>">
+        <p class="muted small">Deployed <%= formatYmd(period.from) %> – <%= formatYmd(period.to) %>: <b><%= period.days %></b> of <%= period.daysInMonth %> days. Change the billable days for unpaid leave or a partial month (half days allowed).</p>
+        <div class="form-grid">
+          <label>Billable days*<input name="days" inputmode="decimal" required value="<%= f.days %>" data-month-days></label>
+          <label>Adjustment (₹) <span class="muted small">(optional, minus for deductions)</span><input name="adjustment" inputmode="decimal" value="<%= f.adjustment %>" placeholder="e.g. 12000 or -5000" data-month-adj></label>
+          <label class="span-2">Adjustment note<input name="adjustmentNote" maxlength="120" value="<%= f.adjustmentNote %>" placeholder="e.g. Overtime, 16 hours"></label>
+        </div>
+        <p class="fee-preview" aria-live="polite">Invoice before GST: <b data-month-out><%= inr(p.monthlyRate * (Number(f.days) || 0) / period.daysInMonth + (Number(f.adjustment) || 0)) %></b> <span class="muted small">+ <%= gstPercent %>% GST</span></p>
+        <% if (portalClient && portalClient.active) { %><label class="notify-line"><input type="checkbox" name="email" value="1" checked> Email the invoice to <%= portalClient.email %></label><% } %>
+        <button class="btn btn-primary" type="submit">Issue invoice for <%= monthLabel(month) %></button>
+        <a class="btn btn-outline" href="/admin?tab=placements&view=contracts">Cancel</a>
+      </form>
+    <% } %>
+
+    <% if ((p.monthlyInvoices || []).length) { %>
+      <h2 class="replace-head">Billed so far</h2>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Month</th><th>Invoice</th><th class="num">Days</th><th class="num">Total</th><th>Status</th></tr></thead>
+          <tbody>
+            <% p.monthlyInvoices.slice().sort(function (a, b) { return b.period.month.localeCompare(a.period.month); }).forEach(function (inv) { %>
+              <tr>
+                <td><%= monthLabel(inv.period.month) %></td>
+                <td><a href="/admin/placements/<%= p.id %>/invoice?inv=<%= inv.id %>" target="_blank" rel="noopener"><%= inv.number %></a></td>
+                <td class="num"><%= inv.period.billedDays %>/<%= inv.period.daysInMonth %></td>
+                <td class="num"><%= inr(inv.total) %></td>
+                <td><a href="/admin/placements/<%= p.id %>/payments?inv=<%= inv.id %>"><%= inv.status %></a></td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+    <% } %>
+  </div>
+</section>
+
+<%- include('partials/foot') %>
