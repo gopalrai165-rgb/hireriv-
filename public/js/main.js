@@ -342,3 +342,34 @@ if (bulkForm) {
   }
   document.querySelectorAll('input[data-source]').forEach((el) => { el.value = source; });
 })();
+
+// Apply form: read the resume as soon as it's picked and fill in any empty
+// fields (never overwriting what the candidate typed). Works without it too.
+document.querySelectorAll('input[data-resume-autofill]').forEach((input) => {
+  const form = input.form;
+  const status = form.querySelector('[data-resume-status]');
+  input.addEventListener('change', async () => {
+    const file = input.files[0];
+    if (!file || !/\.(pdf|docx)$/i.test(file.name)) { status.textContent = ''; return; }
+    status.textContent = 'Reading your resume…';
+    try {
+      const body = new FormData();
+      body.append('resume', file);
+      const res = await fetch('/api/resume-parse', { method: 'POST', body, headers: { Accept: 'application/json' } });
+      const data = await res.json();
+      if (!data.ok) { status.textContent = data.message || ''; return; }
+      const filled = [];
+      for (const [name, value] of Object.entries(data.fields)) {
+        const el = form.elements[name];
+        if (!el || !value) continue;
+        if (el.tagName === 'SELECT') {
+          // Experience: only if the candidate hasn't changed it from the default.
+          if (el.selectedIndex === 0 && [...el.options].some((o) => o.value === value)) { el.value = value; filled.push(name); }
+        } else if (!el.value.trim()) { el.value = value; filled.push(name); }
+      }
+      status.textContent = filled.length ? `Filled in ${filled.length} field${filled.length === 1 ? '' : 's'} from your resume. Please check them.` : '';
+    } catch (e) {
+      status.textContent = '';
+    }
+  });
+});

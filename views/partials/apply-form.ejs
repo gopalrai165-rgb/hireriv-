@@ -3,6 +3,10 @@
   <input type="hidden" name="jobId" value="<%= jobId %>">
   <input type="hidden" name="source" value="" data-source>
   <div class="form-grid">
+    <label class="span-2 file-field">Resume* <span class="muted small">(PDF, DOC or DOCX, max 5 MB) · add it first and we'll fill in what we can</span>
+      <input type="file" name="resume" accept=".pdf,.doc,.docx" required data-resume-autofill>
+      <span class="small resume-status" data-resume-status aria-live="polite"></span>
+    </label>
     <label>Full name*<input name="name" required autocomplete="name"></label>
     <label>Email*<input type="email" name="email" required autocomplete="email"></label>
     <label>Phone*<input type="tel" name="phone" required autocomplete="tel" placeholder="+91 98xxxxxxxx"></label>
@@ -21,9 +25,6 @@
     </label>
     <label class="span-2">Key skills <span class="muted small">(comma separated, helps us match you faster)</span><input name="skills" placeholder="e.g. React, Node.js, AWS"></label>
     <label class="span-2">LinkedIn / portfolio URL<input type="url" name="linkedin" placeholder="https://"></label>
-    <label class="span-2 file-field">Resume* <span class="muted small">(PDF, DOC or DOCX, max 5 MB)</span>
-      <input type="file" name="resume" accept=".pdf,.doc,.docx" required>
-    </label>
     <label class="span-2">Anything else we should know?<textarea name="message" rows="3"></textarea></label>
   </div>
   <button class="btn btn-primary btn-block" type="submit">Submit application</button>

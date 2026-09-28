@@ -10,7 +10,8 @@ const norm = (s) =>
     .replace(/\s+/g, ' ')
     .trim()} `;
 
-const candidateText = (c) => norm([c.skills, c.message].join(' '));
+// Skills typed on the form plus skills found in the resume.
+const candidateText = (c) => norm([c.skills, c.message, (c.resumeSkills || []).join(' ')].join(' '));
 
 // Share of the job's required skills the candidate mentions, with the lists.
 function skillMatch(candidate, job) {
@@ -54,7 +55,8 @@ function searchPool(pool, { q = '', experience = '', notice = '', status = '', j
     if (notice && c.noticePeriod !== notice) return false;
     if (status && c.status !== status) return false;
     if (!terms.length) return true;
-    const hay = norm([c.name, c.email, c.skills, c.location, c.experience, c.jobsApplied.join(' '), c.notes, c.message].join(' '));
+    // Includes the resume text, so a search finds skills people didn't type on the form.
+    const hay = norm([c.name, c.email, c.skills, c.location, c.experience, c.jobsApplied.join(' '), c.notes, c.message, c.resumeText].join(' '));
     return terms.every((t) => hay.includes(t));
   });
   if (job) {
@@ -65,4 +67,4 @@ function searchPool(pool, { q = '', experience = '', notice = '', status = '', j
   return list;
 }
 
-module.exports = { skillMatch, buildPool, searchPool };
+module.exports = { skillMatch, buildPool, searchPool, norm };

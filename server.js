@@ -17,6 +17,7 @@ const bulk = require('./bulk');
 const reportsModule = require('./reports');
 const timesheetsModule = require('./timesheets');
 const history = require('./history');
+const resumes = require('./resume-parse');
 const { interviewIcs } = require('./ics');
 
 const PORT = process.env.PORT || 3004;
@@ -349,9 +350,34 @@ app.post('/api/apply', limit('apply', 6), (req, res) => {
       if (req.file) fs.unlink(req.file.path, () => {});
       return respond(req, res, errors);
     }
-    const entry = saveSubmission('applications', { ...data, jobTitle: job ? job.title : 'General application', resume: req.file.filename, status: 'New', notes: '' });
-    mailer.applicationReceived(entry);
-    respond(req, res, [], `Thanks ${data.name.split(' ')[0]}! Your application is in. A recruiter will contact you within 2 working days.`);
+    // Keep the resume text for searching, and its skills for matching. If the
+    // candidate left "Key skills" empty, the skills found in the resume fill it.
+    resumes.extractText(req.file.path, req.file.originalname).then((resumeText) => {
+      const found = resumes.analyze(resumeText, allJobSkills());
+      if (!data.skills && found.skills.length) data.skills = found.skills.join(', ');
+      const entry = saveSubmission('applications', { ...data, jobTitle: job ? job.title : 'General application', resume: req.file.filename, resumeText, resumeSkills: found.skills, status: 'New', notes: '' });
+      mailer.applicationReceived(entry);
+      respond(req, res, [], `Thanks ${data.name.split(' ')[0]}! Your application is in. A recruiter will contact you within 2 working days.`);
+    });
+  });
+});
+
+const allJobSkills = () => [...new Set(jobs.flatMap((j) => j.skills || []))];
+
+// Read a resume as soon as it's picked on the apply form and send back what we
+// found, so the form can fill in empty fields. Nothing is stored.
+const peekUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => cb(null, ['.pdf', '.docx'].includes(path.extname(file.originalname).toLowerCase())),
+});
+app.post('/api/resume-parse', limit('resume-parse', 20), (req, res) => {
+  peekUpload.single('resume')(req, res, async (err) => {
+    if (err || !req.file) return res.json({ ok: false, message: err && err.code === 'LIMIT_FILE_SIZE' ? 'Resume must be under 5 MB' : "We couldn't read this file, so please fill in the form yourself." });
+    const text = await resumes.extractText(req.file.buffer, req.file.originalname);
+    if (!text) return res.json({ ok: false, message: "We couldn't read text from this file (it may be a scan), so please fill in the form yourself." });
+    const f = resumes.analyze(text, allJobSkills());
+    res.json({ ok: true, fields: { name: f.name, email: f.email, phone: f.phone, linkedin: f.linkedin, experience: f.experience, skills: f.skills.join(', ') } });
   });
 });
 
@@ -576,7 +602,8 @@ app.get('/admin', adminAuth, (req, res) => {
     };
     const job = jobs.find((j) => j.id === f.jobId) || null;
     const rows = searchPool(buildPool(applications), { ...f, job });
-    return res.render('admin', { ...locals, rows, f, matchJob: job, jobOptions: jobs, statuses: APP_STATUSES, experienceOptions: EXPERIENCE, noticeOptions: NOTICE });
+    const unread = applications.filter((a) => a.resume && a.resumeText === undefined).length;
+    return res.render('admin', { ...locals, rows, f, unread, matchJob: job, jobOptions: jobs, statuses: APP_STATUSES, experienceOptions: EXPERIENCE, noticeOptions: NOTICE });
   }
   res.render('admin', { ...locals, rows: readSubmissions(tab) });
 });
@@ -842,7 +869,7 @@ app.get('/admin/export/:type.csv', adminAuth, (req, res, next) => {
     type === 'jobs' ? jobs
     : type === 'placements' ? billing.csvRows()
     : type === 'activity' ? team.activity({ limit: 5000 })
-    : type === 'talent' ? buildPool(readSubmissions('applications')).map(({ skillsAll, ...c }) => ({ ...c, jobsApplied: c.jobsApplied.join('; ') }))
+    : type === 'talent' ? buildPool(readSubmissions('applications')).map(({ skillsAll, resumeText, history: h, interviews: ivs, emails, shared, ...c }) => ({ ...c, jobsApplied: c.jobsApplied.join('; '), resumeSkills: (c.resumeSkills || []).join(', ') }))
     : type === 'applications' ? readSubmissions('applications').map(applicationCsvRow)
     : readSubmissions(type);
   sendCsv(res, type, rows);
@@ -851,13 +878,14 @@ app.get('/admin/export/:type.csv', adminAuth, (req, res, next) => {
 // Nested details (history, interviews, emails, client sharing) as readable text.
 const csvDate = (d) => (d ? new Date(d).toLocaleString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'Asia/Kolkata' }) : '');
 function applicationCsvRow(a) {
-  const { history: h = [], interviews: ivs = [], emails = [], shared, ...rest } = a;
+  const { history: h = [], interviews: ivs = [], emails = [], shared, resumeText, resumeSkills = [], ...rest } = a;
   return {
     ...rest,
     stageHistory: h.map((x) => `${csvDate(x.at)}: ${x.from} → ${x.to} (${x.by})`).join(' | '),
     interviews: ivs.map((iv) => `${csvDate(iv.at)} ${iv.mode} (${iv.status})`).join(' | '),
     emails: emails.map((m) => `${csvDate(m.at)}: ${m.subject} (${m.by})`).join(' | '),
     sharedWithClient: shared ? `${csvDate(shared.sharedAt)}${shared.feedback ? ` · ${shared.feedback.decision}` : ''}` : '',
+    skillsFromResume: resumeSkills.join(', '),
   };
 }
 
@@ -868,6 +896,19 @@ function sendCsv(res, name, rows) {
   res.attachment(`hireriv-${name}-${new Date().toISOString().slice(0, 10)}.csv`);
   res.send('﻿' + csv); // BOM so Excel reads ₹ and other UTF-8 correctly
 }
+
+app.post('/admin/resumes/reindex', adminAuth, requireAdmin, sameOrigin, async (req, res) => {
+  const list = readSubmissions('applications');
+  const todo = list.filter((a) => a.resume && a.resumeText === undefined).slice(0, 300);
+  let read = 0;
+  for (const a of todo) {
+    a.resumeText = await resumes.extractText(path.join(UPLOADS_DIR, path.basename(a.resume)), a.resume);
+    a.resumeSkills = resumes.analyze(a.resumeText, allJobSkills()).skills;
+    if (a.resumeText) read++;
+  }
+  writeSubmissions('applications', list);
+  res.redirect(adminUrl('talent', `Read ${read} of ${todo.length} older resume${todo.length === 1 ? '' : 's'}${todo.length - read ? ` (${todo.length - read} couldn't be read: scans or old .doc files)` : ''}`));
+});
 
 app.get('/admin/resume/:file', adminAuth, (req, res) => {
   const file = path.basename(req.params.file);

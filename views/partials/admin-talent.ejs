@@ -1,6 +1,12 @@
+<% if (unread && isAdmin) { %>
+  <form class="remind-bar" method="post" action="/admin/resumes/reindex">
+    <span><b><%= unread %></b> resume<%= unread === 1 ? ' was' : 's were' %> uploaded before resume reading was added, so <%= unread === 1 ? "it isn't" : "they aren't" %> searchable yet.</span>
+    <button class="btn btn-outline btn-sm" type="submit">Read <%= unread === 1 ? 'it' : 'them' %> now</button>
+  </form>
+<% } %>
 <form class="form talent-search" method="get" action="/admin">
   <input type="hidden" name="tab" value="talent">
-  <label class="span-2">Search candidates<input name="q" value="<%= f.q %>" placeholder="Name, skill, city, job or note, e.g. react bengaluru"></label>
+  <label class="span-2">Search candidates<input name="q" value="<%= f.q %>" placeholder="Name, skill, city, job, note or anything in their resume"></label>
   <label>Rank against job
     <select name="job">
       <option value="">No ranking</option>
