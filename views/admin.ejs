@@ -39,6 +39,9 @@
     <% } else if (tab === 'interviews') { %>
       <%- include('partials/admin-interviews') %>
 
+    <% } else if (tab === 'placements') { %>
+      <%- include('partials/admin-placements') %>
+
     <% } else if (!rows.length && tab !== 'talent' && tab !== 'settings') { %>
       <div class="empty"><p>No <%= status ? status.toLowerCase() + ' ' : '' %><%= tab.replace('-', ' ') %> yet.</p></div>
 
@@ -123,6 +126,8 @@
                   <% const nextIv = (r.interviews || []).filter(function (iv) { return iv.status === 'scheduled' && new Date(iv.at) > new Date(); }).sort(function (x, y) { return x.at.localeCompare(y.at); })[0]; %>
                   <% if (nextIv) { %><p class="iv-next">Interview: <b><%= formatIst(nextIv.at) %></b></p><% } %>
                   <a class="small iv-link" href="/admin/applications/<%= r.id %>/interview">+ Schedule interview</a>
+                  <% if (placedApps.has(r.id)) { %><br><a class="small iv-link" href="/admin?tab=placements">✓ Placement recorded</a>
+                  <% } else if (['Offered', 'Hired'].includes(r.status)) { %><br><a class="small iv-link" href="/admin/applications/<%= r.id %>/placement">+ Record placement</a><% } %>
                   <% const sharedClient = r.shared ? clientOptions.find(function (c) { return c.id === r.shared.employerId; }) : null; %>
                   <% if (r.shared) { %>
                     <div class="share-status">

@@ -1,0 +1,86 @@
+<div class="kpis">
+  <a class="kpi" href="/admin?tab=placements&view=awaiting"><span class="kpi-label">Awaiting joining</span><span class="kpi-value"><%= sum.awaitingJoining %></span><span class="kpi-note">offers accepted</span></a>
+  <a class="kpi" href="/admin?tab=placements&view=guarantee"><span class="kpi-label">In guarantee</span><span class="kpi-value"><%= sum.inGuarantee %></span><span class="kpi-note">replacement period running</span></a>
+  <a class="kpi" href="/admin?tab=placements&view=to-invoice"><span class="kpi-label">To invoice</span><span class="kpi-value"><%= sum.toInvoice %></span><span class="kpi-note">joined, not billed</span></a>
+  <a class="kpi" href="/admin?tab=placements&view=unpaid"><span class="kpi-label">Outstanding</span><span class="kpi-value kpi-money"><%= inr(sum.outstanding) %></span><span class="kpi-note<%= sum.overdueCount ? ' kpi-alert' : '' %>"><%= sum.overdueCount ? sum.overdueCount + ' overdue' : sum.unpaidCount + ' unpaid' %></span></a>
+  <a class="kpi" href="/admin?tab=placements"><span class="kpi-label">Billed FY <%= sum.fy %></span><span class="kpi-value kpi-money"><%= inr(sum.billedFy) %></span><span class="kpi-note">incl. GST, net of credit notes</span></a>
+  <a class="kpi" href="/admin/export/placements.csv"><span class="kpi-label">Received FY <%= sum.fy %></span><span class="kpi-value kpi-money"><%= inr(sum.receivedFy) %></span><span class="kpi-note">+ <%= inr(sum.tdsFy) %> TDS to claim<%= sum.refundsDue ? ' · ' + inr(sum.refundsDue) + ' refunds due' : '' %></span></a>
+</div>
+
+<% if (unrecorded.length) { %>
+  <div class="notice placement-todo">
+    <%= unrecorded.length %> hired candidate<%= unrecorded.length === 1 ? ' has' : 's have' %> no placement yet:
+    <% unrecorded.slice(0, 5).forEach(function (a, i) { %><%= i ? ', ' : ' ' %><a href="/admin/applications/<%= a.id %>/placement"><%= a.name %></a><% }) %><%= unrecorded.length > 5 ? '…' : '' %>
+  </div>
+<% } %>
+
+<div class="pipeline">
+  <% [['', 'All'], ['awaiting', 'Awaiting joining'], ['guarantee', 'In guarantee'], ['to-invoice', 'To invoice'], ['unpaid', 'Unpaid'], ['overdue', 'Overdue']].forEach(function (v) { %>
+    <a class="pill<%= v[0] === view ? ' active' : '' %><%= v[0] === 'overdue' ? ' st-rejected' : '' %>" href="/admin?tab=placements<%= v[0] ? '&view=' + v[0] : '' %>"><%= v[1] %></a>
+  <% }) %>
+</div>
+
+<% if (!rows.length) { %>
+  <div class="empty"><p><%= view ? 'Nothing here right now.' : 'No placements yet. When a candidate accepts an offer, use “Record placement” on their application.' %></p></div>
+<% } else { %>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Candidate</th><th>Client</th><th>Joining &amp; guarantee</th><th>Fee</th><th>Invoice</th><th></th></tr></thead>
+      <tbody>
+        <% rows.forEach(function (p) { %>
+          <tr>
+            <td><b><%= p.candidateName %></b><br><span class="muted small"><%= p.jobTitle %> · <%= p.type %></span></td>
+            <td><%= p.company %><% if (p.employerId && clientById[p.employerId]) { %><br><span class="muted small">Portal client</span><% } %></td>
+            <td>
+              <form class="form status-form" method="post" action="/admin/placements/<%= p.id %>/status">
+                <select name="status" aria-label="Status for <%= p.candidateName %>" data-autosubmit>
+                  <% statuses.forEach(function (s) { %><option<%= s === p.status ? ' selected' : '' %>><%= s %></option><% }) %>
+                </select>
+                <noscript><button class="btn btn-outline btn-sm">Save</button></noscript>
+              </form>
+              <span class="small">Joins <%= formatYmd(p.joiningDate) %></span>
+              <% if (p.inGuarantee) { %><br><span class="muted small">Guarantee until <%= formatYmd(p.guaranteeEnds) %> (<%= p.guaranteeDaysLeft %> day<%= p.guaranteeDaysLeft === 1 ? '' : 's' %> left)</span>
+              <% } else if (p.status === 'Joined' && p.guaranteeDays) { %><br><span class="muted small">Guarantee ended <%= formatYmd(p.guaranteeEnds) %></span><% } %>
+            </td>
+            <td><b><%= inr(p.fee) %></b><br><span class="muted small"><%= p.feeMode === 'percent' ? p.feePercent + '% of ' + inr(p.ctc) : 'Fixed fee' %></span></td>
+            <td>
+              <% if (p.invoice) { %>
+                <a href="/admin/placements/<%= p.id %>/invoice" target="_blank" rel="noopener"><b><%= p.invoice.number %></b></a><br>
+                <%= inr(p.invoice.total) %>
+                <% if (p.invoice.status === 'Paid') { %><span class="pill st-hired">Paid <%= formatYmd(p.invoice.paidAt) %></span>
+                <% } else if (p.invoice.status === 'Credited') { %><span class="pill st-new">Credited</span>
+                <% } else if (p.overdue) { %><span class="pill st-rejected">Overdue since <%= formatYmd(p.invoice.dueDate) %></span>
+                <% } else { %><span class="pill st-screening"><%= p.invoice.status === 'Part paid' ? 'Part paid · ' : '' %>Due <%= formatYmd(p.invoice.dueDate) %></span><% } %>
+                <% if (p.invoice.status === 'Part paid') { %><br><span class="muted small"><%= inr(p.acct.balance) %> still due</span><% } %>
+                <% if (p.acct.tds) { %><br><span class="muted small">TDS <%= inr(p.acct.tds) %></span><% } %>
+                <% if (p.acct.refundDue) { %><br><span class="pill st-interview">Refund due <%= inr(p.acct.refundDue) %></span><% } %>
+                <% (p.invoice.creditNotes || []).forEach(function (c) { %><br><a class="muted small" href="/admin/placements/<%= p.id %>/credit-notes/<%= c.id %>" target="_blank" rel="noopener"><%= c.number %></a> <span class="muted small">−<%= inr(c.total) %></span><% }) %>
+                <% if (p.invoice.sentAt) { %><br><span class="muted small">Emailed to client</span><% } %>
+              <% } else { %>
+                <span class="muted small">Not invoiced</span>
+                <% if (['Joined', 'Awaiting joining'].includes(p.status)) { %>
+                  <form class="form invoice-form" method="post" action="/admin/placements/<%= p.id %>/invoice" data-confirm="Issue a numbered invoice for <%= inr(p.fee) %> + GST? Issued invoices can be cancelled but not deleted.">
+                    <% if (p.employerId && clientById[p.employerId] && clientById[p.employerId].active) { %><label class="notify"><input type="checkbox" name="email" value="1" checked> Email to <%= clientById[p.employerId].email %></label><% } %>
+                    <button class="btn btn-primary btn-sm">Issue invoice</button>
+                  </form>
+                <% } %>
+              <% } %>
+              <% (p.cancelledInvoices || []).forEach(function (c) { %><br><a class="muted small strike" href="/admin/placements/<%= p.id %>/invoice?n=<%= encodeURIComponent(c.number) %>" target="_blank" rel="noopener"><%= c.number %></a> <span class="muted small">cancelled</span><% }) %>
+            </td>
+            <td class="row-actions">
+              <a class="btn btn-outline btn-sm" href="/admin/placements/<%= p.id %>/edit">Edit</a>
+              <% if (p.invoice) { %>
+                <a class="btn btn-<%= ['Unpaid', 'Part paid'].includes(p.invoice.status) ? 'primary' : 'outline' %> btn-sm" href="/admin/placements/<%= p.id %>/payments">Payments</a>
+                <% if (p.invoice.status === 'Unpaid' && !(p.invoice.payments || []).length && !(p.invoice.creditNotes || []).length) { %>
+                  <form method="post" action="/admin/placements/<%= p.id %>/invoice/cancel" data-confirm="Cancel invoice <%= p.invoice.number %>? The number stays on record and you can issue a new invoice."><button class="btn btn-sm btn-danger">Cancel invoice</button></form>
+                <% } %>
+              <% } else if (!(p.cancelledInvoices || []).length) { %>
+                <form method="post" action="/admin/placements/<%= p.id %>/delete" data-confirm="Delete this placement?"><button class="btn btn-sm btn-danger">Delete</button></form>
+              <% } %>
+            </td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+<% } %>

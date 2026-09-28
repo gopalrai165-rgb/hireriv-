@@ -252,3 +252,27 @@ if (ivMode) {
   ivMode.addEventListener('change', sync);
   sync();
 }
+
+// Invoices: print (or save as PDF from the print dialog).
+document.querySelectorAll('[data-print]').forEach((btn) => btn.addEventListener('click', () => window.print()));
+
+// Admin: selects that save as soon as they change (e.g. placement status).
+document.querySelectorAll('select[data-autosubmit]').forEach((sel) => sel.addEventListener('change', () => sel.form.submit()));
+
+// Placement form: show the right fee field and preview the fee as you type.
+const feeForm = document.querySelector('form[data-fee-calc]');
+if (feeForm) {
+  const $ = (sel) => feeForm.querySelector(sel);
+  const num = (el) => Number(String(el.value).replace(/[,₹\s]/g, ''));
+  const money = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 2 });
+  const update = () => {
+    const flat = $('[data-fee-mode]').value === 'flat';
+    $('[data-fee-percent-wrap]').hidden = flat;
+    $('[data-fee-flat-wrap]').hidden = !flat;
+    const fee = flat ? num($('[data-fee-flat]')) : (num($('[data-fee-ctc]')) * num($('[data-fee-percent]'))) / 100;
+    $('[data-fee-out]').textContent = fee > 0 ? money.format(Math.round(fee * 100) / 100) : '—';
+  };
+  feeForm.addEventListener('input', update);
+  feeForm.addEventListener('change', update);
+  update();
+}

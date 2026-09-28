@@ -1,0 +1,93 @@
+<%- include('partials/head') %>
+<% const doc = cn || inv; %>
+
+<section class="section invoice-page">
+  <div class="container narrow">
+    <div class="invoice-tools no-print">
+      <a href="<%= back %>" class="back-link">← Back</a>
+      <button class="btn btn-primary btn-sm" type="button" data-print>Print / Save as PDF</button>
+    </div>
+
+    <article class="invoice<%= !cn && inv.status === 'Cancelled' ? ' is-cancelled' : '' %>">
+      <% if (!cn) { %>
+        <% if (inv.status === 'Cancelled') { %><p class="invoice-stamp">Cancelled</p>
+        <% } else if (inv.status === 'Paid') { %><p class="invoice-stamp paid">Paid</p>
+        <% } else if (inv.status === 'Credited') { %><p class="invoice-stamp credited">Credited</p><% } %>
+      <% } %>
+      <header class="invoice-head">
+        <div>
+          <p class="invoice-brand">Hire<b>riv</b></p>
+          <p><b><%= inv.seller.name %></b><br><%= inv.seller.address %></p>
+          <p class="small">
+            <% if (inv.seller.gstin) { %>GSTIN: <%= inv.seller.gstin %><br><% } %>
+            <% if (inv.seller.pan) { %>PAN: <%= inv.seller.pan %><br><% } %>
+            <% if (inv.seller.stateName) { %>State: <%= inv.seller.stateName %><br><% } %>
+            <%= inv.seller.email %> · <%= inv.seller.phone %>
+          </p>
+        </div>
+        <div class="invoice-meta">
+          <h1><%= cn ? 'Credit Note' : inv.seller.gstin ? 'Tax Invoice' : 'Invoice' %></h1>
+          <dl>
+            <% if (cn) { %>
+              <dt>Credit note no.</dt><dd><%= cn.number %></dd>
+              <dt>Date</dt><dd><%= formatYmd(cn.date) %></dd>
+              <dt>Against invoice</dt><dd><%= inv.number %></dd>
+              <dt>Invoice date</dt><dd><%= formatYmd(inv.date) %></dd>
+            <% } else { %>
+              <dt>Invoice no.</dt><dd><%= inv.number %></dd>
+              <dt>Date</dt><dd><%= formatYmd(inv.date) %></dd>
+              <dt>Due by</dt><dd><%= formatYmd(inv.dueDate) %></dd>
+              <% if (inv.status === 'Paid' && inv.paidAt) { %><dt>Paid on</dt><dd><%= formatYmd(inv.paidAt) %></dd><% } %>
+            <% } %>
+          </dl>
+        </div>
+      </header>
+
+      <section class="invoice-to">
+        <p class="eyebrow"><%= cn ? 'Issued to' : 'Bill to' %></p>
+        <p><b><%= inv.buyer.name %></b><% if (inv.buyer.address) { %><br><%= inv.buyer.address %><% } %><% if (inv.buyer.gstin) { %><br>GSTIN: <%= inv.buyer.gstin %><% } %></p>
+      </section>
+
+      <table class="invoice-lines">
+        <thead><tr><th>Description</th><th>SAC</th><th class="num">Amount</th></tr></thead>
+        <tbody>
+          <% if (cn) { %>
+            <tr><td>Credit against invoice <%= inv.number %>: <%= cn.reason %><%= cn.note ? ' (' + cn.note + ')' : '' %><br><span class="muted small">Original service: <%= inv.item %></span></td><td><%= inv.sac || '998512' %></td><td class="num"><%= inr(cn.subtotal) %></td></tr>
+          <% } else { %>
+            <tr><td><%= inv.item %></td><td><%= inv.sac || '998512' %></td><td class="num"><%= inr(inv.subtotal) %></td></tr>
+          <% } %>
+        </tbody>
+        <tfoot>
+          <tr><td colspan="2">Taxable value</td><td class="num"><%= inr(doc.subtotal) %></td></tr>
+          <% doc.taxLines.forEach(function (t) { %><tr><td colspan="2"><%= t.label %></td><td class="num"><%= inr(t.amount) %></td></tr><% }) %>
+          <tr class="invoice-total"><td colspan="2"><%= cn ? 'Total credit' : 'Total' %></td><td class="num"><%= inr(doc.total) %></td></tr>
+        </tfoot>
+      </table>
+      <p class="small"><b>Amount in words:</b> <%= amountInWords(doc.total) %></p>
+
+      <% if (!cn && inv.seller.bank) { %>
+        <section class="invoice-bank">
+          <p class="eyebrow">Payment details</p>
+          <p class="prewrap"><%= inv.seller.bank %></p>
+          <p class="small">Please quote <b><%= inv.number %></b> with your payment.</p>
+        </section>
+      <% } %>
+      <p class="muted small invoice-foot">This is a computer-generated <%= cn ? 'credit note' : 'invoice' %>. SAC <%= inv.sac || '998512' %>: <%= inv.sac === '998513' ? 'contract staffing' : 'permanent placement' %> services.</p>
+    </article>
+
+    <% if (!cn && inv.status !== 'Cancelled' && ((inv.payments || []).length || (inv.creditNotes || []).length)) { %>
+      <section class="dash-card invoice-account no-print">
+        <div class="dash-head"><h2>Account</h2><span class="pill <%= inv.status === 'Paid' ? 'st-hired' : inv.status === 'Part paid' ? 'st-screening' : 'st-new' %>"><%= inv.status %></span></div>
+        <dl class="account-lines">
+          <dt>Invoice total</dt><dd><%= inr(inv.total) %></dd>
+          <% if (acct.received) { %><dt>Received</dt><dd>− <%= inr(acct.received) %></dd><% } %>
+          <% if (acct.tds) { %><dt>TDS deducted</dt><dd>− <%= inr(acct.tds) %></dd><% } %>
+          <% (inv.creditNotes || []).forEach(function (c) { %><dt>Credit note <a href="<%= cnBase %>/<%= c.id %>"><%= c.number %></a></dt><dd>− <%= inr(c.total) %></dd><% }) %>
+          <dt><b><%= acct.refundDue ? 'Overpaid, refund due' : 'Balance due' %></b></dt><dd><b><%= inr(acct.refundDue || acct.balance) %></b></dd>
+        </dl>
+      </section>
+    <% } %>
+  </div>
+</section>
+
+<%- include('partials/foot') %>

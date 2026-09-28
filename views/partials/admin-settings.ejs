@@ -38,5 +38,39 @@
     </div>
   </section>
 
+  <section class="form-card" id="job-categories">
+    <h2>Job categories</h2>
+    <p class="muted small">One per line. Used on the job form, the Find Work filter and job alerts. Renaming one here doesn't change jobs that already use the old name.</p>
+    <textarea name="jobCategories" rows="10" aria-label="Job categories, one per line"><%= (form.jobCategories || []).join('\n') %></textarea>
+  </section>
+
+  <section class="form-card" id="job-locations">
+    <h2>Job locations</h2>
+    <p class="muted small">One city per line. Used on the job form, the Find Work filter and job alerts, and shown A–Z with Remote first.</p>
+    <textarea name="jobLocations" rows="10" aria-label="Job locations, one per line"><%= (form.jobLocations || []).join('\n') %></textarea>
+  </section>
+
+  <section class="form-card">
+    <h2>Billing &amp; invoices</h2>
+    <p class="muted small">Printed on every invoice you issue from Placements. Already-issued invoices keep the details they were issued with.</p>
+    <div class="form-grid">
+      <label>Legal business name<input name="billing_legalName" maxlength="160" value="<%= billingForm.legalName %>" placeholder="<%= form.name %> Staffing Pvt Ltd"></label>
+      <label>Your state<input name="billing_stateName" maxlength="60" value="<%= billingForm.stateName %>" placeholder="e.g. Karnataka"></label>
+      <label>GSTIN<input name="billing_gstin" maxlength="15" value="<%= billingForm.gstin %>" placeholder="29ABCDE1234F1Z5"></label>
+      <label>PAN<input name="billing_pan" maxlength="10" value="<%= billingForm.pan %>" placeholder="ABCDE1234F"></label>
+      <label class="span-2">Bank details for payment<textarea name="billing_bank" rows="3" maxlength="400" placeholder="Bank, account name, account number, IFSC, UPI ID"><%= billingForm.bank %></textarea></label>
+      <label>Default fee (% of annual CTC)*<input name="billing_feePercent" inputmode="decimal" required value="<%= billingForm.feePercent %>"></label>
+      <label>Default replacement guarantee (days)*<input type="number" min="0" max="365" name="billing_guaranteeDays" required value="<%= billingForm.guaranteeDays %>"></label>
+      <label>GST rate
+        <select name="billing_gstPercent"><% [18, 12, 5, 28, 0].forEach(function (r) { %><option value="<%= r %>"<%= r === Number(billingForm.gstPercent) ? ' selected' : '' %>><%= r %>%<%= r === 0 ? ' (not GST registered)' : '' %></option><% }) %></select>
+      </label>
+      <label>Payment terms (days)*<input type="number" min="0" max="180" name="billing_paymentDays" required value="<%= billingForm.paymentDays %>"></label>
+      <label>Usual TDS clients deduct
+        <select name="billing_tdsPercent"><% [10, 2, 1, 5, 0].forEach(function (r) { %><option value="<%= r %>"<%= r === Number(billingForm.tdsPercent) ? ' selected' : '' %>><%= r %>%<%= r === 10 ? ' (194J professional fees)' : r === 2 ? ' (194J technical / 194C)' : r === 0 ? ' (none)' : '' %></option><% }) %></select>
+        <span class="muted small">Pre-fills the TDS box when you record a payment. You can change it per payment.</span>
+      </label>
+    </div>
+  </section>
+
   <div class="settings-actions"><button class="btn btn-primary" type="submit">Save settings</button> <a class="btn btn-outline" href="/admin/backup">Download database backup</a></div>
 </form>

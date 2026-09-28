@@ -9,15 +9,27 @@
       <div class="form-grid">
         <label class="span-2">Job title*<input name="title" required value="<%= job.title || '' %>" placeholder="e.g. Senior Java Developer"></label>
         <label>Company / client*<input name="company" required value="<%= job.company || '' %>" placeholder="e.g. Fintech Client"></label>
-        <label>Location*<input name="location" required value="<%= job.location || '' %>" placeholder="e.g. Bengaluru"></label>
+        <label>Location*
+          <select name="location" required>
+            <option value="">Choose a location</option>
+            <% jobLocations.forEach(function (l) { %><option<%= l === job.location ? ' selected' : '' %>><%= l %></option><% }) %>
+          </select>
+          <span class="muted small">Add cities in <a href="/admin?tab=settings#job-locations">Settings</a>.</span>
+        </label>
         <label>Work mode
           <select name="mode"><% modes.forEach(function (m) { %><option<%= m === job.mode ? ' selected' : '' %>><%= m %></option><% }) %></select>
+          <span class="muted small">Field work: travelling or on-the-ground roles. Client site: deployed at the client's office. Remote jobs reach job-alert subscribers in every city.</span>
         </label>
         <label>Job type
           <select name="type"><% jobTypes.forEach(function (t) { %><option<%= t === job.type ? ' selected' : '' %>><%= t %></option><% }) %></select>
         </label>
-        <label>Category*<input name="category" required list="job-categories" value="<%= job.category || '' %>"></label>
-        <datalist id="job-categories"><% jobCategories.forEach(function (c) { %><option value="<%= c %>"><% }) %></datalist>
+        <label>Category*
+          <select name="category" required>
+            <option value="">Choose a category</option>
+            <% jobCategories.forEach(function (c) { %><option<%= c === job.category ? ' selected' : '' %>><%= c %></option><% }) %>
+          </select>
+          <span class="muted small">Add or rename categories in <a href="/admin?tab=settings#job-categories">Settings</a>.</span>
+        </label>
         <label>Experience<input name="experience" value="<%= job.experience || '' %>" placeholder="e.g. 3-5 years"></label>
         <label>Salary<input name="salary" value="<%= job.salary || '' %>" placeholder="e.g. ₹14 – 20 LPA"></label>
         <label>Client <span class="muted small">(lets this client see the job in their portal)</span>

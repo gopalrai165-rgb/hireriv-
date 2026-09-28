@@ -5,7 +5,7 @@
     <a href="/jobs" class="back-link">← All jobs</a>
     <div class="job-title-row">
       <div>
-        <div class="chips"><span class="tag tag-<%= job.mode.toLowerCase() %>"><%= job.mode %></span><span class="chip"><%= job.type %></span><span class="chip"><%= job.category %></span></div>
+        <div class="chips"><span class="tag tag-<%= job.mode.toLowerCase().replace(/[^a-z]+/g, '-') %>"><%= job.mode %></span><span class="chip"><%= job.type %></span><span class="chip"><%= job.category %></span></div>
         <h1><%= job.title %></h1>
         <p class="lead"><%= job.company %></p>
       </div>

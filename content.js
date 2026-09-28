@@ -41,6 +41,33 @@ function parsePost(body, posts, currentSlug) {
 // saved value can never become a javascript: URL in the footer.
 const SOCIAL = ['linkedin', 'instagram', 'facebook', 'x'];
 
+// Job categories offered on the job form, the Find Work filters and job alerts.
+// Editable in Admin → Settings; this list is used until they are saved.
+const DEFAULT_JOB_CATEGORIES = [
+  'Technology', 'Finance & Accounting', 'Banking & Insurance', 'Sales & Business Development',
+  'Marketing & Creative', 'Human Resources', 'Logistics & Operations', 'Engineering & Manufacturing',
+  'Healthcare & Pharma', 'Customer Support & BPO', 'Retail & E-commerce', 'Education & Training',
+  'Legal & Compliance', 'Admin & Office Support', 'Construction & Real Estate', 'Hospitality & Travel',
+];
+
+// Job locations offered on the job form, the Find Work filter and job alerts.
+const DEFAULT_JOB_LOCATIONS = [
+  'Remote', 'Bengaluru', 'Mumbai', 'Navi Mumbai', 'Thane', 'Delhi', 'Delhi NCR', 'Gurugram', 'Noida',
+  'Hyderabad', 'Chennai', 'Pune', 'Kolkata', 'Ahmedabad', 'Jaipur', 'Chandigarh', 'Kochi', 'Coimbatore',
+  'Indore', 'Lucknow', 'Bhubaneswar', 'Nagpur', 'Visakhapatnam', 'Vadodara', 'Surat', 'Mysuru',
+  'Thiruvananthapuram', 'Guwahati', 'Bhopal', 'Patna', 'Goa', 'Multiple locations',
+];
+
+// One entry per line, trimmed, without case-insensitive duplicates.
+function parseList(text, maxLen, maxItems) {
+  const seen = new Set();
+  return String(text ?? '')
+    .split(/\r?\n/)
+    .map((c) => c.trim().slice(0, maxLen))
+    .filter((c) => c && !seen.has(c.toLowerCase()) && seen.add(c.toLowerCase()))
+    .slice(0, maxItems);
+}
+
 function parseSettings(body, current) {
   const get = (k, max = 200) => String(body[k] ?? '').trim().slice(0, max);
   const errors = [];
@@ -71,7 +98,33 @@ function parseSettings(body, current) {
     next.stats.push({ value: Math.round(value) || 0, suffix: get(`stat_suffix_${i}`, 3), label });
   }
   if (!next.stats.length) errors.push('add at least one homepage stat');
+  next.jobCategories = parseList(body.jobCategories, 60, 50);
+  if (!next.jobCategories.length) errors.push('add at least one job category');
+  next.jobLocations = parseList(body.jobLocations, 60, 150);
+  if (!next.jobLocations.length) errors.push('add at least one job location');
+  // Billing details printed on invoices, and defaults for new placements.
+  const num = (k) => Number(get(k, 12));
+  next.billing = {
+    legalName: get('billing_legalName', 160),
+    gstin: get('billing_gstin', 15).toUpperCase(),
+    pan: get('billing_pan', 10).toUpperCase(),
+    stateName: get('billing_stateName', 60),
+    bank: get('billing_bank', 400),
+    feePercent: num('billing_feePercent'),
+    guaranteeDays: num('billing_guaranteeDays'),
+    gstPercent: num('billing_gstPercent'),
+    paymentDays: num('billing_paymentDays'),
+    tdsPercent: num('billing_tdsPercent'),
+  };
+  const b = next.billing;
+  if (b.gstin && !/^\d{2}[A-Z0-9]{13}$/.test(b.gstin)) errors.push('GSTIN should be 15 characters (e.g. 29ABCDE1234F1Z5)');
+  if (b.pan && !/^[A-Z]{5}\d{4}[A-Z]$/.test(b.pan)) errors.push('PAN should look like ABCDE1234F');
+  if (!(b.feePercent > 0 && b.feePercent <= 100)) errors.push('default fee % must be between 0 and 100');
+  if (!Number.isInteger(b.guaranteeDays) || b.guaranteeDays < 0 || b.guaranteeDays > 365) errors.push('default guarantee must be 0–365 days');
+  if (![0, 5, 12, 18, 28].includes(b.gstPercent)) errors.push('GST rate must be 0, 5, 12, 18 or 28%');
+  if (!Number.isInteger(b.paymentDays) || b.paymentDays < 0 || b.paymentDays > 180) errors.push('payment terms must be 0–180 days');
+  if (![0, 1, 2, 5, 10].includes(b.tdsPercent)) errors.push('usual TDS rate must be 0, 1, 2, 5 or 10%');
   return { settings: next, errors };
 }
 
-module.exports = { parsePost, slugify, parseSettings, SOCIAL };
+module.exports = { parsePost, slugify, parseSettings, SOCIAL, DEFAULT_JOB_CATEGORIES, DEFAULT_JOB_LOCATIONS };

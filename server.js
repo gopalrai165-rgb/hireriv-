@@ -7,10 +7,11 @@ const { createMailer } = require('./mailer');
 const { open: openDb } = require('./db');
 const seo = require('./seo');
 const { skillMatch, buildPool, searchPool } = require('./match');
-const { parsePost, parseSettings, SOCIAL } = require('./content');
+const { parsePost, parseSettings, SOCIAL, DEFAULT_JOB_CATEGORIES, DEFAULT_JOB_LOCATIONS } = require('./content');
 const interviews = require('./interviews');
 const employers = require('./employers');
 const candidates = require('./candidates');
+const placements = require('./placements');
 const { interviewIcs } = require('./ics');
 
 const PORT = process.env.PORT || 3004;
@@ -66,8 +67,15 @@ function saveJobs() {
 
 const openJobs = () => jobs.filter((j) => j.status === 'open');
 const categoriesOf = (list) => [...new Set(list.map((j) => j.category))];
+// The category list from Settings, plus any older category a job still uses.
+const jobCategories = () => [...new Set([...(site.jobCategories || DEFAULT_JOB_CATEGORIES), ...categoriesOf(jobs)])];
 const locationsOf = (list) => [...new Set(list.map((j) => j.location))].sort();
-const modes = ['On-site', 'Hybrid', 'Remote'];
+// The location list from Settings plus any a job still uses, A–Z with Remote first.
+const jobLocations = () =>
+  [...new Set([...(site.jobLocations || DEFAULT_JOB_LOCATIONS), ...locationsOf(jobs)])]
+    .sort((a, b) => (a === 'Remote' ? -1 : b === 'Remote' ? 1 : a.localeCompare(b)));
+// Remote jobs match every city in job alerts and are marked TELECOMMUTE for Google.
+const modes = ['On-site', 'Hybrid', 'Remote', 'Field work', 'Client site'];
 const JOB_TYPES = ['Full-time', 'Contract', 'Part-time', 'Internship'];
 
 // Application pipeline stages a recruiter moves a candidate through.
@@ -251,7 +259,7 @@ app.get('/sitemap.xml', (req, res) =>
 // ---------- pages ----------
 app.get('/', (req, res) => {
   const live = openJobs();
-  res.render('index', { title: 'Staffing & Recruitment Solutions', page: 'home', jobs: live.slice(0, 6), posts: livePosts().slice(0, 3), categories: categoriesOf(live), jsonLd: seo.homePage(site, BASE_URL) });
+  res.render('index', { title: 'Staffing & Recruitment Solutions', page: 'home', jobs: live.slice(0, 6), posts: livePosts().slice(0, 3), categories: categoriesOf(live), locations: jobLocations(), jsonLd: seo.homePage(site, BASE_URL) });
 });
 
 app.get('/jobs', (req, res) => {
@@ -270,9 +278,12 @@ app.get('/jobs', (req, res) => {
     page: 'jobs',
     results,
     filters: { q: req.query.q || '', category, location, mode },
-    categories: categoriesOf(live),
-    locations: locationsOf(live),
+    categories: jobCategories(),
+    categoryCounts: live.reduce((n, j) => ({ ...n, [j.category]: (n[j.category] || 0) + 1 }), {}),
+    locations: jobLocations(),
+    locationCounts: live.reduce((n, j) => ({ ...n, [j.location]: (n[j.location] || 0) + 1 }), {}),
     modes,
+    modeCounts: live.reduce((n, j) => ({ ...n, [j.mode]: (n[j.mode] || 0) + 1 }), {}),
   });
 });
 
@@ -372,8 +383,8 @@ app.post('/api/job-alerts', limit('job-alerts', 5), (req, res) => {
   if (isBot(req.body)) return respond(req, res, [], 'Almost done! Check your inbox and click the link to switch on your job alert.');
   const data = clean(req.body, ['email', 'category', 'location']);
   const errors = validate(data, ['email']);
-  if (data.category && !categoriesOf(jobs).includes(data.category)) errors.push('category is invalid');
-  if (data.location && !locationsOf(jobs).includes(data.location)) errors.push('location is invalid');
+  if (data.category && !jobCategories().includes(data.category)) errors.push('category is invalid');
+  if (data.location && !jobLocations().includes(data.location)) errors.push('location is invalid');
   if (!errors.length) {
     const email = data.email.toLowerCase();
     const existing = readSubmissions('job-alerts').find((s) => s.email === email && s.category === data.category && s.location === data.location);
@@ -458,14 +469,18 @@ function sameOrigin(req, res, next) {
   res.status(403).send('Cross-site request blocked');
 }
 
-const ADMIN_TABS = ['dashboard', 'jobs', 'talent', 'interviews', 'clients', ...FORM_TYPES, 'blog', 'settings'];
+const ADMIN_TABS = ['dashboard', 'jobs', 'talent', 'interviews', 'placements', 'clients', ...FORM_TYPES, 'blog', 'settings'];
 const adminUrl = (tab, msg) => `/admin?tab=${tab}${msg ? `&msg=${encodeURIComponent(msg)}` : ''}`;
 
 interviews.register(app, { adminAuth, sameOrigin, readSubmissions, writeSubmissions, mailer, site, adminUrl });
 const clients = employers.register(app, {
   db, site, mailer, baseUrl: BASE_URL, adminAuth, sameOrigin, adminUrl, limit,
   readSubmissions, saveSubmission, getJobs: () => jobs, appStatuses: APP_STATUSES,
-  writeSubmissions, uploadsDir: UPLOADS_DIR, skillMatch,
+  writeSubmissions, uploadsDir: UPLOADS_DIR, skillMatch, placementsFor: (emp) => billing.forClient(emp),
+});
+const billing = placements.register(app, {
+  db, site, mailer, baseUrl: BASE_URL, adminAuth, sameOrigin, adminUrl, readSubmissions, writeSubmissions,
+  getJobs: () => jobs, clients, requireEmployer: clients.requireEmployer,
 });
 candidates.register(app, {
   db, mailer, baseUrl: BASE_URL, sameOrigin, limit, readSubmissions, writeSubmissions,
@@ -475,7 +490,7 @@ candidates.register(app, {
 app.get('/admin', adminAuth, (req, res) => {
   const tab = ADMIN_TABS.includes(req.query.tab) ? req.query.tab : 'dashboard';
   const applications = readSubmissions('applications');
-  const counts = { dashboard: '', settings: '', blog: posts.length, interviews: interviews.upcoming(applications).length, clients: clients.read().length, jobs: jobs.length, talent: new Set(applications.map((a) => String(a.email).toLowerCase())).size, ...Object.fromEntries(FORM_TYPES.map((t) => [t, readSubmissions(t).length])) };
+  const counts = { dashboard: '', settings: '', blog: posts.length, interviews: interviews.upcoming(applications).length, placements: billing.read().length, clients: clients.read().length, jobs: jobs.length, talent: new Set(applications.map((a) => String(a.email).toLowerCase())).size, ...Object.fromEntries(FORM_TYPES.map((t) => [t, readSubmissions(t).length])) };
   const locals = { title: 'Admin', page: 'admin', tab, tabs: ADMIN_TABS, counts, status: '', msg: String(req.query.msg || '') };
 
   if (tab === 'dashboard') return res.render('admin', { ...locals, rows: [], dash: buildDashboard(applications) });
@@ -485,6 +500,7 @@ app.get('/admin', adminAuth, (req, res) => {
     return res.render('admin', { ...locals, rows: jobs, applicants });
   }
   if (tab === 'applications') {
+    const placedApps = new Set(billing.read().map((p) => p.appId));
     const statusOf = (a) => a.status || 'New';
     const statusCounts = Object.fromEntries(APP_STATUSES.map((s) => [s, applications.filter((a) => statusOf(a) === s).length]));
     const status = APP_STATUSES.includes(req.query.status) ? req.query.status : '';
@@ -492,7 +508,7 @@ app.get('/admin', adminAuth, (req, res) => {
     let rows = (status ? applications.filter((a) => statusOf(a) === status) : applications)
       .map((a) => ({ ...a, match: skillMatch(a, jobs.find((j) => j.id === a.jobId)) }));
     if (sort) rows = rows.sort((a, b) => (b.match?.score ?? -1) - (a.match?.score ?? -1));
-    return res.render('admin', { ...locals, rows, statuses: APP_STATUSES, statusCounts, status, sort, clientOptions: clients.read().filter((c) => c.active), jobClient: Object.fromEntries(jobs.map((j) => [j.id, j.employerId || ''])) });
+    return res.render('admin', { ...locals, rows, statuses: APP_STATUSES, statusCounts, status, sort, clientOptions: clients.read().filter((c) => c.active), placedApps, jobClient: Object.fromEntries(jobs.map((j) => [j.id, j.employerId || ''])) });
   }
   if (tab === 'blog') return res.render('admin', { ...locals, rows: posts });
   if (tab === 'clients') {
@@ -504,7 +520,20 @@ app.get('/admin', adminAuth, (req, res) => {
     const past = interviews.allInterviews(applications).filter((iv) => !up.some((u) => u.id === iv.id)).sort((a, b) => b.at.localeCompare(a.at));
     return res.render('admin', { ...locals, rows: up, past, formatIst: interviews.formatIst });
   }
-  if (tab === 'settings') return res.render('admin', { ...locals, rows: [], form: site, errors: [], social: SOCIAL });
+  if (tab === 'placements') {
+    const all = billing.read().map(billing.describe);
+    const view = ['awaiting', 'guarantee', 'to-invoice', 'unpaid', 'overdue'].includes(req.query.view) ? req.query.view : '';
+    const test = {
+      awaiting: (p) => p.status === 'Awaiting joining',
+      guarantee: (p) => p.inGuarantee,
+      'to-invoice': (p) => p.status === 'Joined' && !p.invoice,
+      unpaid: (p) => p.invoice && ['Unpaid', 'Part paid'].includes(p.invoice.status),
+      overdue: (p) => p.overdue,
+    }[view];
+    const hired = applications.filter((a) => a.status === 'Hired' && !all.some((p) => p.appId === a.id));
+    return res.render('admin', { ...locals, rows: test ? all.filter(test) : all, view, sum: billing.summary(all), statuses: billing.STATUSES, inr: billing.inr, formatYmd: placements.formatYmd, unrecorded: hired, clientById: Object.fromEntries(clients.read().map((c) => [c.id, c])) });
+  }
+  if (tab === 'settings') return res.render('admin', { ...locals, rows: [], form: { ...site, jobCategories: jobCategories(), jobLocations: site.jobLocations || DEFAULT_JOB_LOCATIONS }, errors: [], social: SOCIAL, billingForm: placements.billingOf(site) });
   if (tab === 'talent') {
     const EXPERIENCE = ['Fresher', '0-1 years', '1-3 years', '3-5 years', '5-10 years', '10+ years'];
     const NOTICE = ['Immediate', '15 days', '30 days', '60 days', '90 days'];
@@ -558,6 +587,7 @@ function buildDashboard(applications) {
     ...alerts.filter((s) => s.confirmed).map((s) => ({ at: s.confirmedAt || s.createdAt, kind: 'Job alert', text: `${s.email} subscribed`, tab: 'job-alerts' })),
   ].sort((a, b) => b.at.localeCompare(a.at)).slice(0, 8);
 
+  const money = billing.summary();
   return {
     kpis: [
       { label: 'Open jobs', value: openJobs().length, note: `${jobs.length - openJobs().length} closed`, tab: 'jobs' },
@@ -566,7 +596,10 @@ function buildDashboard(applications) {
       { label: 'Hired', value: applications.filter((a) => statusOf(a) === 'Hired').length, note: 'placements', tab: 'applications' },
       { label: 'Hiring requests', value: hires.length, note: `+${lastWeek(hires)} this week`, tab: 'hire-requests' },
       { label: 'Alert subscribers', value: alerts.filter((a) => a.confirmed).length, note: `${alerts.filter((a) => !a.confirmed).length} unconfirmed`, tab: 'job-alerts' },
+      { label: `Billed FY ${money.fy}`, value: money.billedFy, display: billing.inr(money.billedFy), note: `${money.toInvoice} placement${money.toInvoice === 1 ? '' : 's'} to invoice`, tab: 'placements' },
+      { label: 'Outstanding', value: money.outstanding, display: billing.inr(money.outstanding), note: money.overdueCount ? `${money.overdueCount} overdue` : `${money.unpaidCount} unpaid invoice${money.unpaidCount === 1 ? '' : 's'}`, tab: 'placements&view=unpaid', alert: money.overdueCount > 0 },
     ],
+    followUps: billing.followUps(),
     days,
     funnel: APP_STATUSES.map((s) => ({ status: s, count: applications.filter((a) => statusOf(a) === s).length })),
     topJobs,
@@ -580,6 +613,8 @@ function parseJob(body) {
   const data = clean(body, ['title', 'company', 'location', 'mode', 'type', 'category', 'experience', 'salary', 'skills', 'description', 'responsibilities', 'status']);
   const errors = [];
   for (const f of ['title', 'company', 'location', 'category', 'description']) if (!data[f]) errors.push(`${f} is required`);
+  if (data.category && !jobCategories().includes(data.category)) errors.push('pick a category from the list (add new ones in Settings)');
+  if (data.location && !jobLocations().includes(data.location)) errors.push('pick a location from the list (add new ones in Settings)');
   if (!modes.includes(data.mode)) errors.push('work mode is invalid');
   if (!JOB_TYPES.includes(data.type)) errors.push('job type is invalid');
   const job = {
@@ -608,7 +643,7 @@ function nextJobId() {
 }
 
 const jobFormLocals = (job, errors) => ({
-  title: job.id ? 'Edit job' : 'Post a job', page: 'admin', job, errors, modes, jobTypes: JOB_TYPES, jobCategories: categoriesOf(jobs), clientOptions: clients.read(),
+  title: job.id ? 'Edit job' : 'Post a job', page: 'admin', job, errors, modes, jobTypes: JOB_TYPES, jobCategories: jobCategories(), jobLocations: jobLocations(), clientOptions: clients.read(),
 });
 
 app.get('/admin/jobs/new', adminAuth, (req, res) =>
@@ -664,7 +699,7 @@ app.post('/admin/jobs/:id/delete', adminAuth, sameOrigin, (req, res, next) => {
 app.post('/admin/settings', adminAuth, sameOrigin, (req, res) => {
   const { settings, errors } = parseSettings(req.body, site);
   if (errors.length) {
-    return res.status(400).render('admin', { title: 'Admin', page: 'admin', tab: 'settings', tabs: ADMIN_TABS, counts: {}, status: '', msg: '', rows: [], form: settings, errors, social: SOCIAL });
+    return res.status(400).render('admin', { title: 'Admin', page: 'admin', tab: 'settings', tabs: ADMIN_TABS, counts: {}, status: '', msg: '', rows: [], form: settings, errors, social: SOCIAL, billingForm: Object.fromEntries(Object.entries(placements.billingOf(settings)).map(([k, v]) => [k, Number.isNaN(v) ? '' : v])) });
   }
   Object.assign(site, settings);
   saveSite();
@@ -758,6 +793,7 @@ app.get('/admin/export/:type.csv', adminAuth, (req, res, next) => {
   if (['dashboard', 'blog', 'settings', 'interviews', 'clients'].includes(type)) return next();
   const rows =
     type === 'jobs' ? jobs
+    : type === 'placements' ? billing.csvRows()
     : type === 'talent' ? buildPool(readSubmissions('applications')).map(({ skillsAll, ...c }) => ({ ...c, jobsApplied: c.jobsApplied.join('; ') }))
     : readSubmissions(type);
   const cols = [...new Set(rows.flatMap((r) => Object.keys(r)))].filter((c) => c !== 'token');

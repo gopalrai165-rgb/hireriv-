@@ -201,6 +201,37 @@ function createMailer(site) {
       });
     },
 
+    invoiceIssued(emp, inv, link) {
+      const money = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(inv.total);
+      const due = new Date(`${inv.dueDate}T00:00:00Z`).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
+      send(site, {
+        to: emp.email,
+        replyTo: teamInbox,
+        subject: `Invoice ${inv.number} from ${site.name} – ${money}`,
+        heading: `Invoice ${inv.number}`,
+        html:
+          p(`Hi ${first(emp.name)}, thank you for hiring with ${esc(site.name)}. Your invoice for the placement below is ready in your client portal, where you can view, print or save it as a PDF.`) +
+          detailsTable([['Invoice', inv.number], ['For', inv.item], ['Amount (incl. GST)', money], ['Due by', due]]) +
+          button(link, 'View invoice') +
+          p(`<span style="color:#6b7690;font-size:13px">Questions about this invoice? Just reply to this email.</span>`),
+      });
+    },
+
+    creditNoteIssued(emp, inv, cn, link) {
+      const money = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(cn.total);
+      send(site, {
+        to: emp.email,
+        replyTo: teamInbox,
+        subject: `Credit note ${cn.number} from ${site.name} – ${money}`,
+        heading: `Credit note ${cn.number}`,
+        html:
+          p(`Hi ${first(emp.name)}, we've issued a credit note against invoice <b>${esc(inv.number)}</b>. It reduces the amount due on that invoice, or will be refunded if you've already paid.`) +
+          detailsTable([['Credit note', cn.number], ['Against invoice', inv.number], ['Reason', cn.note ? `${cn.reason}: ${cn.note}` : cn.reason], ['Amount (incl. GST)', money]]) +
+          button(link, 'View credit note') +
+          p(`<span style="color:#6b7690;font-size:13px">Questions? Just reply to this email.</span>`),
+      });
+    },
+
     employerReset(emp, link, hours) {
       send(site, {
         to: emp.email,

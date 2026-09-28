@@ -1,0 +1,66 @@
+<%- include('partials/head') %>
+
+<section class="section admin">
+  <div class="container narrow">
+    <a href="/admin?tab=placements" class="back-link">← Placements</a>
+    <h1><%= p.id ? 'Edit placement' : 'Record placement' %></h1>
+    <p class="lead"><b><%= a.name %></b> for <%= a.jobTitle %> · <a href="mailto:<%= a.email %>"><%= a.email %></a></p>
+    <% if (errors.length) { %><p class="notice notice-err" role="alert">Please fix: <%= errors.join(', ') %></p><% } %>
+    <% if (p.invoice) { %><p class="notice" role="note">Invoice <%= p.invoice.number %> is issued. Changes here update the placement only; to bill a different amount, cancel the invoice and issue a new one.</p><% } %>
+    <form class="form form-card placement-form" method="post" action="<%= p.id ? '/admin/placements/' + p.id : '/admin/applications/' + a.id + '/placement' %>" data-fee-calc>
+      <h2>Placement</h2>
+      <div class="form-grid">
+        <label>Type
+          <select name="type"><% types.forEach(function (t) { %><option<%= t === p.type ? ' selected' : '' %>><%= t %></option><% }) %></select>
+        </label>
+        <label>Status
+          <select name="status"><% statuses.forEach(function (s) { %><option<%= s === p.status ? ' selected' : '' %>><%= s %></option><% }) %></select>
+        </label>
+        <label>Joining date*<input type="date" name="joiningDate" required value="<%= p.joiningDate %>"></label>
+        <label>Replacement guarantee (days)<input type="number" name="guaranteeDays" min="0" max="365" required value="<%= p.guaranteeDays %>"></label>
+      </div>
+
+      <h2>Client</h2>
+      <div class="form-grid">
+        <label>Client company*<input name="company" required maxlength="160" value="<%= p.company %>"></label>
+        <label>Client portal account
+          <select name="employerId">
+            <option value="">Not on the portal</option>
+            <% clientOptions.forEach(function (c) { %><option value="<%= c.id %>"<%= c.id === p.employerId ? ' selected' : '' %>><%= c.company %> (<%= c.email %>)</option><% }) %>
+          </select>
+        </label>
+        <label>Billing name <span class="muted small">(legal entity, if different)</span><input name="billingName" maxlength="160" value="<%= p.billingName %>" placeholder="e.g. Acme Fintech Pvt Ltd"></label>
+        <label>Client GSTIN <span class="muted small">(optional)</span><input name="clientGstin" maxlength="15" value="<%= p.clientGstin %>" placeholder="29ABCDE1234F1Z5" autocapitalize="characters"></label>
+        <label class="span-2">Billing address<textarea name="billingAddress" rows="2" maxlength="400"><%= p.billingAddress %></textarea></label>
+        <label class="span-2">GST
+          <select name="taxType">
+            <option value="intra"<%= p.taxType === 'intra' ? ' selected' : '' %>>Client is in our state<%= billing.stateName ? ' (' + billing.stateName + ')' : '' %>: CGST + SGST</option>
+            <option value="inter"<%= p.taxType !== 'intra' ? ' selected' : '' %>>Client is in another state: IGST</option>
+          </select>
+        </label>
+      </div>
+
+      <h2>Fee</h2>
+      <div class="form-grid">
+        <label>Annual CTC (₹)<input name="ctc" inputmode="decimal" value="<%= p.ctc %>" placeholder="e.g. 1800000" data-fee-ctc></label>
+        <label>Fee based on
+          <select name="feeMode" data-fee-mode>
+            <option value="percent"<%= p.feeMode !== 'flat' ? ' selected' : '' %>>% of annual CTC</option>
+            <option value="flat"<%= p.feeMode === 'flat' ? ' selected' : '' %>>Fixed amount</option>
+          </select>
+        </label>
+        <label data-fee-percent-wrap>Fee %<input name="feePercent" inputmode="decimal" value="<%= p.feePercent ?? '' %>" data-fee-percent></label>
+        <label data-fee-flat-wrap>Fee amount (₹)<input name="flatFee" inputmode="decimal" value="<%= p.flatFee %>" data-fee-flat></label>
+      </div>
+      <p class="fee-preview" aria-live="polite">Fee before GST: <b data-fee-out><%= p.fee ? inr(p.fee) : '—' %></b> <span class="muted small">+ <%= billing.gstPercent %>% GST on the invoice</span></p>
+
+      <label>Internal notes <span class="muted small">(not shown to the client)</span><textarea name="notes" rows="2" maxlength="1000"><%= p.notes %></textarea></label>
+
+      <% if (!p.id) { %><p class="muted small">Saving moves the application to <b>Hired</b>. You can issue the invoice from the Placements tab once the candidate joins.</p><% } %>
+      <button class="btn btn-primary" type="submit"><%= p.id ? 'Save placement' : 'Record placement' %></button>
+      <a class="btn btn-outline" href="/admin?tab=placements">Cancel</a>
+    </form>
+  </div>
+</section>
+
+<%- include('partials/foot') %>

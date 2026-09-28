@@ -71,6 +71,36 @@
         <% } %>
       </section>
 
+      <% if (placements.length) { %>
+        <section class="dash-card dash-wide" id="billing">
+          <div class="dash-head"><h2>Placements &amp; invoices</h2><span class="muted small"><%= placements.length %> hired through us</span></div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Candidate</th><th>Joining</th><th>Replacement guarantee</th><th>Invoice</th></tr></thead>
+              <tbody>
+                <% placements.forEach(function (p) { %>
+                  <tr>
+                    <td><b><%= p.candidateName %></b><br><span class="muted small"><%= p.jobTitle %></span></td>
+                    <td><%= formatDate(p.joiningDate) %><br><span class="muted small"><%= p.status %></span></td>
+                    <td><% if (p.inGuarantee) { %>Until <%= formatDate(p.guaranteeEnds) %><% } else if (p.status === 'Joined') { %><span class="muted">Ended <%= formatDate(p.guaranteeEnds) %></span><% } else { %><span class="muted">—</span><% } %></td>
+                    <td>
+                      <% if (p.invoice) { %>
+                        <a href="/employer/invoices/<%= p.id %>"><b><%= p.invoice.number %></b></a> · <%= new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(p.invoice.total) %><br>
+                        <% if (p.invoice.status === 'Paid') { %><span class="pill st-hired">Paid</span><% } else if (p.invoice.status === 'Credited') { %><span class="pill st-new">Credited</span><% } else if (p.overdue) { %><span class="pill st-rejected">Overdue</span><% } else { %><span class="pill st-screening">Due <%= formatDate(p.invoice.dueDate) %></span><% } %>
+                        <% if (['Unpaid', 'Part paid'].includes(p.invoice.status) && p.invoice.balance !== p.invoice.total) { %><br><span class="muted small">Balance <%= new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(p.invoice.balance) %></span><% } %>
+                        <% if (p.invoice.refundDue) { %><br><span class="muted small">Refund due to you: <%= new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(p.invoice.refundDue) %></span><% } %>
+                        <% p.invoice.creditNotes.forEach(function (c) { %><br><a class="small" href="/employer/invoices/<%= p.id %>/credit-notes/<%= c.id %>">Credit note <%= c.number %></a><% }) %>
+                      <% } else { %><span class="muted small">Not invoiced yet</span><% } %>
+                    </td>
+                  </tr>
+                <% }) %>
+              </tbody>
+            </table>
+          </div>
+          <p class="muted small">If a candidate leaves during the guarantee period, tell your account manager and we'll find a replacement.</p>
+        </section>
+      <% } %>
+
       <section class="dash-card">
         <div class="dash-head"><h2>Send a new requirement</h2></div>
         <form class="form" method="post" action="/employer/requirements">

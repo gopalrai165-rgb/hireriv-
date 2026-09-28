@@ -16,6 +16,11 @@
         <svg class="i"><use href="#i-search"/></svg>
         <label class="sr-only" for="hero-q">Search jobs</label>
         <input id="hero-q" name="q" placeholder="Job title, skill or company">
+        <label class="sr-only" for="hero-loc">Location</label>
+        <select id="hero-loc" name="location">
+          <option value="">Any location</option>
+          <% locations.forEach(function (l) { %><option><%= l %></option><% }) %>
+        </select>
         <button class="btn btn-accent" type="submit">Search jobs</button>
       </form>
       <p class="hero-popular muted small">Popular:
@@ -117,14 +122,20 @@
     <div class="section-head">
       <span class="eyebrow">Specialised talent</span>
       <h2>Recruiters who know your industry</h2>
-      <p>Specialist desks for the functions that drive growth, plus expanding coverage across e-commerce, FMCG, EdTech, retail, BFSI and hospitality.</p>
+      <p>Specialist desks for ten industries, plus HR, education, legal, admin, construction and hospitality roles.</p>
     </div>
     <div class="tabs" role="tablist">
       <% const industries = [
         { key: 'tech', icon: 'i-code', name: 'Technology', text: 'Engineers, data and cloud specialists who can ship from day one.', roles: ['Full-Stack Developer', 'Cloud Engineer', 'AI / ML Engineer', 'Cybersecurity Analyst', 'DevOps Engineer', 'Mobile Developer', 'Data Scientist', 'QA Analyst', 'UI/UX Designer'] },
         { key: 'fin', icon: 'i-finance', name: 'Finance & Accounting', text: 'Finance professionals who keep the numbers right and the business compliant.', roles: ['Financial Analyst', 'Senior Accountant', 'Internal Auditor', 'Financial Controller', 'Payroll Manager', 'Budget Controller', 'Tax Consultant'] },
         { key: 'mkt', icon: 'i-megaphone', name: 'Marketing & Creative', text: 'Storytellers and growth marketers who turn attention into revenue.', roles: ['Creative Designer', 'Digital Marketing Specialist', 'Content Strategist', 'Brand Manager', 'Product Designer', 'Social Media Manager', 'Performance Marketer'] },
-        { key: 'log', icon: 'i-truck', name: 'Logistics & Operations', text: 'Operators who keep supply chains, hubs and projects running on time.', roles: ['Logistics Coordinator', 'Project Manager', 'Procurement Officer', 'Supply Chain Analyst', 'Operations Manager', 'Warehouse Supervisor', 'Hub Manager', 'Fleet Manager'] }
+        { key: 'log', icon: 'i-truck', name: 'Logistics & Operations', text: 'Operators who keep supply chains, hubs and projects running on time.', roles: ['Logistics Coordinator', 'Project Manager', 'Procurement Officer', 'Supply Chain Analyst', 'Operations Manager', 'Warehouse Supervisor', 'Hub Manager', 'Fleet Manager'] },
+        { key: 'sales', icon: 'i-target', name: 'Sales & Business Development', text: 'Closers and relationship builders who grow pipelines and hit targets.', roles: ['Business Development Manager', 'Inside Sales Executive', 'Key Account Manager', 'Area Sales Manager', 'Pre-Sales Consultant', 'Channel Sales Manager', 'Enterprise Account Executive'] },
+        { key: 'bfsi', icon: 'i-bank', name: 'Banking & Insurance', text: 'BFSI talent for branches, credit, risk and insurance, with the compliance background the sector needs.', roles: ['Relationship Manager', 'Credit Analyst', 'Branch Manager', 'Risk Analyst', 'Insurance Advisor', 'KYC Analyst', 'Collections Officer'] },
+        { key: 'health', icon: 'i-health', name: 'Healthcare & Pharma', text: 'Clinical, pharma and healthcare operations staff for hospitals, labs and life-science companies.', roles: ['Staff Nurse', 'Medical Representative', 'Pharmacist', 'Lab Technician', 'Medical Coder', 'Clinical Research Associate', 'Hospital Administrator'] },
+        { key: 'eng', icon: 'i-gear', name: 'Engineering & Manufacturing', text: 'Plant, production and quality engineers who keep lines running safely and efficiently.', roles: ['Production Engineer', 'Quality Engineer', 'Mechanical Design Engineer', 'Maintenance Engineer', 'Plant Manager', 'CNC Operator', 'EHS Officer'] },
+        { key: 'bpo', icon: 'i-headset', name: 'Customer Support & BPO', text: 'Voice, chat and back-office teams hired at volume, trained and ready to go live.', roles: ['Customer Support Executive', 'Team Leader', 'Quality Analyst', 'Technical Support Engineer', 'Process Trainer', 'Back-Office Executive', 'Workforce Analyst'] },
+        { key: 'retail', icon: 'i-cart', name: 'Retail & E-commerce', text: 'Store, category and marketplace talent for fast-moving retail and online brands.', roles: ['Store Manager', 'Category Manager', 'Visual Merchandiser', 'E-commerce Executive', 'Catalogue Specialist', 'Retail Sales Associate', 'Inventory Controller'] }
       ] %>
       <% industries.forEach(function (ind, i) { %>
         <button role="tab" class="tab<%= i === 0 ? ' active' : '' %>" aria-selected="<%= i === 0 %>" aria-controls="panel-<%= ind.key %>" id="tab-<%= ind.key %>">
@@ -254,7 +265,7 @@
     <div class="faq">
       <% [
         ['What makes Hireriv different from other staffing agencies?', 'We combine AI-assisted matching with a six-stage human screening process, specialist recruiters for each industry, and a dedicated account manager, so you get fewer, better profiles and a faster hire.'],
-        ['Which industries do you specialise in?', 'Technology, Finance & Accounting, Marketing & Creative, and Logistics & Operations, with growing coverage across e-commerce, FMCG, EdTech, retail, BFSI, media and hospitality.'],
+        ['Which industries do you specialise in?', 'Technology, Finance & Accounting, Banking & Insurance, Sales, Marketing & Creative, Healthcare & Pharma, Engineering & Manufacturing, Customer Support & BPO, Retail & E-commerce, and Logistics & Operations, plus HR, education, legal, admin, construction and hospitality roles.'],
         ['How quickly can you share candidates?', 'For most roles we share a first shortlist within 72 hours of the brief. Niche and leadership roles typically take one to two weeks.'],
         ['Do you only help with hiring, or offer end-to-end HR support?', 'Both. Beyond recruitment we offer contract staffing with payroll, background verification, onboarding and corporate training, so we can act as your extended HR team.'],
         ['What is the six-stage filter?', 'Need analysis, sourcing, candidate evaluation, interview presentation, background checks, and offer negotiation & closure. Every candidate passes all six before joining.'],
