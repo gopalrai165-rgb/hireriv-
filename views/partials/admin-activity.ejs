@@ -1,0 +1,24 @@
+<div class="pipeline">
+  <a class="pill<%= !who ? ' active' : '' %>" href="/admin?tab=activity">Everyone</a>
+  <% people.forEach(function (u) { %><a class="pill<%= who === u.id ? ' active' : '' %>" href="/admin?tab=activity&user=<%= u.id %>"><%= u.name %></a><% }) %>
+</div>
+<p class="muted small talent-summary">Every change made in the admin panel, newest first (the latest 2,000 are kept). Download the full log with Export CSV.</p>
+
+<% if (!rows.length) { %>
+  <div class="empty"><p>No activity yet.</p></div>
+<% } else { %>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>When</th><th>Who</th><th>What</th></tr></thead>
+      <tbody>
+        <% rows.forEach(function (a) { %>
+          <tr>
+            <td class="nowrap"><%= new Date(a.at).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit', timeZone: 'Asia/Kolkata' }) %></td>
+            <td><%= a.userName %></td>
+            <td><%= a.action %></td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+<% } %>

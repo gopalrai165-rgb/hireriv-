@@ -230,7 +230,7 @@ const moneyIn = (v) => {
 };
 
 function register(app, deps) {
-  const { db, site, mailer, baseUrl, adminAuth, sameOrigin, adminUrl, readSubmissions, writeSubmissions, getJobs, clients, requireEmployer } = deps;
+  const { db, site, mailer, baseUrl, adminAuth, requireAdmin, sameOrigin, adminUrl, readSubmissions, writeSubmissions, getJobs, clients, requireEmployer } = deps;
   const read = () => db.all('placements');
   const write = (list) => db.replaceAll('placements', list);
   const clientById = (id) => clients.read().find((c) => c.id === id);
@@ -361,7 +361,7 @@ function register(app, deps) {
   });
 
   // Issued invoices are tax records, so a placement with one can't be deleted.
-  app.post('/admin/placements/:id/delete', adminAuth, sameOrigin, (req, res, next) => {
+  app.post('/admin/placements/:id/delete', adminAuth, requireAdmin, sameOrigin, (req, res, next) => {
     const { list, p } = findPlacement(req.params.id);
     if (!p) return next();
     if (invoicesOf(p).length || (p.cancelledInvoices || []).length) return res.redirect(adminUrl('placements', "Placements with an invoice can't be deleted (invoices are tax records)"));
@@ -388,7 +388,7 @@ function register(app, deps) {
   }
   const invoiceLink = (p, inv) => `${baseUrl}/employer/invoices/${p.id}${inv.id ? `?inv=${inv.id}` : ''}`;
 
-  app.post('/admin/placements/:id/invoice', adminAuth, sameOrigin, (req, res, next) => {
+  app.post('/admin/placements/:id/invoice', adminAuth, requireAdmin, sameOrigin, (req, res, next) => {
     const { list, p } = findPlacement(req.params.id);
     if (!p) return next();
     if (p.invoice) return res.redirect(adminUrl('placements', `Invoice ${p.invoice.number} is already issued`));
@@ -420,13 +420,13 @@ function register(app, deps) {
     });
   }
 
-  app.get('/admin/placements/:id/bill', adminAuth, (req, res, next) => {
+  app.get('/admin/placements/:id/bill', adminAuth, requireAdmin, (req, res, next) => {
     const { p } = findPlacement(req.params.id);
     if (!p || p.feeMode !== 'monthly') return next();
     billPage(res, p, String(req.query.month || ''));
   });
 
-  app.post('/admin/placements/:id/bill', adminAuth, sameOrigin, (req, res, next) => {
+  app.post('/admin/placements/:id/bill', adminAuth, requireAdmin, sameOrigin, (req, res, next) => {
     const { list, p } = findPlacement(req.params.id);
     if (!p || p.feeMode !== 'monthly') return next();
     const month = String(req.body.month || '');
@@ -464,7 +464,7 @@ function register(app, deps) {
 
   // Cancelling keeps the number on record (no gaps are reused) and lets you reissue.
   // Once money or a credit note is recorded, use a credit note instead (GST rules).
-  app.post('/admin/placements/:id/invoice/cancel', adminAuth, sameOrigin, (req, res, next) => {
+  app.post('/admin/placements/:id/invoice/cancel', adminAuth, requireAdmin, sameOrigin, (req, res, next) => {
     const { list, p } = findPlacement(req.params.id);
     const current = pickInvoice(p, keyFrom(req));
     if (!current) return next();
@@ -497,14 +497,14 @@ function register(app, deps) {
     });
   }
 
-  app.get('/admin/placements/:id/payments', adminAuth, (req, res, next) => {
+  app.get('/admin/placements/:id/payments', adminAuth, requireAdmin, (req, res, next) => {
     const { p } = findPlacement(req.params.id);
     const inv = pickInvoice(p, keyFrom(req));
     if (!inv) return next();
     paymentsPage(res, p, inv, { msg: String(req.query.msg || '') });
   });
 
-  app.post('/admin/placements/:id/payments', adminAuth, sameOrigin, (req, res, next) => {
+  app.post('/admin/placements/:id/payments', adminAuth, requireAdmin, sameOrigin, (req, res, next) => {
     const { list, p } = findPlacement(req.params.id);
     const inv = pickInvoice(p, keyFrom(req));
     if (!inv) return next();
@@ -527,7 +527,7 @@ function register(app, deps) {
     res.redirect(paymentsUrl(p, inv, `Recorded ${inr(pay.amount)}${pay.tds ? ` + ${inr(pay.tds)} TDS` : ''} · invoice is ${inv.status.toLowerCase()}`));
   });
 
-  app.post('/admin/placements/:id/payments/:payId/delete', adminAuth, sameOrigin, (req, res, next) => {
+  app.post('/admin/placements/:id/payments/:payId/delete', adminAuth, requireAdmin, sameOrigin, (req, res, next) => {
     const { list, p } = findPlacement(req.params.id);
     const inv = p && invoicesOf(p).find((i) => (i.payments || []).some((x) => x.id === req.params.payId));
     if (!inv) return next();
@@ -552,7 +552,7 @@ function register(app, deps) {
   });
 
   // ----- refunds -----
-  app.post('/admin/placements/:id/refunds', adminAuth, sameOrigin, (req, res, next) => {
+  app.post('/admin/placements/:id/refunds', adminAuth, requireAdmin, sameOrigin, (req, res, next) => {
     const { list, p } = findPlacement(req.params.id);
     const inv = pickInvoice(p, keyFrom(req));
     if (!inv) return next();
@@ -572,7 +572,7 @@ function register(app, deps) {
     res.redirect(paymentsUrl(p, inv, `Refund of ${inr(refund.amount)} recorded`));
   });
 
-  app.post('/admin/placements/:id/refunds/:refundId/delete', adminAuth, sameOrigin, (req, res, next) => {
+  app.post('/admin/placements/:id/refunds/:refundId/delete', adminAuth, requireAdmin, sameOrigin, (req, res, next) => {
     const { list, p } = findPlacement(req.params.id);
     const inv = p && invoicesOf(p).find((i) => (i.refunds || []).some((x) => x.id === req.params.refundId));
     if (!inv) return next();
@@ -595,7 +595,7 @@ function register(app, deps) {
     return true;
   }
 
-  app.post('/admin/placements/:id/remind', adminAuth, sameOrigin, (req, res, next) => {
+  app.post('/admin/placements/:id/remind', adminAuth, requireAdmin, sameOrigin, (req, res, next) => {
     const { list, p } = findPlacement(req.params.id);
     const inv = pickInvoice(p, keyFrom(req));
     if (!inv) return next();
@@ -629,7 +629,7 @@ function register(app, deps) {
 
   // A credit note reduces what the client owes (or creates a refund if they've paid).
   // It carries GST at the invoice's rate and split, and its own number series.
-  app.post('/admin/placements/:id/credit-notes', adminAuth, sameOrigin, (req, res, next) => {
+  app.post('/admin/placements/:id/credit-notes', adminAuth, requireAdmin, sameOrigin, (req, res, next) => {
     const { list, p } = findPlacement(req.params.id);
     const inv = pickInvoice(p, keyFrom(req));
     if (!inv) return next();
@@ -667,7 +667,7 @@ function register(app, deps) {
       p, inv, cn, back, cnBase, acct: accountOf(inv), inr, amountInWords, formatYmd,
     });
 
-  app.get('/admin/placements/:id/invoice', adminAuth, (req, res, next) => {
+  app.get('/admin/placements/:id/invoice', adminAuth, requireAdmin, (req, res, next) => {
     const { p } = findPlacement(req.params.id);
     const inv = p && (req.query.n ? (p.cancelledInvoices || []).find((i) => i.number === req.query.n) : pickInvoice(p, keyFrom(req)));
     if (!inv) return next();
@@ -683,7 +683,7 @@ function register(app, deps) {
     return null;
   };
 
-  app.get('/admin/placements/:id/credit-notes/:cnId', adminAuth, (req, res, next) => {
+  app.get('/admin/placements/:id/credit-notes/:cnId', adminAuth, requireAdmin, (req, res, next) => {
     const { p } = findPlacement(req.params.id);
     const hit = p && creditNoteIn(p, req.params.cnId);
     if (!hit) return next();

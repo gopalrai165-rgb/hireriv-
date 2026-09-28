@@ -161,6 +161,22 @@ function createMailer(site) {
       });
     },
 
+    teamInvite(user, by, link, hours) {
+      const reset = Boolean(user.passwordHash);
+      send(site, {
+        to: user.email,
+        replyTo: teamInbox,
+        subject: reset ? `Reset your ${site.name} team password` : `${by.name} invited you to the ${site.name} team`,
+        heading: reset ? 'Choose a new password' : `Welcome to the ${site.name} team`,
+        html:
+          p(reset
+            ? `Hi ${first(user.name)}, ${esc(by.name)} sent you a link to choose a new password for the ${esc(site.name)} admin panel.`
+            : `Hi ${first(user.name)}, ${esc(by.name)} added you to the ${esc(site.name)} admin panel as <b>${esc(user.role)}</b>. Choose a password to get started.`) +
+          button(link, reset ? 'Choose a new password' : 'Set up my account') +
+          p(`<span style="color:#6b7690;font-size:13px">This link works once and expires in ${hours} hours. After that, sign in at ${esc(baseUrl)}/admin/login with ${esc(user.email)}.</span>`),
+      });
+    },
+
     employerInvite(emp, link, hours) {
       send(site, {
         to: emp.email,

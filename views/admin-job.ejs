@@ -38,6 +38,12 @@
             <% clientOptions.forEach(function (c) { %><option value="<%= c.id %>"<%= c.id === job.employerId ? ' selected' : '' %>><%= c.company %> · <%= c.name %></option><% }) %>
           </select>
         </label>
+        <label>Recruiter <span class="muted small">(owns this job and its applicants)</span>
+          <select name="ownerId">
+            <option value="">Unassigned</option>
+            <% members.forEach(function (u) { %><option value="<%= u.id %>"<%= u.id === job.ownerId ? ' selected' : '' %>><%= u.name %> · <%= u.role %></option><% }) %>
+          </select>
+        </label>
         <label>Status
           <select name="status">
             <option value="open"<%= job.status !== 'closed' ? ' selected' : '' %>>Open – accepting applications</option>

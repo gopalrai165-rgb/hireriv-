@@ -1,0 +1,23 @@
+<%- include('partials/head') %>
+
+<section class="section auth-section">
+  <div class="container auth-wrap">
+    <div class="form-card auth-card">
+      <span class="eyebrow"><%= site.name %> team</span>
+      <h1>Sign in</h1>
+      <p class="muted">Use the email your Admin invited you with. The owner account signs in with its username.</p>
+      <% if (errors.length) { %><p class="notice notice-err" role="alert"><%= errors.join(' ') %></p><% } %>
+      <form class="form" method="post" action="/admin/login">
+        <input type="hidden" name="next" value="<%= next %>">
+        <div class="form-grid">
+          <label class="span-2">Email or username<input name="login" required autocomplete="username" value="<%= login %>" autocapitalize="none"></label>
+          <label class="span-2">Password<input type="password" name="password" required autocomplete="current-password"></label>
+        </div>
+        <button class="btn btn-primary btn-block" type="submit">Sign in</button>
+      </form>
+      <p class="small auth-links">Forgot your password? Ask an Admin on your team to send you a new link.</p>
+    </div>
+  </div>
+</section>
+
+<%- include('partials/foot') %>

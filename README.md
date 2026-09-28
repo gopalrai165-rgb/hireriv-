@@ -16,6 +16,9 @@ A complete website for a tech-driven staffing and recruitment company, built wit
 - **Client portal** (`/employer`): clients log in to see their roles with applicant counts by stage, their placements with guarantee end dates and invoices (view, print or save as PDF), send new hiring requirements (they arrive in Admin → Hire requests and by email) and follow their status. Passwords are hashed with scrypt, invite/reset links are single-use and expire, and logins are rate-limited
 - **SEO**: Google for Jobs structured data (JobPosting) on every open job, Organization/WebSite/BlogPosting data, `/sitemap.xml`, `/robots.txt`, canonical and Open Graph tags. Closed jobs are removed from the sitemap and marked `noindex`
 - **Admin panel** (`/admin`):
+  - **Team logins**: everyone signs in at `/admin/login` with their own email and password; sessions last 12 hours and there's a Sign out link. Admins invite people from the **Team** tab (they get a one-time link to choose a password, valid for 3 days), change roles, resend links and deactivate accounts (which signs them out at once). **Admin** can do everything. **Recruiter** works jobs, candidates, interviews, shortlists and clients and records placements, but can't see or touch invoices, payments, billing totals, settings, the team, the activity log or backups, and can't delete records. The team always keeps at least one Admin, and 10 wrong passwords lock out an IP for 15 minutes
+  - **Ownership**: each job has a recruiter owner, and its applicants belong to that owner unless you assign one directly on the application. Filter the Jobs and Applications tabs by Mine, Unassigned or any team member. Recruiters get a "My candidates" number on the dashboard
+  - **Activity log** (Admins): every change made in the admin panel, with who made it and when (sign-ins, jobs posted, stage changes, invoices, payments, team changes). Filter it by person or export it as CSV. The latest 2,000 entries are kept
   - **Dashboard** (opens first): key numbers, a 14-day applications chart, the candidate pipeline funnel, most-applied jobs and recent activity
   - **Jobs**: post, edit, close/reopen and delete openings. Closed jobs drop out of listings, keep their page, and stop taking applications
   - **Applications pipeline**: move candidates through New → Screening → Interview → Offered → Hired / Rejected, add recruiter notes, filter by stage and download resumes
@@ -40,7 +43,7 @@ To enable the admin panel, set a password first:
 ```powershell
 $env:ADMIN_PASS="choose-a-strong-password"; npm start   # PowerShell
 ```
-Then open http://localhost:3004/admin and log in as `admin` (change the username with `ADMIN_USER`).
+Then open http://localhost:3004/admin/login and sign in as `admin` with that password. This is the built-in **owner** account (an Admin), and you can change the username with `ADMIN_USER`. From the **Team** tab, invite your recruiters so each person has their own login.
 
 ## Email setup
 Without SMTP settings, every email is saved to `data/outbox/*.eml` (open these in Outlook or any mail app to preview them). To send real email, set these before `npm start`:

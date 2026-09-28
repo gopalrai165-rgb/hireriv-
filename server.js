@@ -12,6 +12,7 @@ const interviews = require('./interviews');
 const employers = require('./employers');
 const candidates = require('./candidates');
 const placements = require('./placements');
+const teamModule = require('./team');
 const { interviewIcs } = require('./ics');
 
 const PORT = process.env.PORT || 3004;
@@ -438,29 +439,14 @@ app.post('/api/newsletter', limit('newsletter', 5), (req, res) => {
   respond(req, res, errors, "You're subscribed! Expect hiring insights and new roles in your inbox.");
 });
 
-// ---------- admin (HTTP Basic auth, enabled only when ADMIN_PASS is set) ----------
-const failedLogins = new Map();
+// ---------- admin (team logins; see team.js) ----------
+// ADMIN_USER / ADMIN_PASS is the built-in owner account; everyone else is
+// invited from the Team tab and signs in with their own email and password.
+const team = teamModule.create({ db, mailer, baseUrl: BASE_URL, ownerUser: ADMIN_USER, ownerPass: ADMIN_PASS });
+const { adminAuth, requireAdmin } = team;
 
-function adminAuth(req, res, next) {
-  if (!ADMIN_PASS) return res.status(503).send('Admin is disabled. Set the ADMIN_PASS environment variable to enable it.');
-  const fails = (failedLogins.get(req.ip) || []).filter((t) => Date.now() - t < 15 * 60 * 1000);
-  if (fails.length >= 10) return res.status(429).send('Too many failed login attempts. Try again in 15 minutes.');
-  const [scheme, encoded] = (req.get('Authorization') || '').split(' ');
-  if (scheme === 'Basic' && encoded) {
-    const [user, ...rest] = Buffer.from(encoded, 'base64').toString().split(':');
-    const pass = rest.join(':');
-    const safeEq = (a, b) => a.length === b.length && crypto.timingSafeEqual(Buffer.from(a), Buffer.from(b));
-    if (safeEq(user, ADMIN_USER) && safeEq(pass, ADMIN_PASS)) {
-      failedLogins.delete(req.ip);
-      return next();
-    }
-    failedLogins.set(req.ip, [...fails, Date.now()]);
-  }
-  res.set('WWW-Authenticate', 'Basic realm="Hireriv Admin"').status(401).send('Authentication required');
-}
-
-// Basic-auth credentials ride along on cross-site form posts, so every admin write
-// must come from a page on this same host.
+// Sign-in cookies ride along on cross-site form posts, so every admin write must
+// come from a page on this same host.
 function sameOrigin(req, res, next) {
   const src = req.get('Origin') || req.get('Referer');
   try {
@@ -469,8 +455,21 @@ function sameOrigin(req, res, next) {
   res.status(403).send('Cross-site request blocked');
 }
 
-const ADMIN_TABS = ['dashboard', 'jobs', 'talent', 'interviews', 'placements', 'clients', ...FORM_TYPES, 'blog', 'settings'];
+const ADMIN_TABS = ['dashboard', 'jobs', 'talent', 'interviews', 'placements', 'clients', ...FORM_TYPES, 'blog', 'settings', 'team', 'activity'];
+// Recruiters don't see these tabs.
+const ADMIN_ONLY_TABS = ['settings', 'team', 'activity'];
+const tabsFor = (user) => ADMIN_TABS.filter((t) => user.role === 'Admin' || !ADMIN_ONLY_TABS.includes(t));
 const adminUrl = (tab, msg) => `/admin?tab=${tab}${msg ? `&msg=${encodeURIComponent(msg)}` : ''}`;
+
+team.register(app, { sameOrigin, adminUrl });
+
+// ----- ownership -----
+// Jobs have a recruiter who owns them; an application belongs to its job's
+// owner unless someone is assigned to it directly.
+const appOwner = (a) => a.ownerId || (jobs.find((j) => j.id === a.jobId) || {}).ownerId || '';
+const ownerFilter = (req) => (['me', 'none'].includes(req.query.owner) ? req.query.owner : team.members().some((u) => u.id === req.query.owner) ? req.query.owner : '');
+const matchesOwner = (ownerId, filter, user) => (filter === 'me' ? ownerId === user.id : filter === 'none' ? !ownerId : ownerId === filter);
+const validOwner = (id) => (team.members().some((u) => u.id === id) ? id : '');
 
 interviews.register(app, { adminAuth, sameOrigin, readSubmissions, writeSubmissions, mailer, site, adminUrl });
 const clients = employers.register(app, {
@@ -479,7 +478,7 @@ const clients = employers.register(app, {
   writeSubmissions, uploadsDir: UPLOADS_DIR, skillMatch, placementsFor: (emp) => billing.forClient(emp),
 });
 const billing = placements.register(app, {
-  db, site, mailer, baseUrl: BASE_URL, adminAuth, sameOrigin, adminUrl, readSubmissions, writeSubmissions,
+  db, site, mailer, baseUrl: BASE_URL, adminAuth, requireAdmin, sameOrigin, adminUrl, readSubmissions, writeSubmissions,
   getJobs: () => jobs, clients, requireEmployer: clients.requireEmployer,
 });
 candidates.register(app, {
@@ -488,16 +487,25 @@ candidates.register(app, {
 });
 
 app.get('/admin', adminAuth, (req, res) => {
-  const tab = ADMIN_TABS.includes(req.query.tab) ? req.query.tab : 'dashboard';
+  const tabs = tabsFor(req.admin);
+  const tab = tabs.includes(req.query.tab) ? req.query.tab : 'dashboard';
   const applications = readSubmissions('applications');
-  const counts = { dashboard: '', settings: '', blog: posts.length, interviews: interviews.upcoming(applications).length, placements: billing.read().length, clients: clients.read().length, jobs: jobs.length, talent: new Set(applications.map((a) => String(a.email).toLowerCase())).size, ...Object.fromEntries(FORM_TYPES.map((t) => [t, readSubmissions(t).length])) };
-  const locals = { title: 'Admin', page: 'admin', tab, tabs: ADMIN_TABS, counts, status: '', msg: String(req.query.msg || '') };
+  const counts = { dashboard: '', settings: '', activity: '', team: team.members().length, blog: posts.length, interviews: interviews.upcoming(applications).length, placements: billing.read().length, clients: clients.read().length, jobs: jobs.length, talent: new Set(applications.map((a) => String(a.email).toLowerCase())).size, ...Object.fromEntries(FORM_TYPES.map((t) => [t, readSubmissions(t).length])) };
+  const members = team.members();
+  const memberName = Object.fromEntries(members.map((u) => [u.id, u.name]));
+  const locals = { title: 'Admin', page: 'admin', tab, tabs, counts, status: '', msg: String(req.query.msg || ''), members, memberName };
 
-  if (tab === 'dashboard') return res.render('admin', { ...locals, rows: [], dash: buildDashboard(applications) });
+  if (tab === 'dashboard') return res.render('admin', { ...locals, rows: [], dash: buildDashboard(applications, req.admin) });
+  if (tab === 'team') return res.render('admin', { ...locals, rows: team.list(), roles: team.ROLES });
+  if (tab === 'activity') {
+    const who = String(req.query.user || '');
+    return res.render('admin', { ...locals, rows: team.activity({ userId: who }), who, people: team.list() });
+  }
   if (tab === 'jobs') {
     const applicants = {};
     for (const a of applications) applicants[a.jobId] = (applicants[a.jobId] || 0) + 1;
-    return res.render('admin', { ...locals, rows: jobs, applicants });
+    const owner = ownerFilter(req);
+    return res.render('admin', { ...locals, rows: owner ? jobs.filter((j) => matchesOwner(j.ownerId || '', owner, req.admin)) : jobs, applicants, owner });
   }
   if (tab === 'applications') {
     const placedApps = new Set(billing.read().map((p) => p.appId));
@@ -505,10 +513,12 @@ app.get('/admin', adminAuth, (req, res) => {
     const statusCounts = Object.fromEntries(APP_STATUSES.map((s) => [s, applications.filter((a) => statusOf(a) === s).length]));
     const status = APP_STATUSES.includes(req.query.status) ? req.query.status : '';
     const sort = req.query.sort === 'match' ? 'match' : '';
+    const owner = ownerFilter(req);
     let rows = (status ? applications.filter((a) => statusOf(a) === status) : applications)
-      .map((a) => ({ ...a, match: skillMatch(a, jobs.find((j) => j.id === a.jobId)) }));
+      .map((a) => ({ ...a, owner: appOwner(a), match: skillMatch(a, jobs.find((j) => j.id === a.jobId)) }))
+      .filter((a) => !owner || matchesOwner(a.owner, owner, req.admin));
     if (sort) rows = rows.sort((a, b) => (b.match?.score ?? -1) - (a.match?.score ?? -1));
-    return res.render('admin', { ...locals, rows, statuses: APP_STATUSES, statusCounts, status, sort, clientOptions: clients.read().filter((c) => c.active), placedApps, jobClient: Object.fromEntries(jobs.map((j) => [j.id, j.employerId || ''])) });
+    return res.render('admin', { ...locals, rows, owner, statuses: APP_STATUSES, statusCounts, status, sort, clientOptions: clients.read().filter((c) => c.active), placedApps, jobClient: Object.fromEntries(jobs.map((j) => [j.id, j.employerId || ''])) });
   }
   if (tab === 'blog') return res.render('admin', { ...locals, rows: posts });
   if (tab === 'clients') {
@@ -558,7 +568,7 @@ const DAY_MS = 86400000;
 // Day buckets follow India time so "today" matches the recruiters' calendar.
 const dayKey = (d) => new Date(d).toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
 
-function buildDashboard(applications) {
+function buildDashboard(applications, user) {
   const hires = readSubmissions('hire-requests');
   const contacts = readSubmissions('contacts');
   const alerts = readSubmissions('job-alerts');
@@ -590,18 +600,22 @@ function buildDashboard(applications) {
   ].sort((a, b) => b.at.localeCompare(a.at)).slice(0, 8);
 
   const money = billing.summary();
+  const isAdmin = user.role === 'Admin';
+  const mine = applications.filter((a) => appOwner(a) === user.id && !['Hired', 'Rejected'].includes(statusOf(a)));
   return {
     kpis: [
+      ...(isAdmin ? [] : [{ label: 'My candidates', value: mine.length, note: `${mine.filter((a) => statusOf(a) === 'New').length} new to review`, tab: 'applications&owner=me' }]),
       { label: 'Open jobs', value: openJobs().length, note: `${jobs.length - openJobs().length} closed`, tab: 'jobs' },
       { label: 'Applications', value: applications.length, note: `+${lastWeek(applications)} this week`, tab: 'applications' },
       { label: 'In progress', value: applications.filter((a) => ['Screening', 'Interview', 'Offered'].includes(statusOf(a))).length, note: `${applications.filter((a) => statusOf(a) === 'New').length} new to review`, tab: 'applications' },
       { label: 'Hired', value: applications.filter((a) => statusOf(a) === 'Hired').length, note: 'placements', tab: 'applications' },
       { label: 'Hiring requests', value: hires.length, note: `+${lastWeek(hires)} this week`, tab: 'hire-requests' },
       { label: 'Alert subscribers', value: alerts.filter((a) => a.confirmed).length, note: `${alerts.filter((a) => !a.confirmed).length} unconfirmed`, tab: 'job-alerts' },
-      { label: `Billed FY ${money.fy}`, value: money.billedFy, display: billing.inr(money.billedFy), note: `${money.toInvoice} placement${money.toInvoice === 1 ? '' : 's'} to invoice`, tab: 'placements' },
-      { label: 'Outstanding', value: money.outstanding, display: billing.inr(money.outstanding), note: money.overdueCount ? `${money.overdueCount} overdue` : `${money.unpaidCount} unpaid invoice${money.unpaidCount === 1 ? '' : 's'}`, tab: 'placements&view=unpaid', alert: money.overdueCount > 0 },
+      ...(!isAdmin ? [] : [{ label: `Billed FY ${money.fy}`, value: money.billedFy, display: billing.inr(money.billedFy), note: `${money.toInvoice} placement${money.toInvoice === 1 ? '' : 's'} to invoice`, tab: 'placements' },
+      { label: 'Outstanding', value: money.outstanding, display: billing.inr(money.outstanding), note: money.overdueCount ? `${money.overdueCount} overdue` : `${money.unpaidCount} unpaid invoice${money.unpaidCount === 1 ? '' : 's'}`, tab: 'placements&view=unpaid', alert: money.overdueCount > 0 }]),
     ],
-    followUps: billing.followUps(),
+    // Recruiters see joinings, guarantees and replacements, not money.
+    followUps: billing.followUps().filter((f) => isAdmin || ['Joining', 'Confirm joining', 'Guarantee ends', 'Find replacement'].includes(f.kind)),
     days,
     funnel: APP_STATUSES.map((s) => ({ status: s, count: applications.filter((a) => statusOf(a) === s).length })),
     topJobs,
@@ -633,6 +647,7 @@ function parseJob(body) {
     responsibilities: data.responsibilities.split(/\r?\n/).map((s) => s.trim()).filter(Boolean),
     status: data.status === 'closed' ? 'closed' : 'open',
     employerId: clients.read().some((c) => c.id === body.employerId) ? body.employerId : '',
+    ownerId: validOwner(String(body.ownerId || '')),
   };
   return { job, errors };
 }
@@ -645,11 +660,11 @@ function nextJobId() {
 }
 
 const jobFormLocals = (job, errors) => ({
-  title: job.id ? 'Edit job' : 'Post a job', page: 'admin', job, errors, modes, jobTypes: JOB_TYPES, jobCategories: jobCategories(), jobLocations: jobLocations(), clientOptions: clients.read(),
+  title: job.id ? 'Edit job' : 'Post a job', page: 'admin', job, errors, modes, jobTypes: JOB_TYPES, jobCategories: jobCategories(), jobLocations: jobLocations(), clientOptions: clients.read(), members: team.members(),
 });
 
 app.get('/admin/jobs/new', adminAuth, (req, res) =>
-  res.render('admin-job', jobFormLocals({ mode: 'On-site', type: 'Full-time', status: 'open', skills: [], responsibilities: [] }, []))
+  res.render('admin-job', jobFormLocals({ mode: 'On-site', type: 'Full-time', status: 'open', skills: [], responsibilities: [], ownerId: req.admin.id }, []))
 );
 
 app.get('/admin/jobs/:id/edit', adminAuth, (req, res, next) => {
@@ -688,7 +703,7 @@ app.post('/admin/jobs/:id/toggle', adminAuth, sameOrigin, (req, res, next) => {
   res.redirect(adminUrl('jobs', `${job.status === 'open' ? 'Reopened' : 'Closed'} "${job.title}"${alertedNote(alerted)}`));
 });
 
-app.post('/admin/jobs/:id/delete', adminAuth, sameOrigin, (req, res, next) => {
+app.post('/admin/jobs/:id/delete', adminAuth, requireAdmin, sameOrigin, (req, res, next) => {
   const job = jobs.find((j) => j.id === req.params.id);
   if (!job) return next();
   jobs = jobs.filter((j) => j !== job);
@@ -698,10 +713,10 @@ app.post('/admin/jobs/:id/delete', adminAuth, sameOrigin, (req, res, next) => {
 
 // ----- site settings -----
 // `site` is shared by every view (app.locals) and the mailer, so it is updated in place.
-app.post('/admin/settings', adminAuth, sameOrigin, (req, res) => {
+app.post('/admin/settings', adminAuth, requireAdmin, sameOrigin, (req, res) => {
   const { settings, errors } = parseSettings(req.body, site);
   if (errors.length) {
-    return res.status(400).render('admin', { title: 'Admin', page: 'admin', tab: 'settings', tabs: ADMIN_TABS, counts: {}, status: '', msg: '', rows: [], form: settings, errors, social: SOCIAL, billingForm: Object.fromEntries(Object.entries(placements.billingOf(settings)).map(([k, v]) => [k, Number.isNaN(v) ? '' : v])) });
+    return res.status(400).render('admin', { title: 'Admin', page: 'admin', tab: 'settings', tabs: tabsFor(req.admin), counts: {}, members: team.members(), memberName: {}, status: '', msg: '', rows: [], form: settings, errors, social: SOCIAL, billingForm: Object.fromEntries(Object.entries(placements.billingOf(settings)).map(([k, v]) => [k, Number.isNaN(v) ? '' : v])) });
   }
   Object.assign(site, settings);
   saveSite();
@@ -739,7 +754,7 @@ app.post('/admin/blog/:slug', adminAuth, sameOrigin, (req, res, next) => {
   res.redirect(adminUrl('blog', `Saved "${existing.title}"`));
 });
 
-app.post('/admin/blog/:slug/delete', adminAuth, sameOrigin, (req, res, next) => {
+app.post('/admin/blog/:slug/delete', adminAuth, requireAdmin, sameOrigin, (req, res, next) => {
   const i = posts.findIndex((p) => p.slug === req.params.slug);
   if (i === -1) return next();
   const [removed] = posts.splice(i, 1);
@@ -752,10 +767,12 @@ app.post('/admin/applications/:id/status', adminAuth, sameOrigin, (req, res, nex
   const list = readSubmissions('applications');
   const entry = list.find((a) => a.id === req.params.id);
   if (!entry) return next();
-  const { status, notes, notify } = clean(req.body, ['status', 'notes', 'notify']);
+  const { status, notes, notify, ownerId } = clean(req.body, ['status', 'notes', 'notify', 'ownerId']);
   if (!APP_STATUSES.includes(status)) return res.status(400).send('Invalid status');
   const changed = (entry.status || 'New') !== status;
   Object.assign(entry, { status, notes, updatedAt: new Date().toISOString() });
+  // "job" means follow the job's owner; otherwise a named team member.
+  if (ownerId !== undefined && req.body.ownerId !== undefined) entry.ownerId = ownerId === 'job' ? '' : validOwner(ownerId) || entry.ownerId || '';
   // Email the candidate only on a real stage change the recruiter opted into.
   const emailed = changed && notify === '1' && mailer.statusChanged(entry);
   if (emailed) entry.lastEmailedStatus = status;
@@ -764,7 +781,7 @@ app.post('/admin/applications/:id/status', adminAuth, sameOrigin, (req, res, nex
   res.redirect(adminUrl('applications', `${entry.name} moved to ${status}${emailed ? ' (candidate emailed)' : ''}`) + back);
 });
 
-app.post('/admin/:type/:id/delete', adminAuth, sameOrigin, (req, res, next) => {
+app.post('/admin/:type/:id/delete', adminAuth, requireAdmin, sameOrigin, (req, res, next) => {
   const { type, id } = req.params;
   if (!FORM_TYPES.includes(type)) return next();
   const list = readSubmissions(type);
@@ -776,7 +793,7 @@ app.post('/admin/:type/:id/delete', adminAuth, sameOrigin, (req, res, next) => {
 });
 
 // Full database snapshot (VACUUM INTO) for backups; safe while the site runs.
-app.get('/admin/backup', adminAuth, (req, res) => {
+app.get('/admin/backup', adminAuth, requireAdmin, (req, res) => {
   const file = path.join(require('os').tmpdir(), `hireriv-backup-${Date.now()}.db`);
   db.backupTo(file);
   res.download(file, `hireriv-${new Date().toISOString().slice(0, 10)}.db`, () => fs.unlink(file, () => {}));
@@ -792,10 +809,13 @@ function csvCell(v) {
 app.get('/admin/export/:type.csv', adminAuth, (req, res, next) => {
   const { type } = req.params;
   if (!ADMIN_TABS.includes(type)) return next();
-  if (['dashboard', 'blog', 'settings', 'interviews', 'clients'].includes(type)) return next();
+  if (['dashboard', 'blog', 'settings', 'interviews', 'clients', 'team'].includes(type)) return next();
+  // Billing and the activity log are for Admins only.
+  if (['placements', 'activity'].includes(type) && req.admin.role !== 'Admin') return requireAdmin(req, res, next);
   const rows =
     type === 'jobs' ? jobs
     : type === 'placements' ? billing.csvRows()
+    : type === 'activity' ? team.activity({ limit: 5000 })
     : type === 'talent' ? buildPool(readSubmissions('applications')).map(({ skillsAll, ...c }) => ({ ...c, jobsApplied: c.jobsApplied.join('; ') }))
     : readSubmissions(type);
   const cols = [...new Set(rows.flatMap((r) => Object.keys(r)))].filter((c) => c !== 'token');
@@ -829,7 +849,7 @@ for (const signal of ['SIGINT', 'SIGTERM']) {
 if (process.env.NODE_ENV === 'production') {
   const missing = [];
   if (!process.env.SITE_URL) missing.push('SITE_URL (links, sitemap and Google data will say localhost)');
-  if (!ADMIN_PASS) missing.push('ADMIN_PASS (admin panel is disabled)');
+  if (!ADMIN_PASS && !team.members().length) missing.push('ADMIN_PASS (admin panel is disabled until the owner account can sign in)');
   if (!process.env.SMTP_HOST) missing.push('SMTP_HOST (emails are only saved to data/outbox)');
   if (process.env.SITE_URL && !HTTPS) missing.push('SITE_URL should use https://');
   for (const m of missing) console.warn(`[config] Missing or insecure: ${m}`);

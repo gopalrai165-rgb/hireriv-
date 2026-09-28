@@ -27,8 +27,8 @@
             <td>
               <% if (c.money) { %>
                 <b><%= c.money.placements %></b> placement<%= c.money.placements === 1 ? '' : 's' %><br>
-                <span class="muted small">Billed <%= inr(c.money.billed) %> · settled <%= inr(c.money.received) %></span>
-                <% if (c.money.outstanding) { %><br><a class="small" href="/admin?tab=placements&view=unpaid"><%= inr(c.money.outstanding) %> outstanding</a><% } %>
+                <% if (isAdmin) { %><span class="muted small">Billed <%= inr(c.money.billed) %> · settled <%= inr(c.money.received) %></span><% } %>
+                <% if (isAdmin && c.money.outstanding) { %><br><a class="small" href="/admin?tab=placements&view=unpaid"><%= inr(c.money.outstanding) %> outstanding</a><% } %>
               <% } else { %><span class="muted">—</span><% } %>
             </td>
             <td class="row-actions">

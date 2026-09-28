@@ -1,0 +1,45 @@
+<form class="form talent-search client-add" method="post" action="/admin/team">
+  <label>Name*<input name="name" required maxlength="120" placeholder="e.g. Priya Sharma"></label>
+  <label>Work email*<input type="email" name="email" required maxlength="160"></label>
+  <label>Role
+    <select name="role"><% roles.forEach(function (r) { %><option<%= r === 'Recruiter' ? ' selected' : '' %>><%= r %></option><% }) %></select>
+  </label>
+  <div class="talent-actions"><button class="btn btn-primary btn-sm" type="submit">+ Invite to the team</button></div>
+</form>
+<p class="muted small talent-summary"><b>Admin</b>: everything, including billing, settings, the team, the activity log, backups and deleting records. <b>Recruiter</b>: jobs, candidates, interviews, shortlists, clients and recording placements, but no invoices, payments, settings or deletions.</p>
+
+<div class="table-wrap">
+  <table>
+    <thead><tr><th>Member</th><th>Role</th><th>Account</th><th></th></tr></thead>
+    <tbody>
+      <% rows.forEach(function (u) { %>
+        <tr>
+          <td><b><%= u.name %></b><%= u.id === admin.id ? ' (you)' : '' %><br><span class="muted small"><%= u.email %></span></td>
+          <td>
+            <% if (u.builtIn) { %>Admin<br><span class="muted small">Owner account from the server settings</span>
+            <% } else { %>
+              <form class="inline-form" method="post" action="/admin/team/<%= u.id %>/role">
+                <select name="role" aria-label="Role for <%= u.name %>" data-autosubmit><% roles.forEach(function (r) { %><option<%= r === u.role ? ' selected' : '' %>><%= r %></option><% }) %></select>
+                <noscript><button class="btn btn-outline btn-sm">Save</button></noscript>
+              </form>
+            <% } %>
+          </td>
+          <td>
+            <% if (!u.active) { %><span class="pill st-rejected">Deactivated</span>
+            <% } else if (u.pending) { %><span class="pill st-screening"><%= u.linkExpired ? 'Invite expired' : 'Invite pending' %></span>
+            <% } else { %><span class="pill st-hired">Active</span><% } %>
+          </td>
+          <td class="row-actions">
+            <% if (!u.builtIn) { %>
+              <% if (u.active) { %><form method="post" action="/admin/team/<%= u.id %>/invite"><button class="btn btn-outline btn-sm"><%= u.pending ? 'Resend invite' : 'Send reset link' %></button></form><% } %>
+              <% if (u.id !== admin.id) { %><form method="post" action="/admin/team/<%= u.id %>/toggle"<% if (u.active) { %> data-confirm="Deactivate <%= u.name %>? They'll be signed out and can't sign in."<% } %>><button class="btn btn-sm <%= u.active ? 'btn-danger' : 'btn-outline' %>"><%= u.active ? 'Deactivate' : 'Re-activate' %></button></form><% } %>
+              <a class="btn btn-outline btn-sm" href="/admin?tab=activity&user=<%= u.id %>">Activity</a>
+            <% } else { %>
+              <a class="btn btn-outline btn-sm" href="/admin?tab=activity&user=<%= u.id %>">Activity</a>
+            <% } %>
+          </td>
+        </tr>
+      <% }) %>
+    </tbody>
+  </table>
+</div>
