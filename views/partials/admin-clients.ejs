@@ -11,7 +11,7 @@
 <% } else { %>
   <div class="table-wrap">
     <table>
-      <thead><tr><th>Client</th><th>Contact</th><th>Account</th><th>Jobs</th><th>Requirements</th><th></th></tr></thead>
+      <thead><tr><th>Client</th><th>Contact</th><th>Account</th><th>Jobs</th><th>Requirements</th><th>Placements &amp; billing</th><th></th></tr></thead>
       <tbody>
         <% rows.forEach(function (c) { %>
           <tr>
@@ -24,6 +24,13 @@
             </td>
             <td><%= c.jobCount %></td>
             <td><%= c.requestCount %></td>
+            <td>
+              <% if (c.money) { %>
+                <b><%= c.money.placements %></b> placement<%= c.money.placements === 1 ? '' : 's' %><br>
+                <span class="muted small">Billed <%= inr(c.money.billed) %> · settled <%= inr(c.money.received) %></span>
+                <% if (c.money.outstanding) { %><br><a class="small" href="/admin?tab=placements&view=unpaid"><%= inr(c.money.outstanding) %> outstanding</a><% } %>
+              <% } else { %><span class="muted">—</span><% } %>
+            </td>
             <td class="row-actions">
               <% if (c.active) { %><form method="post" action="/admin/clients/<%= c.id %>/invite"><button class="btn btn-outline btn-sm"><%= c.passwordHash ? 'Send reset link' : 'Resend invite' %></button></form><% } %>
               <form method="post" action="/admin/clients/<%= c.id %>/toggle"<% if (c.active) { %> data-confirm="Deactivate this client? They will be signed out and can't log in."<% } %>><button class="btn btn-sm <%= c.active ? 'btn-danger' : 'btn-outline' %>"><%= c.active ? 'Deactivate' : 'Re-activate' %></button></form>

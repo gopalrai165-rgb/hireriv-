@@ -512,8 +512,9 @@ app.get('/admin', adminAuth, (req, res) => {
   }
   if (tab === 'blog') return res.render('admin', { ...locals, rows: posts });
   if (tab === 'clients') {
-    const rows = clients.read().map((c) => ({ ...c, jobCount: jobs.filter((j) => j.employerId === c.id).length, requestCount: readSubmissions('hire-requests').filter((h) => h.employerId === c.id).length }));
-    return res.render('admin', { ...locals, rows });
+    const money = billing.byClient();
+    const rows = clients.read().map((c) => ({ ...c, jobCount: jobs.filter((j) => j.employerId === c.id).length, requestCount: readSubmissions('hire-requests').filter((h) => h.employerId === c.id).length, money: money[c.id] || null }));
+    return res.render('admin', { ...locals, rows, inr: billing.inr });
   }
   if (tab === 'interviews') {
     const up = interviews.upcoming(applications);
@@ -531,7 +532,7 @@ app.get('/admin', adminAuth, (req, res) => {
       overdue: (p) => p.overdue,
     }[view];
     const hired = applications.filter((a) => a.status === 'Hired' && !all.some((p) => p.appId === a.id));
-    return res.render('admin', { ...locals, rows: test ? all.filter(test) : all, view, sum: billing.summary(all), statuses: billing.STATUSES, inr: billing.inr, formatYmd: placements.formatYmd, unrecorded: hired, clientById: Object.fromEntries(clients.read().map((c) => [c.id, c])) });
+    return res.render('admin', { ...locals, rows: test ? all.filter(test) : all, view, sum: billing.summary(all), statuses: billing.STATUSES, inr: billing.inr, formatYmd: placements.formatYmd, unrecorded: hired, clientById: Object.fromEntries(clients.read().map((c) => [c.id, c])), nameById: Object.fromEntries(all.map((p) => [p.id, p.candidateName])) });
   }
   if (tab === 'settings') return res.render('admin', { ...locals, rows: [], form: { ...site, jobCategories: jobCategories(), jobLocations: site.jobLocations || DEFAULT_JOB_LOCATIONS }, errors: [], social: SOCIAL, billingForm: placements.billingOf(site) });
   if (tab === 'talent') {

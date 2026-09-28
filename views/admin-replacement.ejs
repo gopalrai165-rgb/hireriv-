@@ -1,0 +1,34 @@
+<%- include('partials/head') %>
+
+<section class="section admin">
+  <div class="container narrow">
+    <a href="/admin?tab=placements" class="back-link">← Placements</a>
+    <h1>Choose a replacement</h1>
+    <p class="lead">For <b><%= orig.candidateName %></b> at <%= orig.company %> (<%= orig.jobTitle %>), who <%= orig.status === 'Did not join' ? "didn't join" : 'left in the guarantee period' %>.</p>
+    <p class="muted small">Pick the candidate who is replacing them. You'll then confirm the joining date; the client, billing details and guarantee carry over and the replacement is free by default. Need someone new? Share candidates from the <a href="/admin?tab=talent&job=<%= encodeURIComponent(orig.jobId || '') %>">Talent pool</a> first.</p>
+
+    <% [['Applied for ' + orig.jobTitle, sameJob], ['Other candidates in the pipeline', others]].forEach(function (group) { %>
+      <h2 class="replace-head"><%= group[0] %> <span class="muted small">(<%= group[1].length %>)</span></h2>
+      <% if (!group[1].length) { %><p class="muted">No candidates here.</p>
+      <% } else { %>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Candidate</th><th>Applied for</th><th>Stage</th><th></th></tr></thead>
+            <tbody>
+              <% group[1].forEach(function (a) { %>
+                <tr>
+                  <td><b><%= a.name %></b><br><span class="muted small"><%= a.experience || '' %><%= a.location ? ' · ' + a.location : '' %></span></td>
+                  <td><%= a.jobTitle %><br><span class="muted small">Applied <%= formatYmd(a.createdAt.slice(0, 10)) %></span></td>
+                  <td><span class="pill st-<%= (a.status || 'New').toLowerCase() %>"><%= a.status || 'New' %></span></td>
+                  <td><a class="btn btn-primary btn-sm" href="/admin/applications/<%= a.id %>/placement?replaces=<%= orig.id %>">Choose</a></td>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+      <% } %>
+    <% }) %>
+  </div>
+</section>
+
+<%- include('partials/foot') %>

@@ -69,6 +69,7 @@
         <select name="billing_tdsPercent"><% [10, 2, 1, 5, 0].forEach(function (r) { %><option value="<%= r %>"<%= r === Number(billingForm.tdsPercent) ? ' selected' : '' %>><%= r %>%<%= r === 10 ? ' (194J professional fees)' : r === 2 ? ' (194J technical / 194C)' : r === 0 ? ' (none)' : '' %></option><% }) %></select>
         <span class="muted small">Pre-fills the TDS box when you record a payment. You can change it per payment.</span>
       </label>
+      <label class="span-2 notify-line"><input type="checkbox" name="billing_autoReminders" value="1"<%= billingForm.autoReminders ? ' checked' : '' %>> Email overdue payment reminders automatically: once a week, up to 4 per invoice, to client-portal contacts only</label>
     </div>
   </section>
 

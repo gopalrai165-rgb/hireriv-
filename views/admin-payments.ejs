@@ -15,18 +15,31 @@
 
     <div class="kpis">
       <div class="kpi"><span class="kpi-label">Invoice total</span><span class="kpi-value kpi-money"><%= inr(inv.total) %></span><span class="kpi-note">incl. <%= inr(inv.gst) %> GST</span></div>
-      <div class="kpi"><span class="kpi-label">Received</span><span class="kpi-value kpi-money"><%= inr(acct.received) %></span><span class="kpi-note"><%= (inv.payments || []).length %> payment<%= (inv.payments || []).length === 1 ? '' : 's' %></span></div>
+      <div class="kpi"><span class="kpi-label">Received</span><span class="kpi-value kpi-money"><%= inr(acct.received) %></span><span class="kpi-note"><%= acct.refunded ? inr(acct.refunded) + " refunded" : (inv.payments || []).length + " payment" + ((inv.payments || []).length === 1 ? "" : "s") %></span></div>
       <div class="kpi"><span class="kpi-label">TDS deducted</span><span class="kpi-value kpi-money"><%= inr(acct.tds) %></span><span class="kpi-note">claim via Form 26AS</span></div>
       <div class="kpi"><span class="kpi-label">Credit notes</span><span class="kpi-value kpi-money"><%= inr(acct.credited) %></span><span class="kpi-note"><%= (inv.creditNotes || []).length %> issued</span></div>
       <div class="kpi"><span class="kpi-label"><%= acct.refundDue ? 'Refund due' : 'Balance due' %></span><span class="kpi-value kpi-money"><%= inr(acct.refundDue || acct.balance) %></span><span class="kpi-note<%= acct.refundDue ? ' kpi-alert' : '' %>"><%= acct.refundDue ? 'client overpaid after credit' : inv.status %></span></div>
     </div>
 
-    <% if ((inv.payments || []).length || (inv.creditNotes || []).length) { %>
+    <% const reminders = inv.reminders || []; %>
+    <% if (['Unpaid', 'Part paid'].includes(inv.status)) { %>
+      <div class="remind-bar">
+        <span>
+          <% if (reminders.length) { %>Reminded <%= reminders.length %> time<%= reminders.length === 1 ? '' : 's' %>, last on <%= new Date(reminders[reminders.length - 1].at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', timeZone: 'Asia/Kolkata' }) %><%= reminders[reminders.length - 1].auto ? ' (automatic)' : '' %>.
+          <% } else { %>No payment reminders sent yet.<% } %>
+        </span>
+        <% if (portalClient && portalClient.active) { %>
+          <form method="post" action="/admin/placements/<%= p.id %>/remind"><input type="hidden" name="from" value="payments"><button class="btn btn-outline btn-sm">Email reminder to <%= portalClient.email %></button></form>
+        <% } else { %><span class="muted small">This client isn't on the portal, so follow up by phone or email.</span><% } %>
+      </div>
+    <% } %>
+
+    <% if ((inv.payments || []).length || (inv.creditNotes || []).length || (inv.refunds || []).length) { %>
       <div class="table-wrap">
         <table>
           <thead><tr><th>Date</th><th>Entry</th><th class="num">Received</th><th class="num">TDS</th><th class="num">Credit</th><th></th></tr></thead>
           <tbody>
-            <% const entries = (inv.payments || []).map(function (x) { return { kind: 'pay', at: x.date, x: x }; }).concat((inv.creditNotes || []).map(function (c) { return { kind: 'cn', at: c.date, x: c }; })).sort(function (a, b) { return a.at.localeCompare(b.at); }); %>
+            <% const entries = (inv.payments || []).map(function (x) { return { kind: 'pay', at: x.date, x: x }; }).concat((inv.creditNotes || []).map(function (c) { return { kind: 'cn', at: c.date, x: c }; })).concat((inv.refunds || []).map(function (r) { return { kind: 'refund', at: r.date, x: r }; })).sort(function (a, b) { return a.at.localeCompare(b.at); }); %>
             <% entries.forEach(function (e) { %>
               <tr>
                 <td><%= formatYmd(e.at) %></td>
@@ -34,6 +47,10 @@
                   <td>Payment · <%= e.x.mode %><% if (e.x.reference) { %><br><span class="muted small">Ref: <%= e.x.reference %></span><% } %></td>
                   <td class="num"><%= inr(e.x.amount) %></td><td class="num"><%= e.x.tds ? inr(e.x.tds) : '—' %></td><td class="num">—</td>
                   <td><form method="post" action="/admin/placements/<%= p.id %>/payments/<%= e.x.id %>/delete" data-confirm="Remove this payment entry?"><button class="link-btn small">Remove</button></form></td>
+                <% } else if (e.kind === 'refund') { %>
+                  <td>Refund paid to client · <%= e.x.mode %><% if (e.x.reference) { %><br><span class="muted small">Ref: <%= e.x.reference %></span><% } %></td>
+                  <td class="num">−<%= inr(e.x.amount) %></td><td class="num">—</td><td class="num">—</td>
+                  <td><form method="post" action="/admin/placements/<%= p.id %>/refunds/<%= e.x.id %>/delete" data-confirm="Remove this refund entry?"><button class="link-btn small">Remove</button></form></td>
                 <% } else { %>
                   <td><a href="/admin/placements/<%= p.id %>/credit-notes/<%= e.x.id %>" target="_blank" rel="noopener">Credit note <%= e.x.number %></a><br><span class="muted small"><%= e.x.reason %><%= e.x.note ? ': ' + e.x.note : '' %><%= e.x.sentAt ? ' · emailed' : '' %></span></td>
                   <td class="num">—</td><td class="num">—</td><td class="num"><%= inr(e.x.total) %></td><td></td>
@@ -46,6 +63,21 @@
     <% } %>
 
     <div class="pay-grid">
+      <% if (acct.refundDue > 0) { %>
+        <form class="form form-card refund-card" method="post" action="/admin/placements/<%= p.id %>/refunds">
+          <h2>Record the refund</h2>
+          <p class="muted small">After the credit notes, the client has paid <b><%= inr(acct.refundDue) %></b> more than they owe. Record it here once you've sent the money back.</p>
+          <div class="form-grid">
+            <label>Refund date*<input type="date" name="date" required value="<%= refund.date %>"></label>
+            <label>Mode
+              <select name="mode"><% modes.forEach(function (m) { %><option<%= m === refund.mode ? ' selected' : '' %>><%= m %></option><% }) %></select>
+            </label>
+            <label>Amount refunded (₹)*<input name="amount" inputmode="decimal" required value="<%= refund.amount %>"></label>
+            <label>Reference <span class="muted small">(UTR, cheque no.)</span><input name="reference" maxlength="120" value="<%= refund.reference %>"></label>
+          </div>
+          <button class="btn btn-primary" type="submit">Record refund</button>
+        </form>
+      <% } %>
       <form class="form form-card" method="post" action="/admin/placements/<%= p.id %>/payments">
         <h2>Record a payment</h2>
         <% if (acct.balance <= 0) { %><p class="muted">Nothing left to collect on this invoice.</p><% } else { %>

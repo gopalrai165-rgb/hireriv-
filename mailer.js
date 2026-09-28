@@ -217,6 +217,22 @@ function createMailer(site) {
       });
     },
 
+    invoiceReminder(emp, inv, balance, daysOverdue, link) {
+      const money = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(balance);
+      const due = new Date(`${inv.dueDate}T00:00:00Z`).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
+      send(site, {
+        to: emp.email,
+        replyTo: teamInbox,
+        subject: `Payment reminder: invoice ${inv.number} – ${money} ${daysOverdue ? 'overdue' : 'due'}`,
+        heading: 'Friendly payment reminder',
+        html:
+          p(`Hi ${first(emp.name)}, this is a reminder that invoice <b>${esc(inv.number)}</b> ${daysOverdue ? `was due on ${esc(due)} (${daysOverdue} day${daysOverdue === 1 ? '' : 's'} ago)` : `is due on ${esc(due)}`}.`) +
+          detailsTable([['Invoice', inv.number], ['For', inv.item], ['Balance due', money], ['Due date', due]]) +
+          button(link, 'View invoice') +
+          p(`<span style="color:#6b7690;font-size:13px">If you've already paid, thank you, and please ignore this email. Reply with the payment reference and any TDS deducted so we can update our records.</span>`),
+      });
+    },
+
     creditNoteIssued(emp, inv, cn, link) {
       const money = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(cn.total);
       send(site, {

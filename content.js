@@ -115,6 +115,7 @@ function parseSettings(body, current) {
     gstPercent: num('billing_gstPercent'),
     paymentDays: num('billing_paymentDays'),
     tdsPercent: num('billing_tdsPercent'),
+    autoReminders: body.billing_autoReminders === '1',
   };
   const b = next.billing;
   if (b.gstin && !/^\d{2}[A-Z0-9]{13}$/.test(b.gstin)) errors.push('GSTIN should be 15 characters (e.g. 29ABCDE1234F1Z5)');

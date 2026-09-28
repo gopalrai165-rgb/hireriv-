@@ -266,10 +266,11 @@ if (feeForm) {
   const num = (el) => Number(String(el.value).replace(/[,₹\s]/g, ''));
   const money = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 2 });
   const update = () => {
-    const flat = $('[data-fee-mode]').value === 'flat';
-    $('[data-fee-percent-wrap]').hidden = flat;
-    $('[data-fee-flat-wrap]').hidden = !flat;
-    const fee = flat ? num($('[data-fee-flat]')) : (num($('[data-fee-ctc]')) * num($('[data-fee-percent]'))) / 100;
+    const mode = $('[data-fee-mode]').value;
+    $('[data-fee-percent-wrap]').hidden = mode !== 'percent';
+    $('[data-fee-flat-wrap]').hidden = mode !== 'flat';
+    if (mode === 'free') { $('[data-fee-out]').textContent = 'Free replacement'; return; }
+    const fee = mode === 'flat' ? num($('[data-fee-flat]')) : (num($('[data-fee-ctc]')) * num($('[data-fee-percent]'))) / 100;
     $('[data-fee-out]').textContent = fee > 0 ? money.format(Math.round(fee * 100) / 100) : '—';
   };
   feeForm.addEventListener('input', update);

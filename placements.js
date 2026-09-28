@@ -65,10 +65,12 @@ function accountOf(inv) {
   const tds = sum(inv.payments, 'tds');
   const credited = sum(inv.creditNotes, 'total');
   const creditedTaxable = sum(inv.creditNotes, 'subtotal');
+  // Money sent back to the client after a credit note (reduces what they've paid).
+  const refunded = sum(inv.refunds, 'amount');
   // Invoices marked paid before payments were recorded count as settled.
   const legacyPaid = inv.status === 'Paid' && !(inv.payments || []).length && !(inv.creditNotes || []).length;
-  const balance = legacyPaid ? 0 : round2(inv.total - received - tds - credited);
-  return { received, tds, credited, creditedTaxable, balance: Math.max(balance, 0), refundDue: Math.max(-balance, 0) };
+  const balance = legacyPaid ? 0 : round2(inv.total - received - tds - credited + refunded);
+  return { received, tds, credited, creditedTaxable, refunded, balance: Math.max(balance, 0), refundDue: Math.max(-balance, 0) };
 }
 
 function refreshStatus(inv) {
@@ -126,7 +128,7 @@ function parsePlacement(body) {
     taxType: get('taxType', 5) === 'intra' ? 'intra' : 'inter',
     joiningDate: get('joiningDate', 10),
     ctc: num('ctc'),
-    feeMode: get('feeMode', 10) === 'flat' ? 'flat' : 'percent',
+    feeMode: ['flat', 'free'].includes(get('feeMode', 10)) ? get('feeMode', 10) : 'percent',
     feePercent: num('feePercent'),
     flatFee: num('flatFee'),
     guaranteeDays: num('guaranteeDays'),
@@ -145,10 +147,13 @@ function parsePlacement(body) {
     if (!(f.ctc > 0)) errors.push('annual CTC is required for a % fee');
     if (!(f.feePercent > 0 && f.feePercent <= 100)) errors.push('fee % must be between 0 and 100');
     if (!errors.length) fee = round2((f.ctc * f.feePercent) / 100);
-  } else {
+  } else if (f.feeMode === 'flat') {
     if (!(f.flatFee > 0)) errors.push('enter the fee amount');
     else fee = round2(f.flatFee);
     if (Number.isNaN(f.ctc)) f.ctc = 0;
+  } else if (Number.isNaN(f.ctc)) {
+    // Free replacement under the original placement's guarantee: no fee, no invoice.
+    f.ctc = 0;
   }
   if (f.ctc < 0) errors.push('CTC cannot be negative');
   if (!f.billingName) f.billingName = f.company;
@@ -186,7 +191,7 @@ function register(app, deps) {
   const formPage = (res, locals, status = 200) =>
     res.status(status).render('admin-placement', {
       title: locals.p.id ? 'Edit placement' : 'Record placement', page: 'admin', noindex: true, errors: [],
-      types: TYPES, statuses: STATUSES, clientOptions: clients.read(), billing: billingOf(site), inr, ...locals,
+      types: TYPES, statuses: STATUSES, clientOptions: clients.read(), billing: billingOf(site), inr, replaces: null, ...locals,
     });
 
   // ----- record a placement from an application -----
@@ -199,6 +204,15 @@ function register(app, deps) {
     const employerId = (job && job.employerId) || (a.shared && a.shared.employerId) || '';
     const client = clientById(employerId);
     const b = billingOf(site);
+    const orig = replaceable(String(req.query.replaces || ''));
+    if (orig) {
+      // A replacement keeps the original client, billing details and guarantee, free of charge.
+      const { company, employerId: origClient, billingName, billingAddress, clientGstin, taxType, type, guaranteeDays } = orig;
+      return formPage(res, {
+        a, replaces: orig,
+        p: { type, company, employerId: origClient, billingName, billingAddress, clientGstin, taxType, joiningDate: todayIst(), ctc: '', feeMode: 'free', feePercent: b.feePercent, flatFee: '', guaranteeDays, status: 'Awaiting joining', notes: `Replacement for ${orig.candidateName}` },
+      });
+    }
     formPage(res, {
       a,
       p: {
@@ -217,12 +231,16 @@ function register(app, deps) {
     if (list.some((p) => p.appId === a.id)) return res.redirect(adminUrl('placements', `${a.name} already has a placement`));
     const { errors, f, data } = parsePlacement(req.body);
     const employerId = clientById(f.employerId) ? f.employerId : '';
-    if (errors.length) return formPage(res, { a, p: { ...f, employerId }, errors }, 400);
+    const orig = req.body.replaces ? list.find((x) => x.id === String(req.body.replaces) && isReplaceable(x)) : null;
+    if (req.body.replaces && !orig) errors.push('the original placement already has a replacement');
+    if (data.feeMode === 'free' && !orig) errors.push('only a replacement can be free of charge');
+    if (errors.length) return formPage(res, { a, replaces: orig, p: { ...f, employerId }, errors }, 400);
     const now = new Date().toISOString();
     const placement = {
       id: crypto.randomUUID(), appId: a.id, candidateName: a.name, candidateEmail: a.email, jobId: a.jobId, jobTitle: a.jobTitle,
-      employerId, ...data, invoice: null, cancelledInvoices: [], createdAt: now, updatedAt: now,
+      employerId, ...data, replacementFor: orig ? orig.id : null, invoice: null, cancelledInvoices: [], createdAt: now, updatedAt: now,
     };
+    if (orig) Object.assign(orig, { replacedBy: placement.id, updatedAt: now });
     list.unshift(placement);
     write(list);
     // A recorded placement means the offer was accepted.
@@ -230,7 +248,7 @@ function register(app, deps) {
       Object.assign(a, { status: 'Hired', updatedAt: now });
       writeSubmissions('applications', apps);
     }
-    res.redirect(adminUrl('placements', `Placement recorded for ${a.name} at ${data.company} · fee ${inr(data.fee)}`));
+    res.redirect(adminUrl('placements', orig ? `${a.name} recorded as the replacement for ${orig.candidateName} at ${data.company}` : `Placement recorded for ${a.name} at ${data.company} · fee ${inr(data.fee)}`));
   });
 
   // ----- edit -----
@@ -238,11 +256,18 @@ function register(app, deps) {
     const list = read();
     return { list, p: list.find((x) => x.id === id) };
   };
+  // A placement that fell through and hasn't been replaced yet.
+  const isReplaceable = (p) => ['Left in guarantee', 'Did not join'].includes(p.status) && !p.replacedBy;
+  const replaceable = (id) => {
+    const p = read().find((x) => x.id === id);
+    return p && isReplaceable(p) ? p : null;
+  };
 
   app.get('/admin/placements/:id/edit', adminAuth, (req, res, next) => {
     const { p } = findPlacement(req.params.id);
     if (!p) return next();
-    formPage(res, { a: { name: p.candidateName, email: p.candidateEmail, jobTitle: p.jobTitle }, p: { ...p, flatFee: p.feeMode === 'flat' ? p.fee : '' } });
+    const replaces = p.replacementFor ? read().find((x) => x.id === p.replacementFor) : null;
+    formPage(res, { a: { name: p.candidateName, email: p.candidateEmail, jobTitle: p.jobTitle }, replaces, p: { ...p, flatFee: p.feeMode === 'flat' ? p.fee : '' } });
   });
 
   app.post('/admin/placements/:id', adminAuth, sameOrigin, (req, res, next) => {
@@ -250,7 +275,10 @@ function register(app, deps) {
     if (!p) return next();
     const { errors, f, data } = parsePlacement(req.body);
     const employerId = clientById(f.employerId) ? f.employerId : '';
-    if (errors.length) return formPage(res, { a: { name: p.candidateName, email: p.candidateEmail, jobTitle: p.jobTitle }, p: { ...f, id: p.id, employerId, invoice: p.invoice }, errors }, 400);
+    if (data.feeMode === 'free' && !p.replacementFor) errors.push('only a replacement can be free of charge');
+    if (data.feeMode === 'free' && p.invoice) errors.push('this placement has an invoice; issue a credit note instead of making it free');
+    const replaces = p.replacementFor ? list.find((x) => x.id === p.replacementFor) : null;
+    if (errors.length) return formPage(res, { a: { name: p.candidateName, email: p.candidateEmail, jobTitle: p.jobTitle }, replaces, p: { ...f, id: p.id, employerId, invoice: p.invoice }, errors }, 400);
     Object.assign(p, data, { employerId, updatedAt: new Date().toISOString() });
     write(list);
     const note = p.invoice && p.invoice.status !== 'Cancelled' && p.invoice.subtotal !== p.fee ? ' · the issued invoice keeps its original amount; cancel and reissue it to bill the new fee' : '';
@@ -277,6 +305,7 @@ function register(app, deps) {
     const { list, p } = findPlacement(req.params.id);
     if (!p) return next();
     if (p.invoice || (p.cancelledInvoices || []).length) return res.redirect(adminUrl('placements', "Placements with an invoice can't be deleted (invoices are tax records)"));
+    for (const x of list) if (x.replacedBy === p.id) x.replacedBy = null;
     write(list.filter((x) => x !== p));
     res.redirect(adminUrl('placements', `Deleted the placement for ${p.candidateName}`));
   });
@@ -343,6 +372,7 @@ function register(app, deps) {
       tdsPercent: b.tdsPercent, errors: [], msg: '', portalClient: clientById(p.employerId),
       pay: { date: todayIst(), amount: round2(acct.balance - tds) || '', tds: tds || '', mode: 'Bank transfer', reference: '' },
       cn: { amount: round2(inv.subtotal - acct.creditedTaxable) || '', reason: CN_REASONS[0], note: '' },
+      refund: { date: todayIst(), amount: acct.refundDue || '', mode: 'Bank transfer', reference: '' },
       ...extra,
     });
   }
@@ -385,6 +415,95 @@ function register(app, deps) {
     write(list);
     res.redirect(paymentsUrl(p, `Payment removed · invoice is ${inv.status.toLowerCase()}`));
   });
+
+  // ----- replacements -----
+  // Pick who replaces a candidate who didn't join or left in the guarantee period:
+  // applicants to the same job first, then anyone else in the pipeline.
+  app.get('/admin/placements/:id/replacement', adminAuth, (req, res, next) => {
+    const orig = replaceable(req.params.id);
+    if (!orig) return next();
+    const placed = new Set(read().map((x) => x.appId));
+    const pool = readSubmissions('applications').filter((a) => !placed.has(a.id) && a.status !== 'Rejected' && !a.withdrawnAt);
+    res.render('admin-replacement', {
+      title: 'Choose a replacement', page: 'admin', noindex: true, orig, formatYmd,
+      sameJob: pool.filter((a) => a.jobId === orig.jobId), others: pool.filter((a) => a.jobId !== orig.jobId).slice(0, 40),
+    });
+  });
+
+  // ----- refunds -----
+  app.post('/admin/placements/:id/refunds', adminAuth, sameOrigin, (req, res, next) => {
+    const { list, p } = findPlacement(req.params.id);
+    if (!p || !p.invoice) return next();
+    const inv = p.invoice;
+    const get = (k, max) => String(req.body[k] ?? '').trim().slice(0, max);
+    const refund = { date: get('date', 10), amount: moneyIn(req.body.amount), mode: get('mode', 20), reference: get('reference', 120) };
+    const due = accountOf(inv).refundDue;
+    const errors = [];
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(refund.date) || Number.isNaN(Date.parse(refund.date))) errors.push('refund date is required');
+    else if (refund.date > todayIst()) errors.push("refund date can't be in the future");
+    if (!(refund.amount > 0)) errors.push('enter the amount refunded');
+    else if (refund.amount > due + 0.01) errors.push(`only ${inr(due)} is due as a refund`);
+    if (!PAY_MODES.includes(refund.mode)) errors.push('refund mode is invalid');
+    if (errors.length) return paymentsPage(res, p, { errors, refund: { ...refund, amount: req.body.amount } }, 400);
+    inv.refunds = [...(inv.refunds || []), { id: crypto.randomUUID(), ...refund, amount: round2(refund.amount), recordedAt: new Date().toISOString() }];
+    refreshStatus(inv);
+    write(list);
+    res.redirect(paymentsUrl(p, `Refund of ${inr(refund.amount)} recorded`));
+  });
+
+  app.post('/admin/placements/:id/refunds/:refundId/delete', adminAuth, sameOrigin, (req, res, next) => {
+    const { list, p } = findPlacement(req.params.id);
+    const inv = p && p.invoice;
+    if (!inv || !(inv.refunds || []).some((x) => x.id === req.params.refundId)) return next();
+    inv.refunds = inv.refunds.filter((x) => x.id !== req.params.refundId);
+    refreshStatus(inv);
+    write(list);
+    res.redirect(paymentsUrl(p, 'Refund entry removed'));
+  });
+
+  // ----- payment reminders -----
+  // Reminders go to the client's portal contact, who can open the invoice there.
+  const REMINDER_GAP_DAYS = 7;
+  const MAX_AUTO_REMINDERS = 4;
+  function sendReminder(p, auto) {
+    const inv = p.invoice;
+    const client = clientById(p.employerId);
+    if (!client || !client.active || !OPEN.includes(inv.status)) return false;
+    const daysOverdue = Math.max(daysBetween(inv.dueDate, todayIst()), 0);
+    mailer.invoiceReminder(client, inv, accountOf(inv).balance, daysOverdue, `${baseUrl}/employer/invoices/${p.id}`);
+    inv.reminders = [...(inv.reminders || []), { at: new Date().toISOString(), auto }];
+    return true;
+  }
+
+  app.post('/admin/placements/:id/remind', adminAuth, sameOrigin, (req, res, next) => {
+    const { list, p } = findPlacement(req.params.id);
+    if (!p || !p.invoice) return next();
+    const back = req.body.from === 'payments' ? (m) => paymentsUrl(p, m) : (m) => adminUrl('placements', m);
+    if (!sendReminder(p, false)) return res.redirect(back('Reminders need an open invoice and an active client-portal account'));
+    write(list);
+    res.redirect(back(`Payment reminder for ${p.invoice.number} emailed to ${clientById(p.employerId).email}`));
+  });
+
+  // Automatic reminders (Settings → Billing): at most one a week per overdue
+  // invoice, and no more than four in total.
+  function autoRemind() {
+    if (!billingOf(site).autoReminders) return 0;
+    const list = read();
+    const cutoff = Date.now() - REMINDER_GAP_DAYS * DAY_MS;
+    let sent = 0;
+    for (const p of list) {
+      const inv = p.invoice;
+      if (!inv || !OPEN.includes(inv.status) || inv.dueDate >= todayIst()) continue;
+      const reminders = inv.reminders || [];
+      if (reminders.filter((r) => r.auto).length >= MAX_AUTO_REMINDERS) continue;
+      if (reminders.some((r) => Date.parse(r.at) > cutoff)) continue;
+      if (sendReminder(p, true)) sent++;
+    }
+    if (sent) write(list);
+    return sent;
+  }
+  setInterval(autoRemind, 60 * 60 * 1000).unref();
+  setTimeout(autoRemind, 30 * 1000).unref();
 
   // A credit note reduces what the client owes (or creates a refund if they've paid).
   // It carries GST at the invoice's rate and split, and its own number series.
@@ -505,6 +624,7 @@ function register(app, deps) {
       if (p.status === 'Awaiting joining' && p.joiningDate <= soon) items.push({ at: p.joiningDate, kind: p.joiningDate < today ? 'Confirm joining' : 'Joining', cls: 'st-screening', text: `${p.candidateName} at ${p.company}` });
       if (p.inGuarantee && p.guaranteeDaysLeft <= 14) items.push({ at: p.guaranteeEnds, kind: 'Guarantee ends', cls: 'st-offered', text: `${p.candidateName} at ${p.company}` });
       if (p.overdue) items.push({ at: p.invoice.dueDate, kind: 'Overdue', cls: 'st-rejected', text: `${p.invoice.number} · ${p.company} · ${inr(p.acct.balance)} due` });
+      if (p.status === 'Left in guarantee' && !p.replacedBy && !(p.invoice && (p.invoice.creditNotes || []).length)) items.push({ at: p.updatedAt.slice(0, 10), kind: 'Find replacement', cls: 'st-screening', text: `${p.candidateName} left ${p.company}` });
       if (p.acct && p.acct.refundDue) items.push({ at: p.invoice.date, kind: 'Refund due', cls: 'st-interview', text: `${p.company} · ${inr(p.acct.refundDue)} (${p.invoice.number})` });
       if (p.status === 'Joined' && !p.invoice) items.push({ at: p.joiningDate, kind: 'To invoice', cls: 'st-new', text: `${p.candidateName} at ${p.company} · ${inr(p.fee)}` });
     }
@@ -518,13 +638,30 @@ function register(app, deps) {
       invoiceNumber: p.invoice ? p.invoice.number : '', invoiceDate: p.invoice ? p.invoice.date : '', invoiceTotal: p.invoice ? p.invoice.total : '',
       invoiceStatus: p.invoice ? (p.overdue ? 'Overdue' : p.invoice.status) : '',
       received: p.acct ? p.acct.received : '', tds: p.acct ? p.acct.tds : '', credited: p.acct ? p.acct.credited : '',
-      balance: p.acct ? p.acct.balance : '', refundDue: p.acct ? p.acct.refundDue : '',
+      refunded: p.acct ? p.acct.refunded : '', balance: p.acct ? p.acct.balance : '', refundDue: p.acct ? p.acct.refundDue : '',
+      reminders: p.invoice ? (p.invoice.reminders || []).length : '', replacementFor: p.replacementFor ? 'yes' : '', replacedBy: p.replacedBy ? 'yes' : '',
       creditNotes: p.invoice ? (p.invoice.creditNotes || []).map((c) => c.number).join('; ') : '',
       paidOn: p.invoice ? p.invoice.paidAt || '' : '', notes: p.notes,
     }));
   }
 
-  return { read, describe, summary, followUps, forClient, csvRows, STATUSES, inr };
+  // Placements and money per client-portal account, for the Clients tab.
+  function byClient() {
+    const out = {};
+    for (const p of read().map(describe)) {
+      if (!p.employerId) continue;
+      const t = (out[p.employerId] = out[p.employerId] || { placements: 0, billed: 0, received: 0, outstanding: 0 });
+      t.placements++;
+      if (p.invoice) {
+        t.billed = round2(t.billed + p.invoice.total - p.acct.credited);
+        t.received = round2(t.received + p.acct.received + p.acct.tds - p.acct.refunded);
+        t.outstanding = round2(t.outstanding + p.acct.balance);
+      }
+    }
+    return out;
+  }
+
+  return { read, describe, summary, followUps, forClient, csvRows, byClient, autoRemind, STATUSES, inr };
 }
 
 const formatYmd = (ymd) => (ymd ? new Date(`${ymd}T00:00:00Z`).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' }) : '');

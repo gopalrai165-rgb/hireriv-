@@ -6,8 +6,10 @@
     <h1><%= p.id ? 'Edit placement' : 'Record placement' %></h1>
     <p class="lead"><b><%= a.name %></b> for <%= a.jobTitle %> · <a href="mailto:<%= a.email %>"><%= a.email %></a></p>
     <% if (errors.length) { %><p class="notice notice-err" role="alert">Please fix: <%= errors.join(', ') %></p><% } %>
-    <% if (p.invoice) { %><p class="notice" role="note">Invoice <%= p.invoice.number %> is issued. Changes here update the placement only; to bill a different amount, cancel the invoice and issue a new one.</p><% } %>
+    <% if (p.invoice) { %><p class="notice" role="note">Invoice <%= p.invoice.number %> is issued. Changes here update the placement only. To bill a different amount, cancel the invoice (if nothing is paid) or issue a credit note from Payments.</p><% } %>
+    <% if (replaces) { %><p class="notice" role="note">Replacement for <b><%= replaces.candidateName %></b> (<%= replaces.status.toLowerCase() %>, joined <%= replaces.joiningDate %>). Replacements under the guarantee are usually free: keep “Free replacement” unless your agreement says otherwise.</p><% } %>
     <form class="form form-card placement-form" method="post" action="<%= p.id ? '/admin/placements/' + p.id : '/admin/applications/' + a.id + '/placement' %>" data-fee-calc>
+      <% if (replaces && !p.id) { %><input type="hidden" name="replaces" value="<%= replaces.id %>"><% } %>
       <h2>Placement</h2>
       <div class="form-grid">
         <label>Type
@@ -45,8 +47,9 @@
         <label>Annual CTC (₹)<input name="ctc" inputmode="decimal" value="<%= p.ctc %>" placeholder="e.g. 1800000" data-fee-ctc></label>
         <label>Fee based on
           <select name="feeMode" data-fee-mode>
-            <option value="percent"<%= p.feeMode !== 'flat' ? ' selected' : '' %>>% of annual CTC</option>
+            <option value="percent"<%= !['flat', 'free'].includes(p.feeMode) ? ' selected' : '' %>>% of annual CTC</option>
             <option value="flat"<%= p.feeMode === 'flat' ? ' selected' : '' %>>Fixed amount</option>
+            <% if (replaces) { %><option value="free"<%= p.feeMode === 'free' ? ' selected' : '' %>>Free replacement (no invoice)</option><% } %>
           </select>
         </label>
         <label data-fee-percent-wrap>Fee %<input name="feePercent" inputmode="decimal" value="<%= p.feePercent ?? '' %>" data-fee-percent></label>

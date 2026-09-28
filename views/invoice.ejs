@@ -83,6 +83,7 @@
           <% if (acct.received) { %><dt>Received</dt><dd>− <%= inr(acct.received) %></dd><% } %>
           <% if (acct.tds) { %><dt>TDS deducted</dt><dd>− <%= inr(acct.tds) %></dd><% } %>
           <% (inv.creditNotes || []).forEach(function (c) { %><dt>Credit note <a href="<%= cnBase %>/<%= c.id %>"><%= c.number %></a></dt><dd>− <%= inr(c.total) %></dd><% }) %>
+          <% if (acct.refunded) { %><dt>Refunded</dt><dd>+ <%= inr(acct.refunded) %></dd><% } %>
           <dt><b><%= acct.refundDue ? 'Overpaid, refund due' : 'Balance due' %></b></dt><dd><b><%= inr(acct.refundDue || acct.balance) %></b></dd>
         </dl>
       </section>
