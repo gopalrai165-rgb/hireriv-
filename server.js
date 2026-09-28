@@ -218,6 +218,7 @@ app.use(express.static(path.join(__dirname, 'public'), { maxAge: '1h' }));
 
 app.locals.site = site;
 app.locals.formatIst = interviews.formatIst;
+app.locals.feedbackSummary = interviews.feedbackSummary;
 // Fingerprint the CSS/JS so browsers fetch fresh copies after every change,
 // despite the 1-hour static cache.
 app.locals.assetVersion = crypto
@@ -476,7 +477,7 @@ const ownerFilter = (req) => (['me', 'none'].includes(req.query.owner) ? req.que
 const matchesOwner = (ownerId, filter, user) => (filter === 'me' ? ownerId === user.id : filter === 'none' ? !ownerId : ownerId === filter);
 const validOwner = (id) => (team.members().some((u) => u.id === id) ? id : '');
 
-interviews.register(app, { adminAuth, sameOrigin, readSubmissions, writeSubmissions, mailer, site, adminUrl });
+interviews.register(app, { adminAuth, sameOrigin, readSubmissions, writeSubmissions, mailer, site, adminUrl, baseUrl: BASE_URL, limit });
 const clients = employers.register(app, {
   db, site, mailer, baseUrl: BASE_URL, adminAuth, sameOrigin, adminUrl, limit,
   readSubmissions, saveSubmission, getJobs: () => jobs, appStatuses: APP_STATUSES,
@@ -546,7 +547,7 @@ app.get('/admin', adminAuth, (req, res) => {
   if (tab === 'interviews') {
     const up = interviews.upcoming(applications);
     const past = interviews.allInterviews(applications).filter((iv) => !up.some((u) => u.id === iv.id)).sort((a, b) => b.at.localeCompare(a.at));
-    return res.render('admin', { ...locals, rows: up, past, formatIst: interviews.formatIst });
+    return res.render('admin', { ...locals, rows: up, past, due: interviews.feedbackDue(applications), formatIst: interviews.formatIst });
   }
   if (tab === 'placements') {
     const all = billing.read().map(billing.describe);
@@ -638,6 +639,7 @@ function buildDashboard(applications, user) {
     topJobs,
     recent,
     interviews: interviews.upcoming(applications, 5),
+    feedbackDue: interviews.feedbackDue(applications).slice(0, 5),
   };
 }
 

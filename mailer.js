@@ -148,6 +148,32 @@ function createMailer(site) {
       });
     },
 
+    // The interviewer's briefing: what, when, and their private scorecard link.
+    interviewerBriefing(email, a, iv, when, link) {
+      send(site, {
+        to: email,
+        replyTo: teamInbox,
+        subject: `Interview: ${a.name} for ${a.jobTitle}, ${when}`,
+        heading: `You're interviewing ${String(a.name).split(' ')[0]}`,
+        html:
+          p(`Thanks for interviewing for <b>${esc(a.jobTitle)}</b>. Here are the details. Afterwards, please share your feedback using the button below. It takes about a minute.`) +
+          detailsTable([['Candidate', a.name], ['When', when], ['Duration', `${iv.duration} minutes`], ['Format', iv.mode], [iv.mode === 'In person' ? 'Address' : iv.mode === 'Phone' ? 'Phone' : 'Link', iv.where]]) +
+          button(link, 'Give interview feedback') +
+          p(`<span style="color:#6b7690;font-size:13px">This link is just for you and works until two weeks after the interview. Questions? Reply to this email.</span>`),
+      });
+    },
+
+    interviewFeedbackReceived(a, iv, fb, by, link) {
+      send(site, {
+        to: teamInbox,
+        subject: `Interview feedback: ${a.name} – ${fb.recommendation} (${fb.rating}/5)`,
+        heading: `Feedback on ${a.name}`,
+        html:
+          detailsTable([['Candidate', `${a.name} (${a.jobTitle})`], ['Interviewer', by], ['Rating', `${fb.rating} / 5`], ['Recommendation', fb.recommendation], ['Strengths', fb.strengths], ['Concerns', fb.concerns]]) +
+          button(link, 'Open interviews'),
+      });
+    },
+
     interviewCancelled(a, iv, ics, when) {
       send(site, {
         to: a.email,

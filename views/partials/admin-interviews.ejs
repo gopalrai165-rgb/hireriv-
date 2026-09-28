@@ -1,3 +1,22 @@
+<% if (due.length) { %>
+  <h2 class="iv-heading">Feedback due <span class="muted">(<%= due.length %>)</span></h2>
+  <div class="table-wrap iv-due">
+    <table>
+      <thead><tr><th>When</th><th>Candidate</th><th>Interviewer</th><th></th></tr></thead>
+      <tbody>
+        <% due.forEach(function (iv) { %>
+          <tr>
+            <td><%= formatIst(iv.at) %></td>
+            <td><b><%= iv.app.name %></b><br><span class="muted small"><%= iv.app.jobTitle %></span></td>
+            <td><%= iv.interviewer || '—' %><% if (iv.interviewerEmail) { %><br><span class="muted small">Feedback link sent to <%= iv.interviewerEmail %></span><% } %></td>
+            <td><a class="btn btn-primary btn-sm" href="/admin/interviews/<%= iv.app.id %>/<%= iv.id %>/feedback">Add feedback</a></td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+<% } %>
+
 <h2 class="iv-heading">Upcoming <span class="muted">(<%= rows.length %>)</span></h2>
 <% if (!rows.length) { %>
   <div class="empty"><p>No interviews booked. Open an application and choose <b>+ Schedule interview</b>.</p></div>
@@ -12,7 +31,7 @@
             <td><b><%= iv.app.name %></b><br><a href="mailto:<%= iv.app.email %>"><%= iv.app.email %></a><br><%= iv.app.phone %></td>
             <td><%= iv.app.jobTitle %></td>
             <td><%= iv.mode %><br><% if (/^https?:\/\//.test(iv.where)) { %><a href="<%= iv.where %>" target="_blank" rel="noopener noreferrer">Join link</a><% } else { %><span class="muted small"><%= iv.where %></span><% } %></td>
-            <td><%= iv.interviewer || '—' %></td>
+            <td><%= iv.interviewer || '—' %><% if (iv.interviewerEmail) { %><br><span class="muted small"><%= iv.interviewerEmail %></span><% } %></td>
             <td class="row-actions">
               <a class="btn btn-outline btn-sm" href="/admin/interviews/<%= iv.app.id %>/<%= iv.id %>.ics">.ics</a>
               <form method="post" action="/admin/interviews/<%= iv.app.id %>/<%= iv.id %>/cancel" data-confirm="Cancel this interview? The candidate will be emailed and it will be removed from their calendar."><button class="btn btn-sm btn-danger">Cancel</button></form>
@@ -28,7 +47,7 @@
   <h2 class="iv-heading">Past &amp; cancelled</h2>
   <div class="table-wrap">
     <table>
-      <thead><tr><th>When</th><th>Candidate</th><th>Job</th><th>Format</th><th>Status</th></tr></thead>
+      <thead><tr><th>When</th><th>Candidate</th><th>Job</th><th>Format</th><th>Status</th><th>Feedback</th></tr></thead>
       <tbody>
         <% past.forEach(function (iv) { %>
           <tr class="<%= iv.status === 'cancelled' ? 'iv-cancelled' : '' %>">
@@ -37,6 +56,11 @@
             <td><%= iv.app.jobTitle %></td>
             <td><%= iv.mode %></td>
             <td><span class="pill st-<%= iv.status === 'cancelled' ? 'rejected' : 'hired' %>"><%= iv.status === 'cancelled' ? 'Cancelled' : 'Done' %></span></td>
+            <td>
+              <% const fs = feedbackSummary(iv); %>
+              <% if (fs) { %><a class="pill <%= /no hire/i.test(fs.recommendation) ? 'st-rejected' : 'st-hired' %>" href="/admin/interviews/<%= iv.app.id %>/<%= iv.id %>/feedback"><%= fs.recommendation %> · <%= fs.avg %>/5<%= fs.count > 1 ? ' (' + fs.count + ')' : '' %></a>
+              <% } else if (iv.status !== 'cancelled') { %><a class="small" href="/admin/interviews/<%= iv.app.id %>/<%= iv.id %>/feedback">+ Add feedback</a><% } else { %><span class="muted">—</span><% } %>
+            </td>
           </tr>
         <% }) %>
       </tbody>

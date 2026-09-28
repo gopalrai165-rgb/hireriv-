@@ -836,3 +836,14 @@ code { background: var(--tint); padding: 0 .3em; border-radius: 4px; font-size: 
 .timeline .tl-withdrawn::before { background: var(--err); }
 .tl-when { color: var(--muted); font-size: .74rem; }
 .tl-what { color: var(--ink); }
+.scorecard fieldset.rating { border: 0; padding: 0; margin: 0 0 16px; }
+.scorecard legend { font-weight: 700; color: var(--ink); margin-bottom: 8px; }
+.rating-row { display: flex; gap: 8px; }
+.rating-opt { position: relative; cursor: pointer; }
+.rating-opt input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.rating-opt span { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; border: 1.5px solid var(--line); font-weight: 700; color: var(--ink); background: #fff; }
+.rating-opt input:checked + span { background: var(--blue); border-color: var(--blue); color: #fff; }
+.rating-opt input:focus-visible + span { outline: 3px solid color-mix(in srgb, var(--blue) 60%, transparent); outline-offset: 2px; }
+.rec-strong-hire input:checked + span, .rec-hire input:checked + span { background: #dcfce7; border-color: #16a34a; color: #15803d; }
+.rec-no-hire input:checked + span, .rec-strong-no-hire input:checked + span { background: #fee2e2; border-color: #dc2626; color: #b91c1c; }
+.fb-chip { display: inline-block; margin-top: 4px; }

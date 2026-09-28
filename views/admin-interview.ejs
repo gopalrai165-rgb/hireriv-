@@ -17,7 +17,8 @@
           <select name="mode" id="iv-mode" data-candidate-phone="<%= a.phone %>"><% modes.forEach(function (m) { %><option<%= m === f.mode ? ' selected' : '' %>><%= m %></option><% }) %></select>
         </label>
         <label class="span-2"><span id="iv-where-label">Meeting link / address / phone</span><input name="where" id="iv-where" value="<%= f.where %>" placeholder="https://meet.google.com/… or office address"></label>
-        <label class="span-2">Interviewer<input name="interviewer" value="<%= f.interviewer %>" placeholder="e.g. Priya Sharma, Engineering Manager"></label>
+        <label>Interviewer<input name="interviewer" value="<%= f.interviewer %>" placeholder="e.g. Priya Sharma, Engineering Manager"></label>
+        <label>Interviewer's email <span class="muted small">(optional)</span><input type="email" name="interviewerEmail" value="<%= f.interviewerEmail || '' %>" placeholder="They get the details and a feedback link"></label>
         <label class="span-2">Message to the candidate <span class="muted small">(optional)</span><textarea name="message" rows="3" placeholder="e.g. Please keep your ID and latest payslip handy."><%= f.message %></textarea></label>
       </div>
       <p class="muted small">The candidate gets an email with a calendar invite. If they're still New or in Screening, they move to Interview.</p>

@@ -179,6 +179,8 @@
                   </form>
                   <% const nextIv = (r.interviews || []).filter(function (iv) { return iv.status === 'scheduled' && new Date(iv.at) > new Date(); }).sort(function (x, y) { return x.at.localeCompare(y.at); })[0]; %>
                   <% if (nextIv) { %><p class="iv-next">Interview: <b><%= formatIst(nextIv.at) %></b></p><% } %>
+                  <% const withFb = (r.interviews || []).filter(function (iv) { return (iv.feedback || []).length; }).sort(function (x, y) { return y.at.localeCompare(x.at); })[0]; %>
+                  <% if (withFb) { const fsum = feedbackSummary(withFb); %><a class="pill fb-chip <%= /no hire/i.test(fsum.recommendation) ? 'st-rejected' : 'st-hired' %>" href="/admin/interviews/<%= r.id %>/<%= withFb.id %>/feedback" title="Latest interview feedback">Interview: <%= fsum.recommendation %> · <%= fsum.avg %>/5</a><% } %>
                   <a class="small iv-link" href="/admin/applications/<%= r.id %>/interview">+ Schedule interview</a>
                   <% if (placedApps.has(r.id)) { %><br><a class="small iv-link" href="/admin?tab=placements">✓ Placement recorded</a>
                   <% } else if (['Offered', 'Hired'].includes(r.status)) { %><br><a class="small iv-link" href="/admin/applications/<%= r.id %>/placement">+ Record placement</a><% } %>

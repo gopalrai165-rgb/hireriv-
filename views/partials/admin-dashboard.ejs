@@ -58,6 +58,13 @@
 
   <section class="dash-card dash-wide">
     <div class="dash-head"><h2>Upcoming interviews</h2><a class="small" href="/admin?tab=interviews">All interviews</a></div>
+    <% if (dash.feedbackDue.length) { %>
+      <ul class="activity">
+        <% dash.feedbackDue.forEach(function (iv) { %>
+          <li><a href="/admin/interviews/<%= iv.app.id %>/<%= iv.id %>/feedback"><span class="pill st-screening">Feedback due</span><span class="activity-text"><b><%= iv.app.name %></b> · <%= iv.app.jobTitle %></span><span class="muted small"><%= formatIst(iv.at) %></span></a></li>
+        <% }) %>
+      </ul>
+    <% } %>
     <% if (!dash.interviews.length) { %><p class="muted dash-empty">No interviews booked.</p>
     <% } else { %>
       <ul class="activity">

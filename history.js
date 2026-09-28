@@ -40,6 +40,7 @@ function timeline(a) {
   for (const iv of a.interviews || []) {
     ev.push({ at: iv.createdAt, kind: 'Interview', text: `${iv.mode} interview booked` });
     if (iv.cancelledAt) ev.push({ at: iv.cancelledAt, kind: 'Interview', text: 'Interview cancelled' });
+    for (const f of iv.feedback || []) ev.push({ at: f.at, kind: 'Feedback', text: `Interview feedback: ${f.recommendation}, ${f.rating}/5`, by: f.by });
   }
   for (const m of a.emails || []) ev.push({ at: m.at, kind: 'Email', text: `Emailed: ${m.subject}`, by: m.by });
   if (a.shared) {

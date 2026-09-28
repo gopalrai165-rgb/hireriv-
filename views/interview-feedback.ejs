@@ -1,0 +1,49 @@
+<%- include('partials/head') %>
+
+<section class="section <%= external ? 'auth-section' : 'admin' %>">
+  <div class="container narrow">
+    <% if (!external) { %><a href="/admin?tab=interviews" class="back-link">← Interviews</a><% } %>
+    <span class="eyebrow">Interview feedback</span>
+    <h1><%= a.name %></h1>
+    <p class="lead"><%= a.jobTitle %> · <%= iv.mode %> interview on <%= formatIst(iv.at) %><%= iv.interviewer && !external ? ' · interviewer: ' + iv.interviewer : '' %></p>
+    <% if (typeof early !== 'undefined' && early) { %><p class="notice" role="note">This interview hasn't happened yet. You can fill this in afterwards using the same link.</p><% } %>
+    <% if (errors.length) { %><p class="notice notice-err" role="alert">Please fix: <%= errors.join(', ') %></p><% } %>
+
+    <form class="form form-card scorecard" method="post" action="<%= action %>">
+      <fieldset class="rating">
+        <legend>Overall rating*</legend>
+        <div class="rating-row">
+          <% [1, 2, 3, 4, 5].forEach(function (n) { %>
+            <label class="rating-opt"><input type="radio" name="rating" value="<%= n %>" required<%= Number(f.rating) === n ? ' checked' : '' %>><span><%= n %></span></label>
+          <% }) %>
+        </div>
+        <p class="muted small">1 = well below the bar · 3 = meets the bar · 5 = exceptional</p>
+      </fieldset>
+      <fieldset class="rating">
+        <legend>Recommendation*</legend>
+        <div class="decision-row">
+          <% recommendations.forEach(function (r) { %>
+            <label class="decision rec-<%= r.toLowerCase().split(' ').join('-') %>"><input type="radio" name="recommendation" value="<%= r %>" required<%= f.recommendation === r ? ' checked' : '' %>><span><%= r %></span></label>
+          <% }) %>
+        </div>
+      </fieldset>
+      <label>Strengths<textarea name="strengths" rows="3" maxlength="2000" placeholder="What stood out: skills, examples, communication…"><%= f.strengths || '' %></textarea></label>
+      <label>Concerns<textarea name="concerns" rows="3" maxlength="2000" placeholder="Gaps, risks, anything to probe in the next round…"><%= f.concerns || '' %></textarea></label>
+      <button class="btn btn-primary" type="submit"><%= f.at ? 'Update feedback' : 'Submit feedback' %></button>
+      <% if (f.at) { %><span class="muted small">Last saved <%= formatIst(f.at) %></span><% } %>
+    </form>
+
+    <% if (others.length) { %>
+      <h2 class="replace-head">All feedback on this interview</h2>
+      <% others.forEach(function (o) { %>
+        <article class="cand-card">
+          <div class="cand-top"><div><h3><%= o.by %></h3><p class="muted small"><%= o.byType === 'interviewer' ? 'Interviewer' : 'Team' %> · <%= formatIst(o.at) %></p></div><span class="pill <%= /no hire/i.test(o.recommendation) ? 'st-rejected' : 'st-hired' %>"><%= o.recommendation %> · <%= o.rating %>/5</span></div>
+          <% if (o.strengths) { %><p class="small"><b>Strengths:</b> <%= o.strengths %></p><% } %>
+          <% if (o.concerns) { %><p class="small"><b>Concerns:</b> <%= o.concerns %></p><% } %>
+        </article>
+      <% }) %>
+    <% } %>
+  </div>
+</section>
+
+<%- include('partials/foot') %>
