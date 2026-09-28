@@ -149,6 +149,13 @@
                   <% if (r.resume) { %><br><a href="/admin/resume/<%= encodeURIComponent(r.resume) %>">Download resume</a><% } %>
                   <% const lastMail = (r.emails || [])[(r.emails || []).length - 1]; %>
                   <% if (lastMail) { %><br><span class="muted small" title="<%= lastMail.subject %>">Emailed <%= formatDate(lastMail.at) %> by <%= lastMail.by %><%= r.emails.length > 1 ? ' (' + r.emails.length + ' emails)' : '' %></span><% } %>
+                  <details class="timeline-box"><summary class="small">Timeline (<%= r.timeline.length %>)</summary>
+                    <ol class="timeline">
+                      <% r.timeline.forEach(function (e) { %>
+                        <li class="tl-<%= e.kind.toLowerCase() %>"><span class="tl-when"><%= new Date(e.at).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit', timeZone: 'Asia/Kolkata' }) %></span><span class="tl-what"><%= e.text %><% if (e.by) { %> <span class="muted">· <%= e.by %></span><% } %></span></li>
+                      <% }) %>
+                    </ol>
+                  </details>
                 </td>
                 <td><%= r.jobTitle %><% if (r.match) { %><br><%- include('partials/match-chip', { match: r.match }) %><% } %><% if (r.skills) { %><br><span class="muted small">Skills: <%= r.skills %></span><% } %></td>
                 <td><%= r.experience %><br><span class="muted"><%= r.location || '—' %> · notice <%= r.noticePeriod %></span>

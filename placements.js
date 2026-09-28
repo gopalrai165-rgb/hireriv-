@@ -4,6 +4,7 @@
 // the application), so billing records survive a candidate deleting their data.
 const crypto = require('crypto');
 const timesheets = require('./timesheets');
+const { moveStage } = require('./history');
 
 const STATUSES = ['Awaiting joining', 'Joined', 'Did not join', 'Left in guarantee', 'Contract ended'];
 const TYPES = ['Permanent', 'Contract', 'Contract-to-hire'];
@@ -305,7 +306,7 @@ function register(app, deps) {
     write(list);
     // A recorded placement means the offer was accepted.
     if (a.status !== 'Hired') {
-      Object.assign(a, { status: 'Hired', updatedAt: now });
+      moveStage(a, 'Hired', `${req.admin.name} (placement recorded)`, now);
       writeSubmissions('applications', apps);
     }
     res.redirect(adminUrl('placements', orig ? `${a.name} recorded as the replacement for ${orig.candidateName} at ${data.company}` : `Placement recorded for ${a.name} at ${data.company} · fee ${inr(data.fee)}`));

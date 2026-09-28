@@ -1,6 +1,8 @@
 // Reports & analytics: hiring speed, pipeline conversion, source of hire, and
 // results by recruiter, category and client for a chosen period. Money figures
 // are only built for Admins.
+const { everReached, firstResponseDays } = require('./history');
+
 const DAY_MS = 86400000;
 const round2 = (n) => Math.round(n * 100) / 100;
 const dayKey = (d) => new Date(d).toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
@@ -55,6 +57,15 @@ const SOURCE_NAMES = {
 };
 const sourceName = (s) => (!s ? 'Not tracked (older)' : SOURCE_NAMES[s] || s.charAt(0).toUpperCase() + s.slice(1));
 
+// How quickly the team first moves a new application out of "New".
+function firstResponseKpi(apps) {
+  const days = apps.map(firstResponseDays).filter((d) => d !== null);
+  const waiting = apps.filter((a) => (a.status || 'New') === 'New' && !a.withdrawnAt).length;
+  if (!days.length) return { label: 'Median first response', value: null, note: waiting ? `${waiting} still waiting in New` : 'recorded for new applications from now on' };
+  const m = median(days.map((d) => Math.round(d * 10) / 10));
+  return { label: 'Median first response', value: m < 1 ? Math.round(m * 24) : Math.round(m * 10) / 10, unit: m < 1 ? 'hours' : 'days', note: `applied → first stage move${waiting ? ` · ${waiting} still in New` : ''}` };
+}
+
 function create({ readSubmissions, getJobs, getPlacements, team, appOwner }) {
   const invoicesOf = (p) => [p.invoice, ...(p.monthlyInvoices || [])].filter(Boolean);
 
@@ -96,6 +107,7 @@ function create({ readSubmissions, getJobs, getPlacements, team, appOwner }) {
       { label: 'Applications', value: periodApps.length, note: `${periodInterviews.length} interviews booked` },
       { label: 'Placements', value: periodPlacements.length, note: `${pct(periodPlacements.length, periodApps.length)}% of applications` },
       { label: 'Median time to hire', value: median(daysList), unit: 'days', note: daysList.length ? `application → offer accepted, ${daysList.length} hire${daysList.length === 1 ? '' : 's'}` : 'no hires yet' },
+      firstResponseKpi(periodApps),
     ];
     if (isAdmin) {
       kpis.push({ label: 'Billed', money: round2(billedIn(allInvoices)), note: 'invoices incl. GST, net of credit notes' });
@@ -121,17 +133,13 @@ function create({ readSubmissions, getJobs, getPlacements, team, appOwner }) {
     }
 
     // ----- conversion: how far applications received in the period got -----
-    // Stage history isn't stored, so "reached" is inferred from the current stage
-    // and interviews: e.g. a Rejected candidate who was interviewed counts at Interview.
-    const reached = (a, stage) => {
-      const s = a.status || 'New';
-      const placed = placements.some((p) => p.appId === a.id);
-      if (stage === 'Applied') return true;
-      if (stage === 'Screened') return s !== 'New';
-      if (stage === 'Interviewed') return (a.interviews || []).length > 0 || ['Interview', 'Offered', 'Hired'].includes(s) || placed;
-      if (stage === 'Offered') return ['Offered', 'Hired'].includes(s) || placed;
-      return s === 'Hired' || placed;
-    };
+    // Exact where stage history exists; older applications (from before history
+    // was recorded) are inferred from their current stage and interviews.
+    const placedIds = new Set(placements.map((p) => p.appId));
+    const STAGE_OF = { Screened: 'Screening', Interviewed: 'Interview', Offered: 'Offered', Hired: 'Hired' };
+    const reached = (a, stage) => stage === 'Applied' || everReached(a, STAGE_OF[stage], placedIds.has(a.id));
+    // Exact when moves were recorded, or when the application never left New.
+    const withHistory = periodApps.filter((a) => (a.history || []).length || (a.status || 'New') === 'New').length;
     const conversion = ['Applied', 'Screened', 'Interviewed', 'Offered', 'Hired'].map((stage) => {
       const count = periodApps.filter((a) => reached(a, stage)).length;
       return { stage, count, pct: pct(count, periodApps.length) };
@@ -195,7 +203,7 @@ function create({ readSubmissions, getJobs, getPlacements, team, appOwner }) {
       clients = Object.values(cliMap).filter((c) => c.placements || c.billed || c.collected).sort((a, b) => b.billed - a.billed || b.placements - a.placements).slice(0, 15);
     }
 
-    return { period, periods: PERIODS, kpis, months, conversion, sources, recruiters, categories, clients, isAdmin };
+    return { period, periods: PERIODS, kpis, months, conversion, withHistory, sources, recruiters, categories, clients, isAdmin };
   }
 
   // Flat rows for the CSV download of each report section.

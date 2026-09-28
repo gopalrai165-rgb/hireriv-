@@ -3,6 +3,7 @@
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
+const { moveStage } = require('./history');
 
 const MAX_BULK = 200;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
@@ -138,8 +139,7 @@ function register(app, deps) {
       let moved = 0;
       let emailed = 0;
       for (const a of chosen) {
-        if ((a.status || 'New') === value) continue;
-        Object.assign(a, { status: value, updatedAt: now });
+        if (!moveStage(a, value, req.admin.name, now)) continue;
         moved++;
         if (req.body.notify === '1' && !a.withdrawnAt && mailer.statusChanged(a)) {
           a.lastEmailedStatus = value;

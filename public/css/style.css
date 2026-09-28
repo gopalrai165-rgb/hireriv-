@@ -827,3 +827,12 @@ code { background: var(--tint); padding: 0 .3em; border-radius: 4px; font-size: 
 .ts-reject { display: flex; gap: 6px; flex: 1; min-width: 220px; }
 .ts-reject input, .ts-note { padding: .4em .6em; font-size: .85rem; max-width: 180px; }
 .ts-pending { margin-bottom: 16px; }
+.timeline-box { margin-top: 6px; }
+.timeline { list-style: none; margin: 8px 0 0; padding: 0 0 0 12px; border-left: 2px solid var(--line); display: grid; gap: 6px; font-size: .8rem; min-width: 220px; }
+.timeline li { position: relative; display: grid; gap: 1px; }
+.timeline li::before { content: ''; position: absolute; left: -17px; top: 4px; width: 8px; height: 8px; border-radius: 50%; background: var(--line); }
+.timeline .tl-stage::before { background: var(--blue); }
+.timeline .tl-applied::before { background: var(--primary); }
+.timeline .tl-withdrawn::before { background: var(--err); }
+.tl-when { color: var(--muted); font-size: .74rem; }
+.tl-what { color: var(--ink); }

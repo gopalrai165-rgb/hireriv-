@@ -2,6 +2,7 @@
 // Interviews live on the application record (application.interviews[]).
 const crypto = require('crypto');
 const { interviewIcs, istToDate, formatIst } = require('./ics');
+const { moveStage } = require('./history');
 
 const MODES = ['Video call', 'Phone', 'In person'];
 const DURATIONS = [30, 45, 60, 90];
@@ -72,7 +73,7 @@ function register(app, { adminAuth, sameOrigin, readSubmissions, writeSubmission
     };
     a.interviews = [...(a.interviews || []), iv];
     // Booking an interview moves early-stage candidates forward automatically.
-    if (['New', 'Screening', undefined, ''].includes(a.status)) a.status = 'Interview';
+    if (['New', 'Screening', undefined, ''].includes(a.status)) moveStage(a, 'Interview', `${req.admin.name} (interview booked)`, iv.createdAt);
     a.updatedAt = iv.createdAt;
     writeSubmissions('applications', list);
     mailer.interviewScheduled(a, iv, icsFor('REQUEST', iv, a), formatIst(at));

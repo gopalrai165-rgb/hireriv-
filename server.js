@@ -16,6 +16,7 @@ const teamModule = require('./team');
 const bulk = require('./bulk');
 const reportsModule = require('./reports');
 const timesheetsModule = require('./timesheets');
+const history = require('./history');
 const { interviewIcs } = require('./ics');
 
 const PORT = process.env.PORT || 3004;
@@ -531,7 +532,7 @@ app.get('/admin', adminAuth, (req, res) => {
     const sort = req.query.sort === 'match' ? 'match' : '';
     const owner = ownerFilter(req);
     let rows = (status ? applications.filter((a) => statusOf(a) === status) : applications)
-      .map((a) => ({ ...a, owner: appOwner(a), match: skillMatch(a, jobs.find((j) => j.id === a.jobId)) }))
+      .map((a) => ({ ...a, owner: appOwner(a), match: skillMatch(a, jobs.find((j) => j.id === a.jobId)), timeline: history.timeline(a) }))
       .filter((a) => !owner || matchesOwner(a.owner, owner, req.admin));
     if (sort) rows = rows.sort((a, b) => (b.match?.score ?? -1) - (a.match?.score ?? -1));
     return res.render('admin', { ...locals, rows, owner, statuses: APP_STATUSES, statusCounts, status, sort, clientOptions: clients.read().filter((c) => c.active), placedApps, templates: templates.read(), backUrl: req.originalUrl.replace(/&msg=[^&]*/, ''), jobClient: Object.fromEntries(jobs.map((j) => [j.id, j.employerId || ''])) });
@@ -785,8 +786,8 @@ app.post('/admin/applications/:id/status', adminAuth, sameOrigin, (req, res, nex
   if (!entry) return next();
   const { status, notes, notify, ownerId } = clean(req.body, ['status', 'notes', 'notify', 'ownerId']);
   if (!APP_STATUSES.includes(status)) return res.status(400).send('Invalid status');
-  const changed = (entry.status || 'New') !== status;
-  Object.assign(entry, { status, notes, updatedAt: new Date().toISOString() });
+  const changed = history.moveStage(entry, status, req.admin.name);
+  Object.assign(entry, { notes, updatedAt: new Date().toISOString() });
   // "job" means follow the job's owner; otherwise a named team member.
   if (ownerId !== undefined && req.body.ownerId !== undefined) entry.ownerId = ownerId === 'job' ? '' : validOwner(ownerId) || entry.ownerId || '';
   // Email the candidate only on a real stage change the recruiter opted into.
@@ -840,9 +841,23 @@ app.get('/admin/export/:type.csv', adminAuth, (req, res, next) => {
     : type === 'placements' ? billing.csvRows()
     : type === 'activity' ? team.activity({ limit: 5000 })
     : type === 'talent' ? buildPool(readSubmissions('applications')).map(({ skillsAll, ...c }) => ({ ...c, jobsApplied: c.jobsApplied.join('; ') }))
+    : type === 'applications' ? readSubmissions('applications').map(applicationCsvRow)
     : readSubmissions(type);
   sendCsv(res, type, rows);
 });
+
+// Nested details (history, interviews, emails, client sharing) as readable text.
+const csvDate = (d) => (d ? new Date(d).toLocaleString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'Asia/Kolkata' }) : '');
+function applicationCsvRow(a) {
+  const { history: h = [], interviews: ivs = [], emails = [], shared, ...rest } = a;
+  return {
+    ...rest,
+    stageHistory: h.map((x) => `${csvDate(x.at)}: ${x.from} → ${x.to} (${x.by})`).join(' | '),
+    interviews: ivs.map((iv) => `${csvDate(iv.at)} ${iv.mode} (${iv.status})`).join(' | '),
+    emails: emails.map((m) => `${csvDate(m.at)}: ${m.subject} (${m.by})`).join(' | '),
+    sharedWithClient: shared ? `${csvDate(shared.sharedAt)}${shared.feedback ? ` · ${shared.feedback.decision}` : ''}` : '',
+  };
+}
 
 function sendCsv(res, name, rows) {
   const cols = [...new Set(rows.flatMap((r) => Object.keys(r)))].filter((c) => c !== 'token');

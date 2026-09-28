@@ -43,7 +43,7 @@
           </span></li>
         <% }) %>
       </ul>
-      <p class="muted small">Of applications received in this period, how many reached each step. Based on each candidate's current stage and interviews.</p>
+      <p class="muted small">Of applications received in this period, how many reached each step. <%= r.withHistory === r.conversion[0].count ? 'Exact, from each application\'s stage history.' : r.withHistory ? r.withHistory + ' of ' + r.conversion[0].count + ' have full stage history; the rest are estimated from their current stage and interviews.' : 'Estimated from current stage and interviews (stage history is recorded from now on).' %></p>
     <% } %>
   </section>
 
