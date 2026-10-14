@@ -26,7 +26,7 @@
 <section class="stats">
   <div class="container stats-grid">
     <% site.stats.forEach(function (s) { %>
-      <div class="stat"><b><span class="counter" data-target="<%= s.value %>">0</span><%= s.suffix %></b><span><%= s.label %></span></div>
+      <div class="stat"><b><span class="counter" data-target="<%= s.value %>"><%= s.value.toLocaleString('en-IN') %></span><%= s.suffix %></b><span><%= s.label %></span></div>
     <% }) %>
   </div>
 </section>
@@ -53,8 +53,8 @@
     </div>
     <div class="about-cols">
       <p>We started as a technology staffing specialist, connecting employers with talent in Big Data, Data Science, Mobile, Cloud, QA, AI, Cybersecurity, DevOps, UI/UX and Creative Design.</p>
-      <p>Today we're expanding into Logistics, E-Commerce, FMCG, EdTech, Retail, Media, Hospitality and Banking, each served by recruiters with hands-on industry experience.</p>
-      <p>Our 24/7 support team builds lasting relationships with employers and candidates alike, and our industry-specific training programmes are run by experienced corporate HR professionals.</p>
+      <p>Today we have specialist desks for Finance, Banking &amp; Insurance, Sales, Marketing, Healthcare &amp; Pharma, Engineering &amp; Manufacturing, Customer Support &amp; BPO, Retail &amp; E-commerce and Logistics, each served by recruiters with hands-on industry experience.</p>
+      <p>Every client and candidate gets a dedicated point of contact who stays with them from first call to joining day, and our industry-specific training programmes are run by experienced corporate HR professionals.</p>
     </div>
   </div>
 </section>

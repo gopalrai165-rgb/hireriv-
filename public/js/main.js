@@ -42,6 +42,9 @@ if ('IntersectionObserver' in window) {
       io.unobserve(entry.target);
     });
   }, { threshold: 0.15 });
+  // The real figures are in the HTML for search engines and no-JS visitors;
+  // start from zero only when they will be animated.
+  if (!reducedMotion) document.querySelectorAll('.counter').forEach((el) => { el.textContent = '0'; });
   document.querySelectorAll('.reveal, .counter').forEach((el) => io.observe(el));
 } else {
   document.querySelectorAll('.reveal').forEach((el) => el.classList.add('in'));

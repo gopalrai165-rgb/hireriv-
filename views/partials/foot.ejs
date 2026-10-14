@@ -20,12 +20,12 @@
     <div class="footer-brand">
       <a href="/" class="logo logo-light"><img src="/img/logo.svg" alt="" width="36" height="36"><span>Hire<b>riv</b></span></a>
       <p><%= site.tagline %>.</p>
+      <% const socials = [['linkedin', 'LinkedIn'], ['instagram', 'Instagram'], ['facebook', 'Facebook'], ['x', 'X']].filter(function (s) { return /^https?:\/\//.test(site.social[s[0]] || ''); }); %>
+      <% if (socials.length) { %>
       <div class="social">
-        <a href="<%= site.social.linkedin %>" aria-label="LinkedIn"><svg class="i"><use href="#i-linkedin"/></svg></a>
-        <a href="<%= site.social.instagram %>" aria-label="Instagram"><svg class="i"><use href="#i-instagram"/></svg></a>
-        <a href="<%= site.social.facebook %>" aria-label="Facebook"><svg class="i"><use href="#i-facebook"/></svg></a>
-        <a href="<%= site.social.x %>" aria-label="X"><svg class="i"><use href="#i-x"/></svg></a>
+        <% socials.forEach(function (s) { %><a href="<%= site.social[s[0]] %>" aria-label="<%= site.name %> on <%= s[1] %>" target="_blank" rel="noopener"><svg class="i"><use href="#i-<%= s[0] %>"/></svg></a><% }) %>
       </div>
+      <% } %>
     </div>
     <div>
       <h4>Company</h4>
@@ -49,8 +49,8 @@
     </div>
   </div>
   <div class="container footer-bottom">
-    <span>© <%= year %> <%= site.name %>. All rights reserved.</span>
-    <a href="#top">Back to top ↑</a>
+    <span>© <%= new Date().getFullYear() %> <%= site.name %>. All rights reserved.</span>
+    <span class="footer-links"><a href="/privacy">Privacy Policy</a><a href="/terms">Terms of Use</a><a href="#top">Back to top ↑</a></span>
   </div>
 </footer>
 

@@ -1,0 +1,53 @@
+<%- include('partials/head') %>
+
+<section class="page-hero page-hero-sm">
+  <div class="container narrow">
+    <span class="eyebrow">Legal</span>
+    <h1>Terms of Use</h1>
+    <p class="muted">Last updated <%= formatDate(updated) %></p>
+  </div>
+</section>
+
+<section class="section">
+  <article class="container narrow prose">
+    <p>These terms apply to everyone who uses this website. By using it, you agree to them. If you are a client, the agreement you sign with <%= site.name %> for a specific engagement takes priority over these terms where they differ.</p>
+
+    <h2>For job seekers</h2>
+    <ul>
+      <li>Our services are free for candidates. <%= site.name %> never asks candidates to pay for a job, an interview, training or a placement. If anyone asks you for money in our name, do not pay, and report it to us at <a href="mailto:<%= site.email %>"><%= site.email %></a>.</li>
+      <li>The information and resume you submit must be accurate and your own. We may verify your employment, education and other details before an offer, with your consent.</li>
+      <li>Applying does not guarantee an interview or a job. Hiring decisions are made by the employer.</li>
+      <li>Client names are often kept confidential in job listings. Your recruiter can share more about the employer as your application progresses.</li>
+    </ul>
+
+    <h2>For employers</h2>
+    <ul>
+      <li>Requirements you send through this website are enquiries. An engagement starts only when both sides agree on commercial terms in writing.</li>
+      <li>Candidate profiles we share are confidential and may be used only to assess candidates for the role they were shared for.</li>
+      <li>Client portal accounts are for the people they are issued to. Keep your password safe and tell us if you think it has been misused.</li>
+    </ul>
+
+    <h2>Job listings and content</h2>
+    <p>We take care to keep listings accurate and current, but salaries, locations and requirements are set by employers and may change. Articles on our blog are general guidance, not legal, tax or financial advice.</p>
+
+    <h2>Acceptable use</h2>
+    <p>Do not misuse the website: no automated scraping, spam submissions, attempts to access other people's accounts or data, or uploads containing malware. We may block access that breaks these rules.</p>
+
+    <h2>Intellectual property</h2>
+    <p>The <%= site.name %> name, logo, website design and content belong to <%= site.name %>. You may share links to our job listings and articles freely.</p>
+
+    <h2>Liability</h2>
+    <p>The website is provided as it is. To the extent the law allows, <%= site.name %> is not liable for indirect losses arising from use of the website, or for decisions made by employers or candidates.</p>
+
+    <h2>Privacy</h2>
+    <p>How we handle your personal data is explained in our <a href="/privacy">Privacy Policy</a>.</p>
+
+    <h2>Governing law</h2>
+    <p>These terms are governed by the laws of India. Disputes are subject to the jurisdiction of the courts where <%= site.name %> has its registered office.</p>
+
+    <h2>Contact</h2>
+    <p>Questions about these terms? Email <a href="mailto:<%= site.email %>"><%= site.email %></a> or call <%= site.phone %>.</p>
+  </article>
+</section>
+
+<%- include('partials/foot') %>

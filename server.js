@@ -59,6 +59,29 @@ function savePosts() {
 }
 const livePosts = () => posts.filter((p) => p.status === 'published');
 
+// One-time upgrade of the starter articles to their fuller versions. A post is
+// only replaced while its text is still exactly the original seed, so anything
+// edited in Admin → Blog is left alone.
+if (!db.metaGet('upgraded:posts-v2')) {
+  const ORIGINAL_SEED = {
+    'six-stage-screening': '39bcf9d05f00887900ae02f6c44705869feab02c',
+    'resume-tips-2026': '23b24525e896a2fa0a1cb2a0a55c72c4b16fcdb3',
+    'contract-vs-permanent': '98a0d1008d850fae077e9dd8340770a4ca64e0fb',
+  };
+  const seed = JSON.parse(fs.readFileSync(path.join(DATA_DIR, 'posts.json'), 'utf8'));
+  const bodyHash = (body) => crypto.createHash('sha1').update(JSON.stringify(body)).digest('hex');
+  let upgraded = 0;
+  for (const p of posts) {
+    const fresh = seed.find((s) => s.slug === p.slug);
+    if (fresh && ORIGINAL_SEED[p.slug] === bodyHash(p.body)) {
+      p.body = fresh.body;
+      upgraded++;
+    }
+  }
+  if (upgraded) savePosts();
+  db.metaSet('upgraded:posts-v2', new Date().toISOString());
+}
+
 // ---------- jobs (editable from /admin) ----------
 let jobs = db.all('jobs').map((j) => ({ status: 'open', ...j }));
 // Jobs that were live before job alerts existed count as already announced.
@@ -227,7 +250,6 @@ app.locals.assetVersion = crypto
   .update(['public/css/style.css', 'public/js/main.js'].map((f) => fs.readFileSync(path.join(__dirname, f))).join(''))
   .digest('hex')
   .slice(0, 10);
-app.locals.year = new Date().getFullYear();
 app.locals.formatDate = (d) =>
   new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
 app.locals.daysAgo = (d) => {
@@ -239,7 +261,7 @@ app.locals.daysAgo = (d) => {
 app.use((req, res, next) => {
   Object.assign(res.locals, {
     canonical: BASE_URL + req.path,
-    metaDescription: `${site.name} – ${site.tagline}. Permanent, contract and executive staffing across Technology, Finance, Marketing and Logistics.`,
+    metaDescription: `${site.name} – ${site.tagline}. Permanent, contract and executive staffing across Technology, Finance, BFSI, Sales, Marketing, Healthcare, Manufacturing, Logistics and more.`,
     jsonLd: null,
     noindex: req.path.startsWith('/admin'),
     toJsonLd: seo.toJsonLd,
@@ -260,8 +282,23 @@ Sitemap: ${BASE_URL}/sitemap.xml
 );
 
 app.get('/sitemap.xml', (req, res) =>
-  res.type('application/xml').send(seo.sitemap(BASE_URL, { jobs: openJobs(), posts: livePosts(), staticPaths: ['/', '/jobs', '/hire', '/about', '/blog', '/contact'] }))
+  res.type('application/xml').send(seo.sitemap(BASE_URL, { jobs: openJobs(), posts: livePosts(), staticPaths: ['/', '/jobs', '/hire', '/about', '/blog', '/contact', '/privacy', '/terms'] }))
 );
+
+// Things a new install still needs before it is ready for visitors, shown to
+// Admins on the dashboard until they are done.
+function setupTodo() {
+  const todo = [];
+  const settings = '/admin?tab=settings';
+  if (/0{5}/.test(site.phone) || /^\d{2}0+$/.test(site.whatsapp)) todo.push({ text: 'Add your real phone and WhatsApp numbers', href: settings });
+  if (!site.address || /^your office address/i.test(site.address)) todo.push({ text: 'Add your office address', href: settings });
+  if (!Object.values(site.social || {}).some((u) => /^https?:\/\//.test(u))) todo.push({ text: 'Add your LinkedIn or other social links (icons stay hidden until you do)', href: settings });
+  const b = site.billing || {};
+  if (!b.legalName || !b.gstin || !b.bank) todo.push({ text: 'Add your legal name, GSTIN and bank details for invoices', href: settings });
+  if (!process.env.SMTP_HOST) todo.push({ text: 'Set up email sending (SMTP_HOST). Until then emails are only saved to data/outbox' });
+  if (process.env.NODE_ENV === 'production' && !process.env.SITE_URL) todo.push({ text: 'Set SITE_URL to your live https:// address' });
+  return todo;
+}
 
 // ---------- pages ----------
 app.get('/', (req, res) => {
@@ -325,6 +362,10 @@ app.get('/saved/cards', (req, res) => {
 app.get('/hire', (req, res) => res.render('hire', { title: 'Hire a Team', page: 'hire' }));
 app.get('/about', (req, res) => res.render('about', { title: 'About Us', page: 'about' }));
 app.get('/contact', (req, res) => res.render('contact', { title: 'Contact Us', page: 'contact' }));
+// Bump LEGAL_UPDATED whenever the wording of either page changes.
+const LEGAL_UPDATED = '2026-10-14';
+app.get('/privacy', (req, res) => res.render('privacy', { title: 'Privacy Policy', page: 'legal', updated: LEGAL_UPDATED, metaDescription: `How ${site.name} collects, uses and protects the personal data of candidates, clients and visitors.` }));
+app.get('/terms', (req, res) => res.render('terms', { title: 'Terms of Use', page: 'legal', updated: LEGAL_UPDATED, metaDescription: `The terms for using the ${site.name} website as a job seeker or employer.` }));
 app.get('/blog', (req, res) => res.render('blog', { title: 'Blog & Articles', page: 'blog', posts: livePosts() }));
 app.get('/blog/:slug', (req, res, next) => {
   const post = livePosts().find((p) => p.slug === req.params.slug);
@@ -537,7 +578,7 @@ app.get('/admin', adminAuth, (req, res) => {
   const memberName = Object.fromEntries(members.map((u) => [u.id, u.name]));
   const locals = { title: 'Admin', page: 'admin', tab, tabs, counts, status: '', msg: String(req.query.msg || ''), members, memberName };
 
-  if (tab === 'dashboard') return res.render('admin', { ...locals, rows: [], dash: buildDashboard(applications, req.admin) });
+  if (tab === 'dashboard') return res.render('admin', { ...locals, rows: [], dash: buildDashboard(applications, req.admin), setupTodo: req.admin.role === 'Admin' ? setupTodo() : [] });
   if (tab === 'team') return res.render('admin', { ...locals, rows: team.list(), roles: team.ROLES });
   if (tab === 'templates') return res.render('admin', { ...locals, rows: templates.read(), placeholders: bulk.PLACEHOLDERS });
   if (tab === 'reports') return res.render('admin', { ...locals, rows: [], report: reports.build({ period: String(req.query.period || ''), isAdmin: req.admin.role === 'Admin' }), inr: billing.inr });

@@ -7,7 +7,7 @@
     <div class="hero-copy">
       <span class="eyebrow"><svg class="i"><use href="#i-spark"/></svg> AI-assisted, recruiter-verified hiring</span>
       <h1>Tech-driven staffing that <span class="grad">moves businesses</span> and careers forward</h1>
-      <p class="lead">Hireriv connects growing companies with pre-screened talent across Technology, Finance, Marketing and Logistics, and helps professionals find roles where they can do their best work.</p>
+      <p class="lead">Hireriv connects growing companies with pre-screened talent across Technology, Finance, BFSI, Sales, Healthcare, Manufacturing, Logistics and more, and helps professionals find roles where they can do their best work.</p>
       <div class="hero-ctas">
         <a href="/hire" class="btn btn-primary btn-lg">Hire a Team <svg class="i"><use href="#i-arrow"/></svg></a>
         <a href="/jobs" class="btn btn-outline btn-lg">Find Work</a>
@@ -45,7 +45,7 @@
   <div class="container stats-grid">
     <% site.stats.forEach(function (s) { %>
       <div class="stat">
-        <b><span class="counter" data-target="<%= s.value %>">0</span><%= s.suffix %></b>
+        <b><span class="counter" data-target="<%= s.value %>"><%= s.value.toLocaleString('en-IN') %></span><%= s.suffix %></b>
         <span><%= s.label %></span>
       </div>
     <% }) %>
@@ -196,7 +196,7 @@
       <div class="why-list">
         <div><svg class="i"><use href="#i-clock"/></svg><div><b>Faster time-to-hire</b><p>A ready talent pool and a proven process cut weeks from your hiring cycle.</p></div></div>
         <div><svg class="i"><use href="#i-wallet"/></svg><div><b>Lower hiring costs</b><p>Reduce admin, payroll and overtime costs by letting us run the process end to end.</p></div></div>
-        <div><svg class="i"><use href="#i-phone"/></svg><div><b>24/7 support</b><p>A dedicated account manager who picks up the phone, for clients and candidates alike.</p></div></div>
+        <div><svg class="i"><use href="#i-phone"/></svg><div><b>A real person, always</b><p>A dedicated account manager who picks up the phone and keeps you updated, for clients and candidates alike.</p></div></div>
         <div><svg class="i"><use href="#i-shield"/></svg><div><b>Quality guaranteed</b><p>Free replacement if a placement doesn't work out within the guarantee period.</p></div></div>
       </div>
     </div>
