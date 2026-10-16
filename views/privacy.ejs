@@ -39,7 +39,11 @@
     <p>We use service providers to host this website and send email. They process data only on our instructions. We do not sell your personal data, and we never share it for advertising.</p>
 
     <h2>How long we keep it</h2>
-    <p>We keep applications while they are useful for recruitment, or until you ask us to delete them. Invoices and placement records are kept for as long as Indian tax law requires, even if the candidate's other data is deleted.</p>
+    <% if (site.retentionMonths) { %>
+    <p>We delete your applications and resume automatically <%= site.retentionMonths %> months after your last activity with us (for example, applying, an interview or a status update), or sooner if you ask. Contact messages and hiring requests are deleted after the same period. Invoices
+    <% } else { %>
+    <p>We keep applications while they are useful for recruitment, or until you ask us to delete them. Invoices
+    <% } %> and placement records are kept for as long as Indian tax law requires, even if the candidate's other data is deleted.</p>
 
     <h2>Your rights and choices</h2>
     <ul>

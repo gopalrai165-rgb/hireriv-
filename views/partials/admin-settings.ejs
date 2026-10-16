@@ -50,6 +50,21 @@
     <textarea name="jobLocations" rows="10" aria-label="Job locations, one per line"><%= (form.jobLocations || []).join('\n') %></textarea>
   </section>
 
+  <section class="form-card" id="data-retention">
+    <h2>Data retention</h2>
+    <p class="muted small">Automatically delete candidates who have had no activity for a while: their applications, resumes and sign-in links. Contact messages and hiring requests older than the same period are deleted too, and job alerts never confirmed within 30 days. Placements and invoices are always kept, and so are candidates with an active placement or an upcoming interview. The check runs daily, and deletions can't be undone. The activity log records each clean-up.</p>
+    <% const keep = Number(form.retentionMonths) || 0; %>
+    <label>Delete candidate data after
+      <select name="retentionMonths">
+        <option value="0"<%= keep === 0 ? ' selected' : '' %>>Never (keep until deleted by hand)</option>
+        <% [12, 24, 36].forEach(function (m) { const p = retentionPreview[m]; %>
+          <option value="<%= m %>"<%= keep === m ? ' selected' : '' %>><%= m %> months without activity<%= keep === m ? '' : ' · would delete ' + p.candidates + ' candidate' + (p.candidates === 1 ? '' : 's') + ' now' %></option>
+        <% }) %>
+      </select>
+    </label>
+    <% if (keep) { %><p class="muted small">On: candidates are deleted <%= keep %> months after their last activity. The Privacy Policy says so automatically.</p><% } %>
+  </section>
+
   <section class="form-card">
     <h2>Billing &amp; invoices</h2>
     <p class="muted small">Printed on every invoice you issue from Placements. Already-issued invoices keep the details they were issued with.</p>

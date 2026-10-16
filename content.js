@@ -117,6 +117,9 @@ function parseSettings(body, current) {
     tdsPercent: num('billing_tdsPercent'),
     autoReminders: body.billing_autoReminders === '1',
   };
+  // Months of inactivity after which candidate data is deleted; 0 keeps it.
+  next.retentionMonths = Number(get('retentionMonths', 3)) || 0;
+  if (![0, 12, 24, 36].includes(next.retentionMonths)) errors.push('data retention must be off, 12, 24 or 36 months');
   const b = next.billing;
   if (b.gstin && !/^\d{2}[A-Z0-9]{13}$/.test(b.gstin)) errors.push('GSTIN should be 15 characters (e.g. 29ABCDE1234F1Z5)');
   if (b.pan && !/^[A-Z]{5}\d{4}[A-Z]$/.test(b.pan)) errors.push('PAN should look like ABCDE1234F');

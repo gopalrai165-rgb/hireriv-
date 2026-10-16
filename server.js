@@ -20,6 +20,7 @@ const history = require('./history');
 const resumes = require('./resume-parse');
 const { interviewIcs } = require('./ics');
 const ogImages = require('./og');
+const retentionModule = require('./retention');
 
 const PORT = process.env.PORT || 3004;
 const ADMIN_USER = process.env.ADMIN_USER || 'admin';
@@ -557,6 +558,11 @@ app.post('/api/newsletter', limit('newsletter', 5), (req, res) => {
 const team = teamModule.create({ db, mailer, baseUrl: BASE_URL, ownerUser: ADMIN_USER, ownerPass: ADMIN_PASS });
 const { adminAuth, requireAdmin } = team;
 
+// Data retention (off unless switched on in Settings): runs at start and daily.
+const retention = retentionModule.create({ db, site, uploadsDir: UPLOADS_DIR, readSubmissions, writeSubmissions, log: team.log });
+retention.run();
+setInterval(retention.run, 24 * 60 * 60 * 1000).unref();
+
 // Sign-in cookies ride along on cross-site form posts, so every admin write must
 // come from a page on this same host.
 function sameOrigin(req, res, next) {
@@ -669,7 +675,7 @@ app.get('/admin', adminAuth, (req, res) => {
     const hired = applications.filter((a) => a.status === 'Hired' && !all.some((p) => p.appId === a.id));
     return res.render('admin', { ...locals, rows: test ? all.filter(test) : all, view, sum: billing.summary(all), statuses: billing.STATUSES, inr: billing.inr, formatYmd: placements.formatYmd, unrecorded: hired, clientById: Object.fromEntries(clients.read().map((c) => [c.id, c])), nameById: Object.fromEntries(all.map((p) => [p.id, p.candidateName])), monthLabel: billing.monthLabel });
   }
-  if (tab === 'settings') return res.render('admin', { ...locals, rows: [], form: { ...site, jobCategories: jobCategories(), jobLocations: site.jobLocations || DEFAULT_JOB_LOCATIONS }, errors: [], social: SOCIAL, billingForm: placements.billingOf(site) });
+  if (tab === 'settings') return res.render('admin', { ...locals, rows: [], form: { ...site, jobCategories: jobCategories(), jobLocations: site.jobLocations || DEFAULT_JOB_LOCATIONS }, errors: [], social: SOCIAL, billingForm: placements.billingOf(site), retentionPreview: retentionPreviews() });
   if (tab === 'talent') {
     const EXPERIENCE = ['Fresher', '0-1 years', '1-3 years', '3-5 years', '5-10 years', '10+ years'];
     const NOTICE = ['Immediate', '15 days', '30 days', '60 days', '90 days'];
@@ -851,12 +857,18 @@ app.post('/admin/jobs/:id/delete', adminAuth, requireAdmin, sameOrigin, (req, re
 app.post('/admin/settings', adminAuth, requireAdmin, sameOrigin, (req, res) => {
   const { settings, errors } = parseSettings(req.body, site);
   if (errors.length) {
-    return res.status(400).render('admin', { title: 'Admin', page: 'admin', tab: 'settings', tabs: tabsFor(req.admin), counts: {}, members: team.members(), memberName: {}, status: '', msg: '', rows: [], form: settings, errors, social: SOCIAL, billingForm: Object.fromEntries(Object.entries(placements.billingOf(settings)).map(([k, v]) => [k, Number.isNaN(v) ? '' : v])) });
+    return res.status(400).render('admin', { title: 'Admin', page: 'admin', tab: 'settings', tabs: tabsFor(req.admin), counts: {}, members: team.members(), memberName: {}, status: '', msg: '', rows: [], form: settings, errors, social: SOCIAL, retentionPreview: retentionPreviews(), billingForm: Object.fromEntries(Object.entries(placements.billingOf(settings)).map(([k, v]) => [k, Number.isNaN(v) ? '' : v])) });
   }
+  const retentionChanged = settings.retentionMonths !== (site.retentionMonths || 0);
   Object.assign(site, settings);
   saveSite();
-  res.redirect(adminUrl('settings', 'Settings saved. The website is updated.'));
+  if (retentionChanged) team.log(req.admin, site.retentionMonths ? `Turned on data retention: ${site.retentionMonths} months` : 'Turned off data retention');
+  const cleaned = retentionChanged && site.retentionMonths ? retention.run() : null;
+  res.redirect(adminUrl('settings', `Settings saved. The website is updated.${cleaned ? ` Data retention removed ${cleaned.candidates} candidate${cleaned.candidates === 1 ? '' : 's'}, ${cleaned.messages} message${cleaned.messages === 1 ? '' : 's'} and ${cleaned.requests} hiring request${cleaned.requests === 1 ? '' : 's'}.` : ''}`));
 });
+
+// What each retention period would delete today, shown next to the choice.
+const retentionPreviews = () => Object.fromEntries(retentionModule.PERIODS.filter(Boolean).map((m) => [m, retention.preview(m)]));
 
 // ----- blog -----
 const postFormLocals = (post, errors) => ({ title: post.slug && post._editing ? 'Edit article' : 'Write an article', page: 'admin', post, errors });

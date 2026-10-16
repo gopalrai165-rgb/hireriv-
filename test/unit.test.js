@@ -242,3 +242,35 @@ test('share image text is escaped', () => {
   assert.match(svg, /R&amp;D &lt;Lead&gt;/);
   assert.doesNotMatch(svg, /<Lead>/);
 });
+
+// ---------- data retention ----------
+const retention = require('../retention');
+
+test('retention: last activity looks at every kind of event', () => {
+  const a = { createdAt: '2024-01-01T00:00:00Z', history: [{ at: '2024-03-01T00:00:00Z' }], interviews: [{ createdAt: '2024-02-01T00:00:00Z', at: '2024-04-01T00:00:00Z', feedback: [{ at: '2024-05-01T00:00:00Z' }] }], shared: { sharedAt: '2024-02-15T00:00:00Z' } };
+  assert.equal(retention.lastActivity(a), '2024-05-01T00:00:00Z');
+});
+
+test('retention: only inactive candidates without active placements or interviews are due', () => {
+  const now = new Date('2026-10-16T00:00:00Z');
+  const old = '2024-01-01T00:00:00Z';
+  const apps = [
+    { id: '1', email: 'old@x.in', createdAt: old },
+    { id: '2', email: 'Mixed@x.in', createdAt: old },
+    { id: '3', email: 'mixed@x.in', createdAt: '2026-09-01T00:00:00Z' }, // recent application keeps the person
+    { id: '4', email: 'placed@x.in', createdAt: old },
+    { id: '5', email: 'interview@x.in', createdAt: old, interviews: [{ status: 'scheduled', at: '2026-11-01T10:00:00Z' }] },
+    { id: '6', email: 'left@x.in', createdAt: old },
+  ];
+  const placements = [{ candidateEmail: 'placed@x.in', status: 'Joined' }, { candidateEmail: 'left@x.in', status: 'Left in guarantee' }];
+  const due = retention.candidatesDue(apps, placements, { months: 24, now });
+  assert.deepEqual(due.map((c) => c.email).sort(), ['left@x.in', 'old@x.in']);
+  assert.deepEqual(retention.candidatesDue(apps, placements, { months: 0, now }), []);
+  // 36 months back from Oct 2026 is Oct 2023, so January 2024 is not due yet.
+  assert.deepEqual(retention.candidatesDue(apps, placements, { months: 36, now }), []);
+});
+
+test('retention: settings accept only the offered periods', () => {
+  assert.equal(content.parseSettings({ ...validSettings, retentionMonths: '24' }, { name: 'H' }).settings.retentionMonths, 24);
+  assert.ok(content.parseSettings({ ...validSettings, retentionMonths: '5' }, { name: 'H' }).errors.includes('data retention must be off, 12, 24 or 36 months'));
+});
