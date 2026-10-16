@@ -37,6 +37,11 @@
       <a href="/contact">Contact</a>
     </div>
     <div>
+      <h4>Services</h4>
+      <% catalog.SERVICES.forEach(function (s) { %><a href="/services/<%= s.slug %>"><%= s.name %></a><% }) %>
+      <a href="/industries">Industries we hire for</a>
+    </div>
+    <div>
       <h4>Recruitment</h4>
       <a href="/hire">Hire a Team</a>
       <a href="/jobs">Find Work</a>

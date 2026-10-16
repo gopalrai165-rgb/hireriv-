@@ -23,6 +23,7 @@ const ogImages = require('./og');
 const retentionModule = require('./retention');
 const backupsModule = require('./backups');
 const { paginate } = require('./paginate');
+const catalog = require('./catalog');
 
 const PORT = process.env.PORT || 3004;
 const ADMIN_USER = process.env.ADMIN_USER || 'admin';
@@ -263,6 +264,7 @@ app.get('/healthz', (req, res) => {
 app.use(express.static(path.join(__dirname, 'public'), { maxAge: '1h' }));
 
 app.locals.site = site;
+app.locals.catalog = catalog;
 app.locals.formatIst = interviews.formatIst;
 app.locals.feedbackSummary = interviews.feedbackSummary;
 // Fingerprint the CSS/JS so browsers fetch fresh copies after every change,
@@ -325,7 +327,7 @@ Sitemap: ${BASE_URL}/sitemap.xml
 );
 
 app.get('/sitemap.xml', (req, res) =>
-  res.type('application/xml').send(seo.sitemap(BASE_URL, { jobs: openJobs(), posts: livePosts(), staticPaths: ['/', '/jobs', '/hire', '/about', '/blog', '/contact', '/privacy', '/terms'] }))
+  res.type('application/xml').send(seo.sitemap(BASE_URL, { jobs: openJobs(), posts: livePosts(), staticPaths: ['/', '/jobs', '/hire', '/services', ...catalog.SERVICES.map((x) => `/services/${x.slug}`), '/industries', ...catalog.INDUSTRIES.map((x) => `/industries/${x.slug}`), '/about', '/blog', '/contact', '/privacy', '/terms'] }))
 );
 
 // Things a new install still needs before it is ready for visitors, shown to
@@ -411,7 +413,43 @@ app.get('/saved/cards', (req, res) => {
   res.set('X-Robots-Tag', 'noindex').render('partials/saved-cards', { list });
 });
 
-app.get('/hire', (req, res) => res.render('hire', { title: 'Hire a Team', page: 'hire' }));
+// ?service=<slug> (from a service page) pre-selects that service on the form.
+app.get('/hire', (req, res) => {
+  const chosen = catalog.serviceBySlug(String(req.query.service || ''));
+  res.render('hire', { title: 'Hire a Team', page: 'hire', hireOptions: catalog.HIRE_OPTIONS, selectedService: chosen ? chosen.hiringType : '' });
+});
+
+// ---------- services and industry desks (content in catalog.js) ----------
+const guaranteeDays = () => (site.billing && Number.isInteger(site.billing.guaranteeDays) ? site.billing.guaranteeDays : placements.BILLING_DEFAULTS.guaranteeDays);
+app.get('/services', (req, res) =>
+  res.render('services', { title: 'Services', page: 'services', services: catalog.SERVICES, industries: catalog.INDUSTRIES, metaDescription: `${site.name} services: permanent staffing, contract staffing, executive search, bulk and RPO hiring, background verification and corporate training.` })
+);
+app.get('/services/:slug', (req, res, next) => {
+  const service = catalog.serviceBySlug(req.params.slug);
+  if (!service) return next();
+  res.render('service', {
+    title: service.name, page: 'services', service, industries: catalog.INDUSTRIES, others: catalog.SERVICES.filter((s) => s !== service).slice(0, 3),
+    guaranteeDays: guaranteeDays(), metaDescription: `${service.name} from ${site.name}: ${service.card}`, jsonLd: seo.servicePage(service, site, BASE_URL),
+  });
+});
+app.get('/industries', (req, res) => {
+  const open = openJobs();
+  const openCounts = open.reduce((n, j) => ({ ...n, [j.category]: (n[j.category] || 0) + 1 }), {});
+  const desks = new Set(catalog.INDUSTRIES.map((i) => i.name));
+  res.render('industries', {
+    title: 'Industries', page: 'industries', industries: catalog.INDUSTRIES, openCounts, otherCategories: jobCategories().filter((c) => !desks.has(c)),
+    metaDescription: `Specialist recruitment desks at ${site.name}: ${catalog.INDUSTRIES.map((i) => i.name).join(', ')}.`,
+  });
+});
+app.get('/industries/:slug', (req, res, next) => {
+  const industry = catalog.industryBySlug(req.params.slug);
+  if (!industry) return next();
+  const open = openJobs().filter((j) => j.category === industry.name);
+  res.render('industry', {
+    title: `${industry.name} Recruitment`, page: 'industries', industry, jobs: open.slice(0, 6), openCount: open.length,
+    related: industry.services.map(catalog.serviceBySlug).filter(Boolean), metaDescription: `${industry.name} recruitment by ${site.name}. ${industry.text}`, jsonLd: seo.industryPage(industry, BASE_URL),
+  });
+});
 app.get('/about', (req, res) => res.render('about', { title: 'About Us', page: 'about' }));
 app.get('/contact', (req, res) => res.render('contact', { title: 'Contact Us', page: 'contact' }));
 // Bump LEGAL_UPDATED whenever the wording of either page changes.

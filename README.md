@@ -5,6 +5,8 @@ A complete website for a tech-driven staffing and recruitment company, built wit
 ## Features
 - **Home**: hero with job search, animated stats, services, industry tabs, 6-stage process, testimonials, FAQ, blog preview and CTAs
 - **Find Work** (`/jobs`): keyword, category, location and work-mode filters (On-site, Hybrid, Remote, Field work, Client site) with job counts, job detail pages, and online applications with resume upload. If someone applies again for a job they already applied to, their existing application is updated with the new resume and details (stage, notes and history are kept) and the team is told, instead of a second candidate appearing. Someone who withdrew and re-applies gets a fresh application
+- **Services** (`/services`): an overview with a "which one fits" guide, and a page for each of the six services (Permanent Staffing, Contract & Temp Staffing, Executive Search, Bulk & RPO Hiring, Background Verification, Corporate Training) covering what's included, who it suits, how it works, how billing works and FAQs. Each page has Google Service and FAQ structured data, and its "Share a requirement" button pre-selects the service on the hire form
+- **Industries** (`/industries`): a page for each of the ten specialist desks with the roles hired, what recruiters screen for, related services and that desk's live open jobs. All service and industry wording lives in `catalog.js`, and the homepage, footer, hire form and sitemap follow it
 - **Hire a Team** (`/hire`): employer requirement form, engagement models and the hiring process
 - **Privacy Policy** (`/privacy`) and **Terms of Use** (`/terms`), written for India's DPDP Act 2023, linked from the footer and from every form that collects personal data. They pull your email, phone and address from Admin → Settings. Change `LEGAL_UPDATED` in `server.js` when you edit either page
 - **About**, **Blog** (with articles) and **Contact** pages
@@ -86,6 +88,7 @@ $env:SMTP_HOST="smtp.gmail.com"; $env:SMTP_USER="you@gmail.com"; $env:SMTP_PASS=
 | Job locations (32 built in, one per line) | `/admin` → Settings → Job locations |
 | Blog posts | `/admin` → Blog |
 | Colours & fonts | CSS variables at the top of `public/css/style.css` |
+| Service and industry pages | `catalog.js` |
 | Page content | `views/*.ejs` |
 | Logo | `public/img/logo.svg` |
 

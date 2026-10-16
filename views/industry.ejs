@@ -1,0 +1,69 @@
+<%- include('partials/head') %>
+
+<section class="page-hero">
+  <div class="container split">
+    <div>
+      <a href="/industries" class="back-link">← All industries</a>
+      <span class="eyebrow"><svg class="i"><use href="#<%= industry.icon %>"/></svg> <%= industry.name %></span>
+      <h1><%= industry.text.replace(/\.$/, '') %></h1>
+      <p class="lead"><%= industry.intro %></p>
+      <div class="hero-ctas">
+        <a href="/hire#requirement" class="btn btn-primary btn-lg">Hire for this desk <svg class="i"><use href="#i-arrow"/></svg></a>
+        <a href="/jobs?category=<%= encodeURIComponent(industry.name) %>" class="btn btn-outline btn-lg">See open roles</a>
+      </div>
+    </div>
+    <div class="vm-card">
+      <h2 class="h3">Roles we hire</h2>
+      <div class="chips chips-lg"><% industry.roles.forEach(function (r) { %><span class="chip"><%= r %></span><% }) %></div>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container split">
+    <div>
+      <span class="eyebrow">What we screen for</span>
+      <h2>Beyond the CV</h2>
+      <p>Every candidate goes through our six-stage process. For <%= industry.name.toLowerCase() %> roles, our recruiters also check:</p>
+      <ul class="checks"><% industry.screen.forEach(function (x) { %><li><%= x %></li><% }) %></ul>
+    </div>
+    <div>
+      <span class="eyebrow">Ways to work with us</span>
+      <h2>Services for this desk</h2>
+      <div class="stack-cards">
+        <% related.forEach(function (s) { %>
+          <a class="service-card service-link" href="/services/<%= s.slug %>">
+            <span class="service-icon"><svg class="i"><use href="#<%= s.icon %>"/></svg></span>
+            <h3><%= s.name %></h3>
+            <p><%= s.card %></p>
+          </a>
+        <% }) %>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section section-tint">
+  <div class="container">
+    <div class="section-head row">
+      <div>
+        <span class="eyebrow">Hiring now</span>
+        <h2>Open <%= industry.name %> roles</h2>
+      </div>
+      <% if (openCount) { %><a href="/jobs?category=<%= encodeURIComponent(industry.name) %>" class="btn btn-outline">All <%= openCount %> role<%= openCount === 1 ? '' : 's' %> <svg class="i"><use href="#i-arrow"/></svg></a><% } %>
+    </div>
+    <% if (jobs.length) { %>
+      <div class="jobs-grid">
+        <% jobs.forEach(function (job) { %><%- include('partials/job-card', { job: job }) %><% }) %>
+      </div>
+    <% } else { %>
+      <div class="empty">
+        <h3>No open <%= industry.name.toLowerCase() %> roles right now</h3>
+        <p>New roles come in every week. <a href="/jobs#register">Send us your CV</a> or set up a job alert on the <a href="/jobs">Find Work</a> page and we'll email you when one is posted.</p>
+      </div>
+    <% } %>
+  </div>
+</section>
+
+<%- include('partials/cta-band', { heading: 'Hiring for ' + industry.name.toLowerCase() + '?', text: 'Share the role and a specialist recruiter will call you within one working day.', href: '/hire#requirement', label: 'Share a requirement' }) %>
+<%- include('partials/foot') %>

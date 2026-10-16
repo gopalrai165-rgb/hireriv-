@@ -1,0 +1,60 @@
+<%- include('partials/head') %>
+
+<section class="page-hero">
+  <div class="container narrow center">
+    <span class="eyebrow">Our services</span>
+    <h1>Staffing and HR services, from one hire to a whole team</h1>
+    <p class="lead">Pick the service that fits the role, or combine them. Every engagement has a dedicated account manager, the same six-stage screening, and a client portal where you follow progress.</p>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container">
+    <div class="services-grid">
+      <% services.forEach(function (s) { %>
+        <a class="service-card service-link" href="/services/<%= s.slug %>">
+          <span class="service-icon"><svg class="i"><use href="#<%= s.icon %>"/></svg></span>
+          <h2 class="h3"><%= s.name %></h2>
+          <p><%= s.card %></p>
+          <span class="card-link">Learn more <svg class="i"><use href="#i-arrow"/></svg></span>
+        </a>
+      <% }) %>
+    </div>
+  </div>
+</section>
+
+<section class="section section-tint">
+  <div class="container">
+    <div class="section-head">
+      <span class="eyebrow">Which one fits?</span>
+      <h2>A quick guide</h2>
+    </div>
+    <div class="table-wrap guide-table">
+      <table>
+        <thead><tr><th>You need…</th><th>Choose</th><th>How you pay</th></tr></thead>
+        <tbody>
+          <% services.forEach(function (s) { %>
+            <tr><td><%= s.need %></td><td><a href="/services/<%= s.slug %>"><%= s.name %></a></td><td><%= s.pay %></td></tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+    <p class="center muted guide-note">Not sure? Choose "Not sure yet" on the <a href="/hire#requirement">requirement form</a> and we'll recommend the right mix.</p>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container">
+    <div class="section-head">
+      <span class="eyebrow">Specialist desks</span>
+      <h2>Industries we hire for</h2>
+      <p>Each desk is run by recruiters who know the roles, the market and what good looks like.</p>
+    </div>
+    <div class="industry-links">
+      <% industries.forEach(function (ind) { %><a class="chip chip-link" href="/industries/<%= ind.slug %>"><svg class="i"><use href="#<%= ind.icon %>"/></svg><%= ind.name %></a><% }) %>
+    </div>
+  </div>
+</section>
+
+<%- include('partials/cta-band', { heading: 'Tell us what you need', text: 'A client partner will call you within one working day.', href: '/hire#requirement', label: 'Share a requirement' }) %>
+<%- include('partials/foot') %>

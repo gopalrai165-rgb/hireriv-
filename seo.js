@@ -112,4 +112,27 @@ function sitemap(baseUrl, { jobs, posts, staticPaths }) {
   ].join('\n');
 }
 
-module.exports = { jobPosting, article, homePage, toJsonLd, sitemap, parseSalary };
+function breadcrumbs(baseUrl, trail) {
+  return {
+    '@type': 'BreadcrumbList',
+    itemListElement: trail.map(([name, path], i) => ({ '@type': 'ListItem', position: i + 1, name, item: baseUrl + path })),
+  };
+}
+
+// A service page: the service itself, its FAQ (eligible for FAQ rich results) and breadcrumbs.
+function servicePage(service, site, baseUrl) {
+  return {
+    '@context': 'https://schema.org',
+    '@graph': [
+      { '@type': 'Service', name: service.name, serviceType: service.name, description: service.intro, provider: organization(site, baseUrl), areaServed: { '@type': 'Country', name: 'India' }, url: `${baseUrl}/services/${service.slug}` },
+      { '@type': 'FAQPage', mainEntity: service.faqs.map(([q, a]) => ({ '@type': 'Question', name: q, acceptedAnswer: { '@type': 'Answer', text: a } })) },
+      breadcrumbs(baseUrl, [['Home', '/'], ['Services', '/services'], [service.name, `/services/${service.slug}`]]),
+    ],
+  };
+}
+
+function industryPage(industry, baseUrl) {
+  return { '@context': 'https://schema.org', ...breadcrumbs(baseUrl, [['Home', '/'], ['Industries', '/industries'], [industry.name, `/industries/${industry.slug}`]]) };
+}
+
+module.exports = { jobPosting, article, homePage, toJsonLd, sitemap, parseSalary, servicePage, industryPage };

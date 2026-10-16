@@ -98,19 +98,13 @@
       <p>Pick one service or let us act as your extended HR department. We scale with you.</p>
     </div>
     <div class="services-grid">
-      <% [
-        ['i-users', 'Permanent Staffing', 'Full-time hires matched to your skills needs, culture and budget, from junior to senior roles.'],
-        ['i-clock', 'Contract & Temp Staffing', 'Flexible talent for projects and seasonal peaks. We handle payroll, compliance and benefits.'],
-        ['i-target', 'Executive Search', 'Confidential, research-led search for leadership and niche roles where every hire matters.'],
-        ['i-chart', 'Bulk & RPO Hiring', 'High-volume hiring drives and recruitment process outsourcing with clear SLAs and reporting.'],
-        ['i-shield', 'Background Verification', 'Employment, education, address and criminal checks so every hire is one you can trust.'],
-        ['i-graduation', 'Corporate Training', 'Skill-building and onboarding programmes run by experienced corporate HR professionals.']
-      ].forEach(function (s) { %>
-        <div class="service-card reveal">
-          <span class="service-icon"><svg class="i"><use href="#<%= s[0] %>"/></svg></span>
-          <h3><%= s[1] %></h3>
-          <p><%= s[2] %></p>
-        </div>
+      <% catalog.SERVICES.forEach(function (s) { %>
+        <a class="service-card service-link reveal" href="/services/<%= s.slug %>">
+          <span class="service-icon"><svg class="i"><use href="#<%= s.icon %>"/></svg></span>
+          <h3><%= s.name %></h3>
+          <p><%= s.card %></p>
+          <span class="card-link">Learn more <svg class="i"><use href="#i-arrow"/></svg></span>
+        </a>
       <% }) %>
     </div>
   </div>
@@ -125,18 +119,7 @@
       <p>Specialist desks for ten industries, plus HR, education, legal, admin, construction and hospitality roles.</p>
     </div>
     <div class="tabs" role="tablist">
-      <% const industries = [
-        { key: 'tech', icon: 'i-code', name: 'Technology', text: 'Engineers, data and cloud specialists who can ship from day one.', roles: ['Full-Stack Developer', 'Cloud Engineer', 'AI / ML Engineer', 'Cybersecurity Analyst', 'DevOps Engineer', 'Mobile Developer', 'Data Scientist', 'QA Analyst', 'UI/UX Designer'] },
-        { key: 'fin', icon: 'i-finance', name: 'Finance & Accounting', text: 'Finance professionals who keep the numbers right and the business compliant.', roles: ['Financial Analyst', 'Senior Accountant', 'Internal Auditor', 'Financial Controller', 'Payroll Manager', 'Budget Controller', 'Tax Consultant'] },
-        { key: 'mkt', icon: 'i-megaphone', name: 'Marketing & Creative', text: 'Storytellers and growth marketers who turn attention into revenue.', roles: ['Creative Designer', 'Digital Marketing Specialist', 'Content Strategist', 'Brand Manager', 'Product Designer', 'Social Media Manager', 'Performance Marketer'] },
-        { key: 'log', icon: 'i-truck', name: 'Logistics & Operations', text: 'Operators who keep supply chains, hubs and projects running on time.', roles: ['Logistics Coordinator', 'Project Manager', 'Procurement Officer', 'Supply Chain Analyst', 'Operations Manager', 'Warehouse Supervisor', 'Hub Manager', 'Fleet Manager'] },
-        { key: 'sales', icon: 'i-target', name: 'Sales & Business Development', text: 'Closers and relationship builders who grow pipelines and hit targets.', roles: ['Business Development Manager', 'Inside Sales Executive', 'Key Account Manager', 'Area Sales Manager', 'Pre-Sales Consultant', 'Channel Sales Manager', 'Enterprise Account Executive'] },
-        { key: 'bfsi', icon: 'i-bank', name: 'Banking & Insurance', text: 'BFSI talent for branches, credit, risk and insurance, with the compliance background the sector needs.', roles: ['Relationship Manager', 'Credit Analyst', 'Branch Manager', 'Risk Analyst', 'Insurance Advisor', 'KYC Analyst', 'Collections Officer'] },
-        { key: 'health', icon: 'i-health', name: 'Healthcare & Pharma', text: 'Clinical, pharma and healthcare operations staff for hospitals, labs and life-science companies.', roles: ['Staff Nurse', 'Medical Representative', 'Pharmacist', 'Lab Technician', 'Medical Coder', 'Clinical Research Associate', 'Hospital Administrator'] },
-        { key: 'eng', icon: 'i-gear', name: 'Engineering & Manufacturing', text: 'Plant, production and quality engineers who keep lines running safely and efficiently.', roles: ['Production Engineer', 'Quality Engineer', 'Mechanical Design Engineer', 'Maintenance Engineer', 'Plant Manager', 'CNC Operator', 'EHS Officer'] },
-        { key: 'bpo', icon: 'i-headset', name: 'Customer Support & BPO', text: 'Voice, chat and back-office teams hired at volume, trained and ready to go live.', roles: ['Customer Support Executive', 'Team Leader', 'Quality Analyst', 'Technical Support Engineer', 'Process Trainer', 'Back-Office Executive', 'Workforce Analyst'] },
-        { key: 'retail', icon: 'i-cart', name: 'Retail & E-commerce', text: 'Store, category and marketplace talent for fast-moving retail and online brands.', roles: ['Store Manager', 'Category Manager', 'Visual Merchandiser', 'E-commerce Executive', 'Catalogue Specialist', 'Retail Sales Associate', 'Inventory Controller'] }
-      ] %>
+      <% const industries = catalog.INDUSTRIES %>
       <% industries.forEach(function (ind, i) { %>
         <button role="tab" class="tab<%= i === 0 ? ' active' : '' %>" aria-selected="<%= i === 0 %>" aria-controls="panel-<%= ind.key %>" id="tab-<%= ind.key %>">
           <svg class="i"><use href="#<%= ind.icon %>"/></svg><%= ind.name %>
@@ -148,7 +131,10 @@
         <div>
           <h3><%= ind.name %></h3>
           <p><%= ind.text %></p>
-          <a href="/jobs?category=<%= encodeURIComponent(ind.name) %>" class="card-link">See open roles <svg class="i"><use href="#i-arrow"/></svg></a>
+          <div class="panel-links">
+            <a href="/industries/<%= ind.slug %>" class="card-link">About this desk <svg class="i"><use href="#i-arrow"/></svg></a>
+            <a href="/jobs?category=<%= encodeURIComponent(ind.name) %>" class="card-link">See open roles <svg class="i"><use href="#i-arrow"/></svg></a>
+          </div>
         </div>
         <div>
           <p class="muted small upper">Trending roles</p>

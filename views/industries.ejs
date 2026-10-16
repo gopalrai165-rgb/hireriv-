@@ -1,0 +1,42 @@
+<%- include('partials/head') %>
+
+<section class="page-hero">
+  <div class="container narrow center">
+    <span class="eyebrow">Industries</span>
+    <h1>Specialist recruiters for the industry you work in</h1>
+    <p class="lead">Each desk is run by recruiters who know the roles, the vocabulary and the market, so they can tell a strong candidate from a strong CV.</p>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container">
+    <div class="services-grid">
+      <% industries.forEach(function (ind) { %>
+        <a class="service-card service-link" href="/industries/<%= ind.slug %>">
+          <span class="service-icon"><svg class="i"><use href="#<%= ind.icon %>"/></svg></span>
+          <h2 class="h3"><%= ind.name %></h2>
+          <p><%= ind.text %></p>
+          <span class="card-link"><%= openCounts[ind.name] ? openCounts[ind.name] + ' open role' + (openCounts[ind.name] === 1 ? '' : 's') : 'About this desk' %> <svg class="i"><use href="#i-arrow"/></svg></span>
+        </a>
+      <% }) %>
+    </div>
+  </div>
+</section>
+
+<% if (otherCategories.length) { %>
+<section class="section section-tint">
+  <div class="container">
+    <div class="section-head">
+      <span class="eyebrow">We also hire for</span>
+      <h2>More roles, same care</h2>
+      <p>Our recruiters also fill roles in these areas. See what's open now.</p>
+    </div>
+    <div class="industry-links">
+      <% otherCategories.forEach(function (c) { %><a class="chip chip-link" href="/jobs?category=<%= encodeURIComponent(c) %>"><%= c %></a><% }) %>
+    </div>
+  </div>
+</section>
+<% } %>
+
+<%- include('partials/cta-band', { heading: "Hiring in your industry?", text: 'Tell us about the role and the right desk will take it from there.', href: '/hire#requirement', label: 'Share a requirement' }) %>
+<%- include('partials/foot') %>

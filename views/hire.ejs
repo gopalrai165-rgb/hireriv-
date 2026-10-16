@@ -19,7 +19,7 @@
         <% if (guaranteeDays > 0) { %><div><b><%= guaranteeDays %> days</b><span>replacement guarantee</span></div><% } %>
       </div>
     </div>
-    <div class="form-card">
+    <div class="form-card" id="requirement">
       <h2>Tell us what you need</h2>
       <form class="form js-form" action="/api/hire" method="post">
   <%- include('partials/honeypot') %>
@@ -32,8 +32,8 @@
           <label>Number of hires
             <select name="headcount"><option>1</option><option>2-5</option><option>6-20</option><option>21-50</option><option>50+</option></select>
           </label>
-          <label>Hiring model
-            <select name="hiringType"><option>Permanent</option><option>Contract</option><option>Contract-to-hire</option><option>Executive search</option><option>Bulk / RPO</option><option>Not sure yet</option></select>
+          <label>Service needed
+            <select name="hiringType"><% hireOptions.forEach(function (o) { %><option<%= o === selectedService ? ' selected' : '' %>><%= o %></option><% }) %></select>
           </label>
           <label>Job location<input name="location" placeholder="City or Remote"></label>
           <label>When do you need them?

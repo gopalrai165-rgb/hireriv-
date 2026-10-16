@@ -1,0 +1,100 @@
+<%- include('partials/head') %>
+
+<section class="page-hero">
+  <div class="container split">
+    <div>
+      <a href="/services" class="back-link">← All services</a>
+      <span class="eyebrow"><%= service.name %></span>
+      <h1><%= service.headline %></h1>
+      <p class="lead"><%= service.intro %></p>
+      <div class="hero-ctas">
+        <a href="/hire?service=<%= service.slug %>#requirement" class="btn btn-primary btn-lg">Share a requirement <svg class="i"><use href="#i-arrow"/></svg></a>
+        <a href="tel:<%= site.phone.replace(/\s/g, '') %>" class="btn btn-outline btn-lg">Call us</a>
+      </div>
+    </div>
+    <div class="vm-card ideal-card">
+      <span class="service-icon"><svg class="i"><use href="#<%= service.icon %>"/></svg></span>
+      <h2 class="h3">Ideal for</h2>
+      <ul class="checks"><% service.idealFor.forEach(function (x) { %><li><%= x %></li><% }) %></ul>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container split">
+    <div>
+      <span class="eyebrow">What's included</span>
+      <h2>Everything handled, start to finish</h2>
+      <ul class="checks"><% service.includes.forEach(function (x) { %><li><%= x %></li><% }) %></ul>
+    </div>
+    <div class="vm-card">
+      <span class="service-icon"><svg class="i"><use href="#i-wallet"/></svg></span>
+      <h2 class="h3">How billing works</h2>
+      <p><%= service.billing %></p>
+      <% if (service.slug === 'permanent-staffing' && guaranteeDays > 0) { %><p class="muted small">Our standard replacement guarantee is <%= guaranteeDays %> days.</p><% } %>
+      <p class="muted small">Every invoice is a GST invoice, and clients on the portal can view and download theirs at any time.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section section-dark">
+  <div class="container">
+    <div class="section-head light">
+      <span class="eyebrow">How it works</span>
+      <h2><%= service.steps.length %> steps, one point of contact</h2>
+    </div>
+    <ol class="process<%= service.steps.length === 4 ? ' process-4' : '' %>">
+      <% service.steps.forEach(function (s, i) { %>
+        <li class="process-step"><span class="step-num"><%= String(i + 1).padStart(2, '0') %></span><h3><%= s[0] %></h3><p><%= s[1] %></p></li>
+      <% }) %>
+    </ol>
+  </div>
+</section>
+
+<section class="section section-tint">
+  <div class="container faq-wrap">
+    <div class="section-head left">
+      <span class="eyebrow">FAQ</span>
+      <h2><%= service.name %>: questions, answered</h2>
+      <p>Something else? <a href="/contact">Talk to our team</a>.</p>
+    </div>
+    <div class="faq">
+      <% service.faqs.forEach(function (f, i) { %>
+        <details class="faq-item"<%= i === 0 ? ' open' : '' %>>
+          <summary><%= f[0] %><svg class="i"><use href="#i-plus"/></svg></summary>
+          <p><%= f[1] %></p>
+        </details>
+      <% }) %>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container">
+    <div class="section-head">
+      <span class="eyebrow">Specialist desks</span>
+      <h2>Industries we hire for</h2>
+    </div>
+    <div class="industry-links">
+      <% industries.forEach(function (ind) { %><a class="chip chip-link" href="/industries/<%= ind.slug %>"><svg class="i"><use href="#<%= ind.icon %>"/></svg><%= ind.name %></a><% }) %>
+    </div>
+  </div>
+</section>
+
+<section class="section section-tint">
+  <div class="container">
+    <div class="section-head"><span class="eyebrow">Also from <%= site.name %></span><h2>Other services</h2></div>
+    <div class="services-grid">
+      <% others.forEach(function (s) { %>
+        <a class="service-card service-link" href="/services/<%= s.slug %>">
+          <span class="service-icon"><svg class="i"><use href="#<%= s.icon %>"/></svg></span>
+          <h3><%= s.name %></h3>
+          <p><%= s.card %></p>
+        </a>
+      <% }) %>
+    </div>
+  </div>
+</section>
+
+<%- include('partials/cta-band', { heading: 'Ready to talk about ' + service.name.toLowerCase() + '?', text: 'Share your requirement and a client partner will call you within one working day.', href: '/hire?service=' + service.slug + '#requirement', label: 'Share a requirement' }) %>
+<%- include('partials/foot') %>

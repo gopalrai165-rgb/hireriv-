@@ -874,3 +874,27 @@ code { background: var(--tint); padding: 0 .3em; border-radius: 4px; font-size: 
 .admin-nav .tab { padding: .42em .9em; font-size: .88rem; background: #fff; text-transform: none; }
 .admin-nav .tab.active { background: var(--navy); }
 @media (max-width: 620px) { .admin-nav { padding: 12px; gap: 12px; } .admin-nav-group { width: 100%; } }
+
+/* ============ Services & industries ============ */
+.service-link { display: flex; flex-direction: column; color: var(--text); }
+.service-link:hover { color: var(--text); }
+.service-link .card-link { margin-top: auto; padding-top: 16px; }
+.service-link p { margin-bottom: 0; }
+.h3 { font-size: 1.25rem; }
+.industry-links { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
+.chip-link { display: inline-flex; align-items: center; gap: .5em; padding: .6em 1.1em; font-size: .95rem; font-weight: 600; color: var(--ink); background: #fff; border: 1px solid var(--line); transition: border-color .2s, color .2s; }
+.chip-link:hover { border-color: var(--primary); color: var(--primary); }
+.chip-link .i { width: 18px; height: 18px; color: var(--primary); }
+.stack-cards { display: grid; gap: 14px; margin-top: 20px; }
+.guide-table { max-width: 920px; margin: 0 auto; }
+.guide-note { margin-top: 20px; }
+.panel-links { display: flex; gap: 20px; flex-wrap: wrap; }
+.page-hero .eyebrow .i { width: 16px; height: 16px; vertical-align: -3px; }
+@media (min-width: 961px) and (max-width: 1180px) { .main-nav a:not(.btn) { padding: .5em .6em; font-size: .9rem; } .nav-cta { margin-left: 4px; } }
+.footer-grid { grid-template-columns: 1.5fr 1.1fr 1fr 1fr 1.3fr; }
+@media (max-width: 1100px) { .footer-grid { grid-template-columns: 1fr 1fr 1fr; } .footer-brand { grid-column: 1 / -1; } }
+@media (max-width: 700px) { .footer-grid { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 460px) { .footer-grid { grid-template-columns: 1fr; } }
+.page-hero .back-link + .eyebrow { display: block; margin-top: 14px; }
+.stack-cards .service-card { padding: 20px 22px; }
+.stack-cards .service-card .service-icon { margin-bottom: 10px; }
