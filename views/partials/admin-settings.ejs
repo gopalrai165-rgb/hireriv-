@@ -26,7 +26,7 @@
   <section class="form-card">
     <h2>Homepage numbers</h2>
     <p class="muted small">The animated stats on the home and About pages. Leave a label empty to hide that stat.</p>
-    <div class="stats-grid">
+    <div class="stat-edit-grid">
       <% for (var i = 0; i < 4; i++) { var s = form.stats[i] || { value: '', suffix: '', label: '' }; %>
         <fieldset class="stat-edit">
           <legend>Stat <%= i + 1 %></legend>

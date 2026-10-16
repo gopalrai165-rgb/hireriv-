@@ -1,5 +1,7 @@
 </main>
 
+<% const ws = typeof workspace !== 'undefined' && workspace; %>
+<% if (!ws) { %>
 <section class="newsletter">
   <div class="container newsletter-inner">
     <div>
@@ -14,6 +16,7 @@
     </form>
   </div>
 </section>
+<% } %>
 
 <footer class="site-footer">
   <div class="container footer-grid">
@@ -54,9 +57,9 @@
   </div>
 </footer>
 
-<a class="whatsapp-float" href="https://wa.me/<%= site.whatsapp %>?text=Hi%20Hireriv%2C%20I%27d%20like%20to%20know%20more" target="_blank" rel="noopener" aria-label="Chat on WhatsApp">
+<% if (!ws) { %><a class="whatsapp-float" href="https://wa.me/<%= site.whatsapp %>?text=Hi%20Hireriv%2C%20I%27d%20like%20to%20know%20more" target="_blank" rel="noopener" aria-label="Chat on WhatsApp">
   <svg class="i"><use href="#i-whatsapp"/></svg>
-</a>
+</a><% } %>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <script src="/js/main.js?v=<%= assetVersion %>" defer></script>
 </body>

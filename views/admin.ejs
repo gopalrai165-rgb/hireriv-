@@ -15,11 +15,19 @@
       </div>
     </div>
     <% if (msg) { %><p class="notice" role="status"><%= msg %></p><% } %>
-    <div class="tabs">
-      <% tabs.forEach(function (t) { %>
-        <a class="tab<%= t === tab ? ' active' : '' %>" href="/admin?tab=<%= t %>"><%= t.replace('-', ' ') %><% if (counts[t] !== '' && counts[t] !== undefined) { %> <span class="count"><%= counts[t] %></span><% } %></a>
+    <% const groups = typeof tabGroups !== 'undefined' ? tabGroups : [['', tabs]]; const labels = typeof tabLabels !== 'undefined' ? tabLabels : {}; %>
+    <nav class="admin-nav" aria-label="Admin sections">
+      <% groups.forEach(function (g) { %>
+        <div class="admin-nav-group">
+          <% if (g[0]) { %><span class="admin-nav-label"><%= g[0] %></span><% } %>
+          <div class="admin-nav-tabs">
+            <% g[1].forEach(function (t) { %>
+              <a class="tab<%= t === tab ? ' active' : '' %>" href="/admin?tab=<%= t %>"<%= t === tab ? ' aria-current="page"' : '' %>><%= labels[t] || t.charAt(0).toUpperCase() + t.slice(1) %><% if (counts[t] !== '' && counts[t] !== undefined) { %> <span class="count"><%= counts[t] %></span><% } %></a>
+            <% }) %>
+          </div>
+        </div>
       <% }) %>
-    </div>
+    </nav>
 
     <% const ownerQs = typeof owner !== 'undefined' && owner ? '&owner=' + owner : ''; %>
     <% if (tab === 'jobs' || tab === 'applications') { %>
@@ -38,8 +46,8 @@
           <a class="pill st-<%= s.toLowerCase() %><%= s === status ? ' active' : '' %>" href="/admin?tab=applications&status=<%= s %><%= sort ? '&sort=match' : '' %><%= ownerQs %>"><%= s %> <b><%= statusCounts[s] %></b></a>
         <% }) %>
         <span class="pipeline-sort">Sort:
-          <a class="<%= !sort ? 'active' : '' %>" href="/admin?tab=applications<%= status ? '&status=' + status : '' %>">Newest</a> ·
-          <a class="<%= sort ? 'active' : '' %>" href="/admin?tab=applications<%= status ? '&status=' + status : '' %>&sort=match">Best skill match</a>
+          <a class="<%= !sort ? 'active' : '' %>" href="/admin?tab=applications<%= status ? '&status=' + status : '' %><%= ownerQs %>">Newest</a> ·
+          <a class="<%= sort ? 'active' : '' %>" href="/admin?tab=applications<%= status ? '&status=' + status : '' %>&sort=match<%= ownerQs %>">Best skill match</a>
         </span>
       </div>
     <% } %>

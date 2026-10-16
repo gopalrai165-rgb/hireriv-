@@ -126,6 +126,24 @@ describe('admin panel', () => {
     }
   });
 
+  test('signed-in areas leave out the public newsletter and WhatsApp button', async () => {
+    const pub = await (await app.request('/jobs')).text();
+    assert.match(pub, /class="whatsapp-float"/);
+    assert.ok(pub.includes('action="/api/newsletter"'));
+    for (const [p, cookie] of [['/admin', admin], ['/account/login'], ['/employer/login']]) {
+      const html = await (await app.request(p, { cookie })).text();
+      assert.ok(!html.includes('whatsapp-float') && !html.includes('/api/newsletter'), p);
+    }
+  });
+
+  test('admin sections are grouped with Applications first under Recruiting', async () => {
+    const html = await (await app.request('/admin', { cookie: admin })).text();
+    const labels = [...html.matchAll(/admin-nav-label">([^<]+)</g)].map((m) => m[1]);
+    assert.deepEqual(labels, ['Overview', 'Recruiting', 'Clients &amp; billing', 'Inbox', 'Content', 'Admin']);
+    const tabs = [...html.matchAll(/href="\/admin\?tab=([a-z-]+)"/g)].map((m) => m[1]);
+    assert.deepEqual(tabs.slice(0, 4), ['dashboard', 'reports', 'applications', 'jobs']);
+  });
+
   test('dashboard lists the setup still to do', async () => {
     const html = await (await app.request('/admin', { cookie: admin })).text();
     assert.match(html, /Needs your attention/);

@@ -187,7 +187,7 @@ img { max-width: 100%; display: block; }
 .stats { background: var(--navy); padding: 44px 0; }
 .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px; text-align: center; }
 .stat b { display: block; font-size: clamp(2rem, 4vw, 2.8rem); font-weight: 800; color: #fff; letter-spacing: -0.03em; }
-.stat span { color: #9fb0cc; font-size: .95rem; }
+.stat > span { color: #9fb0cc; font-size: .95rem; }
 @media (max-width: 720px) { .stats-grid { grid-template-columns: repeat(2, 1fr); row-gap: 32px; } }
 
 /* ============ Section heads ============ */
@@ -637,12 +637,12 @@ a.contact-card:hover { border-color: var(--primary); color: var(--text); }
 .settings-form .form-card h2 { font-size: 1.15rem; margin-bottom: .2em; }
 .settings-form .form-card > p { margin: 0 0 16px; }
 .settings-form .form-grid { margin-bottom: 0; }
-.stats-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.stat-edit-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
 .stat-edit { text-align: left; border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 12px 14px 14px; margin: 0; display: grid; grid-template-columns: minmax(0, 1fr) 80px; gap: 10px; }
 .stat-edit legend { font-weight: 700; font-size: .85rem; color: var(--ink); padding: 0 6px; }
 .stat-edit label { display: flex; flex-direction: column; gap: 6px; font-size: .82rem; font-weight: 600; color: var(--ink); }
 .settings-actions { position: sticky; bottom: 16px; }
-@media (max-width: 620px) { .stats-grid { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 620px) { .stat-edit-grid { grid-template-columns: minmax(0, 1fr); } }
 
 /* ============ Share a job ============ */
 .share-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 20px; }
@@ -865,3 +865,12 @@ code { background: var(--tint); padding: 0 .3em; border-radius: 4px; font-size: 
 .pager-links > a:not(.btn):hover { background: var(--primary-50); }
 .pager-current { background: var(--primary); color: #fff; }
 .pager-gap { color: var(--muted, #6b7690); }
+
+/* ============ Admin navigation ============ */
+.admin-nav { display: flex; flex-wrap: wrap; gap: 14px 22px; margin-bottom: 28px; padding: 16px 18px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--tint); }
+.admin-nav-group { display: flex; flex-direction: column; gap: 6px; }
+.admin-nav-label { font-size: .7rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); padding-left: 4px; }
+.admin-nav-tabs { display: flex; flex-wrap: wrap; gap: 6px; }
+.admin-nav .tab { padding: .42em .9em; font-size: .88rem; background: #fff; text-transform: none; }
+.admin-nav .tab.active { background: var(--navy); }
+@media (max-width: 620px) { .admin-nav { padding: 12px; gap: 12px; } .admin-nav-group { width: 100%; } }

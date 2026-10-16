@@ -290,6 +290,8 @@ app.use((req, res, next) => {
   closeExpiredJobs();
   Object.assign(res.locals, {
     canonical: BASE_URL + req.path,
+    // Signed-in areas skip the public-site extras (newsletter band, WhatsApp button).
+    workspace: /^\/(admin|employer|account|feedback)(\/|$)/.test(req.path),
     ogImage: `${BASE_URL}/og/site.png?v=${og.siteVersion(site)}`,
     ogImageAlt: `${site.name}: ${site.tagline}`,
     metaDescription: `${site.name} – ${site.tagline}. Permanent, contract and executive staffing across Technology, Finance, BFSI, Sales, Marketing, Healthcare, Manufacturing, Logistics and more.`,
@@ -603,6 +605,16 @@ function sameOrigin(req, res, next) {
 }
 
 const ADMIN_PAGE_SIZE = 50;
+// The admin navigation, grouped the way the team works (Applications first).
+const TAB_GROUPS = [
+  ['Overview', ['dashboard', 'reports']],
+  ['Recruiting', ['applications', 'jobs', 'talent', 'interviews']],
+  ['Clients & billing', ['clients', 'placements']],
+  ['Inbox', ['hire-requests', 'contacts', 'job-alerts', 'newsletter']],
+  ['Content', ['blog', 'templates']],
+  ['Admin', ['settings', 'team', 'activity']],
+];
+const TAB_LABELS = { 'hire-requests': 'Hire requests', 'job-alerts': 'Job alerts' };
 const ADMIN_TABS = ['dashboard', 'reports', 'jobs', 'talent', 'interviews', 'placements', 'clients', ...FORM_TYPES, 'templates', 'blog', 'settings', 'team', 'activity'];
 // Recruiters don't see these tabs.
 const ADMIN_ONLY_TABS = ['settings', 'team', 'activity'];
@@ -651,7 +663,8 @@ app.get('/admin', adminAuth, (req, res) => {
   const counts = { dashboard: '', reports: '', settings: '', activity: '', templates: templates.read().length, team: team.members().length, blog: posts.length, interviews: interviews.upcoming(applications).length, placements: billing.read().length, clients: clients.read().length, jobs: jobs.length, talent: new Set(applications.map((a) => String(a.email).toLowerCase())).size, ...Object.fromEntries(FORM_TYPES.map((t) => [t, readSubmissions(t).length])) };
   const members = team.members();
   const memberName = Object.fromEntries(members.map((u) => [u.id, u.name]));
-  const locals = { title: 'Admin', page: 'admin', tab, tabs, counts, status: '', msg: String(req.query.msg || ''), members, memberName, pager: null };
+  const tabGroups = TAB_GROUPS.map(([label, list]) => [label, list.filter((t) => tabs.includes(t))]).filter(([, list]) => list.length);
+  const locals = { title: 'Admin', page: 'admin', tab, tabs, tabGroups, tabLabels: TAB_LABELS, counts, status: '', msg: String(req.query.msg || ''), members, memberName, pager: null };
   // Long tables are shown 50 rows at a time; CSV exports still include everything.
   const pageOf = (list) => paginate(list, { page: req.query.page, size: ADMIN_PAGE_SIZE, query: req.query, path: '/admin' });
 
