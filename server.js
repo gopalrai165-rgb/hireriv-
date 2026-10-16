@@ -863,7 +863,7 @@ app.get('/admin/jobs/:id/edit', adminAuth, (req, res, next) => {
 app.post('/admin/jobs', adminAuth, sameOrigin, (req, res) => {
   const { job, errors } = parseJob(req.body);
   if (errors.length) return res.status(400).render('admin-job', jobFormLocals(job, errors));
-  const created = { id: nextJobId(), ...job, posted: new Date().toISOString().slice(0, 10) };
+  const created = { id: nextJobId(), ...job, posted: todayIst() };
   jobs.push(created);
   const alerted = sendJobAlerts(created);
   saveJobs();
@@ -925,7 +925,7 @@ const retentionPreviews = () => Object.fromEntries(retentionModule.PERIODS.filte
 const postFormLocals = (post, errors) => ({ title: post.slug && post._editing ? 'Edit article' : 'Write an article', page: 'admin', post, errors });
 
 app.get('/admin/blog/new', adminAuth, (req, res) =>
-  res.render('admin-post', postFormLocals({ date: new Date().toISOString().slice(0, 10), status: 'published', body: [] }, []))
+  res.render('admin-post', postFormLocals({ date: todayIst(), status: 'published', body: [] }, []))
 );
 
 app.get('/admin/blog/:slug/edit', adminAuth, (req, res, next) => {
@@ -1062,13 +1062,20 @@ function sendCsv(res, name, rows) {
 }
 
 app.post('/admin/resumes/reindex', adminAuth, requireAdmin, sameOrigin, async (req, res) => {
+  const todo = readSubmissions('applications').filter((a) => a.resume && a.resumeText === undefined).slice(0, 300);
+  // Reading files can take a while; collect the text first, then apply it to a
+  // fresh copy of the list so applications, stage moves and deletions made in
+  // the meantime are not overwritten.
+  const found = new Map();
+  for (const a of todo) found.set(a.id, { resume: a.resume, text: await resumes.extractText(path.join(UPLOADS_DIR, path.basename(a.resume)), a.resume) });
   const list = readSubmissions('applications');
-  const todo = list.filter((a) => a.resume && a.resumeText === undefined).slice(0, 300);
   let read = 0;
-  for (const a of todo) {
-    a.resumeText = await resumes.extractText(path.join(UPLOADS_DIR, path.basename(a.resume)), a.resume);
-    a.resumeSkills = resumes.analyze(a.resumeText, allJobSkills()).skills;
-    if (a.resumeText) read++;
+  for (const a of list) {
+    const f = found.get(a.id);
+    if (!f || a.resume !== f.resume) continue; // deleted, or a new resume arrived meanwhile
+    a.resumeText = f.text;
+    a.resumeSkills = resumes.analyze(f.text, allJobSkills()).skills;
+    if (f.text) read++;
   }
   writeSubmissions('applications', list);
   res.redirect(adminUrl('talent', `Read ${read} of ${todo.length} older resume${todo.length === 1 ? '' : 's'}${todo.length - read ? ` (${todo.length - read} couldn't be read: scans or old .doc files)` : ''}`));

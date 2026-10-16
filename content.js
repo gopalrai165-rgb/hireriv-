@@ -23,7 +23,7 @@ function parsePost(body, posts, currentSlug) {
   const post = {
     slug: slugify(f.slug || f.title),
     title: f.title.slice(0, 200),
-    date: /^\d{4}-\d{2}-\d{2}$/.test(f.date) ? f.date : new Date().toISOString().slice(0, 10),
+    date: /^\d{4}-\d{2}-\d{2}$/.test(f.date) ? f.date : new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' }),
     category: f.category.slice(0, 60) || 'Insights',
     excerpt: f.excerpt.slice(0, 300),
     body: toParagraphs(f.body.slice(0, 50000)),
