@@ -214,3 +214,12 @@ test('job structured data and sitemap escape and include what they should', () =
   const xml = seo.sitemap('https://hireriv.com', { jobs: [job], posts: [], staticPaths: ['/'] });
   assert.match(xml, /<loc>https:\/\/hireriv.com\/jobs\/j1<\/loc><lastmod>2026-10-01<\/lastmod>/);
 });
+
+test('validThrough uses the closing date, and is left out once an undated job is old', () => {
+  const site = { name: 'Hireriv', social: {} };
+  const job = { id: 'j1', title: 'Dev', description: 'x', responsibilities: [], skills: [], type: 'Full-time', mode: 'On-site', location: 'Pune', category: 'Technology', salary: '' };
+  const day = (offset) => new Date(Date.now() + offset * 86400000).toISOString().slice(0, 10);
+  assert.equal(seo.jobPosting({ ...job, posted: day(-5), closesOn: '2026-12-31' }, site, '').validThrough, '2026-12-31T23:59:59+05:30');
+  assert.equal(seo.jobPosting({ ...job, posted: day(-5) }, site, '').validThrough, day(55));
+  assert.equal('validThrough' in seo.jobPosting({ ...job, posted: day(-90) }, site, ''), false);
+});

@@ -2,6 +2,9 @@
 // the site gets rich results.
 
 const EMPLOYMENT_TYPES = { 'Full-time': 'FULL_TIME', 'Part-time': 'PART_TIME', Contract: 'CONTRACTOR', Internship: 'INTERN' };
+// Without a closing date, a posting is assumed valid for this long after it was
+// posted. Once that has passed, validThrough is left out rather than telling
+// Google a job that is still open has expired.
 const VALID_DAYS = 60;
 
 // "₹14 – 20 LPA" → { min: 1400000, max: 2000000 }. Anything else (e.g. "Competitive") → null.
@@ -26,7 +29,8 @@ function organization(site, baseUrl) {
 }
 
 function jobPosting(job, site, baseUrl) {
-  const validThrough = new Date(new Date(job.posted).getTime() + VALID_DAYS * 86400000);
+  const assumed = new Date(new Date(job.posted).getTime() + VALID_DAYS * 86400000).toISOString().slice(0, 10);
+  const validThrough = job.closesOn ? `${job.closesOn}T23:59:59+05:30` : (assumed >= new Date().toISOString().slice(0, 10) ? assumed : null);
   const remote = job.mode === 'Remote';
   const salary = parseSalary(job.salary);
   const description = [
@@ -43,7 +47,7 @@ function jobPosting(job, site, baseUrl) {
     description,
     identifier: { '@type': 'PropertyValue', name: site.name, value: job.id },
     datePosted: job.posted,
-    validThrough: validThrough.toISOString().slice(0, 10),
+    ...(validThrough ? { validThrough } : {}),
     employmentType: EMPLOYMENT_TYPES[job.type] || 'OTHER',
     // Client names are confidential, so Hireriv is the hiring organisation of record.
     hiringOrganization: organization(site, baseUrl),

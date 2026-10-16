@@ -16,6 +16,7 @@
       <li><svg class="i"><use href="#i-briefcase"/></svg><%= job.experience %></li>
       <li><svg class="i"><use href="#i-wallet"/></svg><%= job.salary %></li>
       <li><svg class="i"><use href="#i-clock"/></svg>Posted <%= daysAgo(job.posted).toLowerCase() %></li>
+      <% if (job.status === 'open' && job.closesOn) { %><li><svg class="i"><use href="#i-clock"/></svg>Apply by <%= formatDate(job.closesOn) %></li><% } %>
     </ul>
     <% if (job.status !== 'closed') { %>
       <%# Shared links carry utm_source so Reports can show which shares bring applicants. %>

@@ -19,11 +19,18 @@ const freePort = () =>
     srv.on('error', reject);
   });
 
-async function startServer(env = {}) {
+// `seed` pre-fills collections (e.g. { jobs: [...] }) before the server starts.
+async function startServer(env = {}, seed = {}) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'hireriv-test-'));
   const port = await freePort();
   const base = `http://localhost:${port}`;
   const paths = { dir, db: path.join(dir, 'test.db'), uploads: path.join(dir, 'uploads'), outbox: path.join(dir, 'outbox') };
+  fs.mkdirSync(paths.uploads, { recursive: true });
+  if (Object.keys(seed).length) {
+    const store = require('../db').open(paths.db);
+    for (const [collection, list] of Object.entries(seed)) store.replaceAll(collection, list);
+    store.close();
+  }
   const child = spawn(process.execPath, ['server.js'], {
     cwd: ROOT,
     env: {

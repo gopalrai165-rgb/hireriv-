@@ -49,6 +49,11 @@
             <option value="open"<%= job.status !== 'closed' ? ' selected' : '' %>>Open – accepting applications</option>
             <option value="closed"<%= job.status === 'closed' ? ' selected' : '' %>>Closed – hidden from listings</option>
           </select>
+          <% if (job.closedReason) { %><span class="muted small">Closed automatically: <%= job.closedReason.toLowerCase() %>.</span><% } %>
+        </label>
+        <label>Closes on <span class="muted small">(optional)</span>
+          <input type="date" name="closesOn" value="<%= job.closesOn || '' %>">
+          <span class="muted small">The last day to apply. The job closes by itself after this date. Leave blank to keep it open until you close it.</span>
         </label>
         <label class="span-2">Key skills <span class="muted small">(comma separated)</span><input name="skills" value="<%= (job.skills || []).join(', ') %>" placeholder="React, Node.js, AWS"></label>
         <label class="span-2">About the role*<textarea name="description" rows="3" required><%= job.description || '' %></textarea></label>

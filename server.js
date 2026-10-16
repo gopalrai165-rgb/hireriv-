@@ -95,6 +95,23 @@ function saveJobs() {
 }
 
 const openJobs = () => jobs.filter((j) => j.status === 'open');
+const todayIst = () => new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+// Open jobs with no closing date are flagged in admin after this many days.
+const STALE_JOB_DAYS = 60;
+const jobAgeDays = (j) => Math.floor((Date.parse(todayIst()) - Date.parse(j.posted)) / 86400000);
+const isStaleJob = (j) => j.status === 'open' && !j.closesOn && jobAgeDays(j) >= STALE_JOB_DAYS;
+
+// A job's closing date is the last day to apply (India time). After it, the job
+// closes by itself: it leaves the listings and the sitemap and stops taking applications.
+function closeExpiredJobs() {
+  const today = todayIst();
+  const expired = jobs.filter((j) => j.status === 'open' && j.closesOn && j.closesOn < today);
+  for (const j of expired) Object.assign(j, { status: 'closed', closedAt: new Date().toISOString(), closedReason: 'Closing date passed' });
+  if (expired.length) saveJobs();
+  return expired.length;
+}
+closeExpiredJobs();
+setInterval(closeExpiredJobs, 60 * 60 * 1000).unref();
 const categoriesOf = (list) => [...new Set(list.map((j) => j.category))];
 // The category list from Settings, plus any older category a job still uses.
 const jobCategories = () => [...new Set([...(site.jobCategories || DEFAULT_JOB_CATEGORIES), ...categoriesOf(jobs)])];
@@ -252,6 +269,12 @@ app.locals.assetVersion = crypto
   .slice(0, 10);
 app.locals.formatDate = (d) =>
   new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+// "Closes in 3 days" on job cards during a job's last week.
+app.locals.closingSoon = (job) => {
+  if (job.status !== 'open' || !job.closesOn) return '';
+  const left = Math.round((Date.parse(job.closesOn) - Date.parse(todayIst())) / 86400000);
+  return left > 7 || left < 0 ? '' : left === 0 ? 'Last day today' : left === 1 ? 'Closes tomorrow' : `Closes in ${left} days`;
+};
 app.locals.daysAgo = (d) => {
   const days = Math.floor((Date.now() - new Date(d)) / 86400000);
   return days <= 0 ? 'Today' : days === 1 ? '1 day ago' : `${days} days ago`;
@@ -259,6 +282,7 @@ app.locals.daysAgo = (d) => {
 
 // Per-page SEO defaults; routes override these through render locals.
 app.use((req, res, next) => {
+  closeExpiredJobs();
   Object.assign(res.locals, {
     canonical: BASE_URL + req.path,
     metaDescription: `${site.name} – ${site.tagline}. Permanent, contract and executive staffing across Technology, Finance, BFSI, Sales, Marketing, Healthcare, Manufacturing, Logistics and more.`,
@@ -590,7 +614,7 @@ app.get('/admin', adminAuth, (req, res) => {
     const applicants = {};
     for (const a of applications) applicants[a.jobId] = (applicants[a.jobId] || 0) + 1;
     const owner = ownerFilter(req);
-    return res.render('admin', { ...locals, rows: owner ? jobs.filter((j) => matchesOwner(j.ownerId || '', owner, req.admin)) : jobs, applicants, owner });
+    return res.render('admin', { ...locals, rows: owner ? jobs.filter((j) => matchesOwner(j.ownerId || '', owner, req.admin)) : jobs, applicants, owner, isStaleJob, jobAgeDays, staleDays: STALE_JOB_DAYS });
   }
   if (tab === 'applications') {
     const placedApps = new Set(billing.read().map((p) => p.appId));
@@ -691,7 +715,7 @@ function buildDashboard(applications, user) {
   return {
     kpis: [
       ...(isAdmin ? [] : [{ label: 'My candidates', value: mine.length, note: `${mine.filter((a) => statusOf(a) === 'New').length} new to review`, tab: 'applications&owner=me' }]),
-      { label: 'Open jobs', value: openJobs().length, note: `${jobs.length - openJobs().length} closed`, tab: 'jobs' },
+      { label: 'Open jobs', value: openJobs().length, note: jobs.some(isStaleJob) ? `${jobs.filter(isStaleJob).length} open ${STALE_JOB_DAYS}+ days` : `${jobs.length - openJobs().length} closed`, tab: 'jobs', alert: jobs.some(isStaleJob) },
       { label: 'Applications', value: applications.length, note: `+${lastWeek(applications)} this week`, tab: 'applications' },
       { label: 'In progress', value: applications.filter((a) => ['Screening', 'Interview', 'Offered'].includes(statusOf(a))).length, note: `${applications.filter((a) => statusOf(a) === 'New').length} new to review`, tab: 'applications' },
       { label: 'Hired', value: applications.filter((a) => statusOf(a) === 'Hired').length, note: 'placements', tab: 'applications' },
@@ -720,6 +744,9 @@ function parseJob(body) {
   if (data.location && !jobLocations().includes(data.location)) errors.push('pick a location from the list (add new ones in Settings)');
   if (!modes.includes(data.mode)) errors.push('work mode is invalid');
   if (!JOB_TYPES.includes(data.type)) errors.push('job type is invalid');
+  const closesOn = String(body.closesOn || '').trim();
+  if (closesOn && (!/^\d{4}-\d{2}-\d{2}$/.test(closesOn) || Number.isNaN(Date.parse(closesOn)))) errors.push('closing date is invalid');
+  else if (closesOn && data.status !== 'closed' && closesOn < todayIst()) errors.push('closing date is in the past (pick a later date, or leave it blank to keep the job open)');
   const job = {
     title: data.title,
     company: data.company,
@@ -733,6 +760,7 @@ function parseJob(body) {
     description: data.description,
     responsibilities: data.responsibilities.split(/\r?\n/).map((s) => s.trim()).filter(Boolean),
     status: data.status === 'closed' ? 'closed' : 'open',
+    closesOn: closesOn || null,
     employerId: clients.read().some((c) => c.id === body.employerId) ? body.employerId : '',
     ownerId: validOwner(String(body.ownerId || '')),
   };
@@ -776,6 +804,7 @@ app.post('/admin/jobs/:id', adminAuth, sameOrigin, (req, res, next) => {
   const { job, errors } = parseJob(req.body);
   if (errors.length) return res.status(400).render('admin-job', jobFormLocals({ ...job, id: existing.id }, errors));
   Object.assign(existing, job);
+  if (existing.status === 'open') delete existing.closedReason;
   const alerted = sendJobAlerts(existing);
   saveJobs();
   res.redirect(adminUrl('jobs', `Saved "${existing.title}"${alertedNote(alerted)}`));
@@ -785,9 +814,13 @@ app.post('/admin/jobs/:id/toggle', adminAuth, sameOrigin, (req, res, next) => {
   const job = jobs.find((j) => j.id === req.params.id);
   if (!job) return next();
   job.status = job.status === 'open' ? 'closed' : 'open';
+  // Reopening a job whose closing date has passed would close it again at once.
+  const clearedDate = job.status === 'open' && job.closesOn && job.closesOn < todayIst();
+  if (clearedDate) job.closesOn = null;
+  if (job.status === 'open') delete job.closedReason;
   const alerted = sendJobAlerts(job);
   saveJobs();
-  res.redirect(adminUrl('jobs', `${job.status === 'open' ? 'Reopened' : 'Closed'} "${job.title}"${alertedNote(alerted)}`));
+  res.redirect(adminUrl('jobs', `${job.status === 'open' ? 'Reopened' : 'Closed'} "${job.title}"${clearedDate ? ' and removed its past closing date (set a new one with Edit)' : ''}${alertedNote(alerted)}`));
 });
 
 app.post('/admin/jobs/:id/delete', adminAuth, requireAdmin, sameOrigin, (req, res, next) => {
