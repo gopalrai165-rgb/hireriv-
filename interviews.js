@@ -43,6 +43,32 @@ function allInterviews(applications) {
   return list;
 }
 
+// Reminders go out about a day and about an hour before. Each is skipped when
+// the interview was booked too close to it, so it never lands right after the
+// booking email.
+const REMINDERS = [
+  { kind: 'day', label: '1 day before', from: 24 * 3600000, to: 2 * 3600000, minLead: 26 * 3600000 },
+  { kind: 'hour', label: '1 hour before', from: 75 * 60000, to: 0, minLead: 3 * 3600000 },
+];
+
+function remindersDue(applications, now = Date.now()) {
+  const due = [];
+  for (const a of applications) {
+    if (a.withdrawnAt) continue;
+    for (const iv of a.interviews || []) {
+      if (iv.status !== 'scheduled') continue;
+      const start = Date.parse(iv.at);
+      const left = start - now;
+      const lead = start - Date.parse(iv.createdAt);
+      for (const r of REMINDERS) {
+        if ((iv.reminders || {})[r.kind]) continue;
+        if (left <= r.from && left > r.to && lead >= r.minLead) due.push({ a, iv, kind: r.kind });
+      }
+    }
+  }
+  return due;
+}
+
 function upcoming(applications, limit = Infinity) {
   const now = Date.now();
   return allInterviews(applications)
@@ -70,6 +96,23 @@ function parseInterview(body, candidate) {
 
 function register(app, { adminAuth, sameOrigin, readSubmissions, writeSubmissions, mailer, site, adminUrl, baseUrl, limit }) {
   const icsFor = (method, iv, a) => interviewIcs({ method, interview: iv, candidate: a, jobTitle: a.jobTitle, site });
+
+  // ---------- reminders ----------
+  function sendReminders() {
+    const list = readSubmissions('applications');
+    const due = remindersDue(list);
+    if (!due.length) return 0;
+    for (const { a, iv, kind } of due) {
+      iv.reminders = { ...(iv.reminders || {}), [kind]: new Date().toISOString() };
+      const when = formatIst(new Date(iv.at));
+      mailer.interviewReminder(a, iv, when, kind);
+      if (iv.interviewerEmail) mailer.interviewerReminder(iv.interviewerEmail, a, iv, when, kind);
+    }
+    writeSubmissions('applications', list);
+    return due.length;
+  }
+  sendReminders();
+  setInterval(sendReminders, 5 * 60000).unref();
 
   const formPage = (res, a, f, errors, status = 200) =>
     res.status(status).render('admin-interview', { title: 'Schedule interview', page: 'admin', a, f, errors, modes: MODES, durations: DURATIONS, noindex: true });
@@ -220,4 +263,4 @@ function register(app, { adminAuth, sameOrigin, readSubmissions, writeSubmission
   });
 }
 
-module.exports = { register, allInterviews, upcoming, formatIst, feedbackSummary, feedbackDue, RECOMMENDATIONS };
+module.exports = { register, allInterviews, upcoming, formatIst, feedbackSummary, feedbackDue, remindersDue, REMINDERS, RECOMMENDATIONS };

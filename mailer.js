@@ -163,6 +163,37 @@ function createMailer(site) {
       });
     },
 
+    // Sent about a day and about an hour before (see REMINDERS in interviews.js).
+    interviewReminder(a, iv, when, kind) {
+      const joinLink = /^https?:\/\//.test(iv.where) ? iv.where : '';
+      const soon = kind === 'hour';
+      send(site, {
+        to: a.email,
+        replyTo: teamInbox,
+        subject: `${soon ? 'Starting soon' : 'Tomorrow'}: your interview for ${a.jobTitle}, ${when}`,
+        heading: soon ? `Your interview starts in about an hour, ${first(a.name)}` : `A reminder about your interview, ${first(a.name)}`,
+        html:
+          p(soon ? `Your interview for <b>${esc(a.jobTitle)}</b> starts soon. All the best!` : `Just a reminder that your interview for <b>${esc(a.jobTitle)}</b> is coming up. A little preparation goes a long way: read the job description again and think of an example for each key skill.`) +
+          detailsTable([['When', when], ['Duration', `${iv.duration} minutes`], ['Format', iv.mode], [iv.mode === 'In person' ? 'Address' : iv.mode === 'Phone' ? 'Phone' : 'Link', iv.where], ['Interviewer', iv.interviewer]]) +
+          (joinLink ? button(joinLink, 'Join the interview') : '') +
+          p(`<span style="color:#6b7690;font-size:13px">${soon && iv.mode === 'Video call' ? 'Join a couple of minutes early to check your camera and microphone. ' : ''}Can't make it? Reply to this email or call ${esc(site.phone)} as soon as you can.</span>`),
+      });
+    },
+
+    interviewerReminder(email, a, iv, when, kind) {
+      const joinLink = /^https?:\/\//.test(iv.where) ? iv.where : '';
+      send(site, {
+        to: email,
+        replyTo: teamInbox,
+        subject: `${kind === 'hour' ? 'Starting soon' : 'Tomorrow'}: interview with ${a.name} for ${a.jobTitle}, ${when}`,
+        heading: kind === 'hour' ? 'Your interview starts in about an hour' : 'A reminder about your interview',
+        html:
+          detailsTable([['Candidate', a.name], ['Role', a.jobTitle], ['When', when], ['Duration', `${iv.duration} minutes`], ['Format', iv.mode], [iv.mode === 'In person' ? 'Address' : iv.mode === 'Phone' ? 'Phone' : 'Link', iv.where]]) +
+          (joinLink ? button(joinLink, 'Join the interview') : '') +
+          p(`<span style="color:#6b7690;font-size:13px">Afterwards, please use the feedback link in your briefing email. Questions? Reply to this email.</span>`),
+      });
+    },
+
     interviewFeedbackReceived(a, iv, fb, by, link) {
       send(site, {
         to: teamInbox,

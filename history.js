@@ -39,6 +39,7 @@ function timeline(a) {
   for (const h of a.history || []) ev.push({ at: h.at, kind: 'Stage', text: `${h.from} → ${h.to}`, by: h.by });
   for (const iv of a.interviews || []) {
     ev.push({ at: iv.createdAt, kind: 'Interview', text: `${iv.mode} interview booked` });
+    for (const [kind, at] of Object.entries(iv.reminders || {})) ev.push({ at, kind: 'Email', text: `Interview reminder sent (${kind === 'day' ? '1 day' : '1 hour'} before)` });
     if (iv.cancelledAt) ev.push({ at: iv.cancelledAt, kind: 'Interview', text: 'Interview cancelled' });
     for (const f of iv.feedback || []) ev.push({ at: f.at, kind: 'Feedback', text: `Interview feedback: ${f.recommendation}, ${f.rating}/5`, by: f.by });
   }

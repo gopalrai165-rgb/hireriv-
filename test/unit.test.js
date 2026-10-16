@@ -274,3 +274,25 @@ test('retention: settings accept only the offered periods', () => {
   assert.equal(content.parseSettings({ ...validSettings, retentionMonths: '24' }, { name: 'H' }).settings.retentionMonths, 24);
   assert.ok(content.parseSettings({ ...validSettings, retentionMonths: '5' }, { name: 'H' }).errors.includes('data retention must be off, 12, 24 or 36 months'));
 });
+
+// ---------- interview reminders ----------
+const { remindersDue } = require('../interviews');
+
+test('interview reminders: a day and an hour before, never straight after booking', () => {
+  const H = 3600000;
+  const now = Date.parse('2026-10-16T06:00:00Z');
+  const iv = (id, startsIn, bookedAgo, extra = {}) => ({ id, status: 'scheduled', at: new Date(now + startsIn).toISOString(), createdAt: new Date(now - bookedAgo).toISOString(), duration: 45, ...extra });
+  const apps = [
+    { id: 'a', interviews: [
+      iv('day', 20 * H, 3 * 24 * H), // due: 1 day before
+      iv('hour', 50 * 60000, 2 * 24 * H, { reminders: { day: 'x' } }), // due: 1 hour before
+      iv('fresh', 20 * H, 1 * H), // booked an hour ago: no day reminder
+      iv('far', 40 * H, 3 * 24 * H), // too early
+      iv('sent', 20 * H, 3 * 24 * H, { reminders: { day: 'x' } }), // already reminded
+      iv('cancelled', 20 * H, 3 * 24 * H, { status: 'cancelled' }),
+      iv('past', -H, 3 * 24 * H),
+    ] },
+    { id: 'w', withdrawnAt: 'x', interviews: [iv('withdrawn', 20 * H, 3 * 24 * H)] },
+  ];
+  assert.deepEqual(remindersDue(apps, now).map((d) => `${d.iv.id}:${d.kind}`), ['day:day', 'hour:hour']);
+});
