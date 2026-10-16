@@ -93,11 +93,20 @@ $env:SMTP_HOST="smtp.gmail.com"; $env:SMTP_USER="you@gmail.com"; $env:SMTP_PASS=
 Everything the site stores (jobs, blog posts, settings, applications, requests, messages, subscribers, client accounts and sign-in sessions) lives in one SQLite database, `data/hireriv.db`, using the SQLite built into Node.js (22.13 or newer), so there is nothing extra to install. Resumes are saved in `uploads/`.
 
 - **First start:** the database is created and filled from `data/jobs.json`, `data/posts.json` and `data/site.json`. Any older `data/submissions/*.json` files are imported once, and the originals are left untouched.
-- **Backups:** Admin → Settings → **Download database backup** gives a consistent copy you can take while the site is running. Back up `uploads/` too.
+- **Backups:** the database is backed up automatically every day to a `backups` folder next to it (or `BACKUP_DIR`), with the newest 14 copies kept and listed under Admin → Settings → Backups. **Download database backup** there gives a copy on demand. Resumes in `uploads/` are not in the database, so back that folder up too.
 - **Location:** set `DB_FILE` to keep the database somewhere else (e.g. a mounted disk).
 - Client and candidate sign-ins are stored in the database, so restarting the server keeps everyone signed in.
 
 > The testimonials, stats and sample jobs are placeholders. Replace them with real ones before going live.
+
+## Go-live checklist
+1. **Server settings** (`.env` or your host's dashboard): `SITE_URL` (https), `ADMIN_PASS`, `SMTP_HOST` / `SMTP_USER` / `SMTP_PASS`, `MAIL_FROM`, `NOTIFY_EMAIL`, `TRUST_PROXY=1` behind a proxy, and `BACKUP_DIR` on a second disk or synced folder.
+2. **Persistent storage** for the database, `uploads/` and backups (see Deploy).
+3. **Admin → Settings:** real phone, WhatsApp, address and social links; legal name, GSTIN, PAN and bank details; your fee, guarantee, GST and TDS defaults; and decide on **Data retention**. The dashboard's **Needs your attention** list shows what is still missing.
+4. **Content:** replace the sample jobs, the homepage stats and the testimonials with real ones, and review the three starter blog articles.
+5. **Legal:** have a lawyer review `/privacy` and `/terms` (the text is in `views/privacy.ejs` and `views/terms.ejs`).
+6. **Team:** invite your recruiters from the Team tab so nobody shares the owner login.
+7. **Check:** run `npm test`, apply for a job with your own email, confirm the emails arrive, then share a job link on WhatsApp to see the preview image.
 
 ## Deploy
 Hireriv is one Node.js process with a SQLite file, so any host that runs **Node 22.13+** with a **persistent disk** works. Keep the database and `uploads/` on that disk, and put the site behind HTTPS.
