@@ -45,6 +45,25 @@ describe('public site', () => {
     assert.match(robots, /Disallow: \/admin/);
   });
 
+  test('share previews: every page has an image, job pages get their own', async () => {
+    const home = await (await app.request('/')).text();
+    assert.match(home, /<meta property="og:image" content="[^"]+\/og\/site\.png\?v=[0-9a-f]+">/);
+    const jobPage = await (await app.request(`/jobs/${JOB}`)).text();
+    const url = jobPage.match(/<meta property="og:image" content="([^"]+)">/)[1];
+    assert.ok(url.includes(`/og/jobs/${JOB}.png?v=`), url);
+
+    for (const p of ['/og/site.png', new URL(url).pathname]) {
+      const res = await app.request(p);
+      assert.equal(res.status, 200, p);
+      assert.equal(res.headers.get('content-type'), 'image/png');
+      const png = Buffer.from(await res.arrayBuffer());
+      assert.equal(png.subarray(1, 4).toString(), 'PNG');
+      assert.equal(png.readUInt32BE(16), 1200); // width
+      assert.equal(png.readUInt32BE(20), 630); // height
+    }
+    assert.equal((await app.request('/og/jobs/nope.png')).status, 404);
+  });
+
   test('open jobs carry Google for Jobs data', async () => {
     const html = await (await app.request(`/jobs/${JOB}`)).text();
     assert.match(html, /"@type":"JobPosting"/);

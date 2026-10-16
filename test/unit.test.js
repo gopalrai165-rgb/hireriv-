@@ -223,3 +223,22 @@ test('validThrough uses the closing date, and is left out once an undated job is
   assert.equal(seo.jobPosting({ ...job, posted: day(-5) }, site, '').validThrough, day(55));
   assert.equal('validThrough' in seo.jobPosting({ ...job, posted: day(-90) }, site, ''), false);
 });
+
+// ---------- share images ----------
+const og = require('../og');
+
+test('share image titles wrap, shrink to fit and never overflow', () => {
+  assert.deepEqual(og.fit('Data Scientist', 1056, 3, [68, 60]).lines, ['Data Scientist']);
+  const long = og.fit('Senior Principal Site Reliability Engineer – Payments Infrastructure & Platform Observability (Hybrid) for a Global Bank', 1056, 3, [68, 60, 54, 48]);
+  assert.equal(long.lines.length, 3);
+  assert.equal(long.size, 48);
+  assert.ok(long.lines[2].endsWith('…'));
+  // A single word too long for the line is cut rather than spilling off the image.
+  assert.ok(og.wrap('x'.repeat(200), 68, 1056, 3)[0].endsWith('…'));
+});
+
+test('share image text is escaped', () => {
+  const svg = og.jobSvg({ title: 'R&D <Lead>', company: 'A "B"', location: 'Pune', mode: 'Remote', type: 'Full-time' }, {}, 'hireriv.com');
+  assert.match(svg, /R&amp;D &lt;Lead&gt;/);
+  assert.doesNotMatch(svg, /<Lead>/);
+});

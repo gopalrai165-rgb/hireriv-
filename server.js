@@ -19,6 +19,7 @@ const timesheetsModule = require('./timesheets');
 const history = require('./history');
 const resumes = require('./resume-parse');
 const { interviewIcs } = require('./ics');
+const ogImages = require('./og');
 
 const PORT = process.env.PORT || 3004;
 const ADMIN_USER = process.env.ADMIN_USER || 'admin';
@@ -285,12 +286,24 @@ app.use((req, res, next) => {
   closeExpiredJobs();
   Object.assign(res.locals, {
     canonical: BASE_URL + req.path,
+    ogImage: `${BASE_URL}/og/site.png?v=${og.siteVersion(site)}`,
+    ogImageAlt: `${site.name}: ${site.tagline}`,
     metaDescription: `${site.name} – ${site.tagline}. Permanent, contract and executive staffing across Technology, Finance, BFSI, Sales, Marketing, Healthcare, Manufacturing, Logistics and more.`,
     jsonLd: null,
     noindex: req.path.startsWith('/admin'),
     toJsonLd: seo.toJsonLd,
   });
   next();
+});
+
+// Share preview images for WhatsApp, LinkedIn, Facebook and X.
+const og = ogImages.create({ baseUrl: BASE_URL });
+const sendPng = (res) => (png) => res.type('image/png').set('Cache-Control', 'public, max-age=604800').send(png);
+app.get('/og/site.png', (req, res, next) => og.site(site).then(sendPng(res), next));
+app.get('/og/jobs/:id.png', (req, res, next) => {
+  const job = jobs.find((j) => j.id === req.params.id);
+  if (!job) return next();
+  og.job(job, site).then(sendPng(res), next);
 });
 
 app.get('/robots.txt', (req, res) =>
@@ -369,6 +382,8 @@ app.get('/jobs/:id', (req, res, next) => {
     metaDescription: `${job.title} (${job.type}, ${job.mode}) in ${job.location}${job.experience ? `, ${job.experience}` : ''}${job.salary ? `, ${job.salary}` : ''}. ${job.description}`.slice(0, 300),
     // Google requires expired postings to drop their JobPosting markup.
     jsonLd: open ? seo.jobPosting(job, site, BASE_URL) : null,
+    ogImage: `${BASE_URL}/og/jobs/${job.id}.png?v=${og.jobVersion(job)}`,
+    ogImageAlt: `${job.title} at ${job.company}, ${job.location}`,
     noindex: !open,
   });
 });
