@@ -29,7 +29,7 @@
 </form>
 
 <p class="muted small talent-summary">
-  <b><%= rows.length %></b> <%= rows.length === 1 ? 'candidate' : 'candidates' %>
+  <% const found = typeof pager !== 'undefined' && pager ? pager.total : rows.length; %><b><%= found.toLocaleString('en-IN') %></b> <%= found === 1 ? 'candidate' : 'candidates' %>
   <% if (matchJob) { %>ranked by skill match for <b><%= matchJob.title %></b> (needs <%= matchJob.skills.join(', ') || 'no listed skills' %>)<% } %>
 </p>
 

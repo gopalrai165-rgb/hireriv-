@@ -1,0 +1,10 @@
+<% if (pager && pager.pages > 1) { %>
+<nav class="pager" aria-label="<%= typeof pagerLabel !== 'undefined' ? pagerLabel : 'Pages' %>">
+  <span class="muted small"><%= pager.from.toLocaleString('en-IN') %>–<%= pager.to.toLocaleString('en-IN') %> of <%= pager.total.toLocaleString('en-IN') %></span>
+  <span class="pager-links">
+    <% if (pager.prev) { %><a class="btn btn-outline btn-sm" href="<%= pager.prev %>" rel="prev">← Previous</a><% } %>
+    <% pager.links.forEach(function (l) { %><% if (l.gap) { %><span class="pager-gap">…</span><% } else if (l.current) { %><span class="pager-current" aria-current="page"><%= l.n %></span><% } else { %><a href="<%= l.url %>"><%= l.n %></a><% } %><% }) %>
+    <% if (pager.next) { %><a class="btn btn-outline btn-sm" href="<%= pager.next %>" rel="next">Next →</a><% } %>
+  </span>
+</nav>
+<% } %>

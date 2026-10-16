@@ -22,6 +22,7 @@ const { interviewIcs } = require('./ics');
 const ogImages = require('./og');
 const retentionModule = require('./retention');
 const backupsModule = require('./backups');
+const { paginate } = require('./paginate');
 
 const PORT = process.env.PORT || 3004;
 const ADMIN_USER = process.env.ADMIN_USER || 'admin';
@@ -348,6 +349,7 @@ app.get('/', (req, res) => {
   res.render('index', { title: 'Staffing & Recruitment Solutions', page: 'home', jobs: live.slice(0, 6), posts: livePosts().slice(0, 3), categories: categoriesOf(live), locations: jobLocations(), jsonLd: seo.homePage(site, BASE_URL) });
 });
 
+const JOBS_PAGE_SIZE = 20;
 app.get('/jobs', (req, res) => {
   const live = openJobs();
   const q = String(req.query.q || '').trim().toLowerCase();
@@ -359,10 +361,14 @@ app.get('/jobs', (req, res) => {
       (!location || j.location === location) &&
       (!mode || j.mode === mode)
   );
+  const { rows, pager } = paginate(results, { page: req.query.page, size: JOBS_PAGE_SIZE, query: { q: req.query.q, category, location, mode }, path: '/jobs' });
   res.render('jobs', {
-    title: 'Find Work',
+    title: pager.page > 1 ? `Find Work – page ${pager.page}` : 'Find Work',
     page: 'jobs',
-    results,
+    results: rows,
+    pager,
+    // Pages of the unfiltered list are canonical; filtered views point to /jobs.
+    canonical: `${BASE_URL}/jobs${pager.page > 1 && !(q || category || location || mode) ? `?page=${pager.page}` : ''}`,
     filters: { q: req.query.q || '', category, location, mode },
     categories: jobCategories(),
     categoryCounts: live.reduce((n, j) => ({ ...n, [j.category]: (n[j.category] || 0) + 1 }), {}),
@@ -596,6 +602,7 @@ function sameOrigin(req, res, next) {
   res.status(403).send('Cross-site request blocked');
 }
 
+const ADMIN_PAGE_SIZE = 50;
 const ADMIN_TABS = ['dashboard', 'reports', 'jobs', 'talent', 'interviews', 'placements', 'clients', ...FORM_TYPES, 'templates', 'blog', 'settings', 'team', 'activity'];
 // Recruiters don't see these tabs.
 const ADMIN_ONLY_TABS = ['settings', 'team', 'activity'];
@@ -644,7 +651,9 @@ app.get('/admin', adminAuth, (req, res) => {
   const counts = { dashboard: '', reports: '', settings: '', activity: '', templates: templates.read().length, team: team.members().length, blog: posts.length, interviews: interviews.upcoming(applications).length, placements: billing.read().length, clients: clients.read().length, jobs: jobs.length, talent: new Set(applications.map((a) => String(a.email).toLowerCase())).size, ...Object.fromEntries(FORM_TYPES.map((t) => [t, readSubmissions(t).length])) };
   const members = team.members();
   const memberName = Object.fromEntries(members.map((u) => [u.id, u.name]));
-  const locals = { title: 'Admin', page: 'admin', tab, tabs, counts, status: '', msg: String(req.query.msg || ''), members, memberName };
+  const locals = { title: 'Admin', page: 'admin', tab, tabs, counts, status: '', msg: String(req.query.msg || ''), members, memberName, pager: null };
+  // Long tables are shown 50 rows at a time; CSV exports still include everything.
+  const pageOf = (list) => paginate(list, { page: req.query.page, size: ADMIN_PAGE_SIZE, query: req.query, path: '/admin' });
 
   if (tab === 'dashboard') return res.render('admin', { ...locals, rows: [], dash: buildDashboard(applications, req.admin), setupTodo: req.admin.role === 'Admin' ? setupTodo() : [] });
   if (tab === 'team') return res.render('admin', { ...locals, rows: team.list(), roles: team.ROLES });
@@ -652,13 +661,15 @@ app.get('/admin', adminAuth, (req, res) => {
   if (tab === 'reports') return res.render('admin', { ...locals, rows: [], report: reports.build({ period: String(req.query.period || ''), isAdmin: req.admin.role === 'Admin' }), inr: billing.inr });
   if (tab === 'activity') {
     const who = String(req.query.user || '');
-    return res.render('admin', { ...locals, rows: team.activity({ userId: who }), who, people: team.list() });
+    const { rows, pager } = pageOf(team.activity({ userId: who }));
+    return res.render('admin', { ...locals, rows, pager, who, people: team.list() });
   }
   if (tab === 'jobs') {
     const applicants = {};
     for (const a of applications) applicants[a.jobId] = (applicants[a.jobId] || 0) + 1;
     const owner = ownerFilter(req);
-    return res.render('admin', { ...locals, rows: owner ? jobs.filter((j) => matchesOwner(j.ownerId || '', owner, req.admin)) : jobs, applicants, owner, isStaleJob, jobAgeDays, staleDays: STALE_JOB_DAYS });
+    const { rows, pager } = pageOf(owner ? jobs.filter((j) => matchesOwner(j.ownerId || '', owner, req.admin)) : jobs);
+    return res.render('admin', { ...locals, rows, pager, applicants, owner, isStaleJob, jobAgeDays, staleDays: STALE_JOB_DAYS });
   }
   if (tab === 'applications') {
     const placedApps = new Set(billing.read().map((p) => p.appId));
@@ -667,11 +678,13 @@ app.get('/admin', adminAuth, (req, res) => {
     const status = APP_STATUSES.includes(req.query.status) ? req.query.status : '';
     const sort = req.query.sort === 'match' ? 'match' : '';
     const owner = ownerFilter(req);
-    let rows = (status ? applications.filter((a) => statusOf(a) === status) : applications)
-      .map((a) => ({ ...a, owner: appOwner(a), match: skillMatch(a, jobs.find((j) => j.id === a.jobId)), timeline: history.timeline(a) }))
+    let all = (status ? applications.filter((a) => statusOf(a) === status) : applications)
+      .map((a) => ({ ...a, owner: appOwner(a), match: skillMatch(a, jobs.find((j) => j.id === a.jobId)) }))
       .filter((a) => !owner || matchesOwner(a.owner, owner, req.admin));
-    if (sort) rows = rows.sort((a, b) => (b.match?.score ?? -1) - (a.match?.score ?? -1));
-    return res.render('admin', { ...locals, rows, owner, statuses: APP_STATUSES, statusCounts, status, sort, clientOptions: clients.read().filter((c) => c.active), placedApps, templates: templates.read(), backUrl: req.originalUrl.replace(/&msg=[^&]*/, ''), jobClient: Object.fromEntries(jobs.map((j) => [j.id, j.employerId || ''])) });
+    if (sort) all = all.sort((a, b) => (b.match?.score ?? -1) - (a.match?.score ?? -1));
+    const { rows, pager } = pageOf(all);
+    for (const a of rows) a.timeline = history.timeline(a); // only for the rows on screen
+    return res.render('admin', { ...locals, rows, pager, owner, statuses: APP_STATUSES, statusCounts, status, sort, clientOptions: clients.read().filter((c) => c.active), placedApps, templates: templates.read(), backUrl: req.originalUrl.replace(/&msg=[^&]*/, ''), jobClient: Object.fromEntries(jobs.map((j) => [j.id, j.employerId || ''])) });
   }
   if (tab === 'blog') return res.render('admin', { ...locals, rows: posts });
   if (tab === 'clients') {
@@ -696,7 +709,8 @@ app.get('/admin', adminAuth, (req, res) => {
       contracts: (p) => p.feeMode === 'monthly',
     }[view];
     const hired = applications.filter((a) => a.status === 'Hired' && !all.some((p) => p.appId === a.id));
-    return res.render('admin', { ...locals, rows: test ? all.filter(test) : all, view, sum: billing.summary(all), statuses: billing.STATUSES, inr: billing.inr, formatYmd: placements.formatYmd, unrecorded: hired, clientById: Object.fromEntries(clients.read().map((c) => [c.id, c])), nameById: Object.fromEntries(all.map((p) => [p.id, p.candidateName])), monthLabel: billing.monthLabel });
+    const { rows, pager } = pageOf(test ? all.filter(test) : all);
+    return res.render('admin', { ...locals, rows, pager, view, sum: billing.summary(all), statuses: billing.STATUSES, inr: billing.inr, formatYmd: placements.formatYmd, unrecorded: hired, clientById: Object.fromEntries(clients.read().map((c) => [c.id, c])), nameById: Object.fromEntries(all.map((p) => [p.id, p.candidateName])), monthLabel: billing.monthLabel });
   }
   if (tab === 'settings') return res.render('admin', { ...locals, rows: [], form: { ...site, jobCategories: jobCategories(), jobLocations: site.jobLocations || DEFAULT_JOB_LOCATIONS }, errors: [], social: SOCIAL, billingForm: placements.billingOf(site), retentionPreview: retentionPreviews(), backups: { status: backups.status(), list: backups.list(), dir: backups.dir, keep: backups.keep } });
   if (tab === 'talent') {
@@ -710,11 +724,12 @@ app.get('/admin', adminAuth, (req, res) => {
       jobId: String(req.query.job || ''),
     };
     const job = jobs.find((j) => j.id === f.jobId) || null;
-    const rows = searchPool(buildPool(applications), { ...f, job });
+    const { rows, pager } = pageOf(searchPool(buildPool(applications), { ...f, job }));
     const unread = applications.filter((a) => a.resume && a.resumeText === undefined).length;
-    return res.render('admin', { ...locals, rows, f, unread, matchJob: job, jobOptions: jobs, statuses: APP_STATUSES, experienceOptions: EXPERIENCE, noticeOptions: NOTICE });
+    return res.render('admin', { ...locals, rows, pager, f, unread, matchJob: job, jobOptions: jobs, statuses: APP_STATUSES, experienceOptions: EXPERIENCE, noticeOptions: NOTICE });
   }
-  res.render('admin', { ...locals, rows: readSubmissions(tab) });
+  const { rows, pager } = pageOf(readSubmissions(tab));
+  res.render('admin', { ...locals, rows, pager });
 });
 
 // ----- dashboard -----

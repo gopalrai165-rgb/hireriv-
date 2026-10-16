@@ -857,3 +857,11 @@ code { background: var(--tint); padding: 0 .3em; border-radius: 4px; font-size: 
 .rec-strong-hire input:checked + span, .rec-hire input:checked + span { background: #dcfce7; border-color: #16a34a; color: #15803d; }
 .rec-no-hire input:checked + span, .rec-strong-no-hire input:checked + span { background: #fee2e2; border-color: #dc2626; color: #b91c1c; }
 .fb-chip { display: inline-block; margin-top: 4px; }
+
+/* ============ Pagination ============ */
+.pager { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin: 20px 0 8px; }
+.pager-links { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.pager-links > a:not(.btn), .pager-current, .pager-gap { min-width: 2.2em; padding: .35em .6em; text-align: center; border-radius: var(--radius-sm); font-weight: 600; }
+.pager-links > a:not(.btn):hover { background: var(--primary-50); }
+.pager-current { background: var(--primary); color: #fff; }
+.pager-gap { color: var(--muted, #6b7690); }

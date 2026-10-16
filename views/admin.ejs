@@ -232,6 +232,7 @@
         </table>
       </div>
     <% } %>
+    <%- include('partials/pager', { pager: typeof pager !== 'undefined' ? pager : null, pagerLabel: 'Table pages' }) %>
   </div>
 </section>
 

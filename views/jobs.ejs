@@ -34,13 +34,14 @@
 <section class="section">
   <div class="container">
     <div class="results-head">
-      <p><b><%= results.length %></b> <%= results.length === 1 ? 'job' : 'jobs' %> found</p>
+      <p><b><%= pager.total %></b> <%= pager.total === 1 ? 'job' : 'jobs' %> found</p>
       <% if (filters.q || filters.category || filters.location || filters.mode) { %><a href="/jobs" class="small">Clear filters</a><% } %>
     </div>
     <% if (results.length) { %>
       <div class="jobs-grid">
         <% results.forEach(function (job) { %><%- include('partials/job-card', { job: job }) %><% }) %>
       </div>
+      <%- include('partials/pager', { pager: pager, pagerLabel: 'Job result pages' }) %>
     <% } else { %>
       <div class="empty">
         <h3>No matching jobs right now</h3>

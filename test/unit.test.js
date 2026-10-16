@@ -296,3 +296,23 @@ test('interview reminders: a day and an hour before, never straight after bookin
   ];
   assert.deepEqual(remindersDue(apps, now).map((d) => `${d.iv.id}:${d.kind}`), ['day:day', 'hour:hour']);
 });
+
+// ---------- pagination ----------
+const { paginate } = require('../paginate');
+
+test('pagination slices, clamps and keeps filters in links', () => {
+  const list = Array.from({ length: 125 }, (_, i) => i + 1);
+  const p = paginate(list, { page: '2', size: 50, query: { tab: 'applications', status: 'New', msg: 'x', page: '2' }, path: '/admin' });
+  assert.deepEqual([p.rows[0], p.rows.length], [51, 50]);
+  assert.equal(p.pager.from, 51);
+  assert.equal(p.pager.to, 100);
+  assert.equal(p.pager.next, '/admin?tab=applications&status=New&page=3');
+  assert.equal(p.pager.prev, '/admin?tab=applications&status=New'); // page 1 has no ?page
+  assert.equal(paginate(list, { page: '99', size: 50 }).pager.page, 3);
+  assert.equal(paginate(list, { page: 'abc', size: 50 }).pager.page, 1);
+  const empty = paginate([], { page: 1, size: 50 }).pager;
+  assert.deepEqual([empty.pages, empty.from, empty.to, empty.next], [1, 0, 0, '']);
+
+  const many = paginate(Array.from({ length: 1000 }), { page: 10, size: 50 }).pager.links;
+  assert.deepEqual(many.map((l) => (l.gap ? '…' : l.n)), [1, '…', 8, 9, 10, 11, 12, '…', 20]);
+});
