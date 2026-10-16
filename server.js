@@ -440,6 +440,21 @@ app.post('/api/apply', limit('apply', 6), (req, res) => {
     resumes.extractText(req.file.path, req.file.originalname).then((resumeText) => {
       const found = resumes.analyze(resumeText, allJobSkills());
       if (!data.skills && found.skills.length) data.skills = found.skills.join(', ');
+      // Applying again for the same job updates the existing application (new
+      // resume and details) instead of creating a second candidate. Someone who
+      // withdrew and comes back gets a fresh application.
+      const list = readSubmissions('applications');
+      const sameJob = (a) => (a.jobId || '') === (job ? job.id : data.jobId || '');
+      const prev = list.find((a) => !a.withdrawnAt && String(a.email).toLowerCase() === data.email.toLowerCase() && sameJob(a));
+      if (prev) {
+        if (prev.resume) fs.unlink(path.join(UPLOADS_DIR, path.basename(prev.resume)), () => {});
+        for (const k of ['name', 'phone', 'skills', 'experience', 'location', 'noticePeriod', 'linkedin', 'message']) if (data[k]) prev[k] = data[k];
+        const now = new Date().toISOString();
+        Object.assign(prev, { resume: req.file.filename, resumeText, resumeSkills: found.skills, updatedAt: now, reapplied: [...(prev.reapplied || []), now].slice(-20) });
+        writeSubmissions('applications', list);
+        mailer.applicationUpdated(prev);
+        return respond(req, res, [], `Thanks ${data.name.split(' ')[0]}! You'd already applied for this job, so we've updated your application with your new resume and details.`);
+      }
       const entry = saveSubmission('applications', { ...data, jobTitle: job ? job.title : 'General application', resume: req.file.filename, resumeText, resumeSkills: found.skills, status: 'New', notes: '' });
       mailer.applicationReceived(entry);
       respond(req, res, [], `Thanks ${data.name.split(' ')[0]}! Your application is in. A recruiter will contact you within 2 working days.`);

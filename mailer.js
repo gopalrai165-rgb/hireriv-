@@ -104,6 +104,28 @@ function createMailer(site) {
       });
     },
 
+    // The same person applied for the same job again; their application was updated.
+    applicationUpdated(a) {
+      send(site, {
+        to: teamInbox,
+        replyTo: a.email,
+        subject: `Updated application: ${a.name} for ${a.jobTitle}`,
+        heading: 'A candidate updated their application',
+        html:
+          p(`${esc(a.name)} applied again for <b>${esc(a.jobTitle)}</b>, so their existing application now has the new resume and details. Its stage (<b>${esc(a.status || 'New')}</b>), notes and history are unchanged.`) +
+          detailsTable([['Phone', a.phone], ['Skills', a.skills], ['Experience', a.experience], ['Location', a.location], ['Notice period', a.noticePeriod], ['Message', a.message]]) +
+          button(`${baseUrl}/admin?tab=applications`, 'Review in admin'),
+      });
+      send(site, {
+        to: a.email,
+        subject: `We've updated your application: ${a.jobTitle}`,
+        heading: `Thanks, ${first(a.name)}`,
+        html:
+          p(`You'd already applied for <b>${esc(a.jobTitle)}</b>, so instead of a second application we've updated your existing one with your new resume and details. Your recruiter can see the changes.`) +
+          p(`You can follow your application any time at <a href="${esc(baseUrl)}/account/login" style="color:#0e8a8f">My applications</a> (sign in with this email address).`),
+      });
+    },
+
     hireRequestReceived(h) {
       send(site, {
         to: teamInbox,

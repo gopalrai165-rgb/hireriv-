@@ -36,6 +36,7 @@ function firstResponseDays(a) {
 function timeline(a) {
   const ev = [];
   ev.push({ at: a.createdAt, kind: 'Applied', text: `Applied for ${a.jobTitle}${a.source ? ` (via ${a.source})` : ''}` });
+  for (const at of a.reapplied || []) ev.push({ at, kind: 'Applied', text: 'Applied again with an updated resume and details' });
   for (const h of a.history || []) ev.push({ at: h.at, kind: 'Stage', text: `${h.from} → ${h.to}`, by: h.by });
   for (const iv of a.interviews || []) {
     ev.push({ at: iv.createdAt, kind: 'Interview', text: `${iv.mode} interview booked` });

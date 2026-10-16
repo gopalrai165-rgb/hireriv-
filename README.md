@@ -4,7 +4,7 @@ A complete website for a tech-driven staffing and recruitment company, built wit
 
 ## Features
 - **Home**: hero with job search, animated stats, services, industry tabs, 6-stage process, testimonials, FAQ, blog preview and CTAs
-- **Find Work** (`/jobs`): keyword, category, location and work-mode filters (On-site, Hybrid, Remote, Field work, Client site) with job counts, job detail pages, and online applications with resume upload
+- **Find Work** (`/jobs`): keyword, category, location and work-mode filters (On-site, Hybrid, Remote, Field work, Client site) with job counts, job detail pages, and online applications with resume upload. If someone applies again for a job they already applied to, their existing application is updated with the new resume and details (stage, notes and history are kept) and the team is told, instead of a second candidate appearing. Someone who withdrew and re-applies gets a fresh application
 - **Hire a Team** (`/hire`): employer requirement form, engagement models and the hiring process
 - **Privacy Policy** (`/privacy`) and **Terms of Use** (`/terms`), written for India's DPDP Act 2023, linked from the footer and from every form that collects personal data. They pull your email, phone and address from Admin → Settings. Change `LEGAL_UPDATED` in `server.js` when you edit either page
 - **About**, **Blog** (with articles) and **Contact** pages
