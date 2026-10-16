@@ -831,4 +831,4 @@ function register(app, deps) {
 
 const formatYmd = (ymd) => (ymd ? new Date(`${ymd}T00:00:00Z`).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' }) : '');
 
-module.exports = { register, billingOf, BILLING_DEFAULTS, amountInWords, invoiceTotals, accountOf, refreshStatus, financialYear, formatYmd, inr };
+module.exports = { register, billingOf, BILLING_DEFAULTS, amountInWords, invoiceTotals, accountOf, refreshStatus, financialYear, formatYmd, inr, parsePlacement, monthPeriod };

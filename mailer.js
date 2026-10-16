@@ -4,7 +4,7 @@ const nodemailer = require('nodemailer');
 const path = require('path');
 const fs = require('fs');
 
-const OUTBOX_DIR = path.join(__dirname, 'data', 'outbox');
+const OUTBOX_DIR = process.env.OUTBOX_DIR ? path.resolve(process.env.OUTBOX_DIR) : path.join(__dirname, 'data', 'outbox');
 const { SMTP_HOST, SMTP_PORT = '587', SMTP_USER, SMTP_PASS, MAIL_FROM, NOTIFY_EMAIL, SITE_URL } = process.env;
 
 const transport = SMTP_HOST

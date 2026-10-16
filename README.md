@@ -52,6 +52,12 @@ $env:ADMIN_PASS="choose-a-strong-password"; npm start   # PowerShell
 ```
 Then open http://localhost:3004/admin/login and sign in as `admin` with that password. This is the built-in **owner** account (an Admin), and you can change the username with `ADMIN_USER`. From the **Team** tab, invite your recruiters so each person has their own login.
 
+## Tests
+```bash
+npm test
+```
+Unit tests cover the billing maths (GST split, amount in words, financial years, payments, TDS, credit notes and refunds), settings and blog validation, skill matching, resume reading, stage history, timesheets and SEO data. End-to-end tests start the real server with a throwaway database, email outbox and uploads folder (your `data/` is never touched) and walk through applying, spam protection, admin sign-in and cross-site protection, closing a job, candidate sign-in links, and recording a placement through to a paid invoice. Run them before every deploy.
+
 ## Email setup
 Without SMTP settings, every email is saved to `data/outbox/*.eml` (open these in Outlook or any mail app to preview them). To send real email, set these before `npm start`:
 
