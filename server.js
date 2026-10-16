@@ -21,6 +21,7 @@ const resumes = require('./resume-parse');
 const { interviewIcs } = require('./ics');
 const ogImages = require('./og');
 const retentionModule = require('./retention');
+const backupsModule = require('./backups');
 
 const PORT = process.env.PORT || 3004;
 const ADMIN_USER = process.env.ADMIN_USER || 'admin';
@@ -36,7 +37,8 @@ fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 // ---------- database (SQLite) ----------
 // All mutable data lives in one SQLite file. data/*.json are seed content for a
 // fresh install, and old data/submissions/*.json files are imported once.
-const db = openDb(process.env.DB_FILE || path.join(DATA_DIR, 'hireriv.db'));
+const DB_FILE = process.env.DB_FILE ? path.resolve(process.env.DB_FILE) : path.join(DATA_DIR, 'hireriv.db');
+const db = openDb(DB_FILE);
 const FORM_TYPES = ['applications', 'hire-requests', 'contacts', 'newsletter', 'job-alerts'];
 for (const type of [...FORM_TYPES, 'employers']) {
   const n = db.importOnce(type, path.join(SUBMISSIONS_DIR, `${type}.json`));
@@ -328,6 +330,8 @@ app.get('/sitemap.xml', (req, res) =>
 function setupTodo() {
   const todo = [];
   const settings = '/admin?tab=settings';
+  const backupProblem = backups.warning();
+  if (backupProblem) todo.push({ text: backupProblem, href: '/admin?tab=settings#backups' });
   if (/0{5}/.test(site.phone) || /^\d{2}0+$/.test(site.whatsapp)) todo.push({ text: 'Add your real phone and WhatsApp numbers', href: settings });
   if (!site.address || /^your office address/i.test(site.address)) todo.push({ text: 'Add your office address', href: settings });
   if (!Object.values(site.social || {}).some((u) => /^https?:\/\//.test(u))) todo.push({ text: 'Add your LinkedIn or other social links (icons stay hidden until you do)', href: settings });
@@ -563,6 +567,10 @@ const retention = retentionModule.create({ db, site, uploadsDir: UPLOADS_DIR, re
 retention.run();
 setInterval(retention.run, 24 * 60 * 60 * 1000).unref();
 
+// Daily database backups, kept next to the database unless BACKUP_DIR says otherwise.
+const backups = backupsModule.create({ db, dir: process.env.BACKUP_DIR ? path.resolve(process.env.BACKUP_DIR) : path.join(path.dirname(DB_FILE), 'backups'), log: team.log });
+backups.start();
+
 // Sign-in cookies ride along on cross-site form posts, so every admin write must
 // come from a page on this same host.
 function sameOrigin(req, res, next) {
@@ -675,7 +683,7 @@ app.get('/admin', adminAuth, (req, res) => {
     const hired = applications.filter((a) => a.status === 'Hired' && !all.some((p) => p.appId === a.id));
     return res.render('admin', { ...locals, rows: test ? all.filter(test) : all, view, sum: billing.summary(all), statuses: billing.STATUSES, inr: billing.inr, formatYmd: placements.formatYmd, unrecorded: hired, clientById: Object.fromEntries(clients.read().map((c) => [c.id, c])), nameById: Object.fromEntries(all.map((p) => [p.id, p.candidateName])), monthLabel: billing.monthLabel });
   }
-  if (tab === 'settings') return res.render('admin', { ...locals, rows: [], form: { ...site, jobCategories: jobCategories(), jobLocations: site.jobLocations || DEFAULT_JOB_LOCATIONS }, errors: [], social: SOCIAL, billingForm: placements.billingOf(site), retentionPreview: retentionPreviews() });
+  if (tab === 'settings') return res.render('admin', { ...locals, rows: [], form: { ...site, jobCategories: jobCategories(), jobLocations: site.jobLocations || DEFAULT_JOB_LOCATIONS }, errors: [], social: SOCIAL, billingForm: placements.billingOf(site), retentionPreview: retentionPreviews(), backups: { status: backups.status(), list: backups.list(), dir: backups.dir, keep: backups.keep } });
   if (tab === 'talent') {
     const EXPERIENCE = ['Fresher', '0-1 years', '1-3 years', '3-5 years', '5-10 years', '10+ years'];
     const NOTICE = ['Immediate', '15 days', '30 days', '60 days', '90 days'];
@@ -857,7 +865,7 @@ app.post('/admin/jobs/:id/delete', adminAuth, requireAdmin, sameOrigin, (req, re
 app.post('/admin/settings', adminAuth, requireAdmin, sameOrigin, (req, res) => {
   const { settings, errors } = parseSettings(req.body, site);
   if (errors.length) {
-    return res.status(400).render('admin', { title: 'Admin', page: 'admin', tab: 'settings', tabs: tabsFor(req.admin), counts: {}, members: team.members(), memberName: {}, status: '', msg: '', rows: [], form: settings, errors, social: SOCIAL, retentionPreview: retentionPreviews(), billingForm: Object.fromEntries(Object.entries(placements.billingOf(settings)).map(([k, v]) => [k, Number.isNaN(v) ? '' : v])) });
+    return res.status(400).render('admin', { title: 'Admin', page: 'admin', tab: 'settings', tabs: tabsFor(req.admin), counts: {}, members: team.members(), memberName: {}, status: '', msg: '', rows: [], form: settings, errors, social: SOCIAL, retentionPreview: retentionPreviews(), backups: { status: backups.status(), list: backups.list(), dir: backups.dir, keep: backups.keep }, billingForm: Object.fromEntries(Object.entries(placements.billingOf(settings)).map(([k, v]) => [k, Number.isNaN(v) ? '' : v])) });
   }
   const retentionChanged = settings.retentionMonths !== (site.retentionMonths || 0);
   Object.assign(site, settings);
@@ -944,6 +952,18 @@ app.get('/admin/backup', adminAuth, requireAdmin, (req, res) => {
   const file = path.join(require('os').tmpdir(), `hireriv-backup-${Date.now()}.db`);
   db.backupTo(file);
   res.download(file, `hireriv-${new Date().toISOString().slice(0, 10)}.db`, () => fs.unlink(file, () => {}));
+});
+
+// Automatic backups: download any kept copy, or take one now.
+app.get('/admin/backups/:name', adminAuth, requireAdmin, (req, res, next) => {
+  const file = backups.fileFor(req.params.name);
+  if (!file) return next();
+  res.download(file, req.params.name);
+});
+app.post('/admin/backups/run', adminAuth, requireAdmin, sameOrigin, (req, res) => {
+  const r = backups.run();
+  team.log(req.admin, 'Took a database backup', r.ok ? r.name : r.error);
+  res.redirect(`${adminUrl('settings', r.ok ? `Backup saved: ${r.name}` : `Backup failed: ${r.error}`)}#backups`);
 });
 
 app.get('/admin/reports/:section.csv', adminAuth, (req, res, next) => {

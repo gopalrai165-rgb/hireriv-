@@ -128,7 +128,7 @@ describe('admin panel', () => {
 
   test('dashboard lists the setup still to do', async () => {
     const html = await (await app.request('/admin', { cookie: admin })).text();
-    assert.match(html, /Finish setting up your site/);
+    assert.match(html, /Needs your attention/);
     assert.match(html, /Add your real phone and WhatsApp numbers/);
   });
 

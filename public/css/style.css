@@ -570,6 +570,8 @@ a.contact-card:hover { border-color: var(--primary); color: var(--text); }
 .setup-todo { margin-bottom: 20px; border-color: #f5c46b; background: #fffbeb; }
 .setup-todo ul { margin: 10px 0 0; padding-left: 1.2em; }
 .setup-todo li { margin-bottom: 4px; }
+.backup-list { margin: 10px 0 0; padding-left: 1.2em; font-size: .92rem; }
+.backup-list li { margin-bottom: 4px; }
 .dash-wide { grid-column: 1 / -1; }
 .dash-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin-bottom: 16px; }
 .dash-head h2 { font-size: 1.05rem; margin: 0; }

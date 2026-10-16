@@ -1,7 +1,7 @@
 <% if (typeof setupTodo !== 'undefined' && setupTodo.length) { %>
   <section class="dash-card setup-todo">
-    <div class="dash-head"><h2>Finish setting up your site</h2><span class="muted small"><%= setupTodo.length %> to do</span></div>
-    <p class="muted small">Visitors see these details on every page, so they should be real before you share the site.</p>
+    <div class="dash-head"><h2>Needs your attention</h2><span class="muted small"><%= setupTodo.length %> to do</span></div>
+    <p class="muted small">Things to finish or fix. Contact details show on every page, so they should be real before you share the site.</p>
     <ul>
       <% setupTodo.forEach(function (t) { %><li><% if (t.href) { %><a href="<%= t.href %>"><%= t.text %></a><% } else { %><%= t.text %><% } %></li><% }) %>
     </ul>

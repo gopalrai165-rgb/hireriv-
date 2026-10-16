@@ -65,6 +65,21 @@
     <% if (keep) { %><p class="muted small">On: candidates are deleted <%= keep %> months after their last activity. The Privacy Policy says so automatically.</p><% } %>
   </section>
 
+  <section class="form-card" id="backups">
+    <h2>Backups</h2>
+    <% const bs = backups.status; %>
+    <p class="muted small">The database is backed up automatically once a day and the newest <%= backups.keep %> copies are kept in <code><%= backups.dir %></code>. Each copy is checked after it's written. Resumes are files in the uploads folder, so back that folder up separately. For protection against a failed disk, set <code>BACKUP_DIR</code> to another disk or a synced folder.</p>
+    <% if (!bs) { %><p class="notice notice-err">No backup has run yet.</p>
+    <% } else if (!bs.ok) { %><p class="notice notice-err">The last backup failed (<%= new Date(bs.at).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) %>): <%= bs.error %></p>
+    <% } else { %><p>Last backup: <b><%= new Date(bs.at).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit', timeZone: 'Asia/Kolkata' }) %></b> · <%= (bs.size / 1024).toFixed(0) %> KB</p><% } %>
+    <% if (backups.list.length) { %>
+      <details class="table-toggle"><summary><%= backups.list.length %> saved cop<%= backups.list.length === 1 ? 'y' : 'ies' %></summary>
+        <ul class="backup-list"><% backups.list.forEach(function (b) { %><li><a href="/admin/backups/<%= b.name %>"><%= b.name %></a> <span class="muted small"><%= (b.size / 1024).toFixed(0) %> KB</span></li><% }) %></ul>
+      </details>
+    <% } %>
+    <p><button class="btn btn-outline btn-sm" type="submit" formaction="/admin/backups/run" formmethod="post" formnovalidate>Back up now</button></p>
+  </section>
+
   <section class="form-card">
     <h2>Billing &amp; invoices</h2>
     <p class="muted small">Printed on every invoice you issue from Placements. Already-issued invoices keep the details they were issued with.</p>
