@@ -73,6 +73,25 @@ const CATEGORY_WORK = {
 const workOfCategory = (category) => CATEGORY_WORK[category] || 'office';
 const workOf = (job) => (WORK_KEYS.includes(job.work) ? job.work : workOfCategory(job.category));
 
+// Category groups for the homepage tiles and the Job Categories page. A group
+// is a set of categories, or a rule (kind of work, freshers).
+const isFresherJob = (job) => ['Internship', 'Apprenticeship'].includes(job.type) || /fresher|no experience|^\s*0\s*[-–]\s*[12]\b/i.test(job.experience || '');
+const JOB_GROUPS = [
+  { key: 'office', label: 'Office jobs', icon: 'i-briefcase', text: 'Professional, desk and management roles', match: (j) => workOf(j) === 'office' },
+  { key: 'skilled-field', label: 'Skilled & field jobs', icon: 'i-truck', text: 'Trades, technicians, factory, delivery and service work', match: (j) => workOf(j) !== 'office' },
+  { key: 'it-engineering', label: 'IT & Engineering', icon: 'i-code', categories: ['Technology', 'Engineering & Manufacturing'] },
+  { key: 'healthcare', label: 'Healthcare', icon: 'i-health', categories: ['Healthcare & Pharma', 'Healthcare Technicians & Nursing'] },
+  { key: 'manufacturing', label: 'Manufacturing', icon: 'i-gear', categories: ['Factory & Production', 'Engineering & Manufacturing', 'Skilled Trades'] },
+  { key: 'logistics', label: 'Logistics & Delivery', icon: 'i-truck', categories: ['Logistics & Operations', 'Warehouse & Packing', 'Delivery & Driving'] },
+  { key: 'construction', label: 'Construction', icon: 'i-hardhat', categories: ['Construction & Real Estate', 'Construction & Site Work'] },
+  { key: 'retail', label: 'Retail', icon: 'i-cart', categories: ['Retail & E-commerce', 'Store & Counter Staff'] },
+  { key: 'hospitality', label: 'Hospitality', icon: 'i-utensils', categories: ['Hospitality & Travel', 'Hotel & Restaurant Staff'] },
+  { key: 'sales', label: 'Sales', icon: 'i-target', categories: ['Sales & Business Development'] },
+  { key: 'finance', label: 'Finance & Banking', icon: 'i-finance', categories: ['Finance & Accounting', 'Banking & Insurance'] },
+  { key: 'freshers', label: 'Fresher jobs', icon: 'i-graduation', text: 'Internships, apprenticeships and no-experience roles', match: isFresherJob },
+];
+const inGroup = (group, job) => (group.match ? group.match(job) : group.categories.includes(job.category));
+
 // Skilled and field jobs take a quick application (name and phone are enough);
 // office jobs ask for a resume and email. The job form can override either way.
 const RESUME_OPTIONS = ['required', 'optional'];
@@ -188,4 +207,4 @@ function parseSettings(body, current) {
   return { settings: next, errors };
 }
 
-module.exports = { parsePost, slugify, parseSettings, SOCIAL, DEFAULT_JOB_CATEGORIES, DEFAULT_JOB_LOCATIONS, SAMPLE_TESTIMONIALS, MAX_TESTIMONIALS, WORK_KINDS, WORK_KEYS, CATEGORY_WORK, workOf, workOfCategory, RESUME_OPTIONS, resumeNeeded };
+module.exports = { parsePost, slugify, parseSettings, SOCIAL, DEFAULT_JOB_CATEGORIES, DEFAULT_JOB_LOCATIONS, SAMPLE_TESTIMONIALS, MAX_TESTIMONIALS, WORK_KINDS, WORK_KEYS, CATEGORY_WORK, workOf, workOfCategory, RESUME_OPTIONS, resumeNeeded, JOB_GROUPS, inGroup, isFresherJob };

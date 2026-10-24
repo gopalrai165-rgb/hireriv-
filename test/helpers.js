@@ -20,7 +20,13 @@ const freePort = () =>
   });
 
 // `seed` pre-fills collections (e.g. { jobs: [...] }) before the server starts.
-async function startServer(env = {}, seed = {}) {
+// The starter jobs in data/jobs.json load as real jobs (so tests can apply to
+// them) unless `sampleJobs` is set, which starts like a fresh install.
+async function startServer(env = {}, seed = {}, { sampleJobs = false } = {}) {
+  if (!seed.jobs && !sampleJobs) {
+    const starter = JSON.parse(fs.readFileSync(path.join(ROOT, 'data', 'jobs.json'), 'utf8'));
+    seed = { ...seed, jobs: starter.map((j) => ({ ...j, sample: false })) };
+  }
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'hireriv-test-'));
   const port = await freePort();
   const base = `http://localhost:${port}`;

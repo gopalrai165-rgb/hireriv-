@@ -52,10 +52,11 @@ test('Find Work: kind-of-work tabs, job type filter and grouped categories', asy
   assert.equal(found(await (await srv.request('/jobs?work=nonsense')).text()), 18);
 });
 
-test('homepage links to each kind of work', async () => {
+test('homepage links to each job category group with its count', async () => {
   const home = await (await srv.request('/')).text();
-  assert.match(home, /Office, skilled or on the ground/);
-  assert.match(home, /href="\/jobs\?work=field"[\s\S]*?3 open jobs/);
+  assert.match(home, /Jobs for every kind of work/);
+  assert.match(home, /href="\/jobs\?group=skilled-field"[\s\S]*?<span class="cat-count">6 jobs<\/span>/);
+  assert.match(home, /href="\/jobs\?group=freshers"/);
 });
 
 test('posting a daily-wage job with its kind of work set by hand', async () => {

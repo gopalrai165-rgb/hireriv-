@@ -7,7 +7,7 @@ const { createMailer } = require('./mailer');
 const { open: openDb } = require('./db');
 const seo = require('./seo');
 const { skillMatch, buildPool, searchPool, phoneKey } = require('./match');
-const { parsePost, parseSettings, SOCIAL, DEFAULT_JOB_CATEGORIES, DEFAULT_JOB_LOCATIONS, SAMPLE_TESTIMONIALS, MAX_TESTIMONIALS, WORK_KINDS, WORK_KEYS, CATEGORY_WORK, workOf, workOfCategory, RESUME_OPTIONS, resumeNeeded } = require('./content');
+const { parsePost, parseSettings, SOCIAL, DEFAULT_JOB_CATEGORIES, DEFAULT_JOB_LOCATIONS, SAMPLE_TESTIMONIALS, MAX_TESTIMONIALS, WORK_KINDS, WORK_KEYS, CATEGORY_WORK, workOf, workOfCategory, RESUME_OPTIONS, resumeNeeded, JOB_GROUPS, inGroup } = require('./content');
 const interviews = require('./interviews');
 const employers = require('./employers');
 const candidates = require('./candidates');
@@ -105,6 +105,25 @@ if (!db.metaGet('upgraded:posts-v2')) {
 
 // ---------- jobs (editable from /admin) ----------
 let jobs = db.all('jobs').map((j) => ({ status: 'open', ...j }));
+
+// The starter jobs in data/jobs.json are examples, not real vacancies. They are
+// labelled "Sample listing", take no applications, send no job alerts and stay
+// out of Google and the sitemap. Editing one makes it a real job. Marked once:
+// a job counts as a sample while it still matches its starter text exactly.
+if (!db.metaGet('upgraded:sample-jobs')) {
+  const seed = JSON.parse(fs.readFileSync(path.join(DATA_DIR, 'jobs.json'), 'utf8'));
+  let marked = 0;
+  for (const j of jobs) {
+    const s = seed.find((x) => x.id === j.id);
+    if (j.sample === undefined && s && s.title === j.title && s.company === j.company && s.description === j.description) {
+      j.sample = true;
+      marked++;
+    }
+  }
+  if (marked) db.replaceAll('jobs', jobs);
+  db.metaSet('upgraded:sample-jobs', new Date().toISOString());
+}
+const isSample = (j) => j.sample === true;
 // Jobs that were live before job alerts existed count as already announced.
 for (const j of jobs) if (j.status === 'open' && !j.alertsSentAt) j.alertsSentAt = j.posted;
 const sortJobs = () => jobs.sort((a, b) => b.posted.localeCompare(a.posted));
@@ -283,6 +302,7 @@ app.use(express.static(path.join(__dirname, 'public'), { maxAge: '1h' }));
 app.locals.site = site;
 app.locals.catalog = catalog;
 app.locals.workOf = workOf;
+app.locals.isSample = (j) => j.sample === true;
 // Chat link for a candidate's mobile number (10-digit Indian numbers get +91).
 app.locals.waLink = (phone) => {
   let d = String(phone || '').replace(/\D/g, '');
@@ -356,7 +376,7 @@ Sitemap: ${BASE_URL}/sitemap.xml
 );
 
 app.get('/sitemap.xml', (req, res) =>
-  res.type('application/xml').send(seo.sitemap(BASE_URL, { jobs: openJobs(), posts: livePosts(), staticPaths: ['/', '/jobs', '/hire', '/services', ...catalog.SERVICES.map((x) => `/services/${x.slug}`), '/industries', ...catalog.INDUSTRIES.map((x) => `/industries/${x.slug}`), '/about', '/blog', '/contact', '/privacy', '/terms'] }))
+  res.type('application/xml').send(seo.sitemap(BASE_URL, { jobs: openJobs().filter((j) => !isSample(j)), posts: livePosts(), staticPaths: ['/', '/jobs', '/categories', '/hire', '/services', ...catalog.SERVICES.map((x) => `/services/${x.slug}`), '/industries', ...catalog.INDUSTRIES.map((x) => `/industries/${x.slug}`), '/about', '/blog', '/contact', '/privacy', '/terms'] }))
 );
 
 // Things a new install still needs before it is ready for visitors, shown to
@@ -374,6 +394,8 @@ function setupTodo() {
   if (!b.legalName || !b.gstin || !b.bank) todo.push({ text: 'Add your legal name, GSTIN and bank details for invoices', href: settings });
   if (!process.env.SMTP_HOST) todo.push({ text: 'Set up email sending (SMTP_HOST). Until then emails are only saved to data/outbox' });
   if (process.env.NODE_ENV === 'production' && !process.env.SITE_URL) todo.push({ text: 'Set SITE_URL to your live https:// address' });
+  const samples = jobs.filter(isSample).length;
+  if (samples) todo.push({ text: `Replace the ${samples} sample job${samples === 1 ? '' : 's'} with real openings: edit one to make it real, or delete it`, href: '/admin?tab=jobs' });
   if (!team.requires2fa()) todo.push({ text: 'Protect team sign-ins: turn on two-step sign-in for yourself, then require it for the team', href: '/admin/security' });
   return todo;
 }
@@ -381,9 +403,26 @@ function setupTodo() {
 // ---------- pages ----------
 app.get('/', (req, res) => {
   const live = openJobs();
-  const workCounts = live.reduce((n, j) => ({ ...n, [workOf(j)]: (n[workOf(j)] || 0) + 1 }), {});
-  res.render('index', { title: 'Staffing & Recruitment Solutions', page: 'home', jobs: live.slice(0, 6), posts: livePosts().slice(0, 3), categories: categoriesOf(live), locations: jobLocations(), workKinds: WORK_KINDS, workCounts, jsonLd: seo.homePage(site, BASE_URL) });
+  // Real openings first; sample listings only fill the gaps on a new site.
+  const featured = [...live.filter((j) => !isSample(j)), ...live.filter(isSample)].slice(0, 6);
+  res.render('index', {
+    title: 'Find Jobs & Hire Staff Across India', page: 'home', jobs: featured, posts: livePosts().slice(0, 3), locations: jobLocations(),
+    categoryGroups: groupCategories(jobCategories()), groups: groupCounts(live), jsonLd: seo.homePage(site, BASE_URL),
+  });
 });
+
+const groupCounts = (list) => JOB_GROUPS.map((g) => ({ ...g, count: list.filter((j) => inGroup(g, j)).length }));
+
+// Job Categories: the category groups, then every category by kind of work.
+app.get('/categories', (req, res) => {
+  const live = openJobs();
+  res.render('categories', {
+    title: 'Job Categories', page: 'categories', groups: groupCounts(live), categoryGroups: groupCategories(jobCategories()),
+    categoryCounts: live.reduce((n, j) => ({ ...n, [j.category]: (n[j.category] || 0) + 1 }), {}),
+    metaDescription: `Browse jobs by category on ${site.name}: office, IT, finance and sales roles, and skilled, factory, delivery, healthcare, construction, retail and hospitality work across India.`,
+  });
+});
+app.get('/staffing-solutions', (req, res) => res.redirect(301, '/services'));
 
 const JOBS_PAGE_SIZE = 20;
 app.get('/jobs', (req, res) => {
@@ -391,25 +430,28 @@ app.get('/jobs', (req, res) => {
   const q = String(req.query.q || '').trim().toLowerCase();
   const { category = '', location = '', mode = '', type = '' } = req.query;
   const work = WORK_KEYS.includes(req.query.work) ? req.query.work : '';
+  const group = JOB_GROUPS.find((g) => g.key === req.query.group) || null;
   const matches = (j, skip) =>
     (!q || [j.title, j.company, j.description, ...j.skills].join(' ').toLowerCase().includes(q)) &&
     (!category || j.category === category) &&
     (!location || j.location === location) &&
     (!mode || j.mode === mode) &&
     (!type || j.type === type) &&
+    (!group || inGroup(group, j)) &&
     (skip === 'work' || !work || workOf(j) === work);
   const results = live.filter((j) => matches(j));
   // Kind-of-work counts follow the other filters, so each tab says what it would show.
   const workCounts = live.filter((j) => matches(j, 'work')).reduce((n, j) => ({ ...n, [workOf(j)]: (n[workOf(j)] || 0) + 1 }), {});
-  const { rows, pager } = paginate(results, { page: req.query.page, size: JOBS_PAGE_SIZE, query: { q: req.query.q, work, category, location, mode, type }, path: '/jobs' });
+  const { rows, pager } = paginate(results, { page: req.query.page, size: JOBS_PAGE_SIZE, query: { q: req.query.q, group: group ? group.key : '', work, category, location, mode, type }, path: '/jobs' });
   res.render('jobs', {
     title: pager.page > 1 ? `Find Work – page ${pager.page}` : 'Find Work',
     page: 'jobs',
     results: rows,
     pager,
     // Pages of the unfiltered list are canonical; filtered views point to /jobs.
-    canonical: `${BASE_URL}/jobs${pager.page > 1 && !(q || work || category || location || mode || type) ? `?page=${pager.page}` : ''}`,
-    filters: { q: req.query.q || '', work, category, location, mode, type },
+    canonical: `${BASE_URL}/jobs${pager.page > 1 && !(q || group || work || category || location || mode || type) ? `?page=${pager.page}` : ''}`,
+    filters: { q: req.query.q || '', group: group ? group.key : '', work, category, location, mode, type },
+    group,
     categories: jobCategories(),
     categoryGroups: groupCategories(jobCategories()),
     workKinds: WORK_KINDS,
@@ -445,10 +487,10 @@ app.get('/jobs/:id', (req, res, next) => {
     whatsappApply: whatsappApplyLink(job),
     metaDescription: `${job.title} (${job.type}, ${job.mode}) in ${job.location}${job.experience ? `, ${job.experience}` : ''}${job.salary ? `, ${job.salary}` : ''}. ${job.description}`.slice(0, 300),
     // Google requires expired postings to drop their JobPosting markup.
-    jsonLd: open ? seo.jobPosting(job, site, BASE_URL) : null,
+    jsonLd: open && !isSample(job) ? seo.jobPosting(job, site, BASE_URL) : null,
     ogImage: `${BASE_URL}/og/jobs/${job.id}.png?v=${og.jobVersion(job)}`,
     ogImageAlt: `${job.title} at ${job.company}, ${job.location}`,
-    noindex: !open,
+    noindex: !open || isSample(job),
   });
 });
 
@@ -505,7 +547,7 @@ app.get('/contact', (req, res) => res.render('contact', { title: 'Contact Us', p
 const LEGAL_UPDATED = '2026-10-24';
 app.get('/privacy', (req, res) => res.render('privacy', { title: 'Privacy Policy', page: 'legal', updated: LEGAL_UPDATED, metaDescription: `How ${site.name} collects, uses and protects the personal data of candidates, clients and visitors.` }));
 app.get('/terms', (req, res) => res.render('terms', { title: 'Terms of Use', page: 'legal', updated: LEGAL_UPDATED, metaDescription: `The terms for using the ${site.name} website as a job seeker or employer.` }));
-app.get('/blog', (req, res) => res.render('blog', { title: 'Blog & Articles', page: 'blog', posts: livePosts() }));
+app.get('/blog', (req, res) => res.render('blog', { title: 'Career Resources', page: 'blog', posts: livePosts() }));
 app.get('/blog/:slug', (req, res, next) => {
   const post = livePosts().find((p) => p.slug === req.params.slug);
   if (!post) return next();
@@ -560,6 +602,7 @@ app.post('/api/apply', limit('apply', 6), (req, res) => {
     const errors = validate(data, quick ? ['name', 'phone'] : ['name', 'email', 'phone']);
     if (!req.file && !quick) errors.push('resume is required');
     if (job && job.status !== 'open') errors.push('this job is no longer accepting applications');
+    else if (job && isSample(job)) errors.push('this is a sample listing, not a real vacancy. Send us your details with a general application instead');
     if (errors.length) {
       if (req.file) fs.unlink(req.file.path, () => {});
       return respond(req, res, errors);
@@ -622,7 +665,7 @@ const alertMatches = (sub, job) =>
 
 // Alert each job at most once, the first time it goes live.
 function sendJobAlerts(job) {
-  if (job.status !== 'open' || job.alertsSentAt) return 0;
+  if (job.status !== 'open' || job.alertsSentAt || isSample(job)) return 0;
   job.alertsSentAt = new Date().toISOString();
   const subs = readSubmissions('job-alerts').filter((s) => alertMatches(s, job));
   for (const sub of subs) mailer.jobAlert(sub, job);
@@ -746,6 +789,10 @@ const clients = employers.register(app, {
   readSubmissions, saveSubmission, getJobs: () => jobs, appStatuses: APP_STATUSES,
   writeSubmissions, uploadsDir: UPLOADS_DIR, skillMatch, placementsFor: (emp) => billing.forClient(emp), timesheetsFor: (emp) => timesheets.forClient(emp),
 });
+
+// "Post a Job": signed-in clients go to their portal's requirement form;
+// everyone else to the hiring form on /hire.
+app.get('/post-a-job', (req, res) => res.redirect(clients.currentEmployer(req) ? '/employer#new-requirement' : '/hire#requirement'));
 const billing = placements.register(app, {
   db, site, mailer, baseUrl: BASE_URL, adminAuth, requireAdmin, sameOrigin, adminUrl, readSubmissions, writeSubmissions,
   getJobs: () => jobs, clients, requireEmployer: clients.requireEmployer,
@@ -1024,7 +1071,7 @@ app.post('/admin/jobs/:id', adminAuth, sameOrigin, (req, res, next) => {
   if (!existing) return next();
   const { job, errors } = parseJob(req.body);
   if (errors.length) return res.status(400).render('admin-job', jobFormLocals({ ...job, id: existing.id }, errors));
-  Object.assign(existing, job);
+  Object.assign(existing, job, { sample: false }); // edited by the team, so a real job now
   if (existing.status === 'open') delete existing.closedReason;
   const alerted = sendJobAlerts(existing);
   saveJobs();

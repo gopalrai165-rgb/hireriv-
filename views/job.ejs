@@ -46,7 +46,12 @@
       <p>You'll work with a dedicated recruiter who shares honest feedback, helps you prepare for each interview round and negotiates on your behalf. It's completely free for candidates.</p>
     </article>
     <aside class="form-card sticky" id="apply">
-      <% if (job.status === 'closed') { %>
+      <% if (isSample(job)) { %>
+        <h2>Sample listing</h2>
+        <p class="notice sample-note">This is an example that shows how jobs appear on <%= site.name %>. It isn't a real vacancy, so it isn't taking applications.</p>
+        <a href="/jobs" class="btn btn-primary btn-block">See open jobs</a>
+        <a href="/jobs#register" class="btn btn-outline btn-block">Send us your CV</a>
+      <% } else if (job.status === 'closed') { %>
         <h2>This role is closed</h2>
         <p class="muted">We're no longer accepting applications for this job. Browse our open roles or send us your CV, and we'll match you to the next one.</p>
         <a href="/jobs" class="btn btn-primary btn-block">See open jobs</a>

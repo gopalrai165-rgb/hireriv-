@@ -116,7 +116,7 @@
           <tbody>
             <% rows.forEach(function (j) { %>
               <tr>
-                <td><a href="/jobs/<%= j.id %>" target="_blank" rel="noopener"><b><%= j.title %></b></a><br><span class="muted"><%= j.company %> · <%= j.category %> · <%= j.id %></span></td>
+                <td><a href="/jobs/<%= j.id %>" target="_blank" rel="noopener"><b><%= j.title %></b></a><% if (isSample(j)) { %> <span class="pill pill-sample" title="Shown as an example, takes no applications. Edit it to make it a real job, or delete it.">Sample</span><% } %><br><span class="muted"><%= j.company %> · <%= j.category %> · <%= j.id %></span></td>
                 <td><%= j.location %><br><span class="muted"><%= j.mode %> · <%= j.type %></span></td>
                 <td><%= j.ownerId ? (memberName[j.ownerId] || 'Former member') : '—' %></td>
                 <td><%= formatDate(j.posted) %>

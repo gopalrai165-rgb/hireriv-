@@ -13,7 +13,7 @@ Every route the app serves, and who may use it. **This table is checked by `test
 
 Every state-changing team, candidate and client form also passes `sameOrigin` (cross-site posts are refused).
 
-Total: 143 routes.
+Total: 146 routes.
 
 ## Public website
 
@@ -25,6 +25,8 @@ Total: 143 routes.
 | GET | `/robots.txt` | public |  |
 | GET | `/sitemap.xml` | public |  |
 | GET | `/` | public |  |
+| GET | `/categories` | public | Job category groups with open-job counts |
+| GET | `/staffing-solutions` | public | 301 to /services |
 | GET | `/jobs` | public |  |
 | GET | `/jobs/:id` | public |  |
 | GET | `/saved` | public |  |
@@ -46,6 +48,7 @@ Total: 143 routes.
 | POST | `/api/contact` | public |  |
 | POST | `/api/job-alerts` | public |  |
 | POST | `/api/newsletter` | public |  |
+| GET | `/post-a-job` | public | Signed-in client: /employer#new-requirement; anyone else: /hire#requirement |
 
 ## One-time links
 

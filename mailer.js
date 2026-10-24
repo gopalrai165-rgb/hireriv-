@@ -46,7 +46,7 @@ function detailsTable(rows) {
 const describeAlert = (sub) => [sub.category || 'all', 'jobs', sub.location ? `in ${sub.location}` : ''].filter(Boolean).join(' ');
 
 const button = (href, label) =>
-  `<p style="margin:20px 0 0"><a href="${esc(href)}" style="background:#0e8a8f;color:#fff;padding:12px 22px;border-radius:999px;text-decoration:none;font-weight:bold;display:inline-block">${esc(label)}</a></p>`;
+  `<p style="margin:20px 0 0"><a href="${esc(href)}" style="background:#123B70;color:#fff;padding:12px 22px;border-radius:999px;text-decoration:none;font-weight:bold;display:inline-block">${esc(label)}</a></p>`;
 
 // Plain-text version of an email body, sent alongside the HTML. Text-only mail
 // apps show it, and spam filters treat HTML-only mail with more suspicion.
@@ -120,8 +120,8 @@ function createMailer(site) {
         html:
           p(`Your application for <b>${esc(a.jobTitle)}</b> is with our recruitment team.`) +
           p('A recruiter will review your profile and get back to you within 2 working days. If your experience is a strong match, we\'ll call you to talk about the role and next steps.') +
-          p(`You can follow your application any time at <a href="${esc(baseUrl)}/account/login" style="color:#0e8a8f">My applications</a> (sign in with this email address).`) +
-          p(`Meanwhile, take a look at our other <a href="${esc(baseUrl)}/jobs" style="color:#0e8a8f">open roles</a>.`),
+          p(`You can follow your application any time at <a href="${esc(baseUrl)}/account/login" style="color:#123B70">My applications</a> (sign in with this email address).`) +
+          p(`Meanwhile, take a look at our other <a href="${esc(baseUrl)}/jobs" style="color:#123B70">open roles</a>.`),
       });
     },
 
@@ -143,7 +143,7 @@ function createMailer(site) {
         heading: `Thanks, ${first(a.name)}`,
         html:
           p(`You'd already applied for <b>${esc(a.jobTitle)}</b>, so instead of a second application we've updated your existing one with your new resume and details. Your recruiter can see the changes.`) +
-          p(`You can follow your application any time at <a href="${esc(baseUrl)}/account/login" style="color:#0e8a8f">My applications</a> (sign in with this email address).`),
+          p(`You can follow your application any time at <a href="${esc(baseUrl)}/account/login" style="color:#123B70">My applications</a> (sign in with this email address).`),
       });
     },
 
@@ -480,7 +480,7 @@ function createMailer(site) {
         Interview: [`Interview next: ${a.jobTitle}`, 'Good news! You\'re moving to interviews', p(`Hi ${first(a.name)}, your profile for <b>${job}</b> has been shortlisted for interviews. Your recruiter will contact you shortly to schedule a time and help you prepare.`)],
         Offered: [`Offer update: ${a.jobTitle}`, 'An offer is on its way', p(`Hi ${first(a.name)}, congratulations! The hiring team would like to make you an offer for <b>${job}</b>. Your recruiter will walk you through the details and next steps.`)],
         Hired: [`Welcome aboard: ${a.jobTitle}`, 'Congratulations on your new role!', p(`Hi ${first(a.name)}, it's official: you've been hired for <b>${job}</b>. Thank you for trusting ${esc(site.name)} with your career move. We wish you every success.`)],
-        Rejected: [`Update on your application: ${a.jobTitle}`, 'An update on your application', p(`Hi ${first(a.name)}, thank you for your interest in <b>${job}</b>. After careful review, the hiring team has decided to go ahead with other candidates for this role.`) + p(`We'll keep your profile on file and get in touch when a better match comes up. You can also browse our <a href="${esc(baseUrl)}/jobs" style="color:#0e8a8f">latest openings</a>.`)],
+        Rejected: [`Update on your application: ${a.jobTitle}`, 'An update on your application', p(`Hi ${first(a.name)}, thank you for your interest in <b>${job}</b>. After careful review, the hiring team has decided to go ahead with other candidates for this role.`) + p(`We'll keep your profile on file and get in touch when a better match comes up. You can also browse our <a href="${esc(baseUrl)}/jobs" style="color:#123B70">latest openings</a>.`)],
       }[a.status];
       if (!copy) return false;
       send(site, { to: a.email, subject: copy[0], heading: copy[1], html: copy[2] });

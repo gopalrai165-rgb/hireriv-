@@ -33,6 +33,7 @@
         <% jobTypes.forEach(function (t) { %><option value="<%= t %>" <%= filters.type === t ? 'selected' : '' %>><%= t %> (<%= typeCounts[t] || 0 %>)</option><% }) %>
       </select>
       <% if (filters.work) { %><input type="hidden" name="work" value="<%= filters.work %>"><% } %>
+      <% if (filters.group) { %><input type="hidden" name="group" value="<%= filters.group %>"><% } %>
       <button class="btn btn-primary" type="submit">Search</button>
     </form>
     <% const withWork = function (key) { const q = Object.assign({}, filters, { work: key }); return '/jobs?' + Object.keys(q).filter(function (k) { return q[k]; }).map(function (k) { return k + '=' + encodeURIComponent(q[k]); }).join('&'); }; %>
@@ -46,8 +47,8 @@
 <section class="section">
   <div class="container">
     <div class="results-head">
-      <p><b><%= pager.total %></b> <%= pager.total === 1 ? 'job' : 'jobs' %> found</p>
-      <% if (filters.q || filters.work || filters.category || filters.location || filters.mode || filters.type) { %><a href="/jobs" class="small">Clear filters</a><% } %>
+      <p><b><%= pager.total %></b> <%= pager.total === 1 ? 'job' : 'jobs' %> found<% if (group) { %> in <b><%= group.label %></b><% } %></p>
+      <% if (filters.q || filters.group || filters.work || filters.category || filters.location || filters.mode || filters.type) { %><a href="/jobs" class="small">Clear filters</a><% } %>
     </div>
     <% if (results.length) { %>
       <div class="jobs-grid">

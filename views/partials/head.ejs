@@ -21,7 +21,7 @@
   <link rel="icon" href="/img/favicon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/css/style.css?v=<%= assetVersion %>">
 </head>
 <body class="page-<%= page || 'misc' %>">
@@ -31,18 +31,23 @@
   <div class="container nav-wrap">
     <a href="/" class="logo" aria-label="<%= site.name %> home">
       <img src="/img/logo.svg" alt="" width="36" height="36">
-      <span>Hire<b>riv</b></span>
+      <span class="logo-text"><span>Hire<b>riv</b></span><small>by Raigozen</small></span>
     </a>
     <nav class="main-nav" id="main-nav" aria-label="Main">
-      <a href="/" class="<%= page === 'home' ? 'active' : '' %>">Home</a>
-      <a href="/jobs" class="<%= page === 'jobs' ? 'active' : '' %>">Find Work</a>
-      <a href="/hire" class="<%= page === 'hire' ? 'active' : '' %>">Hire a Team</a>
-      <a href="/services" class="<%= page === 'services' || page === 'industries' ? 'active' : '' %>">Services</a>
-      <a href="/about" class="<%= page === 'about' ? 'active' : '' %>">About Us</a>
-      <a href="/blog" class="<%= page === 'blog' ? 'active' : '' %>">Blog</a>
-      <a href="/contact" class="<%= page === 'contact' ? 'active' : '' %>">Contact</a>
+      <a href="/jobs" class="<%= page === 'jobs' ? 'active' : '' %>">Find Jobs</a>
+      <a href="/categories" class="<%= page === 'categories' ? 'active' : '' %>">Job Categories</a>
+      <a href="/services" class="<%= page === 'services' || page === 'industries' ? 'active' : '' %>">Staffing Solutions</a>
+      <a href="/hire" class="<%= page === 'hire' ? 'active' : '' %>">Employers</a>
+      <a href="/blog" class="<%= page === 'blog' ? 'active' : '' %>">Career Resources</a>
       <a href="/saved" class="nav-saved <%= page === 'saved' ? 'active' : '' %>"><svg class="i"><use href="#i-bookmark"/></svg>Saved<span class="saved-count" hidden></span></a>
-      <a href="/hire" class="btn btn-primary btn-sm nav-cta">Get Talent</a>
+      <details class="nav-login">
+        <summary>Login</summary>
+        <div class="nav-login-menu">
+          <a href="/account/login"><b>Job seekers</b><span>Track your applications</span></a>
+          <a href="/employer/login"><b>Employers</b><span>Your roles, candidates and invoices</span></a>
+        </div>
+      </details>
+      <a href="/post-a-job" class="btn btn-primary btn-sm nav-cta">Post a Job</a>
     </nav>
     <a href="/saved" class="mobile-saved" aria-label="Saved jobs"><svg class="i"><use href="#i-bookmark"/></svg><span class="saved-count" hidden></span></a>
     <button class="nav-toggle" aria-label="Open menu" aria-expanded="false" aria-controls="main-nav">

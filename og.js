@@ -56,20 +56,20 @@ function fit(text, maxWidth, maxLines, sizes) {
 function frame(inner, footer) {
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
   <defs>
-    <linearGradient id="brand" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#0e8a8f"/><stop offset="1" stop-color="#2f6bff"/></linearGradient>
-    <radialGradient id="glow" cx="0.5" cy="0.5" r="0.5"><stop offset="0" stop-color="#2f6bff" stop-opacity="0.45"/><stop offset="1" stop-color="#2f6bff" stop-opacity="0"/></radialGradient>
+    <linearGradient id="brand" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#123B70"/><stop offset="1" stop-color="#2878D4"/></linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.5" r="0.5"><stop offset="0" stop-color="#2878D4" stop-opacity="0.45"/><stop offset="1" stop-color="#2878D4" stop-opacity="0"/></radialGradient>
   </defs>
-  <rect width="${W}" height="${H}" fill="#0b1b34"/>
+  <rect width="${W}" height="${H}" fill="#0B2547"/>
   <circle cx="1060" cy="90" r="420" fill="url(#glow)"/>
   <rect x="0" y="0" width="${W}" height="10" fill="url(#brand)"/>
   <g transform="translate(72 64) scale(1.25)">
     <rect width="48" height="48" rx="13" fill="url(#brand)"/>
     <path d="M16 10v20M32 10v20M16 20h16" stroke="#fff" stroke-width="4.5" stroke-linecap="round"/>
-    <path d="M8 38c4 0 4-3 8-3s4 3 8 3 4-3 8-3 4 3 8 3" fill="none" stroke="#ff8a3d" stroke-width="3" stroke-linecap="round"/>
+    <path d="M8 38c4 0 4-3 8-3s4 3 8 3 4-3 8-3 4 3 8 3" fill="none" stroke="#8EC1F5" stroke-width="3" stroke-linecap="round"/>
   </g>
-  <text x="152" y="108" font-family="Plus Jakarta Sans" font-weight="800" font-size="40" fill="#ffffff">Hire<tspan fill="#2dd4bf">riv</tspan></text>
+  <text x="152" y="108" font-family="Plus Jakarta Sans" font-weight="800" font-size="40" fill="#ffffff">Hire<tspan fill="#8EC1F5">riv</tspan></text>
   ${inner}
-  <path d="M72 560c26 0 26-18 52-18s26 18 52 18 26-18 52-18 26 18 52 18" fill="none" stroke="#ff8a3d" stroke-width="5" stroke-linecap="round"/>
+  <path d="M72 560c26 0 26-18 52-18s26 18 52 18 26-18 52-18 26 18 52 18" fill="none" stroke="#8EC1F5" stroke-width="5" stroke-linecap="round"/>
   <text x="${W - 72}" y="570" text-anchor="end" font-family="Plus Jakarta Sans" font-weight="500" font-size="28" fill="#b9c6dd">${esc(footer)}</text>
 </svg>`;
 }
@@ -98,7 +98,7 @@ function jobSvg(job, site, host) {
   const titleEnd = titleY + (title.lines.length - 1) * Math.round(title.size * 1.15);
   const sub = [job.company, job.location].filter(Boolean).join(' · ');
   const inner = [
-    `<text x="72" y="182" font-family="Plus Jakarta Sans" font-weight="800" font-size="24" letter-spacing="3" fill="#ff8a3d">NOW HIRING</text>`,
+    `<text x="72" y="182" font-family="Plus Jakarta Sans" font-weight="800" font-size="24" letter-spacing="3" fill="#8EC1F5">NOW HIRING</text>`,
     lineText(title.lines, 72, titleY, title.size, 1.15, 'font-family="Plus Jakarta Sans" font-weight="800" fill="#ffffff"'),
     `<text x="72" y="${titleEnd + 58}" font-family="Plus Jakarta Sans" font-weight="500" font-size="32" fill="#b9c6dd">${esc(wrap(sub, 32, W - 144, 1, false)[0] || '')}</text>`,
     chips([job.mode, job.type, job.experience, job.salary], 72, titleEnd + 92),

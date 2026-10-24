@@ -1,0 +1,45 @@
+<%- include('partials/head') %>
+
+<section class="page-hero">
+  <div class="container">
+    <span class="eyebrow">Job categories</span>
+    <h1>Browse jobs by category</h1>
+    <p class="lead">Office roles, skilled trades and field work across India. Pick a category to see its open jobs.</p>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container">
+    <div class="cat-grid">
+      <% groups.forEach(function (g) { %>
+        <a class="cat-tile<%= ['office', 'skilled-field'].includes(g.key) ? ' cat-tile-wide' : '' %>" href="/jobs?group=<%= g.key %>">
+          <span class="cat-icon"><svg class="i"><use href="#<%= g.icon %>"/></svg></span>
+          <span class="cat-body"><b><%= g.label %></b><% if (g.text) { %><span class="muted small"><%= g.text %></span><% } %></span>
+          <span class="cat-count"><%= g.count %> <%= g.count === 1 ? 'job' : 'jobs' %></span>
+        </a>
+      <% }) %>
+    </div>
+  </div>
+</section>
+
+<section class="section section-tint">
+  <div class="container">
+    <div class="section-head">
+      <h2>Every category</h2>
+      <p>Grouped by the kind of work.</p>
+    </div>
+    <div class="all-cats">
+      <% categoryGroups.forEach(function (g) { %>
+        <div class="all-cats-col">
+          <h3><%= g.label %></h3>
+          <ul>
+            <% g.categories.forEach(function (c) { %><li><a href="/jobs?category=<%= encodeURIComponent(c) %>"><%= c %></a> <span class="muted small"><%= categoryCounts[c] || 0 %></span></li><% }) %>
+          </ul>
+        </div>
+      <% }) %>
+    </div>
+  </div>
+</section>
+
+<%- include('partials/cta-band', { heading: "Can't find your kind of work?", text: 'Send us your details once and a recruiter will match you to new openings.', href: '/jobs#register', label: 'Send your CV' }) %>
+<%- include('partials/foot') %>

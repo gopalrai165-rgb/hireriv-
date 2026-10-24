@@ -65,7 +65,7 @@ test('industry pages list only that desk\'s open jobs', async () => {
 
 test('services are linked from the header, footer, homepage and sitemap', async () => {
   const home = (await get('/')).html;
-  assert.match(home, /<a href="\/services" class="">Services<\/a>/);
+  assert.match(home, /<a href="\/services" class="">Staffing Solutions<\/a>/);
   for (const s of catalog.SERVICES) assert.ok(home.includes(`href="/services/${s.slug}"`), s.slug);
   for (const i of catalog.INDUSTRIES) assert.ok(home.includes(`href="/industries/${i.slug}"`), i.slug);
   const xml = (await get('/sitemap.xml')).html;
