@@ -105,7 +105,7 @@ function register(app, deps) {
         const interviews = (a.interviews || [])
           .filter((iv) => iv.status === 'scheduled' && new Date(iv.at).getTime() + iv.duration * 60000 > now)
           .sort((x, y) => x.at.localeCompare(y.at));
-        return { id: a.id, jobTitle: a.jobTitle, jobId: job ? job.id : null, jobOpen: job ? job.status === 'open' : false, createdAt: a.createdAt, stage, stepIndex: STEPS.indexOf(stage), withdrawn: Boolean(a.withdrawnAt), closedOut: ['Hired', 'Rejected'].includes(a.status), interviews };
+        return { id: a.id, jobTitle: a.jobTitle, jobId: job ? job.id : null, jobOpen: job ? job.status === 'open' : false, createdAt: a.createdAt, stage, stepIndex: STEPS.indexOf(stage), withdrawn: Boolean(a.withdrawnAt), closedOut: ['Hired', 'Rejected'].includes(a.status), hasResume: Boolean(a.resume), interviews };
       });
     // Newest non-empty value of each field across all their applications, so a
     // later application with blanks never hides details given earlier.
@@ -117,6 +117,44 @@ function register(app, deps) {
       title: 'My applications', email, apps, steps: STEPS, profile: latest,
       experienceOptions: EXPERIENCE, noticeOptions: NOTICE, msg: String(req.query.msg || ''), contracts: contractsFor(email),
     });
+  });
+
+  // Right of access: everything the candidate gave us and what happened to it,
+  // as a file they can keep. Recruiters' private notes and interview scorecards
+  // are internal assessments and are not part of the download.
+  app.get('/account/my-data.json', requireCandidate, (req, res) => {
+    const email = req.candidateEmail;
+    const subs = (type) => readSubmissions(type).filter((s) => String(s.email).toLowerCase() === email);
+    const data = {
+      exportedAt: new Date().toISOString(),
+      about: `Your data held by ${site.name}. Questions or corrections: ${site.email}`,
+      email,
+      applications: mine(email).map((a) => ({
+        job: a.jobTitle,
+        appliedAt: a.createdAt,
+        status: a.withdrawnAt ? 'Withdrawn' : CANDIDATE_STAGE[a.status || 'New'] || 'Received',
+        details: Object.fromEntries(['name', 'phone', 'skills', 'experience', 'location', 'noticePeriod', 'linkedin', 'message', 'source'].filter((k) => a[k]).map((k) => [k, a[k]])),
+        resumeFile: a.resume ? `Uploaded resume (${path.extname(a.resume).slice(1).toUpperCase()})` : null,
+        skillsFoundInResume: a.resumeSkills || [],
+        reappliedAt: a.reapplied || [],
+        stageChanges: (a.history || []).map((h) => ({ at: h.at, from: CANDIDATE_STAGE[h.from] || h.from, to: CANDIDATE_STAGE[h.to] || h.to })),
+        interviews: (a.interviews || []).map((iv) => ({ at: iv.at, durationMinutes: iv.duration, format: iv.mode, status: iv.status })),
+        emailsSent: (a.emails || []).map((m) => ({ at: m.at, subject: m.subject })),
+        sharedWithClient: a.shared ? { at: a.shared.sharedAt } : null,
+        withdrawnAt: a.withdrawnAt || null,
+      })),
+      jobAlerts: subs('job-alerts').map((s) => ({ category: s.category || 'Any', location: s.location || 'Any', confirmed: Boolean(s.confirmed), since: s.createdAt })),
+      newsletter: subs('newsletter').map((s) => ({ since: s.createdAt })),
+    };
+    res.set('Cache-Control', 'no-store').attachment(`my-data-${new Date().toISOString().slice(0, 10)}.json`).type('application/json').send(JSON.stringify(data, null, 2));
+  });
+
+  // A candidate's own uploaded resume.
+  app.get('/account/resume/:appId', requireCandidate, (req, res, next) => {
+    const a = mine(req.candidateEmail).find((x) => x.id === req.params.appId);
+    if (!a || !a.resume) return next();
+    const file = path.basename(a.resume);
+    res.download(path.join(uploadsDir, file), `my-resume${path.extname(file)}`, (err) => err && !res.headersSent && res.status(404).end());
   });
 
   // Interview invite for the candidate's own calendar.

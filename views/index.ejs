@@ -6,7 +6,7 @@
   <div class="container hero-grid">
     <div class="hero-copy">
       <span class="eyebrow"><svg class="i"><use href="#i-spark"/></svg> AI-assisted, recruiter-verified hiring</span>
-      <h1>Tech-driven staffing that <span class="grad">moves businesses</span> and careers forward</h1>
+      <h1>Tech-driven staffing that <span class="grad">moves businesses</span> and <span class="underline-swoosh">careers</span> forward</h1>
       <p class="lead">Hireriv connects growing companies with pre-screened talent across Technology, Finance, BFSI, Sales, Healthcare, Manufacturing, Logistics and more, and helps professionals find roles where they can do their best work.</p>
       <div class="hero-ctas">
         <a href="/hire" class="btn btn-primary btn-lg">Hire a Team <svg class="i"><use href="#i-arrow"/></svg></a>
@@ -23,19 +23,29 @@
         </select>
         <button class="btn btn-accent" type="submit">Search jobs</button>
       </form>
-      <p class="hero-popular muted small">Popular:
-        <a href="/jobs?q=developer">Developer</a> · <a href="/jobs?q=accountant">Accountant</a> · <a href="/jobs?q=marketing">Marketing</a> · <a href="/jobs?q=logistics">Logistics</a>
+      <p class="hero-popular small">Popular:
+        <a href="/jobs?q=developer">Developer</a> <a href="/jobs?q=accountant">Accountant</a> <a href="/jobs?q=marketing">Marketing</a> <a href="/jobs?q=logistics">Logistics</a>
       </p>
+      <% const placed = site.stats[1] || site.stats[0]; %>
+      <div class="trust">
+        <div class="trust-avatars" aria-hidden="true"><% [1, 2, 3, 4, 5].forEach(function (n) { %><img src="/img/photos/avatar-<%= n %>.webp" alt="" width="44" height="44"><% }) %></div>
+        <p><span class="stars" aria-hidden="true">★★★★★</span><% if (placed) { %><b><%= placed.value.toLocaleString('en-IN') %><%= placed.suffix %> <%= placed.label.toLowerCase() %></b><% } %>across India's growing companies</p>
+      </div>
     </div>
     <div class="hero-visual" aria-hidden="true">
+      <span class="deco deco-dots"></span>
+      <span class="deco deco-ring"></span>
+      <span class="deco deco-spark"></span>
+      <span class="deco deco-spark violet"></span>
+      <figure class="photo-arch"><img src="/img/photos/hero-team.webp" alt="" width="900" height="1040" fetchpriority="high"></figure>
       <div class="float-card fc-main">
-        <div class="fc-head"><span class="avatar">AK</span><div><b>Senior Cloud Engineer</b><span class="muted small">Shortlisted for FinPay</span></div></div>
+        <div class="fc-head"><img src="/img/photos/hero-person.webp" alt="" width="44" height="44"><div><b>Senior Cloud Engineer</b><span class="muted small">Shortlisted for FinPay</span></div></div>
         <div class="match"><span>Profile match</span><b>94%</b></div>
         <div class="bar"><i style="width:94%"></i></div>
         <div class="chips"><span class="chip">AWS</span><span class="chip">Kubernetes</span><span class="chip">Terraform</span></div>
       </div>
       <div class="float-card fc-small fc-a"><svg class="i ok"><use href="#i-check"/></svg><div><b>Background check</b><span class="muted small">Verified</span></div></div>
-      <div class="float-card fc-small fc-b"><svg class="i"><use href="#i-clock"/></svg><div><b>Avg. time to shortlist</b><span class="muted small">72 hours</span></div></div>
+      <div class="float-card fc-small fc-b"><svg class="i sun"><use href="#i-clock"/></svg><div><b>Avg. time to shortlist</b><span class="muted small">72 hours</span></div></div>
     </div>
   </div>
 </section>
@@ -52,6 +62,18 @@
   </div>
 </section>
 
+<!-- ROLES WE HIRE FOR (scrolling strip; the copy is for the seamless loop) -->
+<% const marqueeRoles = catalog.INDUSTRIES.flatMap(function (ind) { return ind.roles.slice(0, 2).map(function (r) { return { role: r, icon: ind.icon }; }); }); %>
+<section class="marquee-band" aria-label="Roles we hire for">
+  <div class="marquee">
+    <% [false, true].forEach(function (copy) { %>
+      <div class="marquee-track"<%- copy ? ' aria-hidden="true"' : '' %>>
+        <% marqueeRoles.forEach(function (m) { %><span class="marquee-item"><svg class="i"><use href="#<%= m.icon %>"/></svg><%= m.role %></span><% }) %>
+      </div>
+    <% }) %>
+  </div>
+</section>
+
 <!-- TWO PATHS -->
 <section class="section">
   <div class="container">
@@ -61,7 +83,8 @@
       <p>Whether you're building a team or taking the next step in your career, we make the process faster, fairer and more human.</p>
     </div>
     <div class="paths">
-      <div class="path-card path-employer reveal">
+      <div class="path-card path-employer reveal reveal-left">
+        <figure class="path-photo"><img src="/img/photos/path-employer.webp" alt="" width="900" height="560" loading="lazy" decoding="async"></figure>
         <span class="path-icon"><svg class="i"><use href="#i-users"/></svg></span>
         <h3>For employers</h3>
         <p>Recruiter-assessed, AI-matched candidates delivered to your inbox, with a dedicated expert from brief to joining.</p>
@@ -73,7 +96,8 @@
         </ul>
         <a href="/hire" class="btn btn-primary">Start hiring <svg class="i"><use href="#i-arrow"/></svg></a>
       </div>
-      <div class="path-card path-candidate reveal">
+      <div class="path-card path-candidate reveal reveal-right">
+        <figure class="path-photo"><img src="/img/photos/path-candidate.webp" alt="" width="900" height="560" loading="lazy" decoding="async"></figure>
         <span class="path-icon"><svg class="i"><use href="#i-briefcase"/></svg></span>
         <h3>For job seekers</h3>
         <p>Personalised job recommendations, honest career advice and a recruiter who keeps you updated at every step.</p>
@@ -186,16 +210,15 @@
         <div><svg class="i"><use href="#i-shield"/></svg><div><b>Quality guaranteed</b><p>Free replacement if a placement doesn't work out within the guarantee period.</p></div></div>
       </div>
     </div>
-    <div class="quote-stack">
-      <figure class="quote-card reveal">
+    <div class="why-collage reveal reveal-right">
+      <span class="deco deco-dots teal" aria-hidden="true"></span>
+      <span class="deco deco-squiggle" aria-hidden="true"></span>
+      <figure class="photo-arch photo-round"><img src="/img/photos/why-team.webp" alt="A recruiter and candidates working together at a laptop" width="800" height="960" loading="lazy" decoding="async"></figure>
+      <figure class="why-small"><img src="/img/photos/why-hands.webp" alt="" width="500" height="500" loading="lazy" decoding="async"></figure>
+      <figure class="quote-card">
         <svg class="i quote-mark"><use href="#i-quote"/></svg>
         <blockquote>Train people well enough so they can leave. Treat them well enough so they don't want to.</blockquote>
         <figcaption>Richard Branson</figcaption>
-      </figure>
-      <figure class="quote-card quote-alt reveal">
-        <svg class="i quote-mark"><use href="#i-quote"/></svg>
-        <blockquote>Human resources isn't a thing we do. It's the thing that runs our business.</blockquote>
-        <figcaption>Steve Wynn</figcaption>
       </figure>
     </div>
   </div>
@@ -217,28 +240,28 @@
   </div>
 </section>
 
-<!-- TESTIMONIALS -->
-<section class="section">
+<!-- TESTIMONIALS (edited in Admin → Settings; hidden when there are none) -->
+<% const testimonials = testimonialsFor(site); %>
+<% if (testimonials.length) { %>
+<section class="section section-testimonials">
   <div class="container">
     <div class="section-head">
       <span class="eyebrow">Testimonials</span>
       <h2>What clients and candidates say</h2>
     </div>
     <div class="testimonials">
-      <% [
-        ['We needed eight engineers in a month. Hireriv sent a shortlist in three days, and every person we hired is still with us.', 'Head of Engineering', 'Fintech startup', 'HE'],
-        ['Their recruiter understood what I wanted better than any job portal. I had two offers within three weeks.', 'Data Analyst', 'Placed candidate', 'DA'],
-        ['The background verification and onboarding support took a huge load off our small HR team.', 'HR Manager', 'Logistics company', 'HM']
-      ].forEach(function (t) { %>
+      <% testimonials.forEach(function (t) { %>
+        <% const initials = t.name.split(/\s+/).filter(Boolean).slice(0, 2).map(function (w) { return w[0].toUpperCase(); }).join(''); %>
         <figure class="testimonial reveal">
-          <div class="stars" aria-label="5 out of 5">★★★★★</div>
-          <blockquote>“<%= t[0] %>”</blockquote>
-          <figcaption><span class="avatar"><%= t[3] %></span><div><b><%= t[1] %></b><span class="muted small"><%= t[2] %></span></div></figcaption>
+          <div class="stars" role="img" aria-label="<%= t.rating %> out of 5"><%= '★'.repeat(t.rating) %><span class="stars-off"><%= '★'.repeat(5 - t.rating) %></span></div>
+          <blockquote>“<%= t.quote %>”</blockquote>
+          <figcaption><span class="avatar" aria-hidden="true"><%= initials %></span><div><b><%= t.name %></b><% if (t.detail) { %><span class="muted small"><%= t.detail %></span><% } %></div></figcaption>
         </figure>
       <% }) %>
     </div>
   </div>
 </section>
+<% } %>
 
 <!-- FAQ -->
 <section class="section section-tint" id="faq">
@@ -247,6 +270,7 @@
       <span class="eyebrow">FAQ</span>
       <h2>Questions, answered</h2>
       <p>Can't find what you're looking for? <a href="/contact">Talk to our team</a>.</p>
+      <figure class="faq-photo"><img src="/img/photos/contact.webp" alt="" width="900" height="700" loading="lazy" decoding="async"></figure>
     </div>
     <div class="faq">
       <% [

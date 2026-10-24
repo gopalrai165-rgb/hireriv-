@@ -1,10 +1,22 @@
 <%- include('partials/head') %>
 
 <section class="page-hero">
-  <div class="container narrow center">
-    <span class="eyebrow">Contact</span>
-    <h1>Let's talk</h1>
-    <p class="lead">Questions about hiring, a role, or partnering with us? We usually reply within a few hours.</p>
+  <span class="deco deco-spark" aria-hidden="true"></span>
+  <div class="container split">
+    <div>
+      <span class="eyebrow">Contact</span>
+      <h1>Let's <span class="grad">talk</span></h1>
+      <p class="lead">Questions about hiring, a role, or partnering with us? We usually reply within a few hours.</p>
+      <div class="hero-ctas">
+        <a href="tel:<%= site.phone.replace(/\s/g, '') %>" class="btn btn-primary btn-lg"><svg class="i"><use href="#i-phone"/></svg> Call <%= site.phone %></a>
+        <a href="https://wa.me/<%= site.whatsapp %>" class="btn btn-outline btn-lg" target="_blank" rel="noopener"><svg class="i"><use href="#i-whatsapp"/></svg> WhatsApp</a>
+      </div>
+    </div>
+    <div class="hero-media" aria-hidden="true">
+      <span class="deco deco-ring"></span>
+      <figure class="photo-arch"><img src="/img/photos/contact.webp" alt="" width="900" height="700"></figure>
+      <div class="float-card fc-small"><svg class="i ok"><use href="#i-clock"/></svg><div><b>Quick replies</b><span class="muted small"><%= site.hours %></span></div></div>
+    </div>
   </div>
 </section>
 

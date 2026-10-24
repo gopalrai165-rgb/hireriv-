@@ -1,10 +1,22 @@
 <%- include('partials/head') %>
 
 <section class="page-hero">
-  <div class="container narrow center">
-    <span class="eyebrow">Our services</span>
-    <h1>Staffing and HR services, from one hire to a whole team</h1>
-    <p class="lead">Pick the service that fits the role, or combine them. Every engagement has a dedicated account manager, the same six-stage screening, and a client portal where you follow progress.</p>
+  <span class="deco deco-spark" aria-hidden="true"></span>
+  <div class="container split">
+    <div>
+      <span class="eyebrow">Our services</span>
+      <h1>Staffing and HR services, from <span class="grad">one hire</span> to a whole team</h1>
+      <p class="lead">Pick the service that fits the role, or combine them. Every engagement has a dedicated account manager, the same six-stage screening, and a client portal where you follow progress.</p>
+      <div class="hero-ctas">
+        <a href="/hire#requirement" class="btn btn-primary btn-lg">Share a requirement <svg class="i"><use href="#i-arrow"/></svg></a>
+      </div>
+    </div>
+    <div class="hero-media" aria-hidden="true">
+      <span class="deco deco-ring"></span>
+      <span class="deco deco-spark violet"></span>
+      <figure class="photo-arch"><img src="/img/photos/services.webp" alt="" width="900" height="1000"></figure>
+      <div class="float-card fc-small"><svg class="i ok"><use href="#i-check"/></svg><div><b><%= services.length %> services</b><span class="muted small">One point of contact</span></div></div>
+    </div>
   </div>
 </section>
 
@@ -12,7 +24,8 @@
   <div class="container">
     <div class="services-grid">
       <% services.forEach(function (s) { %>
-        <a class="service-card service-link" href="/services/<%= s.slug %>">
+        <a class="service-card service-link reveal" href="/services/<%= s.slug %>">
+          <figure class="card-photo"><img src="/img/photos/svc-<%= s.slug %>.webp" alt="" width="900" height="1000" loading="lazy" decoding="async"></figure>
           <span class="service-icon"><svg class="i"><use href="#<%= s.icon %>"/></svg></span>
           <h2 class="h3"><%= s.name %></h2>
           <p><%= s.card %></p>

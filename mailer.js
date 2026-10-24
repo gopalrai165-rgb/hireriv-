@@ -48,6 +48,26 @@ const describeAlert = (sub) => [sub.category || 'all', 'jobs', sub.location ? `i
 const button = (href, label) =>
   `<p style="margin:20px 0 0"><a href="${esc(href)}" style="background:#0e8a8f;color:#fff;padding:12px 22px;border-radius:999px;text-decoration:none;font-weight:bold;display:inline-block">${esc(label)}</a></p>`;
 
+// Plain-text version of an email body, sent alongside the HTML. Text-only mail
+// apps show it, and spam filters treat HTML-only mail with more suspicion.
+const ENTITIES = { '&amp;': '&', '&lt;': '<', '&gt;': '>', '&quot;': '"', '&#39;': "'", '&nbsp;': ' ' };
+function toText(site, heading, html) {
+  const body = String(html)
+    .replace(/<tr>\s*<td[^>]*>([\s\S]*?)<\/td>\s*<td[^>]*>([\s\S]*?)<\/td>\s*<\/tr>/g, '$1: $2\n') // details rows
+    .replace(/<a\b[^>]*href="([^"]*)"[^>]*>([\s\S]*?)<\/a>/g, (m, href, label) => {
+      const text = label.replace(/<[^>]+>/g, '').trim();
+      return text && text !== href ? `${text} (${href})` : href;
+    })
+    .replace(/<br\s*\/?>/g, '\n')
+    .replace(/<\/(p|table|h1|h2|li)>/g, '\n\n')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&(amp|lt|gt|quot|#39|nbsp);/g, (e) => ENTITIES[e])
+    .replace(/[ \t]+\n/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+  return `${heading}\n\n${body}\n\n--\n${site.name} · ${site.phone} · ${site.email}\n`;
+}
+
 // Never let a mail failure break a form submission; log it and move on.
 async function send(site, { to, subject, heading, html, replyTo, headers, icalEvent }) {
   if (!to) return;
@@ -58,6 +78,7 @@ async function send(site, { to, subject, heading, html, replyTo, headers, icalEv
       replyTo,
       subject: subject.replace(/[\r\n]+/g, ' '),
       html: layout(site, heading, html),
+      text: toText(site, heading, html),
       headers,
       icalEvent,
     });
@@ -469,4 +490,4 @@ function createMailer(site) {
   };
 }
 
-module.exports = { createMailer };
+module.exports = { createMailer, toText };

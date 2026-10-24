@@ -316,3 +316,26 @@ test('pagination slices, clamps and keeps filters in links', () => {
   const many = paginate(Array.from({ length: 1000 }), { page: 10, size: 50 }).pager.links;
   assert.deepEqual(many.map((l) => (l.gap ? '…' : l.n)), [1, '…', 8, 9, 10, 11, 12, '…', 20]);
 });
+
+// ---------- plain-text emails ----------
+const { toText } = require('../mailer');
+
+test('emails get a readable plain-text version', () => {
+  const html = '<p>Hi <b>Priya</b>, your interview for <b>R&amp;D</b>.</p><table><tr><td style="x">When</td><td>Mon 10 am</td></tr></table><p><a href="https://x.in/join" style="y">Join</a></p><p>One<br>Two</p>';
+  assert.equal(toText({ name: 'Hireriv', phone: '+91 1', email: 'h@x.in' }, 'Heading', html), 'Heading\n\nHi Priya, your interview for R&D.\n\nWhen: Mon 10 am\n\nJoin (https://x.in/join)\n\nOne\nTwo\n\n--\nHireriv · +91 1 · h@x.in\n');
+});
+
+// ---------- testimonials ----------
+test('testimonials: samples stay until replaced, and saving other settings never wipes them', () => {
+  const row = { testimonial_quote_0: 'Great team.', testimonial_name_0: 'Asha K', testimonial_detail_0: 'CTO, SaaS', testimonial_rating_0: '4' };
+  // Samples (nothing saved yet) + empty rows: still samples.
+  assert.equal('testimonials' in content.parseSettings(validSettings, { name: 'H' }).settings, false);
+  // Real ones saved.
+  const saved = content.parseSettings({ ...validSettings, ...row }, { name: 'H' }).settings.testimonials;
+  assert.deepEqual(saved, [{ quote: 'Great team.', name: 'Asha K', detail: 'CTO, SaaS', rating: 4 }]);
+  // Clearing every row of real testimonials hides the section; so does the tick box.
+  assert.deepEqual(content.parseSettings(validSettings, { name: 'H', testimonials: saved }).settings.testimonials, []);
+  assert.deepEqual(content.parseSettings({ ...validSettings, testimonials_hide: '1' }, { name: 'H' }).settings.testimonials, []);
+  // A row needs both the quote and a name.
+  assert.ok(content.parseSettings({ ...validSettings, testimonial_name_1: 'Ravi' }, { name: 'H' }).errors.includes('testimonial 2 needs the quote'));
+});

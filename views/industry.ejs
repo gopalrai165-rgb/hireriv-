@@ -12,9 +12,14 @@
         <a href="/jobs?category=<%= encodeURIComponent(industry.name) %>" class="btn btn-outline btn-lg">See open roles</a>
       </div>
     </div>
-    <div class="vm-card">
-      <h2 class="h3">Roles we hire</h2>
-      <div class="chips chips-lg"><% industry.roles.forEach(function (r) { %><span class="chip"><%= r %></span><% }) %></div>
+    <div class="hero-media">
+      <span class="deco deco-ring" aria-hidden="true"></span>
+      <span class="deco deco-spark" aria-hidden="true"></span>
+      <figure class="photo-arch"><img src="/img/photos/ind-<%= industry.key %>.webp" alt="" width="900" height="1000"></figure>
+      <div class="float-card">
+        <h2>Roles we hire</h2>
+        <div class="chips"><% industry.roles.forEach(function (r) { %><span class="chip"><%= r %></span><% }) %></div>
+      </div>
     </div>
   </div>
 </section>

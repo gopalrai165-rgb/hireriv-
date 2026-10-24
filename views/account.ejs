@@ -43,7 +43,7 @@
           <div class="my-app-head">
             <div>
               <h3><% if (a.jobId && a.jobOpen) { %><a href="/jobs/<%= a.jobId %>"><%= a.jobTitle %></a><% } else { %><%= a.jobTitle %><% } %></h3>
-              <p class="muted small">Applied <%= formatDate(a.createdAt) %></p>
+              <p class="muted small">Applied <%= formatDate(a.createdAt) %><% if (a.hasResume) { %> · <a href="/account/resume/<%= a.id %>">Your resume</a><% } %></p>
             </div>
             <span class="pill <%= a.withdrawn || a.stage === 'Not selected' ? 'st-rejected' : a.stage === 'Hired' || a.stage === 'Offer' ? 'st-hired' : 'st-interview' %>"><%= a.stage %></span>
           </div>
@@ -90,6 +90,8 @@
 
       <section class="dash-card">
         <div class="dash-head"><h2>Your data</h2></div>
+        <p class="muted small">Download a copy of what we hold about you: your applications and details, their progress, interviews, emails we sent you, and your job alerts.</p>
+        <p><a class="btn btn-outline btn-sm" href="/account/my-data.json" download>Download my data</a></p>
         <p class="muted small">You can ask us to delete everything we hold about you: all applications, resumes, job alerts and newsletter subscription. This can't be undone.</p>
         <form class="form delete-data" method="post" action="/account/delete" data-confirm="Permanently delete all your data?">
           <label>Type DELETE to confirm<input name="confirm" autocomplete="off" required pattern="[Dd][Ee][Ll][Ee][Tt][Ee]"></label>

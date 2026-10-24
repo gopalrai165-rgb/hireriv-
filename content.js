@@ -58,6 +58,33 @@ const DEFAULT_JOB_LOCATIONS = [
   'Thiruvananthapuram', 'Guwahati', 'Bhopal', 'Patna', 'Goa', 'Multiple locations',
 ];
 
+// Shown on the homepage until real testimonials are saved in Admin → Settings.
+const SAMPLE_TESTIMONIALS = [
+  { quote: 'We needed eight engineers in a month. Hireriv sent a shortlist in three days, and every person we hired is still with us.', name: 'Head of Engineering', detail: 'Fintech startup', rating: 5 },
+  { quote: 'Their recruiter understood what I wanted better than any job portal. I had two offers within three weeks.', name: 'Data Analyst', detail: 'Placed candidate', rating: 5 },
+  { quote: 'The background verification and onboarding support took a huge load off our small HR team.', name: 'HR Manager', detail: 'Logistics company', rating: 5 },
+];
+const MAX_TESTIMONIALS = 6;
+
+// Testimonials from the settings form. Saving other settings never replaces
+// the samples by accident: rows left empty keep the samples until real ones
+// are entered or the section is hidden on purpose.
+function parseTestimonials(body, current, errors) {
+  const get = (k, max) => String(body[k] ?? '').trim().slice(0, max);
+  const list = [];
+  for (let i = 0; i < MAX_TESTIMONIALS; i++) {
+    const t = { quote: get(`testimonial_quote_${i}`, 400), name: get(`testimonial_name_${i}`, 80), detail: get(`testimonial_detail_${i}`, 80), rating: Number(get(`testimonial_rating_${i}`, 1)) || 5 };
+    if (!t.quote && !t.name && !t.detail) continue;
+    if (!t.quote) errors.push(`testimonial ${i + 1} needs the quote`);
+    if (!t.name) errors.push(`testimonial ${i + 1} needs a name or role`);
+    if (![1, 2, 3, 4, 5].includes(t.rating)) t.rating = 5;
+    list.push(t);
+  }
+  if (body.testimonials_hide === '1') return [];
+  if (list.length) return list;
+  return Array.isArray(current) ? [] : undefined; // cleared real ones hide the section; samples stay until replaced
+}
+
 // One entry per line, trimmed, without case-insensitive duplicates.
 function parseList(text, maxLen, maxItems) {
   const seen = new Set();
@@ -98,6 +125,8 @@ function parseSettings(body, current) {
     next.stats.push({ value: Math.round(value) || 0, suffix: get(`stat_suffix_${i}`, 3), label });
   }
   if (!next.stats.length) errors.push('add at least one homepage stat');
+  next.testimonials = parseTestimonials(body, current.testimonials, errors);
+  if (next.testimonials === undefined) delete next.testimonials;
   next.jobCategories = parseList(body.jobCategories, 60, 50);
   if (!next.jobCategories.length) errors.push('add at least one job category');
   next.jobLocations = parseList(body.jobLocations, 60, 150);
@@ -131,4 +160,4 @@ function parseSettings(body, current) {
   return { settings: next, errors };
 }
 
-module.exports = { parsePost, slugify, parseSettings, SOCIAL, DEFAULT_JOB_CATEGORIES, DEFAULT_JOB_LOCATIONS };
+module.exports = { parsePost, slugify, parseSettings, SOCIAL, DEFAULT_JOB_CATEGORIES, DEFAULT_JOB_LOCATIONS, SAMPLE_TESTIMONIALS, MAX_TESTIMONIALS };

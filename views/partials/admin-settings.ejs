@@ -50,6 +50,25 @@
     <textarea name="jobLocations" rows="10" aria-label="Job locations, one per line"><%= (form.jobLocations || []).join('\n') %></textarea>
   </section>
 
+  <section class="form-card" id="testimonials">
+    <h2>Homepage testimonials</h2>
+    <% const realTestimonials = Array.isArray(form.testimonials) ? form.testimonials : []; %>
+    <% if (!Array.isArray(form.testimonials)) { %><p class="notice">The homepage is showing <b>sample</b> testimonials. Add real ones from clients or placed candidates (with their permission), or tick "Hide" below.</p><% } %>
+    <p class="muted small">Up to <%= maxTestimonials %>. Use a role and company type ("HR Manager, logistics company") if the person prefers not to be named. Leave a row empty to skip it.</p>
+    <% for (let i = 0; i < maxTestimonials; i++) { const t = realTestimonials[i] || {}; %>
+      <fieldset class="testimonial-edit">
+        <legend>Testimonial <%= i + 1 %></legend>
+        <label class="span-2">Quote<textarea name="testimonial_quote_<%= i %>" rows="2" maxlength="400"><%= t.quote || '' %></textarea></label>
+        <label>Name or role<input name="testimonial_name_<%= i %>" maxlength="80" value="<%= t.name || '' %>" placeholder="e.g. Head of Engineering"></label>
+        <label>Company or context<input name="testimonial_detail_<%= i %>" maxlength="80" value="<%= t.detail || '' %>" placeholder="e.g. Fintech startup"></label>
+        <label>Rating
+          <select name="testimonial_rating_<%= i %>"><% [5, 4, 3, 2, 1].forEach(function (r) { %><option value="<%= r %>"<%= (t.rating || 5) === r ? ' selected' : '' %>><%= r %> star<%= r === 1 ? '' : 's' %></option><% }) %></select>
+        </label>
+      </fieldset>
+    <% } %>
+    <label class="notify-line"><input type="checkbox" name="testimonials_hide" value="1"<%= Array.isArray(form.testimonials) && !form.testimonials.length ? ' checked' : '' %>> Hide the testimonials section on the homepage</label>
+  </section>
+
   <section class="form-card" id="data-retention">
     <h2>Data retention</h2>
     <p class="muted small">Automatically delete candidates who have had no activity for a while: their applications, resumes and sign-in links. Contact messages and hiring requests older than the same period are deleted too, and job alerts never confirmed within 30 days. Placements and invoices are always kept, and so are candidates with an active placement or an upcoming interview. The check runs daily, and deletions can't be undone. The activity log records each clean-up.</p>

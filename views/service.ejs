@@ -12,10 +12,14 @@
         <a href="tel:<%= site.phone.replace(/\s/g, '') %>" class="btn btn-outline btn-lg">Call us</a>
       </div>
     </div>
-    <div class="vm-card ideal-card">
-      <span class="service-icon"><svg class="i"><use href="#<%= service.icon %>"/></svg></span>
-      <h2 class="h3">Ideal for</h2>
-      <ul class="checks"><% service.idealFor.forEach(function (x) { %><li><%= x %></li><% }) %></ul>
+    <div class="hero-media">
+      <span class="deco deco-ring" aria-hidden="true"></span>
+      <span class="deco deco-spark" aria-hidden="true"></span>
+      <figure class="photo-arch"><img src="/img/photos/svc-<%= service.slug %>.webp" alt="" width="900" height="1000"></figure>
+      <div class="float-card ideal-card">
+        <h2>Ideal for</h2>
+        <ul class="checks"><% service.idealFor.forEach(function (x) { %><li><%= x %></li><% }) %></ul>
+      </div>
     </div>
   </div>
 </section>

@@ -1,6 +1,9 @@
 <%- include('partials/head') %>
 
 <section class="page-hero">
+  <span class="deco deco-spark" aria-hidden="true"></span>
+  <span class="deco deco-dots" aria-hidden="true"></span>
+  <span class="deco deco-squiggle" aria-hidden="true"></span>
   <div class="container narrow center">
     <span class="eyebrow">Industries</span>
     <h1>Specialist recruiters for the industry you work in</h1>
@@ -12,7 +15,8 @@
   <div class="container">
     <div class="services-grid">
       <% industries.forEach(function (ind) { %>
-        <a class="service-card service-link" href="/industries/<%= ind.slug %>">
+        <a class="service-card service-link reveal" href="/industries/<%= ind.slug %>">
+          <figure class="card-photo"><img src="/img/photos/ind-<%= ind.key %>.webp" alt="" width="900" height="1000" loading="lazy" decoding="async"></figure>
           <span class="service-icon"><svg class="i"><use href="#<%= ind.icon %>"/></svg></span>
           <h2 class="h3"><%= ind.name %></h2>
           <p><%= ind.text %></p>

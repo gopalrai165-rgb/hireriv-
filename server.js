@@ -7,7 +7,7 @@ const { createMailer } = require('./mailer');
 const { open: openDb } = require('./db');
 const seo = require('./seo');
 const { skillMatch, buildPool, searchPool } = require('./match');
-const { parsePost, parseSettings, SOCIAL, DEFAULT_JOB_CATEGORIES, DEFAULT_JOB_LOCATIONS } = require('./content');
+const { parsePost, parseSettings, SOCIAL, DEFAULT_JOB_CATEGORIES, DEFAULT_JOB_LOCATIONS, SAMPLE_TESTIMONIALS, MAX_TESTIMONIALS } = require('./content');
 const interviews = require('./interviews');
 const employers = require('./employers');
 const candidates = require('./candidates');
@@ -265,6 +265,9 @@ app.use(express.static(path.join(__dirname, 'public'), { maxAge: '1h' }));
 
 app.locals.site = site;
 app.locals.catalog = catalog;
+// The homepage shows these until real testimonials are saved in Settings.
+app.locals.testimonialsFor = (s) => (Array.isArray(s.testimonials) ? s.testimonials : SAMPLE_TESTIMONIALS);
+app.locals.maxTestimonials = MAX_TESTIMONIALS;
 app.locals.formatIst = interviews.formatIst;
 app.locals.feedbackSummary = interviews.feedbackSummary;
 // Fingerprint the CSS/JS so browsers fetch fresh copies after every change,
@@ -341,6 +344,7 @@ function setupTodo() {
   if (!site.address || /^your office address/i.test(site.address)) todo.push({ text: 'Add your office address', href: settings });
   if (!Object.values(site.social || {}).some((u) => /^https?:\/\//.test(u))) todo.push({ text: 'Add your LinkedIn or other social links (icons stay hidden until you do)', href: settings });
   const b = site.billing || {};
+  if (!Array.isArray(site.testimonials)) todo.push({ text: 'Replace the sample testimonials on the homepage with real ones (or hide them)', href: '/admin?tab=settings#testimonials' });
   if (!b.legalName || !b.gstin || !b.bank) todo.push({ text: 'Add your legal name, GSTIN and bank details for invoices', href: settings });
   if (!process.env.SMTP_HOST) todo.push({ text: 'Set up email sending (SMTP_HOST). Until then emails are only saved to data/outbox' });
   if (process.env.NODE_ENV === 'production' && !process.env.SITE_URL) todo.push({ text: 'Set SITE_URL to your live https:// address' });
@@ -453,7 +457,7 @@ app.get('/industries/:slug', (req, res, next) => {
 app.get('/about', (req, res) => res.render('about', { title: 'About Us', page: 'about' }));
 app.get('/contact', (req, res) => res.render('contact', { title: 'Contact Us', page: 'contact' }));
 // Bump LEGAL_UPDATED whenever the wording of either page changes.
-const LEGAL_UPDATED = '2026-10-14';
+const LEGAL_UPDATED = '2026-10-17';
 app.get('/privacy', (req, res) => res.render('privacy', { title: 'Privacy Policy', page: 'legal', updated: LEGAL_UPDATED, metaDescription: `How ${site.name} collects, uses and protects the personal data of candidates, clients and visitors.` }));
 app.get('/terms', (req, res) => res.render('terms', { title: 'Terms of Use', page: 'legal', updated: LEGAL_UPDATED, metaDescription: `The terms for using the ${site.name} website as a job seeker or employer.` }));
 app.get('/blog', (req, res) => res.render('blog', { title: 'Blog & Articles', page: 'blog', posts: livePosts() }));
