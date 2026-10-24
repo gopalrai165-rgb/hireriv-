@@ -120,7 +120,7 @@ describe('with a Postgres database', { skip: DB_URL ? false : 'set TEST_DATABASE
   });
 
   test('the migrations are recorded once and the tables are filled', async () => {
-    assert.deepEqual((await q('SELECT version FROM schema_migrations ORDER BY version')).map((r) => r.version), ['001_jobs', '002_employer_jobs']);
+    assert.deepEqual((await q('SELECT version FROM schema_migrations ORDER BY version')).map((r) => r.version), ['001_jobs', '002_employer_jobs', '003_ats']);
     const [j] = await q("SELECT * FROM jobs WHERE id = 'hr-201'");
     assert.equal(j.slug, 'night-security-guard-thane-hr-201');
     assert.equal(j.pay_period, 'day');
@@ -216,5 +216,9 @@ describe('with a Postgres database', { skip: DB_URL ? false : 'set TEST_DATABASE
     // The status moving along.
     await srv.request(`/admin/applications/${id}/status`, { method: 'POST', cookie: admin, form: { status: 'Interview' } });
     await until(async () => (await q('SELECT status FROM applications WHERE id = $1', [id]))[0].status === 'Interview');
+    // The stage history is copied without names.
+    const [h] = await until(async () => q('SELECT * FROM application_stage_history WHERE application_id = $1', [id]).then((r) => r.length && r));
+    assert.deepEqual([h.seq, h.from_stage, h.to_stage, h.actor_kind, h.is_correction], [0, 'New', 'Interview', 'team', false]);
+    assert.equal(Object.keys(h).some((k) => /name|by|email/.test(k)), false);
   });
 });

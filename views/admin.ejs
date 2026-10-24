@@ -45,7 +45,7 @@
       <div class="pipeline">
         <a class="pill<%= !status ? ' active' : '' %>" href="/admin?tab=applications<%= ownerQs %>">All <b><%= counts.applications %></b></a>
         <% statuses.forEach(function (s) { %>
-          <a class="pill st-<%= s.toLowerCase() %><%= s === status ? ' active' : '' %>" href="/admin?tab=applications&status=<%= s %><%= sort ? '&sort=match' : '' %><%= ownerQs %>"><%= s %> <b><%= statusCounts[s] %></b></a>
+          <a class="pill <%= stageClass(s) %><%= s === status ? ' active' : '' %>" href="/admin?tab=applications&status=<%= s %><%= sort ? '&sort=match' : '' %><%= ownerQs %>"><%= s %> <b><%= statusCounts[s] %></b></a>
         <% }) %>
         <span class="pipeline-sort">Sort:
           <a class="<%= !sort ? 'active' : '' %>" href="/admin?tab=applications<%= status ? '&status=' + status : '' %><%= ownerQs %>">Newest</a> ·

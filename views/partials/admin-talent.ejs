@@ -49,7 +49,7 @@
             <td><%= c.skills || '—' %></td>
             <td><%= c.experience || '—' %><br><span class="muted"><%= c.location || '—' %> · notice <%= c.noticePeriod || '—' %></span></td>
             <td><%= c.jobsApplied.join(', ') %><% if (c.applicationCount > 1) { %><br><span class="muted small"><%= c.applicationCount %> applications</span><% } %></td>
-            <td><span class="pill st-<%= c.status.toLowerCase() %>"><%= c.status %></span><% if (c.notes) { %><br><span class="muted small"><%= c.notes %></span><% } %></td>
+            <td><span class="pill <%= stageClass(c.status) %>"><%= c.status %></span><% if (c.notes) { %><br><span class="muted small"><%= c.notes %></span><% } %></td>
           </tr>
         <% }) %>
       </tbody>

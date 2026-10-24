@@ -27,7 +27,7 @@
               <tr>
                 <td><a href="/employer/applicants/<%= v.id %>"><b><%= v.name %></b></a><br><span class="muted small"><%= [v.experience, v.location].filter(Boolean).join(' · ') || '—' %></span><% if (v.match) { %> <%- include('partials/match-chip', { match: v.match }) %><% } %></td>
                 <td><%= v.jobTitle %></td>
-                <td><span class="pill st-<%= v.status.toLowerCase() %>"><%= v.status %></span></td>
+                <td><span class="pill <%= stageClass(v.status) %>"><%= v.stageLabel %></span></td>
                 <td class="muted small"><%= formatDate(v.appliedAt) %></td>
               </tr>
             <% }) %>

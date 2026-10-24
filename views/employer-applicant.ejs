@@ -3,17 +3,17 @@
 <section class="section admin portal">
   <div class="container">
     <%- include('partials/employer-nav', { heading: v.name, tab: 'applicants' }) %>
-    <p class="muted">Applied for <b><%= v.jobTitle %></b> on <%= formatDate(v.appliedAt) %> · <a href="/employer/applicants?job=<%= v.jobId %>">All applicants for this job</a></p>
+    <p class="muted">Applied for <b><%= v.jobTitle %></b> on <%= formatDate(v.appliedAt) %> · <a href="/employer/ats?job=<%= v.jobId %>">Pipeline for this job</a></p>
 
     <div class="dash-grid">
       <section class="dash-card">
-        <div class="dash-head"><h2>Profile</h2><span class="pill st-<%= v.status.toLowerCase() %>"><%= v.status %></span></div>
+        <div class="dash-head"><h2>Profile</h2><span class="pill <%= stageClass(v.status) %>"><%= v.stageLabel %></span></div>
         <ul class="job-meta">
           <li><svg class="i"><use href="#i-briefcase"/></svg><%= v.experience || '—' %></li>
           <li><svg class="i"><use href="#i-pin"/></svg><%= v.location || '—' %></li>
           <li><svg class="i"><use href="#i-clock"/></svg>Notice: <%= v.noticePeriod || '—' %></li>
         </ul>
-        <% if (v.match) { %><p><%- include('partials/match-chip', { match: v.match }) %></p><% } %>
+        <% if (v.match) { %><p><%- include('partials/match-chip', { match: v.match }) %> <span class="muted small">A guide only; it never rejects anyone.</span></p><% } %>
         <% if (v.skills) { %><div class="chips"><% v.skills.split(',').map(function (s) { return s.trim(); }).filter(Boolean).slice(0, 12).forEach(function (s) { %><span class="chip"><%= s %></span><% }) %></div><% } %>
         <% if (v.email !== undefined) { %>
           <h3 class="dash-sub">Contact</h3>
@@ -24,31 +24,152 @@
         <% } else { %>
           <p class="muted small">Contact details and resumes are shown to the people working on this job.</p>
         <% } %>
+        <h3 class="dash-sub">Responsible</h3>
+        <% if (can('applicants.assign', job)) { %>
+          <form class="form inline-form" method="post" action="/employer/applicants/<%= v.id %>/assign">
+            <select name="userId" aria-label="Assigned to"><option value="">Nobody</option><% workers.forEach(function (w) { %><option value="<%= w.userId %>"<%= v.assignedTo && v.assignedTo.userId === w.userId ? ' selected' : '' %>><%= w.name %></option><% }) %></select>
+            <button class="btn btn-outline btn-sm" type="submit">Assign</button>
+          </form>
+        <% } else { %><p class="small"><%= v.assignedTo ? v.assignedTo.name : 'Nobody yet' %></p><% } %>
       </section>
 
       <section class="dash-card">
-        <div class="dash-head"><h2>Progress</h2></div>
-        <% if (can('applicants.manage', job) && !v.withdrawn) { %>
+        <div class="dash-head"><h2>Stage</h2></div>
+        <% if (v.withdrawn) { %>
+          <p class="muted">The candidate withdrew this application.</p>
+        <% } else if (v.allowedMoves.length) { %>
           <form class="form inline-form" method="post" action="/employer/applicants/<%= v.id %>/status">
             <label>Move to
-              <select name="status"><% statuses.forEach(function (s) { %><option<%= v.status === s ? ' selected' : '' %>><%= s %></option><% }) %></select>
+              <select name="status"><% v.allowedMoves.forEach(function (s) { %><option value="<%= s %>"><%= label(s) %></option><% }) %></select>
             </label>
-            <button class="btn btn-primary btn-sm" type="submit">Update</button>
+            <button class="btn btn-primary btn-sm" type="submit">Move</button>
           </form>
+          <p class="muted small">Offer follows an approved offer, and Hired the candidate accepting it.</p>
+        <% } else if (can('applicants.manage', job)) { %>
+          <p class="muted small">No further moves from <%= v.stageLabel %>.</p>
         <% } %>
-        <% if (can('interviews.manage', job) && !v.withdrawn) { %><p><a class="btn btn-outline btn-sm" href="/employer/applicants/<%= v.id %>/interview">Schedule an interview</a></p><% } %>
-        <% if (v.interviews.length) { %>
-          <h3 class="dash-sub">Interviews</h3>
-          <ul class="activity">
-            <% v.interviews.forEach(function (iv) { %><li><span class="activity-row"><span class="pill <%= iv.status === 'scheduled' ? 'st-interview' : '' %>"><%= iv.status %></span><span class="activity-text"><%= formatIst(iv.at) %> · <%= iv.mode %></span><span class="muted small"><%= iv.interviewer %></span></span></li><% }) %>
-          </ul>
+        <% if (can('stage.correct', job) && !v.withdrawn) { %>
+          <details class="small"><summary>Correct a mistake</summary>
+            <form class="form" method="post" action="/employer/applicants/<%= v.id %>/status">
+              <input type="hidden" name="correction" value="1">
+              <label>Correct stage to<select name="status"><% stages.filter(function (s) { return s !== v.status; }).forEach(function (s) { %><option value="<%= s %>"><%= label(s) %></option><% }) %></select></label>
+              <label>Why?<input name="reason" required minlength="5" maxlength="300" placeholder="e.g. Moved to Rejected by mistake"></label>
+              <button class="btn btn-outline btn-sm" type="submit">Correct</button>
+              <p class="muted">The history keeps both the mistake and the correction.</p>
+            </form>
+          </details>
         <% } %>
         <h3 class="dash-sub">History</h3>
         <ul class="activity">
           <li><span class="activity-row"><span class="pill st-new">Applied</span><span class="activity-text"><%= formatDate(v.appliedAt) %></span></span></li>
-          <% v.history.forEach(function (h) { %><li><span class="activity-row"><span class="pill st-<%= String(h.to).toLowerCase() %>"><%= h.to %></span><span class="activity-text">from <%= h.from %><%= h.by ? ' · ' + h.by : '' %></span><span class="muted small"><%= formatDate(h.at) %></span></span></li><% }) %>
+          <% v.history.forEach(function (h) { %><li><span class="activity-row"><span class="pill <%= stageClass(h.to) %>"><%= label(h.to) %></span><span class="activity-text">from <%= label(h.from) %><%= h.by ? ' · ' + h.by : '' %><%= h.correction ? ' · correction: ' + h.reason : '' %></span><span class="muted small"><%= formatDate(h.at) %></span></span></li><% }) %>
         </ul>
       </section>
+
+      <section class="dash-card dash-wide" id="interviews">
+        <div class="dash-head"><h2>Interviews</h2><% if (can('interviews.manage', job) && !v.withdrawn && !['Hired', 'Rejected'].includes(v.status)) { %><a class="btn btn-outline btn-sm" href="/employer/applicants/<%= v.id %>/interview">Schedule an interview</a><% } %></div>
+        <% if (!v.interviews.length) { %><p class="muted dash-empty">None yet.</p><% } %>
+        <% v.interviews.forEach(function (iv) { const started = new Date(iv.at).getTime() <= nowMs; %>
+          <article class="cand-card">
+            <div class="cand-top">
+              <div><h3><%= formatIst(iv.at) %></h3><p class="muted small"><%= iv.duration %> minutes · <%= iv.mode %><%= iv.interviewer ? ' · ' + iv.interviewer : '' %></p></div>
+              <span>
+                <span class="pill <%= iv.status === 'scheduled' ? 'st-interview' : 'st-rejected' %>"><%= iv.status %></span>
+                <% if (iv.confirmation) { %><span class="pill <%= iv.confirmation === 'confirmed' ? 'st-hired' : 'st-screening' %>"><%= { awaiting: 'Awaiting candidate', confirmed: 'Confirmed by candidate', 'reschedule-requested': 'Asked for another time' }[iv.confirmation] %></span><% } %>
+              </span>
+            </div>
+            <% if (iv.feedback) { %>
+              <% iv.feedback.forEach(function (fb) { %><p class="cand-note"><b><%= fb.by %>:</b> <%= fb.recommendation %>, <%= fb.rating %>/5<%= fb.strengths ? ' · Strengths: ' + fb.strengths : '' %><%= fb.concerns ? ' · Concerns: ' + fb.concerns : '' %></p><% }) %>
+            <% } %>
+            <div class="row-actions">
+              <% if (iv.status === 'scheduled' && can('interviews.manage', job) && !started) { %><form method="post" action="/employer/applicants/<%= v.id %>/interviews/<%= iv.id %>/cancel"><button class="btn btn-outline btn-sm" type="submit">Cancel interview</button></form><% } %>
+            </div>
+            <% if (iv.status === 'scheduled' && started && can('feedback.submit', job)) { %>
+              <details><summary class="small">Add your feedback</summary>
+                <form class="form" method="post" action="/employer/applicants/<%= v.id %>/interviews/<%= iv.id %>/feedback">
+                  <div class="form-grid">
+                    <label>Overall (1–5)<select name="rating" required><% [5, 4, 3, 2, 1].forEach(function (n) { %><option><%= n %></option><% }) %></select></label>
+                    <label>Recommendation<select name="recommendation" required><% recommendations.forEach(function (r) { %><option><%= r %></option><% }) %></select></label>
+                    <label class="span-2">Strengths<textarea name="strengths" rows="2" maxlength="2000"></textarea></label>
+                    <label class="span-2">Concerns<textarea name="concerns" rows="2" maxlength="2000"></textarea></label>
+                  </div>
+                  <button class="btn btn-primary btn-sm" type="submit">Save feedback</button>
+                  <p class="muted small">Only people working on this job see scorecards. Judge job-related skills and behaviour only.</p>
+                </form>
+              </details>
+            <% } %>
+          </article>
+        <% }) %>
+      </section>
+
+      <% if (v.offers) { %>
+        <section class="dash-card dash-wide" id="offers">
+          <div class="dash-head"><h2>Offers</h2></div>
+          <% if (!v.offers.length) { %><p class="muted dash-empty">No offers yet.</p><% } %>
+          <% v.offers.forEach(function (o) { %>
+            <article class="cand-card">
+              <div class="cand-top">
+                <div><h3><%= o.title %></h3><p class="muted small"><%= o.salary ? new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(o.salary.amount) + ' a ' + o.salary.period : 'Pay not recorded' %><%= o.joiningDate ? ' · joining ' + formatDate(o.joiningDate) : '' %> · made by <%= o.createdBy %></p></div>
+                <span>
+                  <% if (o.withdrawnAt) { %><span class="pill st-rejected">Withdrawn</span>
+                  <% } else { %>
+                    <span class="pill <%= o.approval.status === 'approved' ? 'st-hired' : o.approval.status === 'rejected' ? 'st-rejected' : 'st-screening' %>">Approval: <%= o.approval.status %></span>
+                    <span class="pill <%= o.response.status === 'accepted' ? 'st-hired' : o.response.status === 'declined' ? 'st-rejected' : 'st-new' %>">Candidate: <%= o.response.status %></span>
+                  <% } %>
+                </span>
+              </div>
+              <% if (o.notes) { %><p class="small"><%= o.notes %></p><% } %>
+              <% if (o.approval.by) { %><p class="muted small"><%= o.approval.status === 'approved' ? 'Approved' : 'Not approved' %> by <%= o.approval.by %> on <%= formatDate(o.approval.at) %><%= o.approval.note ? ': ' + o.approval.note : '' %></p><% } %>
+              <% if (o.response.recordedBy) { %><p class="muted small">Candidate's answer recorded by <%= o.response.recordedBy %> on <%= formatDate(o.response.at) %><%= o.response.note ? ': ' + o.response.note : '' %></p><% } %>
+              <% if (!o.withdrawnAt) { %>
+                <div class="row-actions">
+                  <% if (o.approval.status === 'pending' && can('offers.approve', job)) { %>
+                    <form method="post" action="/employer/applicants/<%= v.id %>/offers/<%= o.id %>/approve"><button class="btn btn-primary btn-sm">Approve</button></form>
+                    <form method="post" action="/employer/applicants/<%= v.id %>/offers/<%= o.id %>/reject"><button class="btn btn-outline btn-sm">Don't approve</button></form>
+                  <% } %>
+                  <% if (o.approval.status === 'approved' && o.response.status === 'awaiting' && can('offers.respond', job)) { %>
+                    <form method="post" action="/employer/applicants/<%= v.id %>/offers/<%= o.id %>/accepted"><button class="btn btn-primary btn-sm">Candidate accepted</button></form>
+                    <form method="post" action="/employer/applicants/<%= v.id %>/offers/<%= o.id %>/declined"><button class="btn btn-outline btn-sm">Candidate declined</button></form>
+                  <% } %>
+                  <% if (o.response.status !== 'accepted' && can('offers.create', job)) { %><form method="post" action="/employer/applicants/<%= v.id %>/offers/<%= o.id %>/withdraw"><button class="btn btn-outline btn-sm">Withdraw</button></form><% } %>
+                </div>
+              <% } %>
+            </article>
+          <% }) %>
+          <% if (can('offers.create', job) && ['Interview', 'Offered', 'On hold'].includes(v.status)) { %>
+            <details><summary class="small">Make an offer</summary>
+              <form class="form" method="post" action="/employer/applicants/<%= v.id %>/offers">
+                <div class="form-grid">
+                  <label class="span-2">Job title<input name="title" maxlength="120" value="<%= v.jobTitle %>"></label>
+                  <label>Pay (₹)<input name="salary" inputmode="numeric" maxlength="12" placeholder="e.g. 25000"></label>
+                  <label>Per<select name="salaryPeriod"><option value="month">Month</option><option value="year">Year (CTC)</option></select></label>
+                  <label>Joining date<input type="date" name="joiningDate" min="<%= today %>"></label>
+                  <label>Answer by<input type="date" name="respondBy" min="<%= today %>"></label>
+                  <label class="span-2">Notes for your team<textarea name="notes" rows="2" maxlength="1000"></textarea></label>
+                </div>
+                <button class="btn btn-primary btn-sm" type="submit">Save offer for approval</button>
+                <p class="muted small">The candidate is told once the offer is approved by a hiring manager or company owner (not the person who made it, unless they're an owner).</p>
+              </form>
+            </details>
+          <% } %>
+        </section>
+      <% } %>
+
+      <% if (v.notes) { %>
+        <section class="dash-card dash-wide" id="notes">
+          <div class="dash-head"><h2>Internal notes</h2><span class="muted small">Only your hiring team sees these, never the candidate</span></div>
+          <% if (!v.notes.length) { %><p class="muted dash-empty">No notes yet.</p><% } else { %>
+            <ul class="activity">
+              <% v.notes.slice().reverse().forEach(function (n) { %><li><span class="activity-row"><span class="pill"><%= n.by %></span><span class="activity-text"><%= n.text %></span><span class="muted small"><%= formatDate(n.at) %></span></span></li><% }) %>
+            </ul>
+          <% } %>
+          <form class="form" method="post" action="/employer/applicants/<%= v.id %>/notes">
+            <label class="sr-only" for="note-text">Add a note</label>
+            <textarea id="note-text" name="text" rows="2" maxlength="2000" required placeholder="Add a note for your team"></textarea>
+            <button class="btn btn-outline btn-sm" type="submit">Add note</button>
+          </form>
+        </section>
+      <% } %>
     </div>
   </div>
 </section>

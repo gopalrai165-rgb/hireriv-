@@ -764,6 +764,9 @@ a.contact-card:hover .service-icon { background: var(--c); color: #fff; }
 .st-offered { background: var(--primary-50); color: var(--primary-600); }
 .st-hired { background: #dcfce7; color: #15803d; }
 .st-rejected { background: #fee2e2; color: #b91c1c; }
+.st-shortlisted { background: #e0f2fe; color: #0369a1; }
+.st-on-hold { background: #f1f5f9; color: #475569; }
+.st-withdrawn { background: #f1f5f9; color: #64748b; }
 .status-form { display: grid; gap: 6px; min-width: 190px; }
 .status-form select, .status-form textarea { padding: .45em .6em; font-size: .85rem; }
 .status-form .notify { display: flex; gap: 6px; align-items: flex-start; font-size: .78rem; color: var(--muted); font-weight: 500; }
@@ -958,6 +961,15 @@ a.contact-card:hover .service-icon { background: var(--c); color: #fff; }
 .team-row details { min-width: 180px; }
 .role-notes { margin: 14px 0 0; padding-left: 18px; }
 .role-notes li { margin: 2px 0; }
+/* ATS board: one column per stage, scrolls sideways on small screens. */
+.kanban { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(230px, 1fr); gap: 12px; overflow-x: auto; padding-bottom: 8px; margin-bottom: 12px; }
+.kanban-col { background: #f6f8fb; border: 1px solid var(--line); border-radius: var(--radius); padding: 10px; min-height: 120px; display: flex; flex-direction: column; gap: 8px; }
+.kanban-head { font-size: .9rem; margin: 0 0 4px; display: flex; justify-content: space-between; align-items: center; }
+.kanban-card { background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; font-size: .9rem; }
+.kanban-card p { margin: 4px 0; }
+.kanban-move { display: flex; gap: 6px; margin-top: 6px; }
+.kanban-move select { flex: 1; min-width: 0; padding: 4px 6px; font-size: .82rem; }
+.iv-answer { margin-top: 8px; align-items: flex-start; }
 
 /* ============ Shortlist sharing ============ */
 .shortlist { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(340px, 100%), 1fr)); gap: 16px; }

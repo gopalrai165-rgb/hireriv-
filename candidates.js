@@ -29,13 +29,15 @@ const PROFILE_FIELDS = ['name', 'phone', 'skills', 'experience', 'location', 'no
 const { EXPERIENCE, NOTICE } = cp;
 
 // What candidates see instead of internal pipeline names.
-const CANDIDATE_STAGE = { New: 'Received', Screening: 'Under review', Interview: 'Interview', Offered: 'Offer', Hired: 'Hired', Rejected: 'Not selected' };
+// What candidates see. Shortlisted and On hold are internal decisions, shown as "Under review".
+const CANDIDATE_STAGE = { New: 'Received', Screening: 'Under review', Shortlisted: 'Under review', 'On hold': 'Under review', Interview: 'Interview', Offered: 'Offer', Hired: 'Hired', Rejected: 'Not selected' };
 const STEPS = ['Received', 'Under review', 'Interview', 'Offer', 'Hired'];
 // Shown in Settings → Recent activity.
 const ACTIVITY_LABELS = {
   registered: 'Account created', 'signed-in': 'Signed in', 'sign-in-failed': 'Wrong password entered', 'signed-out': 'Signed out',
   'sessions-revoked': 'Signed out on all devices', 'password-set': 'Password set', 'password-changed': 'Password changed', 'password-reset': 'Password reset by email link',
   'profile-updated': 'Profile updated', 'resume-added': 'Resume uploaded', 'resume-removed': 'Resume deleted', 'settings-changed': 'Settings changed',
+  'interview-confirmed': 'Interview confirmed', 'interview-reschedule': 'Asked for another interview time',
 };
 
 const sha = (s) => crypto.createHash('sha256').update(String(s)).digest('hex');
@@ -74,7 +76,7 @@ function passwordProblem(pw, confirm) {
 function register(app, deps) {
   const { db, mailer, baseUrl, sameOrigin, limit, readSubmissions, writeSubmissions, uploadsDir, getJobs, interviewIcs, site, contractsFor } = deps;
   const { upload, saveApplication, isBot, isSample, isLive, resumeNeeded, skillMatch, saveSubmission, jobCategories, jobLocations, vetUpload, downloadLinks, linkExpired } = deps;
-  const { jobTypes, modes, stateOf } = deps;
+  const { jobTypes, modes, stateOf, interviewResponded } = deps;
   const secureCookie = /^https:/.test(baseUrl);
 
   const mine = (email) => readSubmissions('applications').filter((a) => String(a.email).toLowerCase() === email);
@@ -723,8 +725,29 @@ function register(app, deps) {
     const all = mine(req.candidateEmail).flatMap((a) => (a.interviews || []).map((iv) => ({ ...iv, appId: a.id, jobTitle: a.jobTitle })));
     const next = all.filter((iv) => upcoming(iv, now)).sort((x, y) => x.at.localeCompare(y.at));
     const past = all.filter((iv) => !upcoming(iv, now)).sort((x, y) => y.at.localeCompare(x.at)).slice(0, 30);
-    page(res, 'account-interviews', { title: 'Your interviews', ...shell(req.candidateEmail, 'interviews'), upcoming: next, past });
+    page(res, 'account-interviews', { title: 'Your interviews', ...shell(req.candidateEmail, 'interviews'), upcoming: next, past, msg: String(req.query.msg || '') });
   });
+
+  // The candidate confirms an interview, or asks for another time. Only their
+  // own upcoming interviews; the people running the hiring are told.
+  for (const answer of ['confirm', 'reschedule']) {
+    app.post(`/account/interviews/:appId/:ivId/${answer}`, requireCandidate, limit('interview-answer', 20), sameOrigin, (req, res, next) => {
+      const list = readSubmissions('applications');
+      const a = list.find((x) => x.id === req.params.appId && String(x.email).toLowerCase() === req.candidateEmail && !x.withdrawnAt);
+      const iv = a && (a.interviews || []).find((x) => x.id === req.params.ivId);
+      if (!iv || !upcoming(iv, Date.now())) return next();
+      const note = String(req.body.note || '').trim().slice(0, 300);
+      if (answer === 'reschedule' && !note) return back(res, 'Tell them which days and times suit you.', '/account/interviews');
+      const status = answer === 'confirm' ? 'confirmed' : 'reschedule-requested';
+      if (iv.confirmation !== status || (note && note !== iv.candidateNote)) {
+        Object.assign(iv, { confirmation: status, candidateNote: note, answeredAt: new Date().toISOString() });
+        writeSubmissions('applications', list);
+        activity(req.candidateEmail, answer === 'confirm' ? 'interview-confirmed' : 'interview-reschedule', a.jobTitle);
+        if (interviewResponded) interviewResponded(a, iv, answer === 'confirm', note);
+      }
+      back(res, answer === 'confirm' ? 'Thanks, your interview is confirmed.' : 'We\'ve asked for another time. They\'ll be in touch with a new slot.', '/account/interviews');
+    });
+  }
 
   // ---------- settings ----------
   app.get('/account/settings', requireCandidate, (req, res) => {
@@ -804,7 +827,7 @@ function register(app, deps) {
         resumeFile: a.resume ? `Uploaded resume (${path.extname(a.resume).slice(1).toUpperCase()})` : null,
         skillsFoundInResume: a.resumeSkills || [],
         reappliedAt: a.reapplied || [],
-        stageChanges: (a.history || []).map((h) => ({ at: h.at, from: CANDIDATE_STAGE[h.from] || h.from, to: CANDIDATE_STAGE[h.to] || h.to })),
+        stageChanges: (a.history || []).map((h) => ({ at: h.at, from: CANDIDATE_STAGE[h.from] || h.from, to: CANDIDATE_STAGE[h.to] || h.to })).filter((h) => h.from !== h.to),
         interviews: (a.interviews || []).map((iv) => ({ at: iv.at, durationMinutes: iv.duration, format: iv.mode, status: iv.status })),
         emailsSent: (a.emails || []).map((m) => ({ at: m.at, subject: m.subject })),
         sharedWithClient: a.shared ? { at: a.shared.sharedAt } : null,

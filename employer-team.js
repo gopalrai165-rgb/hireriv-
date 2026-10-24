@@ -27,10 +27,17 @@ function can(m, action, job = null) {
     case 'job.edit': return role === 'manager' && assigned(m, job);
     case 'job.view': case 'applicants.view': return role === 'viewer' || assigned(m, job);
     // Contact details, resumes, status changes and interviews.
-    case 'applicants.contact': case 'applicants.manage': case 'interviews.manage': return ['manager', 'recruiter'].includes(role) && assigned(m, job);
+    case 'applicants.contact': case 'applicants.manage': case 'interviews.manage':
+    // Internal notes, offers and interview scorecards (seeing and writing them).
+    case 'applicants.notes': case 'offers.create': case 'offers.respond': case 'feedback.view': case 'feedback.submit':
+      return ['manager', 'recruiter'].includes(role) && assigned(m, job);
+    case 'applicants.assign': case 'offers.approve': return role === 'manager' && assigned(m, job);
     case 'shortlist.feedback': return ['manager', 'recruiter'].includes(role);
-    case 'dashboard.view': return true;
-    default: return false; // company.edit, team.manage, billing.view, company.verify: owners only
+    case 'workload.view': return role === 'manager';
+    case 'dashboard.view': case 'analytics.view': return true;
+    // company.edit, team.manage, billing.view, company.verify and stage.correct
+    // (moving an application outside the workflow): owners only.
+    default: return false;
   }
 }
 

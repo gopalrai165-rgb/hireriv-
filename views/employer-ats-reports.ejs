@@ -1,0 +1,68 @@
+<%- include('partials/head') %>
+
+<section class="section admin portal">
+  <div class="container">
+    <%- include('partials/employer-nav', { heading: 'Hiring reports', tab: 'ats' }) %>
+
+    <div class="dash-head">
+      <nav class="filter-chips" aria-label="Period">
+        <% [[0, 'All time'], [30, 'Last 30 days'], [90, 'Last 90 days'], [365, 'Last 12 months']].forEach(function (p) { %><a class="chip<%= days === p[0] ? ' is-active' : '' %>" href="/employer/ats/reports<%= p[0] ? '?days=' + p[0] : '' %>"><%= p[1] %></a><% }) %>
+      </nav>
+      <a class="btn btn-outline btn-sm" href="/employer/ats">Back to pipeline</a>
+    </div>
+
+    <div class="kpis">
+      <div class="kpi"><span class="kpi-label">Applications</span><span class="kpi-value"><%= m.applications %></span><span class="kpi-note"><%= m.withdrawn %> withdrawn</span></div>
+      <div class="kpi"><span class="kpi-label">Hired</span><span class="kpi-value"><%= m.hires %></span><span class="kpi-note"><%= m.rejected %> rejected · <%= m.onHold %> on hold</span></div>
+      <div class="kpi"><span class="kpi-label">Time to hire</span><span class="kpi-value"><%= m.timeToHireDays === null ? '—' : m.timeToHireDays %></span><span class="kpi-note">median days, applying → hired</span></div>
+      <div class="kpi"><span class="kpi-label">Time to fill</span><span class="kpi-value"><%= m.timeToFillDays === null ? '—' : m.timeToFillDays %></span><span class="kpi-note">median days, job live → first hire</span></div>
+    </div>
+
+    <div class="dash-grid">
+      <section class="dash-card dash-wide">
+        <div class="dash-head"><h2>Stage conversion</h2><span class="muted small">Applications that reached each stage</span></div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Stage</th><th>Reached</th><th>Went on to the next stage</th><th>Dropped off</th></tr></thead>
+            <tbody>
+              <% m.funnel.forEach(function (s) { %>
+                <tr><td><span class="pill <%= stageClass(s.stage) %>"><%= s.label %></span></td><td><b><%= s.count %></b></td><td><%= s.conversion === null ? '—' : s.conversion + '%' %></td><td><%= s.dropOff === null ? '—' : s.dropOff + '%' %></td></tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="dash-card dash-wide">
+        <div class="dash-head"><h2>Applications per vacancy</h2></div>
+        <% if (!m.perJob.length) { %><p class="muted dash-empty">No jobs yet.</p><% } else { %>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Job</th><th>Openings</th><th>Applications</th><th>In progress</th><th>Hired</th></tr></thead>
+              <tbody>
+                <% m.perJob.forEach(function (j) { %><tr><td><a href="/employer/ats?view=table&job=<%= j.jobId %>"><%= j.title %></a></td><td><%= j.openings || '—' %></td><td><%= j.applications %></td><td><%= j.active %></td><td><%= j.hired %></td></tr><% }) %>
+              </tbody>
+            </table>
+          </div>
+        <% } %>
+      </section>
+
+      <% if (showWorkload) { %>
+        <section class="dash-card dash-wide">
+          <div class="dash-head"><h2>Team workload</h2><span class="muted small">Applicants assigned to each person</span></div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Person</th><th>Open</th><th>Upcoming interviews</th><th>Hired</th><th>Rejected</th></tr></thead>
+              <tbody>
+                <% m.workload.forEach(function (w) { %><tr><td><%= w.name %></td><td><%= w.open %></td><td><%= w.interviews %></td><td><%= w.hired %></td><td><%= w.rejected %></td></tr><% }) %>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      <% } %>
+    </div>
+    <p class="muted small">Counts cover the jobs you can see and leave out duplicate applications and sample listings. Rejected, withdrawn and on-hold applications are never counted as hires.</p>
+  </div>
+</section>
+
+<%- include('partials/foot') %>

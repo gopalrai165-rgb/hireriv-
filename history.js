@@ -2,7 +2,7 @@
 // application (application.history[]) with when, from, to and who, so reports
 // can say exactly how far candidates got and how fast the team responds.
 const MAX_HISTORY = 100;
-const ORDER = ['New', 'Screening', 'Interview', 'Offered', 'Hired'];
+const ORDER = ['New', 'Screening', 'Shortlisted', 'Interview', 'Offered', 'Hired'];
 
 // Move an application to a stage and record it. Returns false if it was already there.
 function moveStage(a, to, by, at = new Date().toISOString()) {

@@ -16,6 +16,7 @@ const employers = require('./employers');
 const candidates = require('./candidates');
 const { SHIFTS, INDIAN_STATES } = require('./candidate-profile');
 const employerHiring = require('./employer-hiring');
+const employerAts = require('./employer-ats');
 const placements = require('./placements');
 const teamModule = require('./team');
 const bulk = require('./bulk');
@@ -228,7 +229,8 @@ const modes = ['On-site', 'Hybrid', 'Remote', 'Field work', 'Client site'];
 const JOB_TYPES = ['Full-time', 'Part-time', 'Contract', 'Temporary', 'Daily wage / Gig', 'Apprenticeship', 'Internship'];
 
 // Application pipeline stages a recruiter moves a candidate through.
-const APP_STATUSES = ['New', 'Screening', 'Interview', 'Offered', 'Hired', 'Rejected'];
+// Hiring stages (ats.js): the pipeline, then On hold and Rejected. Withdrawn is kept apart (withdrawnAt).
+const APP_STATUSES = require('./ats').STAGES;
 
 // ---------- submissions (one collection per form type, newest first) ----------
 const readSubmissions = (type) => db.all(type);
@@ -410,6 +412,9 @@ app.locals.workLabel = (key) => (WORK_KINDS.find((c) => c.key === key) || WORK_K
 app.locals.testimonialsFor = (s) => (Array.isArray(s.testimonials) ? s.testimonials : SAMPLE_TESTIMONIALS);
 app.locals.maxTestimonials = MAX_TESTIMONIALS;
 app.locals.formatIst = interviews.formatIst;
+// The pill colour for a hiring stage ("On hold" → st-on-hold).
+app.locals.stageClass = (s) => `st-${String(s || 'New').toLowerCase().replace(/\s+/g, '-')}`;
+app.locals.stageLabel = require('./ats').label;
 app.locals.feedbackSummary = interviews.feedbackSummary;
 // Fingerprint the CSS/JS so browsers fetch fresh copies after every change,
 // despite the 1-hour static cache.
@@ -1087,11 +1092,16 @@ app.get('/post-a-job', (req, res) => res.redirect(clients.currentEmployer(req) ?
 // Their jobs (draft, the team's check, live, paused, closed), the people who
 // applied, status changes and interviews: employer-hiring.js.
 const hiring = employerHiring.register(app, {
-  site, mailer, baseUrl: BASE_URL, limit, sameOrigin, adminAuth, adminUrl, clients, readSubmissions, writeSubmissions, uploadsDir: UPLOADS_DIR, downloadLinks, linkExpired,
+  site, mailer, baseUrl: BASE_URL, limit, sameOrigin, adminAuth, adminUrl, clients, readSubmissions, writeSubmissions, saveSubmission, uploadsDir: UPLOADS_DIR, downloadLinks, linkExpired,
   getJobs: () => jobs, saveJobs, parseJob, nextJobId, todayIst, publicJob, jobPath, sendJobAlerts, alertedNote: (n) => alertedNote(n),
   appStatuses: APP_STATUSES, moveStage: history.moveStage, interviewDesk, parseInterview: interviews.parseInterview, interviewModes: interviews.MODES, interviewDurations: interviews.DURATIONS,
   formatIst: interviews.formatIst, skillMatch,
   jobFormLocals: (job, errors) => ({ job, errors, modes, jobTypes: JOB_TYPES, categoryGroups: groupCategories(jobCategories()), workKinds: WORK_KINDS, jobLocations: jobLocations() }),
+});
+// The applicant tracking on top of it: pipeline, notes, offers, scorecards, metrics.
+const atsDesk = employerAts.register(app, {
+  site, mailer, baseUrl: BASE_URL, limit, sameOrigin, clients, hiring, readSubmissions, writeSubmissions, getJobs: () => jobs,
+  interviewDesk, moveStage: history.moveStage, formatIst: interviews.formatIst, todayIst,
 });
 const billing = placements.register(app, {
   db, site, mailer, baseUrl: BASE_URL, adminAuth, requireAdmin, sameOrigin, adminUrl, readSubmissions, writeSubmissions,
@@ -1108,6 +1118,7 @@ const candidateAccounts = candidates.register(app, {
   contractsFor: (email) => timesheets.forCandidate(email),
   upload, saveApplication, isBot, isSample, isLive, resumeNeeded, skillMatch, saveSubmission, jobCategories, jobLocations,
   vetUpload: resumeCheck.vet, downloadLinks, linkExpired, jobTypes: JOB_TYPES, modes, stateOf: search.stateOf,
+  interviewResponded: (...args) => atsDesk.interviewResponded(...args),
 });
 // Candidates who turned off "let recruiters find me" stay out of the Talent pool.
 const searchableApplications = (list) => {
@@ -1294,7 +1305,7 @@ function buildDashboard(applications, user) {
       ...(isAdmin ? [] : [{ label: 'My candidates', value: mine.length, note: `${mine.filter((a) => statusOf(a) === 'New').length} new to review`, tab: 'applications&owner=me' }]),
       { label: 'Open jobs', value: openJobs().length, note: jobs.some(isStaleJob) ? `${jobs.filter(isStaleJob).length} open ${STALE_JOB_DAYS}+ days` : `${jobs.length - openJobs().length} closed`, tab: 'jobs', alert: jobs.some(isStaleJob) },
       { label: 'Applications', value: applications.length, note: `+${lastWeek(applications)} this week`, tab: 'applications' },
-      { label: 'In progress', value: applications.filter((a) => ['Screening', 'Interview', 'Offered'].includes(statusOf(a))).length, note: `${applications.filter((a) => statusOf(a) === 'New').length} new to review`, tab: 'applications' },
+      { label: 'In progress', value: applications.filter((a) => ['Screening', 'Shortlisted', 'Interview', 'Offered', 'On hold'].includes(statusOf(a))).length, note: `${applications.filter((a) => statusOf(a) === 'New').length} new to review`, tab: 'applications' },
       { label: 'Hired', value: applications.filter((a) => statusOf(a) === 'Hired').length, note: 'placements', tab: 'applications' },
       { label: 'Hiring requests', value: hires.length, note: `+${lastWeek(hires)} this week`, tab: 'hire-requests' },
       { label: 'Alert subscribers', value: alerts.filter((a) => a.confirmed).length, note: `${alerts.filter((a) => !a.confirmed).length} unconfirmed`, tab: 'job-alerts' },

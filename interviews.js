@@ -77,6 +77,16 @@ function upcoming(applications, limit = Infinity) {
     .slice(0, limit);
 }
 
+// A scorecard from a form or JSON: a 1–5 rating, a recommendation and notes.
+function parseScorecard(body) {
+  const get = (k, max) => String(body[k] ?? '').trim().slice(0, max);
+  const fb = { rating: Number(get('rating', 1)), recommendation: get('recommendation', 20), strengths: get('strengths', 2000), concerns: get('concerns', 2000) };
+  const errors = [];
+  if (![1, 2, 3, 4, 5].includes(fb.rating)) errors.push('choose an overall rating from 1 to 5');
+  if (!RECOMMENDATIONS.includes(fb.recommendation)) errors.push('choose a recommendation');
+  return { fb, errors };
+}
+
 function parseInterview(body, candidate) {
   const get = (k, max = 300) => String(body[k] ?? '').trim().slice(0, max);
   const f = { date: get('date', 10), time: get('time', 5), duration: Number(get('duration', 3)), mode: get('mode', 20), where: get('where'), interviewer: get('interviewer', 120), interviewerEmail: get('interviewerEmail', 160).toLowerCase(), message: get('message', 1000) };
@@ -127,6 +137,9 @@ function register(app, { adminAuth, sameOrigin, readSubmissions, writeSubmission
       interviewerEmail: f.interviewerEmail,
       message: f.message,
       status: 'scheduled',
+      // Booked, not yet confirmed: the candidate confirms (or asks for another
+      // time) from their account.
+      confirmation: 'awaiting',
       sequence: 0,
       createdAt: new Date().toISOString(),
       feedback: [],
@@ -141,12 +154,23 @@ function register(app, { adminAuth, sameOrigin, readSubmissions, writeSubmission
     }
     a.interviews = [...(a.interviews || []), iv];
     // Booking an interview moves early-stage candidates forward automatically.
-    if (['New', 'Screening', undefined, ''].includes(a.status)) moveStage(a, 'Interview', by, iv.createdAt);
+    if (['New', 'Screening', 'Shortlisted', undefined, ''].includes(a.status)) moveStage(a, 'Interview', by, iv.createdAt);
     a.updatedAt = iv.createdAt;
     writeSubmissions('applications', list);
-    mailer.interviewScheduled(a, iv, icsFor('REQUEST', iv, a), formatIst(at));
+    const delivered = mailer.interviewScheduled(a, iv, icsFor('REQUEST', iv, a), formatIst(at));
     if (feedbackUrl) mailer.interviewerBriefing(f.interviewerEmail, a, iv, formatIst(at), feedbackUrl);
-    return { iv, feedbackUrl };
+    return { iv, feedbackUrl, delivered };
+  }
+
+  // Cancels a scheduled interview on `a` (part of `list`), saves, and sends the
+  // candidate a calendar cancellation. Returns the email's delivery promise.
+  function cancel(list, a, iv) {
+    if (iv.status !== 'scheduled') return null;
+    iv.status = 'cancelled';
+    iv.sequence = (iv.sequence || 0) + 1;
+    iv.cancelledAt = new Date().toISOString();
+    writeSubmissions('applications', list);
+    return mailer.interviewCancelled(a, iv, icsFor('CANCEL', iv, a), formatIst(iv.at)) || null;
   }
 
   const formPage = (res, a, f, errors, status = 200) =>
@@ -172,14 +196,6 @@ function register(app, { adminAuth, sameOrigin, readSubmissions, writeSubmission
   });
 
   // ---------- scorecards ----------
-  function parseScorecard(body) {
-    const get = (k, max) => String(body[k] ?? '').trim().slice(0, max);
-    const fb = { rating: Number(get('rating', 1)), recommendation: get('recommendation', 20), strengths: get('strengths', 2000), concerns: get('concerns', 2000) };
-    const errors = [];
-    if (![1, 2, 3, 4, 5].includes(fb.rating)) errors.push('choose an overall rating from 1 to 5');
-    if (!RECOMMENDATIONS.includes(fb.recommendation)) errors.push('choose a recommendation');
-    return { fb, errors };
-  }
   const scorecardPage = (res, locals, status = 200) =>
     res.status(status).render('interview-feedback', { noindex: true, errors: [], recommendations: RECOMMENDATIONS, formatIst, ...locals });
 
@@ -251,13 +267,7 @@ function register(app, { adminAuth, sameOrigin, readSubmissions, writeSubmission
     const a = list.find((x) => x.id === req.params.appId);
     const iv = a && (a.interviews || []).find((x) => x.id === req.params.ivId);
     if (!iv) return next();
-    if (iv.status === 'scheduled') {
-      iv.status = 'cancelled';
-      iv.sequence = (iv.sequence || 0) + 1;
-      iv.cancelledAt = new Date().toISOString();
-      writeSubmissions('applications', list);
-      mailer.interviewCancelled(a, iv, icsFor('CANCEL', iv, a), formatIst(iv.at));
-    }
+    cancel(list, a, iv);
     res.redirect(adminUrl('interviews', `Cancelled the interview with ${a.name} · candidate notified`));
   });
 
@@ -269,7 +279,7 @@ function register(app, { adminAuth, sameOrigin, readSubmissions, writeSubmission
     res.type('text/calendar').attachment(`interview-${a.name.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}.ics`).send(icsFor(iv.status === 'cancelled' ? 'CANCEL' : 'REQUEST', iv, a));
   });
 
-  return { book };
+  return { book, cancel, saveScorecard };
 }
 
-module.exports = { register, parseInterview, MODES, DURATIONS, allInterviews, upcoming, formatIst, feedbackSummary, feedbackDue, remindersDue, REMINDERS, RECOMMENDATIONS };
+module.exports = { register, parseInterview, parseScorecard, MODES, DURATIONS, allInterviews, upcoming, formatIst, feedbackSummary, feedbackDue, remindersDue, REMINDERS, RECOMMENDATIONS };

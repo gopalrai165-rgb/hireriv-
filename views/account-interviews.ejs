@@ -15,6 +15,24 @@
                 <b><%= iv.jobTitle %></b>
                 <br><span><%= formatIst(iv.at) %> · <%= iv.duration %> min · <%= iv.mode %></span>
                 <% if (/^https:\/\//.test(iv.where)) { %><br><a href="<%= iv.where %>" target="_blank" rel="noopener noreferrer">Join link</a><% } else if (iv.where) { %><br><span class="small"><%= iv.where %></span><% } %>
+                <% if (iv.confirmation === 'awaiting') { %>
+                  <br><span class="pill st-screening">Please confirm</span>
+                <% } else if (iv.confirmation === 'reschedule-requested') { %>
+                  <br><span class="pill st-on-hold">You asked for another time</span><% if (iv.candidateNote) { %> <span class="muted small">“<%= iv.candidateNote %>”</span><% } %>
+                <% } else if (iv.confirmation === 'confirmed') { %>
+                  <br><span class="pill st-hired">Confirmed</span>
+                <% } %>
+                <% if (iv.confirmation && iv.confirmation !== 'confirmed') { %>
+                  <div class="row-actions iv-answer">
+                    <form method="post" action="/account/interviews/<%= iv.appId %>/<%= iv.id %>/confirm"><button class="btn btn-primary btn-sm" type="submit">I'll be there</button></form>
+                    <details><summary class="small">Ask for another time</summary>
+                      <form class="form" method="post" action="/account/interviews/<%= iv.appId %>/<%= iv.id %>/reschedule">
+                        <label class="small">Which days and times suit you?<input name="note" maxlength="300" required placeholder="e.g. Any weekday after 3 pm"></label>
+                        <button class="btn btn-outline btn-sm" type="submit">Send</button>
+                      </form>
+                    </details>
+                  </div>
+                <% } %>
               </div>
               <a class="btn btn-outline btn-sm" href="/account/interviews/<%= iv.appId %>/<%= iv.id %>.ics">Add to calendar</a>
             </li>

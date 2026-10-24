@@ -30,9 +30,9 @@ Revisit PostgreSQL only when one of these becomes true: the site needs **more th
 | employer_verifications | `employer-verifications` | ✅ Step 50: what was checked, by whom, the outcome |
 | recruiter_profiles | `team` (name, email, role Admin/Recruiter, two-step) | |
 | jobs | `jobs` (mirrored to PostgreSQL) | Category, kind of work, city, workplace address and walk-ins, work mode, type, openings, shift, hours, experience, pay range, skills, who can apply, closing date, owner, client, who posted it. Statuses: draft, pending, open, paused, closed, rejected. job_locations is a PostgreSQL table |
-| applications | `applications` with `history`, `interviews`, `shared`, `feedback` | application_events: each status change in `history` (from, to, who, when). Employers see applicants to their own jobs only |
+| applications | `applications` with `history`, `interviews`, `shared`, `feedback`, `atsNotes`, `offers`, `assignedTo` | application_events: each status change in `history` (from, to, who, when, and since Step 51 the kind of actor, corrections and their reason; in PostgreSQL also `application_stage_history`). Employers see applicants to their own jobs only |
 | resumes | Files in `uploads/`; extracted text on the application | |
-| interviews | Inside each application (`interviews[]`) with scorecards | |
+| interviews | Inside each application (`interviews[]`) with scorecards | ✅ Step 51: interview rounds with the candidate's confirmation; scorecards are the interview feedback |
 | staffing_requests | `hire-requests` (public /hire form and client-portal requirements both land here) | Not duplicated |
 | audit_logs | `activity` (team, newest 2,000 kept) and `employer-audit` (per company, 2 years) | Team: every admin change, sign-ins, two-step events, retention clean-ups. Employers (Step 50): job created/sent/published/paused/closed, applicant opened, resume downloaded, status changed, interview booked, team and profile changes, sign-ins |
 | Not in the plan | `placements` (invoices, payments, credit notes, refunds, timesheets), `email-templates`, `posts`, `site`, `job-alerts`, `newsletter`, `contacts` | |
@@ -128,3 +128,28 @@ Suggested order: 2 → 1 → 3 → 4, which makes Hireriv usable for skilled and
 - **Abuse limits.** Self-signup companies need the poster's mobile verified (6-digit code by text, 10 minutes, 5 sends an hour, 5 tries) before sending jobs for review; up to 5 jobs waiting while the company is unverified and 50 live, paused or waiting per company; per-IP limits on every form and API. Job posting rules are public at `/job-posting-policy` and agreed at sign-up.
 - **PostgreSQL:** migration `002_employer_jobs.sql` allows the `paused` status and adds openings, shift, working hours, workplace address, walk-ins and who can apply. Rolling back: drop those columns and restore the old status check after closing or reopening paused jobs.
 - **Tests:** `test/employer-workspace.test.js` covers the login move, invitations and roles, the permission matrix, applicant visibility and contact details, status history, interviews, the JSON API, company switching, aliases and job decisions.
+
+## Step 51: applicant tracking
+
+- **Audit first.** Before: applications already had a stage history (`history.moveStage`), interviews with scorecards, team notes, withdrawal, and the employer applicant pages from Step 50. Stages were New, Screening, Interview, Offered, Hired and Rejected, and any stage could follow any other. Kept: all of it. The admin panel's pipeline, reports and timeline keep working with the new stages.
+- **Entities, mapped onto what exists** (no second store):
+
+  | ATS entity | Where it lives |
+  | --- | --- |
+  | application_stage_history | `history[]` on each application (from, to, when, who, actor kind, user id, correction, reason); PostgreSQL `application_stage_history` |
+  | recruiter_assignments | `assignedTo` on the application, limited to members working on the job (`employer-members.jobIds`) |
+  | interview_rounds | `interviews[]` (with `confirmation`: awaiting / confirmed / reschedule) |
+  | interview_feedback | Scorecards on each interview |
+  | candidate_notes | `atsNotes[]`, separate from anything the candidate sees |
+  | job_offers | `offers[]` (pay, joining date, location, approval, candidate response); PostgreSQL `job_offers` (status only) |
+  | notifications | `notifications` (one row per event key: queued, sent or failed; no addresses or message text; kept a year) |
+  | audit_logs | `employer-audit` |
+
+- **Workflow.** `ats.js` holds the rules: the stages, which moves are allowed, offers needing approval before Offer and acceptance before Hired, and no moves after withdrawal. Moves outside the workflow answer 409. Only company owners can make a correction, which needs a reason and is kept in the history next to the original move.
+- **Permissions** (`employer-team.js` `can()`, checked on the server for the session's company): notes, offers, recording the candidate's answer, reading and writing scorecards need an owner, or a manager or recruiter on the job; assigning and approving offers need an owner or a manager on the job; workload needs a manager or owner; corrections need an owner. Other companies' applications answer 404.
+- **Interviews.** At least 2 hours ahead, 7 am–9 pm India time, no clash for the candidate or the interviewer across the company. Candidates confirm or ask for another time from their account; the people on the job are emailed.
+- **Metrics** (`ats.metrics`, `GET /api/ats/analytics` returns the definitions): counts over applications created in the period, duplicates left out; funnel = how many reached each stage (from the history), conversion = share of the previous stage, drop-off = the rest; time to hire = median days from application to Hired; time to fill = median days from the job going live to its first hire; workload = open applications and upcoming interviews per person.
+- **Notifications** go through a ledger keyed by the event (`interview-invite:<id>`, `offer-made:<id>`, `new-application:<app>:<user>`, …), so retries and double clicks never send twice.
+- **Decision support only.** Match scores and recommendations are shown, never used to reject anyone.
+- **PostgreSQL:** migration `003_ats.sql` adds `application_stage_history`, `job_offers` and `applications.assigned`, and resets the sync hash so everything is rewritten once. Rolling back: drop the two tables and the column.
+- **Tests:** `test/ats.test.js` covers visibility by assignment, the board, valid and invalid moves, corrections, assignments, notes kept from candidates, interview rules and confirmation, scorecards, offers (approval separate from acceptance), metrics against the seeded records, company isolation and one notification per event.

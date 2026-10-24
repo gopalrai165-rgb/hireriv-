@@ -13,7 +13,7 @@ Every route the app serves, and who may use it. **This table is checked by `test
 
 Every state-changing team, candidate and client form also passes `sameOrigin` (cross-site posts are refused).
 
-Total: 256 routes.
+Total: 278 routes.
 
 ## Public website
 
@@ -113,6 +113,8 @@ Total: 256 routes.
 | GET | `/account/saved` | candidate |  |
 | POST | `/account/saved/:jobId/delete` | candidate | Only the candidate's own saved jobs |
 | GET | `/account/interviews` | candidate |  |
+| POST | `/account/interviews/:appId/:ivId/confirm` | candidate | Only the candidate's own upcoming interviews |
+| POST | `/account/interviews/:appId/:ivId/reschedule` | candidate | Only the candidate's own upcoming interviews; tells whoever runs the hiring |
 | GET | `/account/settings` | candidate |  |
 | POST | `/account/password` | candidate | Needs the current password when one is set; signs out other sessions |
 | POST | `/account/settings` | candidate |  |
@@ -154,6 +156,25 @@ Total: 256 routes.
 
 | Method | Path | Policy | Notes |
 | --- | --- | --- | --- |
+| GET | `/employer/ats` | employer | Pipeline board and table for the company's own jobs this member may see |
+| GET | `/employer/ats/reports` | employer | Metrics for the jobs this member may see; team workload for owners and hiring managers |
+| POST | `/employer/applicants/:id/notes` | employer | Internal notes: owners, or managers and recruiters on the job; never shown to candidates |
+| POST | `/employer/applicants/:id/assign` | employer | Owners, or hiring managers on the job; only to people who work on the job |
+| POST | `/employer/applicants/:id/interviews/:ivId/cancel` | employer | Owners, or managers and recruiters on the job; the candidate gets a calendar cancellation |
+| POST | `/employer/applicants/:id/interviews/:ivId/feedback` | employer | Owners, or managers and recruiters on the job; after the interview starts |
+| POST | `/employer/applicants/:id/offers` | employer | Owners, or managers and recruiters on the job; waits for approval |
+| POST | `/employer/applicants/:id/offers/:offerId/:action` | employer | approve/reject: owners or hiring managers (not their own offer unless owner); accepted/declined/withdraw: people working on the job |
+| GET | `/api/ats/jobs/:id/applications` | employer | 401 when signed out; 404 unless this member may see the job; filters: stage, skills, experience, location |
+| GET | `/api/ats/applications/:id` | employer | 401 when signed out; contact details, notes, offers and scorecards only for people allowed to see them |
+| PATCH | `/api/ats/applications/:id/stage` | employer | Workflow moves only (409 otherwise); corrections need an owner and a reason |
+| POST | `/api/ats/applications/:id/assign` | employer | Owners, or hiring managers on the job |
+| POST | `/api/ats/applications/:id/notes` | employer | Owners, or managers and recruiters on the job |
+| POST | `/api/ats/applications/:id/interviews` | employer | Owners, or managers and recruiters on the job; scheduling rules checked |
+| POST | `/api/ats/interviews/:ivId/feedback` | employer | Owners, or managers and recruiters on the job |
+| POST | `/api/ats/applications/:id/offers` | employer | Owners, or managers and recruiters on the job |
+| POST | `/api/ats/offers/:offerId/approve` | employer | Owners, or hiring managers on the job (not their own offer unless owner) |
+| POST | `/api/ats/offers/:offerId/response` | employer | Owners, or managers and recruiters on the job; only approved offers |
+| GET | `/api/ats/analytics` | employer | 401 when signed out; metrics for the jobs this member may see |
 | GET | `/employer/jobs` | employer | Jobs this member may see: all for owners and viewers, assigned or own jobs for others |
 | GET | `/employer/jobs/new` | employer | Owners and hiring managers |
 | POST | `/employer/jobs` | employer | Owners and hiring managers |
@@ -192,6 +213,7 @@ Total: 256 routes.
 | GET | `/employers/jobs` | public | Moved (301) to the matching /employer page |
 | GET | `/employers/jobs/create` | public | Moved (301) to the matching /employer page |
 | GET | `/employers/applicants` | public | Moved (301) to the matching /employer page |
+| GET | `/employers/ats` | public | Moved (301) to the matching /employer page |
 | GET | `/employers/interviews` | public | Moved (301) to the matching /employer page |
 | GET | `/employers/team` | public | Moved (301) to the matching /employer page |
 | GET | `/employers/settings` | public | Moved (301) to the matching /employer page |

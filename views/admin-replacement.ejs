@@ -19,7 +19,7 @@
                 <tr>
                   <td><b><%= a.name %></b><br><span class="muted small"><%= a.experience || '' %><%= a.location ? ' · ' + a.location : '' %></span></td>
                   <td><%= a.jobTitle %><br><span class="muted small">Applied <%= formatYmd(a.createdAt.slice(0, 10)) %></span></td>
-                  <td><span class="pill st-<%= (a.status || 'New').toLowerCase() %>"><%= a.status || 'New' %></span></td>
+                  <td><span class="pill <%= stageClass(a.status) %>"><%= a.status || 'New' %></span></td>
                   <td><a class="btn btn-primary btn-sm" href="/admin/applications/<%= a.id %>/placement?replaces=<%= orig.id %>">Choose</a></td>
                 </tr>
               <% }) %>

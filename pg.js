@@ -51,6 +51,7 @@ const KINDS = ['office', 'skilled', 'field'];
 const KIND_NAMES = { office: 'Office & professional', skilled: 'Skilled & technical', field: 'Industrial, field & service' };
 const STATUSES = ['draft', 'pending', 'open', 'paused', 'closed', 'rejected'];
 const SHIFTS = ['Day', 'Night', 'Rotational', 'Flexible'];
+const ACTORS = ['team', 'employer', 'candidate', 'system'];
 const PERIODS = ['month', 'year', 'day', 'hour'];
 
 const slugify = (s) => String(s).toLowerCase().replace(/&/g, ' and ').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 80) || 'category';
@@ -150,6 +151,14 @@ function applicationRow(a, { candidateHash }) {
     // Withdrawn applications stay out of the one-live-application rule.
     withdrawn_at: isoOrNull(a.withdrawnAt) || (a.withdrawnAt ? new Date(0).toISOString() : null),
     created_at: isoOrNull(a.createdAt),
+    assigned: Boolean(a.assignedTo),
+    // Stage changes and offer outcomes, without who or why.
+    history: (a.history || []).filter((h) => h && isoOrNull(h.at)).map((h, seq) => ({
+      seq, from: String(h.from || 'New'), to: String(h.to || ''), at: isoOrNull(h.at), actor: ACTORS.includes(h.actor) ? h.actor : 'team', correction: Boolean(h.correction),
+    })),
+    offers: (a.offers || []).filter((o) => o && o.id && isoOrNull(o.createdAt)).map((o) => ({
+      id: String(o.id), approval: o.approval.status, response: o.response.status, created: isoOrNull(o.createdAt), approved: isoOrNull(o.approval.at), responded: isoOrNull(o.response.at), withdrawn: isoOrNull(o.withdrawnAt),
+    })),
   };
   return { ...row, source_hash: hashOf(row) };
 }
@@ -290,12 +299,22 @@ function create(opts) {
 
   async function writeApplication(c, r) {
     await c.query(
-      `INSERT INTO applications (id, job_ref, job_id, candidate_hash, status, source, duplicate_of, withdrawn_at, created_at, updated_at, source_hash)
-       VALUES ($1,$2,(SELECT id FROM jobs WHERE id = $3),$4,$5,$6,$7,$8,$9, now(), $10)
+      `INSERT INTO applications (id, job_ref, job_id, candidate_hash, status, source, duplicate_of, withdrawn_at, created_at, updated_at, source_hash, assigned)
+       VALUES ($1,$2,(SELECT id FROM jobs WHERE id = $3),$4,$5,$6,$7,$8,$9, now(), $10, $11)
        ON CONFLICT (id) DO UPDATE SET job_ref = excluded.job_ref, job_id = excluded.job_id, candidate_hash = excluded.candidate_hash, status = excluded.status,
          source = excluded.source, duplicate_of = excluded.duplicate_of, withdrawn_at = excluded.withdrawn_at, created_at = excluded.created_at,
-         updated_at = now(), source_hash = excluded.source_hash`,
-      [r.id, r.job_ref, r.job_id, r.candidate_hash, r.status, r.source, r.duplicate_of, r.withdrawn_at, r.created_at, r.source_hash]);
+         updated_at = now(), source_hash = excluded.source_hash, assigned = excluded.assigned`,
+      [r.id, r.job_ref, r.job_id, r.candidate_hash, r.status, r.source, r.duplicate_of, r.withdrawn_at, r.created_at, r.source_hash, r.assigned]);
+    await c.query('DELETE FROM application_stage_history WHERE application_id = $1', [r.id]);
+    for (const h of r.history) {
+      await c.query('INSERT INTO application_stage_history (application_id, seq, from_stage, to_stage, changed_at, actor_kind, is_correction) VALUES ($1,$2,$3,$4,$5,$6,$7)',
+        [r.id, h.seq, h.from, h.to, h.at, h.actor, h.correction]);
+    }
+    await c.query('DELETE FROM job_offers WHERE application_id = $1', [r.id]);
+    for (const o of r.offers) {
+      await c.query('INSERT INTO job_offers (id, application_id, approval_status, response_status, created_at, approved_at, responded_at, withdrawn_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) ON CONFLICT (id) DO NOTHING',
+        [o.id, r.id, o.approval, o.response, o.created, o.approved, o.responded, o.withdrawn]);
+    }
   }
 
   // Copies whatever changed since the last run, in one transaction.

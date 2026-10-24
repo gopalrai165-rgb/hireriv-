@@ -9,6 +9,8 @@
 // counts and the candidates the team shortlists, not every applicant.
 const path = require('path');
 const { can } = require('./employer-team');
+const ats = require('./ats');
+const { RECOMMENDATIONS } = require('./interviews');
 const { SHIFTS } = require('./candidate-profile');
 
 // A company can have this many jobs live, paused or waiting for review.
@@ -24,6 +26,10 @@ function register(app, deps) {
   const { site, mailer, baseUrl, limit, sameOrigin, adminAuth, adminUrl, clients, readSubmissions, writeSubmissions, uploadsDir, downloadLinks, linkExpired } = deps;
   const { getJobs, saveJobs, parseJob, nextJobId, todayIst, publicJob, jobPath, sendJobAlerts, alertedNote, appStatuses, moveStage, interviewDesk, parseInterview, interviewModes, interviewDurations, formatIst, skillMatch, jobFormLocals } = deps;
   const { requireEmployer, requireEmployerApi, team, addressed } = clients;
+  const ledger = ats.notifier({ readSubmissions, writeSubmissions, saveSubmission: deps.saveSubmission });
+  ledger.prune();
+  setInterval(ledger.prune, 24 * 3600000).unref();
+  const actorOf = (req) => ({ label: byLine(req), kind: 'employer', userId: req.employerUser.id });
   const now = () => new Date().toISOString();
   const page = (res, view, locals, status = 200) => res.status(status).render(view, { page: 'employer', noindex: true, errors: [], msg: '', ...locals });
   const byLine = (req) => `${req.employerUser.name} (${req.employer.company})`;
@@ -201,15 +207,24 @@ function register(app, deps) {
   // What an employer sees. Contact details, resumes and the cover message only
   // for people allowed to contact applicants on that job.
   function applicantView(req, a, job) {
-    const contact = can(req.member, 'applicants.contact', job);
+    const may = (action) => can(req.member, action, job);
+    const assignee = a.assignedTo ? team.userById(a.assignedTo) : null;
     const v = {
-      id: a.id, jobId: a.jobId, jobTitle: job.title, appliedAt: a.createdAt, status: a.withdrawnAt ? 'Withdrawn' : a.status || 'New', withdrawn: Boolean(a.withdrawnAt),
+      id: a.id, jobId: a.jobId, jobTitle: job.title, appliedAt: a.createdAt, status: ats.stageOf(a), stageLabel: ats.label(ats.stageOf(a)), withdrawn: Boolean(a.withdrawnAt),
       name: a.name, experience: a.experience || '', location: a.location || '', noticePeriod: a.noticePeriod || '', skills: a.skills || '',
       match: skillMatch(a, job),
-      history: (a.history || []).map((h) => ({ at: h.at, from: h.from, to: h.to, by: h.by })),
-      interviews: (a.interviews || []).map((iv) => ({ id: iv.id, at: iv.at, duration: iv.duration, mode: iv.mode, status: iv.status, interviewer: iv.interviewer || '' })),
+      assignedTo: assignee ? { userId: assignee.id, name: assignee.name } : null,
+      history: (a.history || []).map((h) => ({ at: h.at, from: h.from, to: h.to, by: h.by, ...(h.correction ? { correction: true, reason: h.reason } : {}) })),
+      interviews: (a.interviews || []).map((iv) => ({
+        id: iv.id, at: iv.at, duration: iv.duration, mode: iv.mode, status: iv.status, interviewer: iv.interviewer || '', confirmation: iv.status === 'scheduled' ? iv.confirmation || 'confirmed' : null,
+        ...(may('feedback.view') ? { feedback: (iv.feedback || []).map((f) => ({ by: f.by, at: f.at, rating: f.rating, recommendation: f.recommendation, strengths: f.strengths || '', concerns: f.concerns || '' })) } : {}),
+      })),
+      allowedMoves: may('applicants.manage') ? ats.allowedMoves(a) : [],
     };
-    if (contact) Object.assign(v, { email: a.email || '', phone: a.phone || '', linkedin: a.linkedin || '', message: a.message || '', hasResume: Boolean(a.resume) });
+    if (may('applicants.contact')) Object.assign(v, { email: a.email || '', phone: a.phone || '', linkedin: a.linkedin || '', message: a.message || '', hasResume: Boolean(a.resume) });
+    // Internal: never shown to candidates.
+    if (may('applicants.notes')) v.notes = (a.atsNotes || []).map((n) => ({ id: n.id, at: n.at, by: n.by, text: n.text }));
+    if (may('offers.create') || may('offers.approve')) v.offers = (a.offers || []).map((o) => ({ ...o, createdByUserId: undefined, approval: { ...o.approval, userId: undefined } }));
     return v;
   }
 
@@ -239,7 +254,11 @@ function register(app, deps) {
     const v = applicantView(req, req.application, req.job);
     // Opening someone's details is recorded.
     team.audit(req.employer.id, req.employerUser, 'applicant-viewed', `${req.application.name} for ${req.job.title}`);
-    page(res, 'employer-applicant', { title: `${v.name} · Applicant`, tab: 'applicants', v, job: req.job, statuses: appStatuses, msg: String(req.query.msg || '') });
+    const workers = team.membersOf(req.employer.id).filter((m) => can(m, 'applicants.manage', req.job)).map((m) => ({ userId: m.userId, name: (team.userById(m.userId) || {}).name || 'Unknown' }));
+    page(res, 'employer-applicant', {
+      title: `${v.name} · Applicant`, tab: 'applicants', v, job: req.job, stages: ats.STAGES, label: ats.label, workers, recommendations: RECOMMENDATIONS,
+      today: todayIst(), nowMs: Date.now(), msg: String(req.query.msg || ''),
+    });
   });
 
   app.get('/employer/applicants/:id/resume', requireEmployer, withApplicant('applicants.contact'), (req, res, next) => {
@@ -251,19 +270,32 @@ function register(app, deps) {
     res.download(path.join(uploadsDir, file), `${String(a.name).replace(/[^a-z0-9]+/gi, '-')}-resume${path.extname(file)}`, (err) => err && !res.headersSent && res.status(404).end());
   });
 
-  // Moves an application along; the change is kept in its history.
-  function changeStatus(req, to) {
+  // Moves an application along the workflow; the change is kept in its
+  // history. An owner can correct a mistake outside the workflow, with a reason.
+  function changeStatus(req, to, { correction = false, reason = '' } = {}) {
     const a = req.application;
-    if (!appStatuses.includes(to)) return { status: 400, error: `status must be one of: ${appStatuses.join(', ')}` };
+    if (!ats.STAGES.includes(to)) return { status: 400, error: `status must be one of: ${ats.STAGES.join(', ')}` };
     if (a.withdrawnAt) return { status: 409, error: 'the candidate withdrew this application' };
-    if (!moveStage(a, to, byLine(req))) return { changed: false };
+    const from = a.status || 'New';
+    if (correction) {
+      if (!can(req.member, 'stage.correct', req.job)) return { status: 403, error: 'only a company owner can correct a stage' };
+      reason = String(reason || '').trim().slice(0, 300);
+      if (reason.length < 5) return { status: 400, error: 'say why the stage is being corrected' };
+    } else {
+      const problem = ats.moveProblem(a, to);
+      if (problem) return { status: 409, error: problem };
+    }
+    if (!ats.recordMove(moveStage, a, to, actorOf(req), { correction, reason })) return { changed: false };
     writeSubmissions('applications', req.applications);
-    team.audit(req.employer.id, req.employerUser, 'status-changed', `${a.name}: ${a.history[a.history.length - 1].from} → ${to} (${req.job.title})`);
+    team.audit(req.employer.id, req.employerUser, correction ? 'stage-corrected' : 'status-changed', `${a.name}: ${ats.label(from)} → ${ats.label(to)} (${req.job.title})${correction ? `: ${reason}` : ''}`);
     return { changed: true };
   }
   app.post('/employer/applicants/:id/status', requireEmployer, withApplicant('applicants.manage'), limit('employer-status', 120), sameOrigin, (req, res) => {
-    const r = changeStatus(req, String(req.body.status || ''));
-    res.redirect(`/employer/applicants/${req.application.id}?msg=${encodeURIComponent(r.error ? `Not changed: ${r.error}.` : r.changed ? `Moved to ${req.body.status}.` : 'No change.')}`);
+    const correction = req.body.correction === '1';
+    const r = changeStatus(req, String(req.body.status || ''), { correction, reason: req.body.reason });
+    if (r.status === 403) return clients.forbid(req, res);
+    const back = req.body.back === 'ats' ? '/employer/ats?' : `/employer/applicants/${req.application.id}?`;
+    res.redirect(`${back}msg=${encodeURIComponent(r.error ? `Not changed: ${r.error}.` : r.changed ? `${req.application.name}: moved to ${ats.label(req.body.status)}.` : 'No change.')}`);
   });
 
   // ---------- interviews ----------
@@ -275,9 +307,20 @@ function register(app, deps) {
   function bookInterview(req, body) {
     const a = req.application;
     if (a.withdrawnAt) return { status: 409, errors: ['the candidate withdrew this application'] };
+    if (ats.CLOSED.includes(a.status)) return { status: 409, errors: [`the application is ${ats.label(a.status)}`] };
     const { f, at, errors } = parseInterview(body, a);
+    if (!errors.length) {
+      const company = new Set(getJobs().filter((j) => j.employerId === req.employer.id).map((j) => j.id));
+      const problem = ats.scheduleProblem(req.applications.filter((x) => company.has(x.jobId)), a, at, f.duration, f.interviewerEmail);
+      if (problem) errors.push(problem);
+    }
     if (errors.length) return { status: 400, errors, f };
-    const { iv } = interviewDesk.book(req.applications, a, f, at, `${byLine(req)} (interview booked)`);
+    const { iv, delivered } = interviewDesk.book(req.applications, a, f, at, `${byLine(req)} (interview booked)`);
+    const h = a.history && a.history[a.history.length - 1];
+    if (h && h.to === 'Interview' && h.at === iv.createdAt) Object.assign(h, { actor: 'employer', userId: req.employerUser.id });
+    if (!a.assignedTo && can(req.member, 'applicants.manage', req.job)) a.assignedTo = req.employerUser.id;
+    writeSubmissions('applications', req.applications);
+    ledger.once(`interview-invite:${iv.id}`, { audience: 'candidate', template: 'interview-scheduled', employerId: req.employer.id, applicationId: a.id }, () => delivered);
     team.audit(req.employer.id, req.employerUser, 'interview-scheduled', `${a.name} on ${formatIst(at)} (${req.job.title})`);
     return { iv, at, errors: [] };
   }
@@ -303,7 +346,7 @@ function register(app, deps) {
     if (!emp) return;
     for (const m of team.membersOf(emp.id).filter((x) => can(x, 'applicants.manage', job))) {
       const u = team.userById(m.userId);
-      if (u && u.emailVerifiedAt) mailer.employerNewApplication(addressed(emp, u), a, `${baseUrl}/employer/applicants?job=${encodeURIComponent(job.id)}`);
+      if (u && u.emailVerifiedAt) ledger.once(`new-application:${a.id}:${u.id}`, { audience: 'employer', template: 'new-application', employerId: emp.id, applicationId: a.id }, () => mailer.employerNewApplication(addressed(emp, u), a, `${baseUrl}/employer/applicants/${a.id}`));
     }
   }
 
@@ -397,7 +440,7 @@ function register(app, deps) {
     res.redirect(adminUrl('jobs', `"${job.title}" was sent back to the employer`));
   });
 
-  return { applied, selfManaged, STATUS_LABELS };
+  return { applied, selfManaged, STATUS_LABELS, ledger, applicantView, applicationsFor, withApplicant, withJob, visibleJobs, companyJob, changeStatus, bookInterview, actorOf, byLine };
 }
 
 module.exports = { register, selfManaged, STATUS_LABELS, MAX_ACTIVE_JOBS, MAX_WAITING_UNVERIFIED };

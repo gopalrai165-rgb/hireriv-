@@ -169,9 +169,11 @@ test('status changes: permissions, validation and history', async () => {
   assert.match(h.by, /Rita \(Old Co\)/);
   assert.equal(audit('status-changed').length, 1);
   // The form does the same.
-  assert.match(msgOf(await post(`/employer/applicants/${a.id}/status`, { status: 'Rejected' }, people.olga)), /Moved to Rejected/);
+  assert.match(msgOf(await post(`/employer/applicants/${a.id}/status`, { status: 'Rejected' }, people.olga)), /moved to Rejected/);
   assert.equal(app('priya@example.in', 'hr-900').status, 'Rejected');
-  await json(`/api/employers/applications/${a.id}/status`, 'PATCH', { status: 'Screening' }, people.olga);
+  // Out of Rejected only by an owner's correction, with a reason.
+  assert.equal((await json(`/api/employers/applications/${a.id}/status`, 'PATCH', { status: 'Screening' }, people.olga)).status, 409);
+  assert.equal((await json(`/api/ats/applications/${a.id}/stage`, 'PATCH', { stage: 'Screening', correction: true, reason: 'Rejected by mistake' }, people.olga)).status, 200);
 });
 
 test('interviews: booking emails the candidate and shows in the portal', async () => {

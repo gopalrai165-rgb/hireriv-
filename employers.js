@@ -127,7 +127,7 @@ function verificationOf(c) {
 const ALIASES = {
   '/employers': '/employer', '/employers/register': '/employer/register', '/employers/login': '/employer/login', '/employers/dashboard': '/employer',
   '/employers/company-profile': '/employer/company', '/employers/jobs': '/employer/jobs', '/employers/jobs/create': '/employer/jobs/new',
-  '/employers/applicants': '/employer/applicants', '/employers/interviews': '/employer/interviews', '/employers/team': '/employer/team', '/employers/settings': '/employer/settings',
+  '/employers/applicants': '/employer/applicants', '/employers/ats': '/employer/ats', '/employers/interviews': '/employer/interviews', '/employers/team': '/employer/team', '/employers/settings': '/employer/settings',
 };
 const OTP_MINUTES = 10;
 

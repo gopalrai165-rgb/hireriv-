@@ -74,8 +74,10 @@ function toText(site, heading, html) {
 let sent = 0;
 
 // Never let a mail failure break a form submission; log it and move on.
+// Resolves true once the email is handed over (or saved to the outbox), false
+// when there is no address or sending failed.
 async function send(site, { to, subject, heading, html, replyTo, headers, icalEvent }) {
-  if (!to) return;
+  if (!to) return false;
   const order = `${Date.now()}-${String(++sent).padStart(6, '0')}`;
   try {
     const info = await transport.sendMail({
@@ -93,8 +95,10 @@ async function send(site, { to, subject, heading, html, replyTo, headers, icalEv
       const safe = subject.replace(/[^a-z0-9]+/gi, '-').slice(0, 50).toLowerCase();
       fs.writeFileSync(path.join(OUTBOX_DIR, `${order}-${safe}.eml`), info.message);
     }
+    return true;
   } catch (err) {
     console.error(`Email "${subject}" to ${to} failed:`, err.message);
+    return false;
   }
 }
 
@@ -182,18 +186,19 @@ function createMailer(site) {
     // Accept/Decline and add it to the calendar.
     interviewScheduled(a, iv, ics, when) {
       const joinLink = /^https?:\/\//.test(iv.where) ? iv.where : '';
-      send(site, {
+      return send(site, {
         to: a.email,
         replyTo: teamInbox,
         subject: `Interview scheduled: ${a.jobTitle} on ${when}`,
-        heading: `Your interview is confirmed, ${String(a.name).split(' ')[0]}`,
+        heading: `Your interview is booked, ${String(a.name).split(' ')[0]}`,
         icalEvent: { method: 'REQUEST', filename: 'interview.ics', content: ics },
         html:
           p(`Great news! Here are the details for your interview for <b>${esc(a.jobTitle)}</b>.`) +
           detailsTable([['When', when], ['Duration', `${iv.duration} minutes`], ['Format', iv.mode], [iv.mode === 'In person' ? 'Address' : iv.mode === 'Phone' ? 'Phone' : 'Link', iv.where], ['Interviewer', iv.interviewer]]) +
           (iv.message ? p(esc(iv.message)) : '') +
           (joinLink ? button(joinLink, 'Join the interview') : '') +
-          p(`<span style="color:#6b7690;font-size:13px">The invite is attached, so you can add it to your calendar. Need to reschedule? Just reply to this email or call ${esc(site.phone)}.</span>`),
+          p(`Please confirm you can make it, or ask for another time, in <a href="${esc(baseUrl)}/account/interviews" style="color:#123B70">your account</a> (sign in with this email address).`) +
+          p(`<span style="color:#6b7690;font-size:13px">The invite is attached, so you can add it to your calendar. You can also reply to this email or call ${esc(site.phone)}.</span>`),
       });
     },
 
@@ -255,7 +260,7 @@ function createMailer(site) {
     },
 
     interviewCancelled(a, iv, ics, when) {
-      send(site, {
+      return send(site, {
         to: a.email,
         replyTo: teamInbox,
         subject: `Interview cancelled: ${a.jobTitle} on ${when}`,
@@ -444,7 +449,7 @@ function createMailer(site) {
 
     // Someone applied to a job the employer manages themselves.
     employerNewApplication(who, a, link) {
-      send(site, {
+      return send(site, {
         to: who.email,
         replyTo: teamInbox,
         subject: `New applicant for ${a.jobTitle}`,
@@ -452,6 +457,36 @@ function createMailer(site) {
         html:
           p(`Hi ${first(who.name)}, <b>${esc(a.name)}</b> applied for <b>${esc(a.jobTitle)}</b> at ${esc(who.company)}.`) +
           button(link, 'Review applicants'),
+      });
+    },
+
+    // The candidate confirmed an interview or asked for another time.
+    interviewResponse(who, a, iv, when, confirmed, note, link) {
+      return send(site, {
+        to: who.email,
+        replyTo: teamInbox,
+        subject: `${confirmed ? 'Interview confirmed' : 'New time requested'}: ${a.name} for ${a.jobTitle}`,
+        heading: confirmed ? 'Interview confirmed' : 'The candidate asked for another time',
+        html:
+          p(`Hi ${first(who.name)}, <b>${esc(a.name)}</b> ${confirmed ? 'confirmed' : "can't make"} the interview for <b>${esc(a.jobTitle)}</b> on <b>${esc(when)}</b>.`) +
+          (note ? p(`Their note: “${esc(note)}”`) : '') +
+          (confirmed ? '' : p('Cancel it and book a new time that suits them.')) +
+          button(link, 'Open the applicant'),
+      });
+    },
+
+    // An approved offer: the candidate hears about it and what happens next.
+    offerMade(a, company, offer) {
+      return send(site, {
+        to: a.email,
+        replyTo: teamInbox,
+        subject: `Job offer: ${a.jobTitle} at ${company}`,
+        heading: `Congratulations, ${first(a.name)}!`,
+        html:
+          p(`<b>${esc(company)}</b> would like to offer you the role of <b>${esc(a.jobTitle)}</b>.`) +
+          detailsTable([['Joining date', offer.joiningDate || 'To be agreed'], ['Respond by', offer.respondBy || '']]) +
+          p('The company will share the offer letter and talk you through it. Tell them whether you accept, and ask them anything you need to know first.') +
+          p(`<span style="color:#6b7690;font-size:13px">A genuine employer never asks you to pay for an offer, joining, training or a uniform. If anyone does, report it to ${esc(site.email)}.</span>`),
       });
     },
 
