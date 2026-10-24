@@ -119,8 +119,8 @@ describe('with a Postgres database', { skip: DB_URL ? false : 'set TEST_DATABASE
     }
   });
 
-  test('the migration is recorded once and the tables are filled', async () => {
-    assert.deepEqual((await q('SELECT version FROM schema_migrations')).map((r) => r.version), ['001_jobs']);
+  test('the migrations are recorded once and the tables are filled', async () => {
+    assert.deepEqual((await q('SELECT version FROM schema_migrations ORDER BY version')).map((r) => r.version), ['001_jobs', '002_employer_jobs']);
     const [j] = await q("SELECT * FROM jobs WHERE id = 'hr-201'");
     assert.equal(j.slug, 'night-security-guard-thane-hr-201');
     assert.equal(j.pay_period, 'day');
@@ -128,6 +128,7 @@ describe('with a Postgres database', { skip: DB_URL ? false : 'set TEST_DATABASE
     assert.equal(j.salary_currency, 'INR');
     assert.equal(Number(j.experience_min), 0);
     assert.equal(j.work_kind, 'field');
+    assert.deepEqual([j.openings, j.shift, j.walk_in, j.eligibility], [null, '', false, []]);
     const [loc] = await q("SELECT city, state FROM job_locations WHERE job_id = 'hr-201'");
     assert.deepEqual(loc, { city: 'Thane', state: 'Maharashtra' });
     const cats = await q("SELECT c.name, p.name AS parent FROM job_category_assignments a JOIN job_categories c ON c.id = a.category_id JOIN job_categories p ON p.id = c.parent_id WHERE a.job_id = 'hr-101'");

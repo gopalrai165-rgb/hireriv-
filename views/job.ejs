@@ -58,15 +58,28 @@
         <div><dt>Pay</dt><dd><%= job.salary || 'Not disclosed' %></dd></div>
         <div><dt>Experience</dt><dd><%= job.experience || 'Not specified' %></dd></div>
         <% if (job.education) { %><div><dt>Education</dt><dd><%= job.education %></dd></div><% } %>
+        <% if (job.address) { %><div><dt>Address</dt><dd><%= job.address %><%= job.walkIn ? ' (walk-in interviews)' : '' %></dd></div><% } %>
+        <% if (job.openings) { %><div><dt>Openings</dt><dd><%= job.openings %></dd></div><% } %>
+        <% if (job.shift) { %><div><dt>Shift</dt><dd><%= job.shift %></dd></div><% } %>
+        <% if (job.hours) { %><div><dt>Working hours</dt><dd><%= job.hours %></dd></div><% } %>
         <% if (job.schedule) { %><div><dt>Work schedule</dt><dd><%= job.schedule %></dd></div><% } %>
         <div><dt>Apply by</dt><dd><%= job.closesOn ? formatDate(job.closesOn) : 'Open until filled' %></dd></div>
       </dl>
+      <% if ((job.eligibility || []).length) { %>
+        <h2>Who can apply</h2>
+        <ul class="checks"><% job.eligibility.forEach(function (b) { %><li><%= b %></li><% }) %></ul>
+      <% } %>
       <% if ((job.benefits || []).length) { %>
         <h2>Benefits</h2>
         <ul class="checks"><% job.benefits.forEach(function (b) { %><li><%= b %></li><% }) %></ul>
       <% } %>
+      <% if (job.createdBy === 'employer') { %>
+      <h2>About applying</h2>
+      <p>This job was posted by <%= job.company %> and checked by the <%= site.name %> team. Your application goes directly to the company's hiring team, who will contact you. It's free: <b>no genuine employer asks job seekers for money</b>. If anyone does, report this job below.</p>
+      <% } else { %>
       <h2>Why apply through Hireriv?</h2>
       <p>You'll work with a dedicated recruiter who shares honest feedback, helps you prepare for each interview round and negotiates on your behalf. It's completely free for candidates: <b>we never ask job seekers for money</b>.</p>
+      <% } %>
       <details class="report-job" id="report">
         <summary>Report this job</summary>
         <p class="small muted">Does this listing look fake, ask for money, or have wrong details? Tell us and our team will check it within one working day.</p>

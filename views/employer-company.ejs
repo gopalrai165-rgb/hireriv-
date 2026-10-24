@@ -1,0 +1,63 @@
+<%- include('partials/head') %>
+
+<section class="section admin portal">
+  <div class="container">
+    <%- include('partials/employer-nav', { heading: 'Company profile', tab: 'company' }) %>
+    <% const edit = can('company.edit'); %>
+
+    <div class="dash-grid">
+      <section class="dash-card dash-wide">
+        <div class="dash-head"><h2>Verification</h2>
+          <span class="pill <%= verification === 'verified' ? 'st-hired' : 'st-screening' %>"><%= verification === 'verified' ? 'Verified by ' + site.name : 'Being checked' %></span>
+        </div>
+        <% if (verification === 'verified') { %>
+          <p class="muted small">Your jobs show a verified employer badge. Changing the company name or registration numbers is reviewed again by our team.</p>
+        <% } else { %>
+          <p class="muted small">Our team checks every company before its jobs go live, usually within one working day. A GSTIN, CIN or Udyam number and a company website make this quicker. We never ask for Aadhaar or bank details to verify a company.</p>
+          <% if (can('company.verify')) { %><form method="post" action="/employer/company/verify"><button class="btn btn-primary btn-sm" type="submit">Send details for checking</button></form><% } %>
+        <% } %>
+        <% if (checks.length) { %>
+          <ul class="activity">
+            <% checks.forEach(function (c) { %><li><span class="activity-row"><span class="pill"><%= c.status %></span><span class="activity-text">Requested by <%= c.submittedBy || 'sign-up' %><%= c.reason ? ' · ' + c.reason : '' %></span><span class="muted small"><%= formatDate(c.createdAt) %></span></span></li><% }) %>
+          </ul>
+        <% } %>
+      </section>
+
+      <section class="dash-card dash-wide">
+        <div class="dash-head"><h2>Details</h2><% if (!edit) { %><span class="muted small">Only company owners can change these</span><% } %></div>
+        <form class="form" method="post" action="/employer/company">
+          <fieldset<%= edit ? '' : ' disabled' %>>
+            <div class="form-grid">
+              <label class="span-2">Company name*<input name="company" required maxlength="120" value="<%= values.company || '' %>"></label>
+              <label>Industry
+                <select name="industry"><option value="">Choose…</option><% industries.forEach(function (i) { %><option<%= values.industry === i ? ' selected' : '' %>><%= i %></option><% }) %></select>
+              </label>
+              <label>Company size
+                <select name="size"><option value="">Choose…</option><% sizes.forEach(function (z) { %><option value="<%= z %>"<%= values.size === z ? ' selected' : '' %>><%= z %> people</option><% }) %></select>
+              </label>
+              <label class="span-2">Website<input type="url" name="website" maxlength="200" placeholder="https://" value="<%= values.website || '' %>"></label>
+              <label class="span-2">About the company <span class="muted small">(shown to candidates)</span><textarea name="about" rows="3" maxlength="1000"><%= values.about || '' %></textarea></label>
+              <fieldset class="span-2"><legend class="small">Hiring locations</legend>
+                <div class="check-grid">
+                  <% cities.forEach(function (c) { %><label class="check-row small"><input type="checkbox" name="hiringLocations" value="<%= c %>"<%= (values.hiringLocations || []).includes(c) ? ' checked' : '' %>> <span><%= c %></span></label><% }) %>
+                </div>
+              </fieldset>
+              <label class="span-2">Office address<input name="addressLine" maxlength="200" value="<%= values.addressLine || '' %>"></label>
+              <label>City<input name="city" maxlength="80" value="<%= values.city || '' %>"></label>
+              <label>State
+                <select name="state"><option value="">Choose…</option><% states.forEach(function (st) { %><option<%= values.state === st ? ' selected' : '' %>><%= st %></option><% }) %></select>
+              </label>
+              <label>PIN code<input name="pincode" inputmode="numeric" maxlength="6" value="<%= values.pincode || '' %>"></label>
+              <label>GSTIN<input name="gstin" maxlength="20" autocapitalize="characters" value="<%= values.gstin || '' %>"></label>
+              <label>CIN <span class="muted small">(companies)</span><input name="cin" maxlength="21" autocapitalize="characters" value="<%= values.cin || '' %>"></label>
+              <label>Udyam number <span class="muted small">(small businesses)</span><input name="udyam" maxlength="19" autocapitalize="characters" placeholder="UDYAM-MH-12-1234567" value="<%= values.udyam || '' %>"></label>
+            </div>
+            <% if (edit) { %><button class="btn btn-primary" type="submit">Save company profile</button><% } %>
+          </fieldset>
+        </form>
+      </section>
+    </div>
+  </div>
+</section>
+
+<%- include('partials/foot') %>

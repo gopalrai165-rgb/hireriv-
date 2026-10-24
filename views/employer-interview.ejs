@@ -1,0 +1,30 @@
+<%- include('partials/head') %>
+
+<section class="section admin portal">
+  <div class="container">
+    <%- include('partials/employer-nav', { heading: 'Schedule an interview', tab: 'interviews' }) %>
+    <p class="muted"><b><%= a.name %></b> for <%= job.title %> · <a href="/employer/applicants/<%= a.id %>">Back to applicant</a></p>
+
+    <form class="form form-card" method="post" action="/employer/applicants/<%= a.id %>/interview">
+      <div class="form-grid">
+        <label>Date*<input type="date" name="date" required value="<%= f.date %>"></label>
+        <label>Time (India time)*<input type="time" name="time" required value="<%= f.time %>"></label>
+        <label>Duration
+          <select name="duration"><% durations.forEach(function (d) { %><option value="<%= d %>"<%= d === Number(f.duration) ? ' selected' : '' %>><%= d %> minutes</option><% }) %></select>
+        </label>
+        <label>Format
+          <select name="mode" id="iv-mode" data-candidate-phone="<%= a.phone %>"><% modes.forEach(function (m) { %><option<%= m === f.mode ? ' selected' : '' %>><%= m %></option><% }) %></select>
+        </label>
+        <label class="span-2"><span id="iv-where-label">Meeting link / address / phone</span><input name="where" id="iv-where" value="<%= f.where %>" placeholder="https://meet.google.com/… or office address"></label>
+        <label>Interviewer<input name="interviewer" value="<%= f.interviewer %>"></label>
+        <label>Interviewer's email <span class="muted small">(optional)</span><input type="email" name="interviewerEmail" value="<%= f.interviewerEmail || '' %>" placeholder="They get the details and a feedback link"></label>
+        <label class="span-2">Message to the candidate <span class="muted small">(optional)</span><textarea name="message" rows="3" placeholder="e.g. Ask for Ramesh at the front desk."><%= f.message %></textarea></label>
+      </div>
+      <p class="muted small">The candidate gets an email with a calendar invite. If they're still New or in Screening, they move to Interview. Never ask candidates to pay for an interview, training or a uniform.</p>
+      <button class="btn btn-primary" type="submit">Book interview &amp; email invite</button>
+      <a class="btn btn-outline" href="/employer/applicants/<%= a.id %>">Cancel</a>
+    </form>
+  </div>
+</section>
+
+<%- include('partials/foot') %>

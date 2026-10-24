@@ -1,0 +1,79 @@
+<%- include('partials/head') %>
+
+<section class="section admin portal">
+  <div class="container">
+    <%- include('partials/employer-nav', { heading: 'Team', tab: 'team' }) %>
+
+    <div class="dash-grid">
+      <section class="dash-card dash-wide">
+        <div class="dash-head"><h2>People with access to <%= employer.company %></h2><span class="muted small"><%= rows.length %> of 50</span></div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Person</th><th>Role</th><th>Assigned jobs</th><% if (can('team.manage')) { %><th></th><% } %></tr></thead>
+            <tbody>
+              <% rows.forEach(function (m) { %>
+                <tr>
+                  <td><b><%= m.name %></b><%= m.you ? ' (you)' : '' %><br><span class="muted small"><%= m.email %><%= m.joined ? '' : ' · invited' %></span></td>
+                  <% if (can('team.manage')) { %>
+                    <td colspan="2">
+                      <form class="form team-row" method="post" action="/employer/team/<%= m.id %>" id="member-<%= m.id %>">
+                        <select name="role" aria-label="Role for <%= m.name %>"><% Object.keys(roles).forEach(function (r) { %><option value="<%= r %>"<%= m.role === r ? ' selected' : '' %>><%= roles[r].label %></option><% }) %></select>
+                        <% if (jobs.length) { %>
+                          <details><summary class="small"><%= (m.jobIds || []).length %> job<%= (m.jobIds || []).length === 1 ? '' : 's' %> assigned</summary>
+                            <% jobs.forEach(function (j) { %><label class="check-row small"><input type="checkbox" name="jobIds" value="<%= j.id %>"<%= (m.jobIds || []).includes(j.id) ? ' checked' : '' %>> <span><%= j.title %> · <%= j.location %></span></label><% }) %>
+                          </details>
+                        <% } %>
+                        <button class="btn btn-outline btn-sm" type="submit">Save</button>
+                      </form>
+                    </td>
+                    <td><form method="post" action="/employer/team/<%= m.id %>/remove"><button class="btn btn-outline btn-sm" type="submit"><%= m.you ? 'Leave' : 'Remove' %></button></form></td>
+                  <% } else { %>
+                    <td><%= roles[m.role].label %></td>
+                    <td class="muted small"><%= m.role === 'owner' ? 'All jobs' : (m.jobIds || []).length + ' assigned' %></td>
+                  <% } %>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+        <ul class="small muted role-notes">
+          <% Object.keys(roles).forEach(function (r) { %><li><b><%= roles[r].label %>:</b> <%= roles[r].text %></li><% }) %>
+        </ul>
+      </section>
+
+      <% if (can('team.manage')) { %>
+        <section class="dash-card">
+          <div class="dash-head"><h2>Invite someone</h2></div>
+          <form class="form" method="post" action="/employer/team">
+            <div class="form-grid">
+              <label class="span-2">Name*<input name="name" required maxlength="120" value="<%= values.name || '' %>"></label>
+              <label class="span-2">Work email*<input type="email" name="email" required maxlength="160" value="<%= values.email || '' %>"></label>
+              <label class="span-2">Role*
+                <select name="role" required><% Object.keys(roles).forEach(function (r) { %><option value="<%= r %>"<%= (values.role || 'recruiter') === r ? ' selected' : '' %>><%= roles[r].label %></option><% }) %></select>
+              </label>
+              <% if (jobs.length) { %>
+                <fieldset class="span-2"><legend class="small">Jobs they work on <span class="muted">(hiring managers and recruiters)</span></legend>
+                  <% jobs.forEach(function (j) { %><label class="check-row small"><input type="checkbox" name="jobIds" value="<%= j.id %>"> <span><%= j.title %> · <%= j.location %></span></label><% }) %>
+                </fieldset>
+              <% } %>
+            </div>
+            <button class="btn btn-primary" type="submit">Send invitation</button>
+            <p class="muted small form-note">They get an email to set a password. Someone who already has an employer login can switch to <%= employer.company %> from theirs.</p>
+          </form>
+        </section>
+
+        <section class="dash-card">
+          <div class="dash-head"><h2>Activity log</h2><span class="muted small">Kept for 2 years</span></div>
+          <% if (!log.length) { %><p class="muted dash-empty">Nothing yet.</p>
+          <% } else { %>
+            <ul class="activity">
+              <% log.forEach(function (e) { %><li><span class="activity-row"><span class="pill"><%= e.event.split('-').join(' ') %></span><span class="activity-text"><%= e.actor %><%= e.detail ? ': ' + e.detail : '' %></span><span class="muted small"><%= formatDate(e.createdAt) %></span></span></li><% }) %>
+            </ul>
+          <% } %>
+        </section>
+      <% } %>
+    </div>
+  </div>
+</section>
+
+<%- include('partials/foot') %>

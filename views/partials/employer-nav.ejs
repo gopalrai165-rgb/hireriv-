@@ -1,0 +1,27 @@
+<%# Header, company switcher and tabs shared by the employer portal pages. %>
+<div class="admin-head">
+  <div>
+    <span class="eyebrow">Employer portal · <%= roleLabel %></span>
+    <h1><%= heading %></h1>
+    <p class="muted"><%= employer.company %> · signed in as <%= employerUser.name %> (<%= employerUser.email %>)</p>
+  </div>
+  <div class="row-actions">
+    <% if (myCompanies.length > 1) { %>
+      <form class="form company-switch" method="post" action="/employer/switch">
+        <label class="sr-only" for="switch-company">Company</label>
+        <select id="switch-company" name="employerId">
+          <% myCompanies.forEach(function (x) { %><option value="<%= x.employer.id %>"<%= x.employer.id === employer.id ? ' selected' : '' %>><%= x.employer.company %></option><% }) %>
+        </select>
+        <button class="btn btn-outline btn-sm" type="submit">Switch</button>
+      </form>
+    <% } %>
+    <form method="post" action="/employer/logout"><button class="btn btn-outline btn-sm" type="submit">Log out</button></form>
+  </div>
+</div>
+<nav class="account-tabs" aria-label="Employer portal">
+  <% [['dashboard', '/employer', 'Dashboard'], ['jobs', '/employer/jobs', 'Jobs'], ['applicants', '/employer/applicants', 'Applicants'], ['interviews', '/employer/interviews', 'Interviews'], ['team', '/employer/team', 'Team'], ['company', '/employer/company', 'Company'], ['settings', '/employer/settings', 'Settings']].forEach(function (t) { %>
+    <a href="<%= t[1] %>"<%- tab === t[0] ? ' aria-current="page" class="active"' : '' %>><%= t[2] %></a>
+  <% }) %>
+</nav>
+<% if (typeof msg !== 'undefined' && msg) { %><p class="notice" role="status"><%= msg %></p><% } %>
+<% if (typeof errors !== 'undefined' && errors.length) { %><div class="notice notice-err" role="alert"><% errors.forEach(function (e) { %><p><%= e %></p><% }) %></div><% } %>

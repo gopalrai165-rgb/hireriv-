@@ -27,7 +27,7 @@ async function linkIn(match, re) {
   return decodeEmail(all[all.length - 1]).match(re)[0];
 }
 const GSTIN = '27AAPFU0939F1ZV';
-const signup = { company: 'Acme Foods Pvt Ltd', name: 'Meera Shah', email: 'meera@acmefoods.in', phone: '9822000111', gstin: GSTIN, password: 'long enough phrase', confirm: 'long enough phrase', agree: '1' };
+const signup = { company: 'Acme Foods Pvt Ltd', industry: 'Hospitality & Food', size: '51-200', name: 'Meera Shah', email: 'meera@acmefoods.in', phone: '9822000111', gstin: GSTIN, password: 'long enough phrase', confirm: 'long enough phrase', agree: '1' };
 const jobForm = {
   title: 'Packing Supervisor', category: 'Warehouse & Packing', location: 'Pune', mode: 'On-site', type: 'Full-time', experience: '2-4 years',
   salaryMin: '22000', salaryMax: '28000', salaryPeriod: 'month', description: 'Lead a packing team of 20.', responsibilities: 'Plan shifts\nCheck quality', skills: 'Packing, Team leadership',
@@ -59,13 +59,18 @@ test('an employer signs up, must confirm the email, then lands in the portal awa
   assert.equal(e.selfSignup, true);
   assert.equal(e.gstin, GSTIN);
   assert.equal(e.freeEmail, false);
-  assert.match(e.passwordHash, /^scrypt\$/);
+  assert.equal(e.passwordHash, undefined, 'the password belongs to the person, not the company');
+  const owner = srv.records('employer-users').find((u) => u.email === signup.email);
+  assert.match(owner.passwordHash, /^scrypt\$/);
+  assert.equal(srv.records('employer-members').find((m) => m.employerId === e.id).role, 'owner');
   assert.equal(e.approvedAt, null);
 
   // Logging in before confirming sends a new link instead.
   const early = await post('/employer/login', { email: signup.email, password: signup.password });
   assert.equal(early.status, 403);
   assert.match(await early.text(), /Please confirm your email first/);
+  // Wait for that second link: it replaces the first.
+  for (let i = 0; i < 100 && srv.emails().filter((m) => m.includes('To: meera@acmefoods.in') && m.includes('Confirm your email')).length < 2; i++) await new Promise((r) => setTimeout(r, 50));
 
   const verify = await linkIn((m) => m.includes('To: meera@acmefoods.in') && m.includes('Confirm your email'), /\/employer\/verify\/[a-f0-9]{64}/);
   assert.match(await (await srv.request(verify)).text(), /Confirm and continue/);
@@ -90,6 +95,11 @@ test('signing up again with the same email gives the same reply and a heads-up e
 
 test('jobs from an employer stay hidden until the company and the job are approved', async () => {
   assert.equal((await srv.request('/post-a-job', { cookie: meera })).headers.get('location'), '/employer/jobs/new');
+  // A company that signed up itself needs a verified mobile before sending jobs for review.
+  const early = await post('/employer/jobs', { ...jobForm, title: 'Early Draft', action: 'publish' }, { cookie: meera });
+  assert.match(decodeURIComponent(early.headers.get('location')), /verify your mobile number/);
+  assert.equal(srv.records('jobs').find((x) => x.title === 'Early Draft').status, 'draft');
+  await srv.verifyEmployerMobile(meera, { 'x-forwarded-for': '10.8.2.1' });
   const res = await post('/employer/jobs', { ...jobForm, action: 'publish' }, { cookie: meera });
   assert.equal(res.status, 302);
   const j = srv.records('jobs').find((x) => x.title === 'Packing Supervisor');
@@ -106,7 +116,7 @@ test('jobs from an employer stay hidden until the company and the job are approv
 
   // The company isn't approved yet, so the job can't go live.
   const tooSoon = await post(`/admin/jobs/${j.id}/approve`, {}, { cookie: admin });
-  assert.match(decodeURIComponent(tooSoon.headers.get('location')), /Approve Acme Foods Pvt Ltd under Clients first/);
+  assert.match(decodeURIComponent(tooSoon.headers.get('location')), /Verify Acme Foods Pvt Ltd under Clients first/);
   assert.equal(job(j.id).status, 'pending');
 
   assert.match(await (await srv.request('/admin?tab=clients', { cookie: admin })).text(), /Awaiting approval/);
@@ -188,5 +198,8 @@ test('the team can decline a sign-up, which closes the account', async () => {
   await post(`/admin/clients/${emp('boss@gmail.com').id}/reject`, { reason: 'Could not verify' }, { cookie: admin });
   assert.equal(emp('boss@gmail.com').active, false);
   assert.equal((await srv.request('/employer', { cookie })).headers.get('location'), '/employer/login');
-  assert.equal((await post('/employer/login', { email: 'boss@gmail.com', password: signup.password })).status, 401);
+  const login = await post('/employer/login', { email: 'boss@gmail.com', password: signup.password });
+  assert.equal(login.status, 403);
+  assert.match(await login.text(), /not linked to an active company/);
+  assert.equal(login.headers.get('set-cookie'), null);
 });

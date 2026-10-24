@@ -945,6 +945,19 @@ a.contact-card:hover .service-icon { background: var(--c); color: #fff; }
 .client-add { grid-template-columns: repeat(3, minmax(0, 1fr)) auto; }
 @media (max-width: 900px) { .client-add { grid-template-columns: minmax(0, 1fr); } }
 @media (max-width: 560px) { .portal .dash-card .form-grid { grid-template-columns: minmax(0, 1fr); } .activity-row { grid-template-columns: 1fr; gap: 4px; } }
+.portal .dash-card + .dash-card { margin-top: 16px; }
+.portal .dash-grid .dash-card + .dash-card { margin-top: 0; }
+.company-switch { display: flex; gap: 6px; align-items: center; }
+.company-switch select { padding: 6px 10px; font-size: .88rem; }
+.filter-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.filter-chips .chip { text-decoration: none; }
+.filter-chips .chip.is-active { background: var(--primary); color: #fff; border-color: var(--primary); }
+.filter-bar { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; margin-bottom: 16px; }
+.filter-bar label { min-width: min(240px, 100%); }
+.team-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-start; }
+.team-row details { min-width: 180px; }
+.role-notes { margin: 14px 0 0; padding-left: 18px; }
+.role-notes li { margin: 2px 0; }
 
 /* ============ Shortlist sharing ============ */
 .shortlist { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(340px, 100%), 1fr)); gap: 16px; }

@@ -121,13 +121,13 @@ function register(app, deps) {
   }
 
   for (const action of ['approve', 'reject']) {
-    app.post(`/employer/timesheets/:pid/:tsId/${action}`, requireEmployer, limit('timesheet-review', 60), sameOrigin, (req, res, next) => {
+    app.post(`/employer/timesheets/:pid/:tsId/${action}`, requireEmployer, clients.allow('timesheets.review'), limit('timesheet-review', 60), sameOrigin, (req, res, next) => {
       const list = read();
       const p = list.find((x) => x.id === req.params.pid && x.employerId === req.employer.id);
       if (!p) return next();
       const note = String(req.body.note || '').trim().slice(0, 300);
       if (action === 'reject' && !note) return res.redirect('/employer?msg=' + encodeURIComponent('Add a short note saying what needs changing.') + '#timesheets');
-      const ts = review(list, p, req.params.tsId, action === 'approve', note, `${req.employer.name} (${req.employer.company})`);
+      const ts = review(list, p, req.params.tsId, action === 'approve', note, `${(req.employerUser || req.employer).name} (${req.employer.company})`);
       if (!ts) return res.redirect('/employer?msg=' + encodeURIComponent('That timesheet was already reviewed.') + '#timesheets');
       res.redirect('/employer?msg=' + encodeURIComponent(`${action === 'approve' ? 'Approved' : 'Sent back'} ${p.candidateName}'s timesheet for ${weekLabel(ts.week)}`) + '#timesheets');
     });

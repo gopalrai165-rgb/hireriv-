@@ -25,14 +25,16 @@ Revisit PostgreSQL only when one of these becomes true: the site needs **more th
 | --- | --- | --- |
 | users | `team` (staff), `employers` (client logins). Candidates have no account record | Candidates are identified by the email they applied with; sign-in is by emailed link |
 | candidate_profiles | Fields on each `applications` record; the Talent pool merges them by email | Profile edits in My applications update every application |
-| employer_profiles | `employers` (company, contact, status) | No verification status (clients are added by the team) |
+| employer_profiles | `employers` (company, industry, size, website, hiring locations, address, GSTIN/CIN/Udyam, status) | ✅ Step 50: verification status (verified / being checked / declined); each check is a record in `employer-verifications` |
+| employer_memberships | `employer-users` (one login per person: name, email, mobile and when it was verified, password hash) and `employer-members` (person × company, role, assigned jobs) | ✅ Step 50: a person can be in several companies, a company has up to 50 members. Roles: owner, hiring manager, recruiter, viewer |
+| employer_verifications | `employer-verifications` | ✅ Step 50: what was checked, by whom, the outcome |
 | recruiter_profiles | `team` (name, email, role Admin/Recruiter, two-step) | |
-| jobs | `jobs` | Category, location, work mode, type, experience and salary (free text), skills, closing date, owner, client |
-| applications | `applications` with `stageHistory`, `interviews`, `shared`, `feedback` | |
+| jobs | `jobs` (mirrored to PostgreSQL) | Category, kind of work, city, workplace address and walk-ins, work mode, type, openings, shift, hours, experience, pay range, skills, who can apply, closing date, owner, client, who posted it. Statuses: draft, pending, open, paused, closed, rejected. job_locations is a PostgreSQL table |
+| applications | `applications` with `history`, `interviews`, `shared`, `feedback` | application_events: each status change in `history` (from, to, who, when). Employers see applicants to their own jobs only |
 | resumes | Files in `uploads/`; extracted text on the application | |
 | interviews | Inside each application (`interviews[]`) with scorecards | |
 | staffing_requests | `hire-requests` (public /hire form and client-portal requirements both land here) | Not duplicated |
-| audit_logs | `activity` (newest 2,000 kept) | Every admin change, sign-ins, two-step events, retention clean-ups |
+| audit_logs | `activity` (team, newest 2,000 kept) and `employer-audit` (per company, 2 years) | Team: every admin change, sign-ins, two-step events, retention clean-ups. Employers (Step 50): job created/sent/published/paused/closed, applicant opened, resume downloaded, status changed, interview booked, team and profile changes, sign-ins |
 | Not in the plan | `placements` (invoices, payments, credit notes, refunds, timesheets), `email-templates`, `posts`, `site`, `job-alerts`, `newsletter`, `contacts` | |
 
 ## 3. Planned sections vs current routes
@@ -42,7 +44,7 @@ Revisit PostgreSQL only when one of these becomes true: the site needs **more th
 | Home | `/` | `/` | Done |
 | Find Jobs | `/jobs` | `/jobs`, `/jobs/:id`, `/saved` | Partly: keyword, category, location and work-mode filters; **no salary, experience or job-type filters** |
 | Staffing & Recruitment | `/staffing-solutions` | `/services`, `/services/:slug`, `/industries` | Done under a different path; **no payroll service page** |
-| Employer Portal | `/employers` | `/employer` (client portal) + `/hire` (public form) | Partly: invite-only, so **clients can't sign up or post jobs directly**; they send requirements |
+| Employer Portal | `/employers` | `/employer` (the `/employers/*` addresses redirect there) + `/hire` (public form) | ✅ Since Step 50: sign-up with company verification, team members with roles, jobs (draft → review → live, pause, close), applicants, status history, interviews, company profile, settings with mobile verification, activity log |
 | Candidate Portal | `/candidate/dashboard` | `/account` (the `/candidate/*` addresses redirect there) | ✅ Since Step 49: registration, email link or password sign-in with reset, structured profile with completion, several resumes, applications, saved jobs, alerts, interviews, settings, activity log, data download/delete |
 | Recruiter Portal | `/recruiter/dashboard` | `/admin` with the Recruiter role | Done (ownership, "Mine" filters, no billing) |
 | Admin Panel | `/admin` | `/admin` | Done; job approval isn't needed while only the team posts jobs |
@@ -58,6 +60,7 @@ Full matrix: [ACCESS.md](ACCESS.md) (141 routes, each with its access policy, ch
 | Search and apply for jobs, send hiring requests | ✓ | ✓ | ✓ | ✓ | ✓ |
 | See own applications, interviews, timesheets; download/delete own data | | ✓ | | | |
 | See own roles, shared candidates, placements, invoices; approve timesheets | | | ✓ | | |
+| Post and run own jobs, see own applicants, book interviews, manage the company team (by role: owner, hiring manager, recruiter, viewer) | | | ✓ | | |
 | Jobs, candidates, interviews, shortlists, clients, templates, blog, record placements | | | | ✓ | ✓ |
 | Invoices, payments, billing totals, settings, team, activity log, backups, deletions | | | | | ✓ |
 
@@ -92,7 +95,7 @@ Each item keeps what exists working and adds to it. Size: S ≈ one step, M ≈ 
 | 4 | **Services and industries**: Payroll & compliance service page, industry desks for skilled and field work (the `/staffing-solutions` redirect was done in Step 43) | Matches the planned offer | S |
 | 5 | **Hindi** for the public site, the apply form and candidate emails | Reaches field-work and non-metro candidates | L |
 | 6 | ✅ **Done in Steps 44 and 45** (saved jobs follow the account from Step 45). **Candidate accounts before applying**: profile + resume once, one-click apply, saved jobs and job alerts in the dashboard | The planned candidate dashboard | M |
-| 7 | ✅ **Done in Step 47** (hiring analytics still to come). **Client self-signup** with verification (work email + GSTIN), direct job posting held for Admin approval, and hiring analytics in the client portal | The planned employer portal | L |
+| 7 | ✅ **Done in Steps 47 and 50** (hiring analytics still to come). **Client self-signup** with verification (work email + GSTIN), direct job posting held for Admin approval, and hiring analytics in the client portal | The planned employer portal | L |
 | 8 | **Phone sign-in by OTP** (SMS or WhatsApp) for candidates | Candidates without email; needs a paid provider and DLT registration for SMS in India | M |
 | 9 | **Employer packages** (job-post credits or subscriptions) with online payment, e.g. Razorpay | The plan's subscription revenue | L |
 | 10 | **Government jobs information** with source links, a verification step and a non-affiliation notice | Optional traffic driver | M |
@@ -115,3 +118,13 @@ Suggested order: 2 → 1 → 3 → 4, which makes Hireriv usable for skilled and
   - team, candidate and client sessions can't stand in for each other;
   - cross-site posts are refused.
 - No database migrations were made, so there is nothing to roll back.
+
+## Step 50: employer workspaces
+
+- **Audit first.** Before: one login per client company (the email and password lived on the company), self-signup with team approval (Step 47), and employer jobs with review. Applicants were only visible to clients through shortlists the team shared. Kept: all of that, the client invoices, timesheets and shortlist feedback, and the `/api/jobs` addresses.
+- **Moved, not rebuilt.** On first start each company login becomes a person (`employer-users`) who owns the company (`employer-members`); passwords, confirmations and pending links move with them, and old sessions keep working. The employer portal uses the same session cookie and password code; there is no second sign-in system.
+- **Server-side checks.** Every employer route and API checks the person's membership and role in the company of their session (`employer-team.js` `can()`), never a company id from the browser. Switching company checks membership. Other companies' jobs and applicants answer 404; a role that doesn't allow an action answers 403.
+- **Applicants.** Employers see applicants only on jobs they posted themselves; jobs the team runs for a client stay with the team. Viewers see progress without contact details; contact details, resumes (signed 15-minute links), status changes and interviews need an owner, or a hiring manager or recruiter working on the job. Opening an applicant and downloading a resume are logged.
+- **Abuse limits.** Self-signup companies need the poster's mobile verified (6-digit code by text, 10 minutes, 5 sends an hour, 5 tries) before sending jobs for review; up to 5 jobs waiting while the company is unverified and 50 live, paused or waiting per company; per-IP limits on every form and API. Job posting rules are public at `/job-posting-policy` and agreed at sign-up.
+- **PostgreSQL:** migration `002_employer_jobs.sql` allows the `paused` status and adds openings, shift, working hours, workplace address, walk-ins and who can apply. Rolling back: drop those columns and restore the old status check after closing or reopening paused jobs.
+- **Tests:** `test/employer-workspace.test.js` covers the login move, invitations and roles, the permission matrix, applicant visibility and contact details, status history, interviews, the JSON API, company switching, aliases and job decisions.

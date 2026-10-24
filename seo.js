@@ -50,7 +50,9 @@ function jobPosting(job, site, baseUrl) {
     (job.qualifications || []).length ? `<p><strong>Qualifications</strong></p><ul>${job.qualifications.map((r) => `<li>${escapeHtml(r)}</li>`).join('')}</ul>` : '',
     job.experience ? `<p><strong>Experience:</strong> ${escapeHtml(job.experience)}</p>` : '',
     job.education ? `<p><strong>Education:</strong> ${escapeHtml(job.education)}</p>` : '',
+    job.shift ? `<p><strong>Shift:</strong> ${escapeHtml(job.shift)}</p>` : '',
     job.schedule ? `<p><strong>Work schedule:</strong> ${escapeHtml(job.schedule)}</p>` : '',
+    (job.eligibility || []).length ? `<p><strong>Who can apply</strong></p><ul>${job.eligibility.map((r) => `<li>${escapeHtml(r)}</li>`).join('')}</ul>` : '',
     (job.benefits || []).length ? `<p><strong>Benefits:</strong> ${escapeHtml(job.benefits.join(', '))}</p>` : '',
   ].join('');
 
@@ -67,10 +69,12 @@ function jobPosting(job, site, baseUrl) {
     hiringOrganization: organization(site, baseUrl),
     ...(remote
       ? { jobLocationType: 'TELECOMMUTE', applicantLocationRequirements: { '@type': 'Country', name: 'India' } }
-      : { jobLocation: { '@type': 'Place', address: { '@type': 'PostalAddress', addressLocality: job.location, addressCountry: 'IN' } } }),
+      : { jobLocation: { '@type': 'Place', address: { '@type': 'PostalAddress', addressLocality: job.location, ...(job.address ? { streetAddress: job.address } : {}), addressCountry: 'IN' } } }),
     ...(salary
       ? { baseSalary: { '@type': 'MonetaryAmount', currency: 'INR', value: { '@type': 'QuantitativeValue', minValue: salary.min, maxValue: salary.max, unitText: salary.unit } } }
       : {}),
+    ...(job.openings ? { totalJobOpenings: job.openings } : {}),
+    ...(job.hours ? { workHours: job.hours } : {}),
     skills: job.skills.join(', '),
     industry: job.category,
     directApply: true,

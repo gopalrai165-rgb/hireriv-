@@ -7,13 +7,13 @@ Every route the app serves, and who may use it. **This table is checked by `test
 | public | Anyone | Public forms (`/api/*`) have a bot trap and a per-IP rate limit |
 | link | Whoever holds a one-time emailed link | Random 256-bit token, stored hashed, single-use or expiring |
 | candidate | A candidate signed in with an emailed link or their password (`hr_cand` session: HttpOnly, SameSite=Lax, Secure on https) | `requireCandidate`; data is limited to applications made with their email |
-| employer | A client signed in to the client portal | `requireEmployer`; data is limited to their own company |
+| employer | A person signed in to the employer portal, working in one of their companies (`hr_emp` session) | `requireEmployer` + their role in that company (owner, hiring manager, recruiter, viewer), checked on the server for every action; other companies' jobs and applicants are "not found" |
 | team | Anyone on the recruiting team (Admin or Recruiter) | `adminAuth` (+ two-step sign-in when the team requires it) |
 | admin | Team members with the Admin role | `adminAuth` + `requireAdmin` (403 for Recruiters) |
 
 Every state-changing team, candidate and client form also passes `sameOrigin` (cross-site posts are refused).
 
-Total: 214 routes.
+Total: 256 routes.
 
 ## Public website
 
@@ -39,6 +39,7 @@ Total: 214 routes.
 | GET | `/about` | public |  |
 | GET | `/contact` | public |  |
 | GET | `/privacy` | public |  |
+| GET | `/job-posting-policy` | public | Rules for employers posting jobs |
 | GET | `/terms` | public |  |
 | GET | `/blog` | public |  |
 | GET | `/blog/:slug` | public |  |
@@ -51,7 +52,7 @@ Total: 214 routes.
 | POST | `/api/jobs/:id/report` | public | 5 per 10 minutes per IP |
 | POST | `/api/job-alerts` | public |  |
 | POST | `/api/newsletter` | public |  |
-| GET | `/post-a-job` | public | Signed-in client: /employer#new-requirement; anyone else: /hire#requirement |
+| GET | `/post-a-job` | public | Signed-in employer: the job form; anyone else: employer sign-up |
 
 ## One-time links
 
@@ -149,33 +150,74 @@ Total: 214 routes.
 | GET | `/account/timesheets/:pid` | candidate | Only the contractor's own placement |
 | POST | `/account/timesheets/:pid` | candidate | Only the contractor's own placement |
 
-## Client portal
+## Employer portal (/employers/* addresses lead here)
 
 | Method | Path | Policy | Notes |
 | --- | --- | --- | --- |
+| GET | `/employer/jobs` | employer | Jobs this member may see: all for owners and viewers, assigned or own jobs for others |
+| GET | `/employer/jobs/new` | employer | Owners and hiring managers |
+| POST | `/employer/jobs` | employer | Owners and hiring managers |
+| GET | `/employer/jobs/:id/edit` | employer | Own company's jobs only; owners, or hiring managers on jobs assigned to them |
+| POST | `/employer/jobs/:id` | employer | Owners, or hiring managers on assigned jobs; a live job goes back for review |
+| POST | `/employer/jobs/:id/publish` | employer | Owners, or hiring managers on assigned jobs; needs a verified mobile (self-signup companies) and is within job limits |
+| POST | `/employer/jobs/:id/pause` | employer | Owners, or hiring managers on assigned jobs; recorded in the activity log |
+| POST | `/employer/jobs/:id/resume` | employer | Owners, or hiring managers on assigned jobs |
+| POST | `/employer/jobs/:id/close` | employer | Owners, or hiring managers on assigned jobs |
+| GET | `/employer/applicants` | employer | Applicants to the company's own jobs this member may see; contact details only for people working on the job |
+| GET | `/employer/applicants/:id` | employer | Same; opening it is recorded in the activity log |
+| GET | `/employer/applicants/:id/resume` | employer | Owners, or managers and recruiters on the job; signed link, valid 15 minutes; recorded |
+| POST | `/employer/applicants/:id/status` | employer | Owners, or managers and recruiters on the job; kept in the application history |
+| GET | `/employer/applicants/:id/interview` | employer | Owners, or managers and recruiters on the job |
+| POST | `/employer/applicants/:id/interview` | employer | Owners, or managers and recruiters on the job; emails the candidate |
+| GET | `/employer/interviews` | employer | Interviews for jobs this member may see |
+| GET | `/api/employers/jobs` | employer | 401 when signed out; jobs this member may see |
+| POST | `/api/employers/jobs/:id/close` | employer | Same |
+| GET | `/api/employers/jobs/:id/applications` | employer | 401 when signed out; 404 unless this member may see the job's applicants |
+| PATCH | `/api/employers/applications/:id/status` | employer | 401 when signed out; owners, or managers and recruiters on the job |
+| POST | `/api/employers/interviews` | employer | 401 when signed out; owners, or managers and recruiters on the job |
 | GET | `/employer/register` | public |  |
-| POST | `/employer/register` | public | Same reply whether or not the email has an account |
+| POST | `/employer/register` | public | Bot trap, per-IP limit; same reply whether or not the email has an account |
+| POST | `/api/employers/register` | public | Bot trap, per-IP limit; same reply whether or not the email has an account |
 | GET | `/employer/login` | public |  |
-| POST | `/employer/login` | public |  |
+| POST | `/employer/login` | public | Per-IP limit; same reply for unknown emails and wrong passwords |
 | POST | `/employer/logout` | public |  |
 | GET | `/employer/forgot` | public |  |
 | POST | `/employer/forgot` | public |  |
-| GET | `/employer` | employer |  |
-| POST | `/employer/requirements` | employer |  |
-| GET | `/employer/resume/:appId` | employer | Only candidates shared with this client; signed link, valid 15 minutes |
-| POST | `/employer/candidates/:appId/feedback` | employer | Only candidates shared with this client; signed link, valid 15 minutes |
-| GET | `/employer/invoices/:id` | employer | Only this client's invoices |
-| GET | `/employer/invoices/:id/credit-notes/:cnId` | employer | Only this client's invoices |
-| GET | `/employer/jobs/new` | employer |  |
-| POST | `/employer/jobs` | employer |  |
-| GET | `/employer/jobs/:id/edit` | employer | Only the employer's own jobs |
-| POST | `/employer/jobs/:id` | employer | Only the employer's own jobs; a live job goes back for review |
-| POST | `/employer/jobs/:id/publish` | employer | Only the employer's own jobs; sends for the team's review |
-| POST | `/api/jobs` | employer | 401 when signed out; company and owner fixed to the account; starts as a draft |
-| PATCH | `/api/jobs/:id` | employer | 401 when signed out; only the employer's own jobs (404 otherwise) |
-| POST | `/api/jobs/:id/publish` | employer | 401 when signed out; only the employer's own jobs; sends for review |
-| POST | `/employer/timesheets/:pid/:tsId/approve` | employer | Only this client's placements |
-| POST | `/employer/timesheets/:pid/:tsId/reject` | employer | Only this client's placements |
+| POST | `/employer/switch` | employer | Only companies the person is a member of |
+| GET | `/employers` | public | Moved (301) to the matching /employer page |
+| GET | `/employers/register` | public | Moved (301) to the matching /employer page |
+| GET | `/employers/login` | public | Moved (301) to the matching /employer page |
+| GET | `/employers/dashboard` | public | Moved (301) to the matching /employer page |
+| GET | `/employers/company-profile` | public | Moved (301) to the matching /employer page |
+| GET | `/employers/jobs` | public | Moved (301) to the matching /employer page |
+| GET | `/employers/jobs/create` | public | Moved (301) to the matching /employer page |
+| GET | `/employers/applicants` | public | Moved (301) to the matching /employer page |
+| GET | `/employers/interviews` | public | Moved (301) to the matching /employer page |
+| GET | `/employers/team` | public | Moved (301) to the matching /employer page |
+| GET | `/employers/settings` | public | Moved (301) to the matching /employer page |
+| GET | `/employers/jobs/:id/edit` | public | Moved (301) to the matching /employer page |
+| POST | `/employer/requirements` | employer | Owners and hiring managers |
+| GET | `/employer/company` | employer | Every member can see it |
+| POST | `/employer/company` | employer | Company owners only |
+| POST | `/employer/company/verify` | employer | Company owners only |
+| GET | `/employer/team` | employer | Every member; the activity log for owners only |
+| POST | `/employer/team` | employer | Company owners only; up to 50 members |
+| POST | `/employer/team/:id` | employer | Company owners only; the last owner stays an owner |
+| POST | `/employer/team/:id/remove` | employer | Company owners only; the last owner can't be removed |
+| GET | `/employer/settings` | employer | The signed-in person's own details |
+| POST | `/employer/settings` | employer | A new mobile number needs verifying again |
+| POST | `/employer/settings/phone/send` | employer | 6-digit code by text message, valid 10 minutes; 5 per hour |
+| POST | `/employer/settings/phone/verify` | employer | 5 tries per code |
+| POST | `/employer/settings/password` | employer | Needs the current password; signs out other sessions |
+| GET | `/api/employers/me` | employer | 401 when signed out |
+| PATCH | `/api/employers/me` | employer | 401 when signed out; company owners only; unknown fields refused |
+| GET | `/employer` | employer | Dashboard for the signed-in person’s current company; billing for owners only |
+| GET | `/employer/resume/:appId` | employer | Candidates shared with this company; owners, managers and recruiters; signed link, valid 15 minutes |
+| POST | `/employer/candidates/:appId/feedback` | employer | Candidates shared with this company; owners, managers and recruiters |
+| GET | `/employer/invoices/:id` | employer | Company owners only; this company's invoices |
+| GET | `/employer/invoices/:id/credit-notes/:cnId` | employer | Company owners only; this company's invoices |
+| POST | `/employer/timesheets/:pid/:tsId/approve` | employer | Owners and hiring managers; this company's placements |
+| POST | `/employer/timesheets/:pid/:tsId/reject` | employer | Owners and hiring managers; this company's placements |
 
 ## Admin panel: any team member
 
@@ -185,6 +227,8 @@ Total: 214 routes.
 | POST | `/admin/templates/:id` | team |  |
 | POST | `/admin/applications/bulk` | team |  |
 | POST | `/admin/applications/bulk-email` | team |  |
+| POST | `/admin/jobs/:id/approve` | team | Only for verified companies; tells the job's poster and the company owners |
+| POST | `/admin/jobs/:id/reject` | team |  |
 | POST | `/admin/clients` | team |  |
 | POST | `/admin/clients/:id/invite` | team |  |
 | POST | `/admin/clients/:id/toggle` | team |  |
@@ -204,8 +248,6 @@ Total: 214 routes.
 | POST | `/admin/placements/:id` | team |  |
 | POST | `/admin/placements/:id/status` | team |  |
 | GET | `/admin/placements/:id/replacement` | team |  |
-| POST | `/admin/jobs/:id/approve` | team | Only for approved employers |
-| POST | `/admin/jobs/:id/reject` | team |  |
 | GET | `/admin/applications/new` | team | Add someone who applied by WhatsApp, phone, walk-in or referral |
 | POST | `/admin/applications/new` | team | Add someone who applied by WhatsApp, phone, walk-in or referral |
 | GET | `/admin` | team | Recruiters never get the Settings, Team or Activity tabs, and see Reports without money |

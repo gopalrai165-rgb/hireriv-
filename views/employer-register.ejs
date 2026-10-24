@@ -7,7 +7,7 @@
         <span class="eyebrow">Employer account</span>
         <h1>Check your email</h1>
         <p class="notice" role="status">We've sent a link to confirm your email. It works once and expires in 24 hours.</p>
-        <p class="muted small">Then our team checks your company, usually within one working day. You can draft jobs meanwhile.</p>
+        <p class="muted small">Then our team checks your company, usually within one working day. You can draft jobs meanwhile, and verify your mobile number in Settings before sending them for review.</p>
         <a class="btn btn-outline btn-block" href="/employer/login">Go to login</a>
       </div>
     <% } else { %>
@@ -17,8 +17,9 @@
         <p class="lead-sm">Create a free employer account to post office, skilled and field jobs across India.</p>
         <ul class="checks">
           <li>Post jobs yourself; our team checks each one before it goes live</li>
-          <li>A recruiter screens applicants and shares the best with you</li>
-          <li>Follow every role, shortlist and placement in one portal</li>
+          <li>Review applicants, move them along and book interviews in one place</li>
+          <li>Invite hiring managers and recruiters, each with their own login</li>
+          <li>Want us to screen for you? Your account manager can shortlist the best</li>
           <li>Need many hires or a dedicated recruiter? <a href="/hire">Send us a requirement</a> instead</li>
         </ul>
         <p class="small muted">Already have an account? <a href="/employer/login">Log in</a></p>
@@ -26,17 +27,31 @@
       <div class="form-card auth-card">
         <% if (errors.length) { %><div class="notice notice-err" role="alert"><% errors.forEach(function (e) { %><p><%= e %></p><% }) %></div><% } %>
         <form class="form" method="post" action="/employer/register">
-          <%- include('partials/honeypot') %>
+          <div class="hp" aria-hidden="true"><label>Leave this field empty<input name="website_url" tabindex="-1" autocomplete="off"></label></div>
           <div class="form-grid">
             <label class="span-2">Company name*<input name="company" required maxlength="120" autocomplete="organization" value="<%= values.company || '' %>"></label>
             <label>Your name*<input name="name" required maxlength="120" autocomplete="name" value="<%= values.name || '' %>"></label>
-            <label>Phone*<input type="tel" name="phone" required maxlength="20" autocomplete="tel" inputmode="tel" value="<%= values.phone || '' %>"></label>
+            <label>Mobile*<input type="tel" name="phone" required maxlength="20" autocomplete="tel" inputmode="tel" value="<%= values.phone || '' %>"></label>
             <label class="span-2">Work email*<input type="email" name="email" required maxlength="160" autocomplete="email" value="<%= values.email || '' %>">
-              <span class="muted small">A company email (you@yourcompany.com) helps us approve you faster.</span></label>
-            <label class="span-2">GSTIN <span class="muted small">(optional, speeds up approval)</span><input name="gstin" maxlength="20" autocapitalize="characters" placeholder="e.g. 27AAPFU0939F1ZV" value="<%= values.gstin || '' %>"></label>
+              <span class="muted small">A company email (you@yourcompany.com) helps us verify you faster.</span></label>
+            <label>Industry*
+              <select name="industry" required><option value="">Choose…</option><% industries.forEach(function (i) { %><option<%= values.industry === i ? ' selected' : '' %>><%= i %></option><% }) %></select>
+            </label>
+            <label>Company size*
+              <select name="size" required><option value="">Choose…</option><% sizes.forEach(function (z) { %><option value="<%= z %>"<%= values.size === z ? ' selected' : '' %>><%= z %> people</option><% }) %></select>
+            </label>
+            <label class="span-2">Company website <span class="muted small">(optional)</span><input type="url" name="website" maxlength="200" placeholder="https://" value="<%= values.website || '' %>"></label>
+            <label>City<input name="city" maxlength="80" autocomplete="address-level2" value="<%= values.city || '' %>"></label>
+            <label>State
+              <select name="state"><option value="">Choose…</option><% states.forEach(function (st) { %><option<%= values.state === st ? ' selected' : '' %>><%= st %></option><% }) %></select>
+            </label>
+            <label class="span-2">Where you hire <span class="muted small">(hold Ctrl or ⌘ to pick several)</span>
+              <select name="hiringLocations" multiple size="4"><% cities.forEach(function (c) { %><option<%= [].concat(values.hiringLocations || []).includes(c) ? ' selected' : '' %>><%= c %></option><% }) %></select>
+            </label>
+            <label class="span-2">GSTIN <span class="muted small">(optional, speeds up verification)</span><input name="gstin" maxlength="20" autocapitalize="characters" placeholder="e.g. 27AAPFU0939F1ZV" value="<%= values.gstin || '' %>"></label>
             <label>Password*<input type="password" name="password" required minlength="10" autocomplete="new-password"></label>
             <label>Confirm password*<input type="password" name="confirm" required minlength="10" autocomplete="new-password"></label>
-            <label class="span-2 check-row"><input type="checkbox" name="agree" value="1" required> <span>I agree to the <a href="/terms">Terms of Use</a> and <a href="/privacy">Privacy Policy</a>, and confirm I'm authorised to hire for this company.</span></label>
+            <label class="span-2 check-row"><input type="checkbox" name="agree" value="1" required> <span>I agree to the <a href="/terms">Terms of Use</a>, <a href="/job-posting-policy">Job posting rules</a> and <a href="/privacy">Privacy Policy</a>, and confirm I'm authorised to hire for this company.</span></label>
           </div>
           <button class="btn btn-primary btn-block" type="submit">Create employer account</button>
           <p class="muted small form-note">Use at least 10 characters for your password. We never charge job seekers, and listings that ask candidates for money are removed.</p>

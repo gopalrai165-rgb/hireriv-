@@ -2,46 +2,58 @@
 
 <section class="section admin portal">
   <div class="container">
-    <div class="admin-head">
-      <div>
-        <span class="eyebrow">Client portal</span>
-        <h1><%= employer.company %></h1>
-        <p class="muted">Signed in as <%= employer.name %> · <%= employer.email %></p>
-      </div>
-      <form method="post" action="/employer/logout"><button class="btn btn-outline btn-sm" type="submit">Log out</button></form>
-    </div>
+    <%- include('partials/employer-nav', { heading: 'Dashboard', tab: 'dashboard' }) %>
     <% if (welcome) { %><p class="notice" role="status">Your account is ready. Welcome aboard!</p><% } %>
-    <% if (!approved) { %><p class="notice" role="status">Thanks for signing up. Our team is checking your company, usually within one working day. You can draft jobs and send them for review now; they go live once you're approved.</p><% } %>
-    <% if (msg) { %><p class="notice" role="status"><%= msg %></p><% } %>
+    <% if (verification === 'pending') { %><p class="notice" role="status">Thanks for signing up. Our team is checking your company, usually within one working day. You can draft jobs and send them for review now; they go live once your company is verified.<% if (can('company.verify')) { %> <a href="/employer/company">Add registration details</a> to speed this up.<% } %></p><% } %>
+    <% if (!mobileVerified && employer.selfSignup) { %><p class="notice" role="status">Verify your mobile number in <a href="/employer/settings">Settings</a> before sending jobs for review.</p><% } %>
+
+    <div class="kpis">
+      <% [['open', 'Live jobs'], ['draft', 'Drafts'], ['pending', 'Waiting for review'], ['paused', 'Paused'], ['closed', 'Closed']].forEach(function (k) { %>
+        <a class="kpi" href="/employer/jobs?status=<%= k[0] %>"><span class="kpi-label"><%= k[1] %></span><span class="kpi-value"><%= counts[k[0]] %></span></a>
+      <% }) %>
+      <a class="kpi" href="/employer/applicants?status=New"><span class="kpi-label">New applicants</span><span class="kpi-value"><%= newApplicants %></span><span class="kpi-note">on jobs you post</span></a>
+    </div>
 
     <div class="dash-grid">
       <section class="dash-card dash-wide" id="jobs">
-        <div class="dash-head"><h2>Your jobs</h2><a class="btn btn-primary btn-sm" href="/employer/jobs/new">+ Post a job</a></div>
+        <div class="dash-head"><h2>Your jobs</h2><span class="row-actions"><a class="btn btn-outline btn-sm" href="/employer/jobs">All jobs</a><% if (can('jobs.create')) { %><a class="btn btn-primary btn-sm" href="/employer/jobs/new">+ Post a job</a><% } %></span></div>
         <% if (!myJobs.length) { %>
-          <p class="muted dash-empty">No jobs yet. Post one yourself, or send a requirement below and your account manager will set it up.</p>
+          <p class="muted dash-empty">No jobs yet. <% if (can('jobs.create')) { %>Post one yourself, or send a requirement below and your account manager will set it up.<% } else { %>Jobs you're assigned to appear here.<% } %></p>
         <% } else { %>
-          <% const STATUS = { draft: ['Draft', 'st-new'], pending: ['Waiting for review', 'st-screening'], open: ['Live', 'st-hired'], closed: ['Closed', 'st-rejected'], rejected: ['Needs changes', 'st-rejected'] }; %>
+          <% const STATUS = { draft: ['Draft', 'st-new'], pending: ['Waiting for review', 'st-screening'], open: ['Live', 'st-hired'], paused: ['Paused', 'st-screening'], closed: ['Closed', 'st-rejected'], rejected: ['Needs changes', 'st-rejected'] }; %>
           <div class="table-wrap">
             <table>
               <thead><tr><th>Job</th><th>Status</th><th>Applicants</th><% stages.forEach(function (s) { %><th><%= s %></th><% }) %><th></th></tr></thead>
               <tbody>
-                <% myJobs.forEach(function (j) { const st = STATUS[j.status] || [j.status, '']; %>
+                <% myJobs.slice(0, 10).forEach(function (j) { const st = STATUS[j.status] || [j.status, '']; %>
                   <tr>
-                    <td><b><%= j.title %></b><br><span class="muted small"><%= j.location %> · <%= j.type %></span><% if (j.status === 'rejected' && j.rejectedReason) { %><br><span class="small">To change: <%= j.rejectedReason %></span><% } %></td>
+                    <td><b><%= j.title %></b><br><span class="muted small"><%= j.location %> · <%= j.type %><%= j.createdBy === 'employer' ? '' : ' · run by ' + site.name %></span><% if (j.status === 'rejected' && j.rejectedReason) { %><br><span class="small">To change: <%= j.rejectedReason %></span><% } %></td>
                     <td><span class="pill <%= st[1] %>"><%= st[0] %></span></td>
-                    <td><b><%= j.total %></b></td>
+                    <td><% if (j.createdBy === 'employer' && can('applicants.view', j)) { %><a href="/employer/applicants?job=<%= j.id %>"><b><%= j.total %></b></a><% } else { %><b><%= j.total %></b><% } %></td>
                     <% stages.forEach(function (s) { %><td><%= j.stages[s] || '·' %></td><% }) %>
                     <td class="row-actions">
                       <% if (j.status === 'open') { %><a class="btn btn-outline btn-sm" href="<%= jobPath(j) %>" target="_blank" rel="noopener">View</a><% } %>
-                      <% if (j.createdBy === 'employer') { %><a class="btn btn-outline btn-sm" href="/employer/jobs/<%= j.id %>/edit">Edit</a><% } %>
-                      <% if (j.createdBy === 'employer' && ['draft', 'rejected'].includes(j.status)) { %><form method="post" action="/employer/jobs/<%= j.id %>/publish"><button class="btn btn-primary btn-sm">Send for review</button></form><% } %>
+                      <% if (j.createdBy === 'employer' && can('job.edit', j)) { %><a class="btn btn-outline btn-sm" href="/employer/jobs/<%= j.id %>/edit">Edit</a><% } %>
+                      <% if (j.createdBy === 'employer' && can('job.edit', j) && ['draft', 'rejected'].includes(j.status)) { %><form method="post" action="/employer/jobs/<%= j.id %>/publish"><button class="btn btn-primary btn-sm">Send for review</button></form><% } %>
                     </td>
                   </tr>
                 <% }) %>
               </tbody>
             </table>
           </div>
-          <p class="muted small">Your account manager screens every applicant and shares the strongest profiles with you.</p>
+          <p class="muted small">Applicants to jobs you post come straight to you under Applicants. For jobs <%= site.name %> runs for you, your account manager screens applicants and shares the strongest profiles below.</p>
+        <% } %>
+      </section>
+
+      <section class="dash-card dash-wide" id="interviews">
+        <div class="dash-head"><h2>Upcoming interviews</h2><a class="btn btn-outline btn-sm" href="/employer/interviews">All interviews</a></div>
+        <% if (!interviews.length) { %><p class="muted dash-empty">No interviews booked. Schedule one from an applicant's page.</p>
+        <% } else { %>
+          <ul class="activity">
+            <% interviews.forEach(function (iv) { %>
+              <li><span class="activity-row"><span class="pill st-interview"><%= formatIst(iv.at) %></span><span class="activity-text"><a href="/employer/applicants/<%= iv.appId %>"><%= iv.candidate %></a> · <%= iv.jobTitle %></span><span class="muted small"><%= iv.mode %></span></span></li>
+            <% }) %>
+          </ul>
         <% } %>
       </section>
 
@@ -64,7 +76,8 @@
                 </ul>
                 <% if (c.skills) { %><div class="chips"><% c.skills.split(',').map(function (s) { return s.trim(); }).filter(Boolean).slice(0, 8).forEach(function (s) { %><span class="chip"><%= s %></span><% }) %></div><% } %>
                 <% if (c.summary) { %><p class="cand-note"><b>Recruiter's note:</b> <%= c.summary %></p><% } %>
-                <% if (c.hasResume) { %><a class="small cand-resume" href="<%= signedLink('/employer/resume/' + c.id) %>">Download resume</a><% } %>
+                <% if (c.hasResume && can('shortlist.feedback')) { %><a class="small cand-resume" href="<%= signedLink('/employer/resume/' + c.id) %>">Download resume</a><% } %>
+                <% if (can('shortlist.feedback')) { %>
                 <form class="form cand-feedback" method="post" action="/employer/candidates/<%= c.id %>/feedback">
                   <div class="decision-row" role="radiogroup" aria-label="Your decision on <%= c.name %>">
                     <% decisions.forEach(function (d) { %><label class="decision decision-<%= d.toLowerCase().split(' ').join('-') %>"><input type="radio" name="decision" value="<%= d %>" required<%= c.feedback && c.feedback.decision === d ? ' checked' : '' %>><span><%= d %></span></label><% }) %>
@@ -73,6 +86,7 @@
                   <button class="btn btn-primary btn-sm" type="submit"><%= c.feedback ? 'Update feedback' : 'Send feedback' %></button>
                   <% if (c.feedback) { %><span class="muted small">Sent <%= formatDate(c.feedback.at) %> by <%= c.feedback.by %></span><% } %>
                 </form>
+                <% } else if (c.feedback) { %><p class="muted small">Decision: <b><%= c.feedback.decision %></b> by <%= c.feedback.by %></p><% } %>
               </article>
             <% }) %>
           </div>
@@ -137,6 +151,7 @@
         </section>
       <% } %>
 
+      <% if (can('requirements.send')) { %>
       <section class="dash-card" id="new-requirement">
         <div class="dash-head"><h2>Send a new requirement</h2></div>
         <form class="form" method="post" action="/employer/requirements">
@@ -156,6 +171,7 @@
           <button class="btn btn-primary" type="submit">Send requirement</button>
         </form>
       </section>
+      <% } %>
 
       <section class="dash-card">
         <div class="dash-head"><h2>Your requirements</h2></div>

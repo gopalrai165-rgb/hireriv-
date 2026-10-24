@@ -1,0 +1,50 @@
+<%- include('partials/head') %>
+
+<section class="section admin portal">
+  <div class="container">
+    <%- include('partials/employer-nav', { heading: 'Jobs', tab: 'jobs' }) %>
+
+    <div class="dash-head">
+      <nav class="filter-chips" aria-label="Filter by status">
+        <a class="chip<%= !status ? ' is-active' : '' %>" href="/employer/jobs">All</a>
+        <% Object.keys(labels).forEach(function (s) { %><a class="chip<%= status === s ? ' is-active' : '' %>" href="/employer/jobs?status=<%= s %>"><%= labels[s] %> (<%= counts[s] %>)</a><% }) %>
+      </nav>
+      <% if (can('jobs.create')) { %><a class="btn btn-primary btn-sm" href="/employer/jobs/new">+ Post a job</a><% } %>
+    </div>
+
+    <% if (!rows.length) { %>
+      <p class="muted dash-empty"><%= status ? 'No jobs with this status.' : 'No jobs yet.' %></p>
+    <% } else { %>
+      <% const PILL = { draft: 'st-new', pending: 'st-screening', open: 'st-hired', paused: 'st-screening', closed: 'st-rejected', rejected: 'st-rejected' }; %>
+      <div class="table-wrap dash-card">
+        <table>
+          <thead><tr><th>Job</th><th>Status</th><th>Applicants</th><th>Updated</th><th></th></tr></thead>
+          <tbody>
+            <% rows.forEach(function (j) { const own = j.createdBy === 'employer'; %>
+              <tr>
+                <td><b><%= j.title %></b><br><span class="muted small"><%= j.location %> · <%= j.type %><%= j.openings ? ' · ' + j.openings + ' opening' + (j.openings === 1 ? '' : 's') : '' %><%= own ? '' : ' · run by ' + site.name %></span>
+                  <% if (j.status === 'rejected' && j.rejectedReason) { %><br><span class="small">To change: <%= j.rejectedReason %></span><% } %></td>
+                <td><span class="pill <%= PILL[j.status] || '' %>"><%= labels[j.status] || j.status %></span></td>
+                <td><% if (own && can('applicants.view', j)) { %><a href="/employer/applicants?job=<%= j.id %>"><b><%= j.applicants %></b><%= j.fresh ? ' (' + j.fresh + ' new)' : '' %></a><% } else { %><%= j.applicants %><% } %></td>
+                <td class="muted small"><%= formatDate(j.updatedAt || j.posted) %></td>
+                <td class="row-actions">
+                  <% if (j.status === 'open') { %><a class="btn btn-outline btn-sm" href="<%= jobPath(j) %>" target="_blank" rel="noopener">View</a><% } %>
+                  <% if (own && can('job.edit', j)) { %>
+                    <a class="btn btn-outline btn-sm" href="/employer/jobs/<%= j.id %>/edit">Edit</a>
+                    <% if (['draft', 'rejected', 'closed'].includes(j.status)) { %><form method="post" action="/employer/jobs/<%= j.id %>/publish"><button class="btn btn-primary btn-sm"><%= j.status === 'closed' ? 'Reopen' : 'Send for review' %></button></form><% } %>
+                    <% if (j.status === 'open') { %><form method="post" action="/employer/jobs/<%= j.id %>/pause"><button class="btn btn-outline btn-sm">Pause</button></form><% } %>
+                    <% if (j.status === 'paused') { %><form method="post" action="/employer/jobs/<%= j.id %>/resume"><button class="btn btn-primary btn-sm">Resume</button></form><% } %>
+                    <% if (['open', 'paused', 'pending'].includes(j.status)) { %><form method="post" action="/employer/jobs/<%= j.id %>/close"><button class="btn btn-outline btn-sm">Close</button></form><% } %>
+                  <% } %>
+                </td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+    <% } %>
+    <p class="muted small">Every job is checked by the <%= site.name %> team before it goes live, and again after changes. Paused jobs are hidden from job seekers until you resume them. See the <a href="/job-posting-policy">job posting rules</a>.</p>
+  </div>
+</section>
+
+<%- include('partials/foot') %>

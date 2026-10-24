@@ -712,7 +712,7 @@ function register(app, deps) {
   });
 
   // ----- client portal -----
-  app.get('/employer/invoices/:id', requireEmployer, (req, res, next) => {
+  app.get('/employer/invoices/:id', requireEmployer, clients.allow('billing.view'), (req, res, next) => {
     const { p } = findPlacement(req.params.id);
     // Only this client's own invoices, never by guessing ids.
     if (!p || p.employerId !== req.employer.id) return next();
@@ -721,7 +721,7 @@ function register(app, deps) {
     invoicePage(res, p, inv, '/employer#billing', null, `/employer/invoices/${p.id}/credit-notes`);
   });
 
-  app.get('/employer/invoices/:id/credit-notes/:cnId', requireEmployer, (req, res, next) => {
+  app.get('/employer/invoices/:id/credit-notes/:cnId', requireEmployer, clients.allow('billing.view'), (req, res, next) => {
     const { p } = findPlacement(req.params.id);
     if (!p || p.employerId !== req.employer.id) return next();
     const hit = creditNoteIn(p, req.params.cnId);

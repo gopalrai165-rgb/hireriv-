@@ -114,24 +114,9 @@ function register(app, { adminAuth, sameOrigin, readSubmissions, writeSubmission
   sendReminders();
   setInterval(sendReminders, 5 * 60000).unref();
 
-  const formPage = (res, a, f, errors, status = 200) =>
-    res.status(status).render('admin-interview', { title: 'Schedule interview', page: 'admin', a, f, errors, modes: MODES, durations: DURATIONS, noindex: true });
-
-  app.get('/admin/applications/:id/interview', adminAuth, (req, res, next) => {
-    const a = readSubmissions('applications').find((x) => x.id === req.params.id);
-    if (!a) return next();
-    // Default: tomorrow at 11:00 India time.
-    const tomorrow = new Date(Date.now() + 86400000).toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
-    formPage(res, a, { date: tomorrow, time: '11:00', duration: 45, mode: 'Video call', where: '', interviewer: '', interviewerEmail: '', message: '' }, []);
-  });
-
-  app.post('/admin/applications/:id/interview', adminAuth, sameOrigin, (req, res, next) => {
-    const list = readSubmissions('applications');
-    const a = list.find((x) => x.id === req.params.id);
-    if (!a) return next();
-    const { f, at, errors } = parseInterview(req.body, a);
-    if (errors.length) return formPage(res, a, f, errors, 400);
-
+  // Books an interview on application `a` (part of `list`), saves, and emails
+  // the candidate and the interviewer. Used by the team and by employers.
+  function book(list, a, f, at, by) {
     const iv = {
       id: crypto.randomUUID(),
       at: at.toISOString(),
@@ -156,11 +141,33 @@ function register(app, { adminAuth, sameOrigin, readSubmissions, writeSubmission
     }
     a.interviews = [...(a.interviews || []), iv];
     // Booking an interview moves early-stage candidates forward automatically.
-    if (['New', 'Screening', undefined, ''].includes(a.status)) moveStage(a, 'Interview', `${req.admin.name} (interview booked)`, iv.createdAt);
+    if (['New', 'Screening', undefined, ''].includes(a.status)) moveStage(a, 'Interview', by, iv.createdAt);
     a.updatedAt = iv.createdAt;
     writeSubmissions('applications', list);
     mailer.interviewScheduled(a, iv, icsFor('REQUEST', iv, a), formatIst(at));
     if (feedbackUrl) mailer.interviewerBriefing(f.interviewerEmail, a, iv, formatIst(at), feedbackUrl);
+    return { iv, feedbackUrl };
+  }
+
+  const formPage = (res, a, f, errors, status = 200) =>
+    res.status(status).render('admin-interview', { title: 'Schedule interview', page: 'admin', a, f, errors, modes: MODES, durations: DURATIONS, noindex: true });
+
+  app.get('/admin/applications/:id/interview', adminAuth, (req, res, next) => {
+    const a = readSubmissions('applications').find((x) => x.id === req.params.id);
+    if (!a) return next();
+    // Default: tomorrow at 11:00 India time.
+    const tomorrow = new Date(Date.now() + 86400000).toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+    formPage(res, a, { date: tomorrow, time: '11:00', duration: 45, mode: 'Video call', where: '', interviewer: '', interviewerEmail: '', message: '' }, []);
+  });
+
+  app.post('/admin/applications/:id/interview', adminAuth, sameOrigin, (req, res, next) => {
+    const list = readSubmissions('applications');
+    const a = list.find((x) => x.id === req.params.id);
+    if (!a) return next();
+    const { f, at, errors } = parseInterview(req.body, a);
+    if (errors.length) return formPage(res, a, f, errors, 400);
+
+    const { feedbackUrl } = book(list, a, f, at, `${req.admin.name} (interview booked)`);
     res.redirect(adminUrl('interviews', `Interview booked with ${a.name} for ${formatIst(at)} · ${a.email ? 'invite emailed' : 'no email on file, so tell them by phone or WhatsApp'}${feedbackUrl ? ` · feedback link sent to ${f.interviewerEmail}` : ''}`));
   });
 
@@ -261,6 +268,8 @@ function register(app, { adminAuth, sameOrigin, readSubmissions, writeSubmission
     if (!iv) return next();
     res.type('text/calendar').attachment(`interview-${a.name.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}.ics`).send(icsFor(iv.status === 'cancelled' ? 'CANCEL' : 'REQUEST', iv, a));
   });
+
+  return { book };
 }
 
-module.exports = { register, allInterviews, upcoming, formatIst, feedbackSummary, feedbackDue, remindersDue, REMINDERS, RECOMMENDATIONS };
+module.exports = { register, parseInterview, MODES, DURATIONS, allInterviews, upcoming, formatIst, feedbackSummary, feedbackDue, remindersDue, REMINDERS, RECOMMENDATIONS };

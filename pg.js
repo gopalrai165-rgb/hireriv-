@@ -49,7 +49,8 @@ async function migrate(pool, { dir = MIGRATIONS_DIR, log = () => {} } = {}) {
 // ---------- turning app records into rows ----------
 const KINDS = ['office', 'skilled', 'field'];
 const KIND_NAMES = { office: 'Office & professional', skilled: 'Skilled & technical', field: 'Industrial, field & service' };
-const STATUSES = ['draft', 'pending', 'open', 'closed', 'rejected'];
+const STATUSES = ['draft', 'pending', 'open', 'paused', 'closed', 'rejected'];
+const SHIFTS = ['Day', 'Night', 'Rotational', 'Flexible'];
 const PERIODS = ['month', 'year', 'day', 'hour'];
 
 const slugify = (s) => String(s).toLowerCase().replace(/&/g, ' and ').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 80) || 'category';
@@ -103,6 +104,12 @@ function jobRow(job, d) {
     experience_max: exp ? exp[1] : null,
     education: String(job.education || ''),
     schedule: String(job.schedule || ''),
+    openings: Number.isInteger(job.openings) && job.openings >= 1 && job.openings <= 9999 ? job.openings : null,
+    shift: SHIFTS.includes(job.shift) ? job.shift : '',
+    work_hours: String(job.hours || ''),
+    workplace_address: String(job.address || ''),
+    walk_in: Boolean(job.walkIn),
+    eligibility: list(job.eligibility),
     salary_min: pay.min,
     salary_max: pay.max,
     pay_period: pay.period,
@@ -112,7 +119,7 @@ function jobRow(job, d) {
     status,
     is_sample: job.sample === true,
     posted_on: posted,
-    published_at: ['open', 'closed'].includes(status) ? isoOrNull(job.approvedAt) || (posted ? `${posted}T00:00:00+05:30` : null) : null,
+    published_at: ['open', 'paused', 'closed'].includes(status) ? isoOrNull(job.approvedAt) || (posted ? `${posted}T00:00:00+05:30` : null) : null,
     closes_on: dateOrNull(job.closesOn),
     created_at: isoOrNull(job.createdAt) || (posted ? `${posted}T00:00:00+05:30` : null),
     id_sort: idSort(job.id),
@@ -255,10 +262,10 @@ function create(opts) {
       `INSERT INTO jobs (id, slug, title, company_name, employer_id, created_by, description, responsibilities, qualifications, benefits,
          employment_type, work_arrangement, work_kind, group_keys, experience_text, experience_min, experience_max, education, schedule,
          salary_min, salary_max, pay_period, pay_note, monthly_pay_max, quick_apply, status, is_sample, posted_on, published_at, closes_on,
-         created_at, updated_at, id_sort, search_vector, source_hash)
+         created_at, updated_at, id_sort, search_vector, source_hash, openings, shift, work_hours, workplace_address, walk_in, eligibility)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31, now(), $32,
          setweight(to_tsvector('simple', $33), 'A') || setweight(to_tsvector('simple', $34), 'B') || setweight(to_tsvector('simple', $35), 'C') || setweight(to_tsvector('simple', $36), 'D'),
-         $37)
+         $37, $38, $39, $40, $41, $42, $43)
        ON CONFLICT (id) DO UPDATE SET slug = excluded.slug, title = excluded.title, company_name = excluded.company_name, employer_id = excluded.employer_id,
          created_by = excluded.created_by, description = excluded.description, responsibilities = excluded.responsibilities, qualifications = excluded.qualifications,
          benefits = excluded.benefits, employment_type = excluded.employment_type, work_arrangement = excluded.work_arrangement, work_kind = excluded.work_kind,
@@ -266,11 +273,12 @@ function create(opts) {
          education = excluded.education, schedule = excluded.schedule, salary_min = excluded.salary_min, salary_max = excluded.salary_max, pay_period = excluded.pay_period,
          pay_note = excluded.pay_note, monthly_pay_max = excluded.monthly_pay_max, quick_apply = excluded.quick_apply, status = excluded.status, is_sample = excluded.is_sample,
          posted_on = excluded.posted_on, published_at = excluded.published_at, closes_on = excluded.closes_on, created_at = excluded.created_at, updated_at = now(),
-         id_sort = excluded.id_sort, search_vector = excluded.search_vector, source_hash = excluded.source_hash`,
+         id_sort = excluded.id_sort, search_vector = excluded.search_vector, source_hash = excluded.source_hash, openings = excluded.openings, shift = excluded.shift,
+         work_hours = excluded.work_hours, workplace_address = excluded.workplace_address, walk_in = excluded.walk_in, eligibility = excluded.eligibility`,
       [r.id, r.slug, r.title, r.company_name, r.employer_id, r.created_by, r.description, r.responsibilities, r.qualifications, r.benefits,
         r.employment_type, r.work_arrangement, r.work_kind, r.group_keys, r.experience_text, r.experience_min, r.experience_max, r.education, r.schedule,
         r.salary_min, r.salary_max, r.pay_period, r.pay_note, r.monthly_pay_max, r.quick_apply, r.status, r.is_sample, r.posted_on, r.published_at, r.closes_on,
-        r.created_at, r.id_sort, r.text_a, r.text_b, r.text_c, r.text_d, r.source_hash]);
+        r.created_at, r.id_sort, r.text_a, r.text_b, r.text_c, r.text_d, r.source_hash, r.openings, r.shift, r.work_hours, r.workplace_address, r.walk_in, r.eligibility]);
     await c.query('DELETE FROM job_locations WHERE job_id = $1', [r.id]);
     if (r.city) await c.query('INSERT INTO job_locations (job_id, city, state, is_remote) VALUES ($1, $2, $3, $4)', [r.id, r.city, r.state, r.city === 'Remote' || r.work_arrangement === 'Remote']);
     await c.query('DELETE FROM job_category_assignments WHERE job_id = $1', [r.id]);

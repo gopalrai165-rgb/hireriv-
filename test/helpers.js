@@ -94,6 +94,19 @@ async function startServer(env = {}, seed = {}, { sampleJobs = false } = {}) {
       }
       throw new Error('expected email was not sent');
     },
+    // Verifies a signed-in employer's mobile with the code from the outbox.
+    async verifyEmployerMobile(cookie, headers = {}) {
+      const codes = () => server.emails().filter((m) => m.includes('verification code'));
+      const before = codes().length;
+      const sent = await server.request('/employer/settings/phone/send', { method: 'POST', form: {}, cookie, headers });
+      if (sent.status !== 302) throw new Error(`sending the code failed: ${sent.status}`);
+      for (const end = Date.now() + 5000; codes().length === before && Date.now() < end;) await new Promise((r) => setTimeout(r, 50));
+      const all = codes();
+      if (all.length === before) throw new Error('no code was sent');
+      const code = all[all.length - 1].match(/(\d{6}) is your/)[1];
+      const res = await server.request('/employer/settings/phone/verify', { method: 'POST', form: { code }, cookie, headers });
+      if (!/verified\./i.test(decodeURIComponent(res.headers.get('location') || ''))) throw new Error(`verifying failed: ${res.headers.get('location')}`);
+    },
     async adminLogin() {
       const res = await server.request('/admin/login', { method: 'POST', form: { login: 'admin', password: ADMIN_PASS, next: '/admin' } });
       if (res.status !== 302) throw new Error(`admin login failed: ${res.status}`);

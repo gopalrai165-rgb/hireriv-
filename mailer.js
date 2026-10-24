@@ -387,6 +387,74 @@ function createMailer(site) {
       });
     },
 
+    // Someone with a login was given access to another company.
+    employerMemberAdded(who, role, link, by) {
+      send(site, {
+        to: who.email,
+        replyTo: teamInbox,
+        subject: `You now have access to ${who.company} on ${site.name}`,
+        heading: `You've been added to ${who.company}`,
+        html:
+          p(`Hi ${first(who.name)}, ${by ? `${esc(by)} added you` : 'you were added'} to <b>${esc(who.company)}</b> as <b>${esc(role)}</b>. Log in as usual and pick the company from the menu at the top of the portal.`) +
+          button(link, 'Log in'),
+      });
+    },
+
+    // A company owner invited a new team member.
+    employerTeamInvite(who, role, by, link, hours) {
+      send(site, {
+        to: who.email,
+        replyTo: teamInbox,
+        subject: `${by} invited you to ${who.company} on ${site.name}`,
+        heading: `Join ${who.company} on ${site.name}`,
+        html:
+          p(`Hi ${first(who.name)}, ${esc(by)} invited you to help with hiring at <b>${esc(who.company)}</b> as <b>${esc(role)}</b>.`) +
+          button(link, 'Set your password') +
+          p(`<span style="color:#6b7690;font-size:13px">This link works once and expires in ${hours} hours. Not expecting this? Ignore this email.</span>`),
+      });
+    },
+
+    employerVerificationRequested(emp, user, adminLink) {
+      send(site, {
+        to: teamInbox,
+        replyTo: user.email,
+        subject: `Company to verify: ${emp.company}`,
+        heading: 'A company sent its details for verification',
+        html:
+          detailsTable([
+            ['Company', emp.company], ['Sent by', `${user.name} (${user.email})`], ['GSTIN', emp.gstin || 'Not given'], ['CIN', emp.cin || 'Not given'], ['Udyam', emp.udyam || 'Not given'],
+            ['Website', emp.website || 'Not given'], ['Address', [emp.addressLine, emp.city, emp.state, emp.pincode].filter(Boolean).join(', ') || 'Not given'],
+          ]) + button(adminLink, 'Review in admin'),
+      });
+    },
+
+    // A verified company changed its name or registration numbers.
+    employerDetailsChanged(emp, user, fields, adminLink) {
+      send(site, {
+        to: teamInbox,
+        replyTo: user.email,
+        subject: `Verified company changed its details: ${emp.company}`,
+        heading: 'A verified company changed key details',
+        html:
+          p(`${esc(user.name)} changed: <b>${esc(fields.join(', '))}</b>. Check that the company is still the one you verified.`) +
+          detailsTable([['Company', emp.company], ['GSTIN', emp.gstin || 'Not given'], ['CIN', emp.cin || 'Not given'], ['Udyam', emp.udyam || 'Not given']]) +
+          button(adminLink, 'Review in admin'),
+      });
+    },
+
+    // Someone applied to a job the employer manages themselves.
+    employerNewApplication(who, a, link) {
+      send(site, {
+        to: who.email,
+        replyTo: teamInbox,
+        subject: `New applicant for ${a.jobTitle}`,
+        heading: 'You have a new applicant',
+        html:
+          p(`Hi ${first(who.name)}, <b>${esc(a.name)}</b> applied for <b>${esc(a.jobTitle)}</b> at ${esc(who.company)}.`) +
+          button(link, 'Review applicants'),
+      });
+    },
+
     employerInvite(emp, link, hours) {
       send(site, {
         to: emp.email,

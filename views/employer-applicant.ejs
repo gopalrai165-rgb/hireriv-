@@ -1,0 +1,56 @@
+<%- include('partials/head') %>
+
+<section class="section admin portal">
+  <div class="container">
+    <%- include('partials/employer-nav', { heading: v.name, tab: 'applicants' }) %>
+    <p class="muted">Applied for <b><%= v.jobTitle %></b> on <%= formatDate(v.appliedAt) %> · <a href="/employer/applicants?job=<%= v.jobId %>">All applicants for this job</a></p>
+
+    <div class="dash-grid">
+      <section class="dash-card">
+        <div class="dash-head"><h2>Profile</h2><span class="pill st-<%= v.status.toLowerCase() %>"><%= v.status %></span></div>
+        <ul class="job-meta">
+          <li><svg class="i"><use href="#i-briefcase"/></svg><%= v.experience || '—' %></li>
+          <li><svg class="i"><use href="#i-pin"/></svg><%= v.location || '—' %></li>
+          <li><svg class="i"><use href="#i-clock"/></svg>Notice: <%= v.noticePeriod || '—' %></li>
+        </ul>
+        <% if (v.match) { %><p><%- include('partials/match-chip', { match: v.match }) %></p><% } %>
+        <% if (v.skills) { %><div class="chips"><% v.skills.split(',').map(function (s) { return s.trim(); }).filter(Boolean).slice(0, 12).forEach(function (s) { %><span class="chip"><%= s %></span><% }) %></div><% } %>
+        <% if (v.email !== undefined) { %>
+          <h3 class="dash-sub">Contact</h3>
+          <p><% if (v.phone) { %><a href="tel:<%= v.phone %>"><%= v.phone %></a><% } %><% if (v.phone && v.email) { %> · <% } %><% if (v.email) { %><a href="mailto:<%= v.email %>"><%= v.email %></a><% } %></p>
+          <% if (/^https?:\/\//i.test(v.linkedin || '')) { %><p class="small"><a href="<%= v.linkedin %>" rel="noopener nofollow" target="_blank">LinkedIn profile</a></p><% } %>
+          <% if (v.message) { %><p class="cand-note"><b>Their message:</b> <%= v.message %></p><% } %>
+          <% if (v.hasResume) { %><p><a class="btn btn-outline btn-sm" href="<%= signedLink('/employer/applicants/' + v.id + '/resume') %>">Download resume</a></p><% } %>
+        <% } else { %>
+          <p class="muted small">Contact details and resumes are shown to the people working on this job.</p>
+        <% } %>
+      </section>
+
+      <section class="dash-card">
+        <div class="dash-head"><h2>Progress</h2></div>
+        <% if (can('applicants.manage', job) && !v.withdrawn) { %>
+          <form class="form inline-form" method="post" action="/employer/applicants/<%= v.id %>/status">
+            <label>Move to
+              <select name="status"><% statuses.forEach(function (s) { %><option<%= v.status === s ? ' selected' : '' %>><%= s %></option><% }) %></select>
+            </label>
+            <button class="btn btn-primary btn-sm" type="submit">Update</button>
+          </form>
+        <% } %>
+        <% if (can('interviews.manage', job) && !v.withdrawn) { %><p><a class="btn btn-outline btn-sm" href="/employer/applicants/<%= v.id %>/interview">Schedule an interview</a></p><% } %>
+        <% if (v.interviews.length) { %>
+          <h3 class="dash-sub">Interviews</h3>
+          <ul class="activity">
+            <% v.interviews.forEach(function (iv) { %><li><span class="activity-row"><span class="pill <%= iv.status === 'scheduled' ? 'st-interview' : '' %>"><%= iv.status %></span><span class="activity-text"><%= formatIst(iv.at) %> · <%= iv.mode %></span><span class="muted small"><%= iv.interviewer %></span></span></li><% }) %>
+          </ul>
+        <% } %>
+        <h3 class="dash-sub">History</h3>
+        <ul class="activity">
+          <li><span class="activity-row"><span class="pill st-new">Applied</span><span class="activity-text"><%= formatDate(v.appliedAt) %></span></span></li>
+          <% v.history.forEach(function (h) { %><li><span class="activity-row"><span class="pill st-<%= String(h.to).toLowerCase() %>"><%= h.to %></span><span class="activity-text">from <%= h.from %><%= h.by ? ' · ' + h.by : '' %></span><span class="muted small"><%= formatDate(h.at) %></span></span></li><% }) %>
+        </ul>
+      </section>
+    </div>
+  </div>
+</section>
+
+<%- include('partials/foot') %>

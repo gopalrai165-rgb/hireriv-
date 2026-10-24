@@ -14,6 +14,8 @@ const { jobSlug, jobPath, findJobBySlug, parsePost, parseSettings, SOCIAL, DEFAU
 const interviews = require('./interviews');
 const employers = require('./employers');
 const candidates = require('./candidates');
+const { SHIFTS, INDIAN_STATES } = require('./candidate-profile');
+const employerHiring = require('./employer-hiring');
 const placements = require('./placements');
 const teamModule = require('./team');
 const bulk = require('./bulk');
@@ -190,8 +192,8 @@ function saveJobs() {
 
 // Open, and not past its closing date (the hourly check closes it for good).
 const isLive = (j) => j.status === 'open' && !(j.closesOn && j.closesOn < todayIst());
-// Employer drafts, jobs waiting for the team's review and rejected ones are never public.
-const UNPUBLISHED = ['draft', 'pending', 'rejected'];
+// Employer drafts, jobs waiting for the team's review, rejected and paused ones are never public.
+const UNPUBLISHED = ['draft', 'pending', 'rejected', 'paused'];
 const isPublicJob = (j) => !UNPUBLISHED.includes(j.status);
 const openJobs = () => jobs.filter(isLive);
 const todayIst = () => new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
@@ -469,7 +471,7 @@ Sitemap: ${BASE_URL}/sitemap.xml
 );
 
 app.get('/sitemap.xml', (req, res) =>
-  res.type('application/xml').send(seo.sitemap(BASE_URL, { jobs: openJobs().filter((j) => !isSample(j)), posts: livePosts(), staticPaths: ['/', '/jobs', '/categories', '/hire', '/services', ...catalog.SERVICES.map((x) => `/services/${x.slug}`), '/industries', ...catalog.INDUSTRIES.map((x) => `/industries/${x.slug}`), '/about', '/blog', '/contact', '/privacy', '/terms'] }))
+  res.type('application/xml').send(seo.sitemap(BASE_URL, { jobs: openJobs().filter((j) => !isSample(j)), posts: livePosts(), staticPaths: ['/', '/jobs', '/categories', '/hire', '/services', ...catalog.SERVICES.map((x) => `/services/${x.slug}`), '/industries', ...catalog.INDUSTRIES.map((x) => `/industries/${x.slug}`), '/about', '/blog', '/contact', '/privacy', '/terms', '/job-posting-policy'] }))
 );
 
 // Things a new install still needs before it is ready for visitors, shown to
@@ -721,8 +723,9 @@ app.get('/industries/:slug', (req, res, next) => {
 app.get('/about', (req, res) => res.render('about', { title: 'About Us', page: 'about' }));
 app.get('/contact', (req, res) => res.render('contact', { title: 'Contact Us', page: 'contact' }));
 // Bump LEGAL_UPDATED whenever the wording of either page changes.
-const LEGAL_UPDATED = '2026-10-29';
+const LEGAL_UPDATED = '2026-10-25';
 app.get('/privacy', (req, res) => res.render('privacy', { title: 'Privacy Policy', page: 'legal', updated: LEGAL_UPDATED, metaDescription: `How ${site.name} collects, uses and protects the personal data of candidates, clients and visitors.` }));
+app.get('/job-posting-policy', (req, res) => res.render('job-posting-policy', { title: 'Job posting rules', page: 'legal', updated: LEGAL_UPDATED, metaDescription: `What employers may and may not post on ${site.name}: real vacancies, honest pay, no fees from candidates.` }));
 app.get('/terms', (req, res) => res.render('terms', { title: 'Terms of Use', page: 'legal', updated: LEGAL_UPDATED, metaDescription: `The terms for using the ${site.name} website as a job seeker or employer.` }));
 app.get('/blog', (req, res) => res.render('blog', { title: 'Career Resources', page: 'blog', posts: livePosts() }));
 app.get('/blog/:slug', (req, res, next) => {
@@ -762,7 +765,10 @@ async function saveApplication(data, file, job, extra = {}) {
   }
   const record = { ...data, jobTitle: job ? job.title : 'General application', resume: file ? file.filename : '', resumeText, resumeSkills: found.skills, status: 'New', notes: '', ...extra };
   try {
-    return { app: saveSubmission('applications', record), updated: false };
+    const saved = saveSubmission('applications', record);
+    // The company's own job: tell the people working on it.
+    if (job) hiring.applied(saved, job);
+    return { app: saved, updated: false };
   } catch (err) {
     // The database's one-application-per-person rule caught a duplicate the
     // check above missed: keep the existing application.
@@ -874,6 +880,12 @@ const publicJob = (j) => ({
   qualifications: j.qualifications || [],
   education: j.education || null,
   schedule: j.schedule || null,
+  shift: j.shift || null,
+  hours: j.hours || null,
+  openings: j.openings || null,
+  workplaceAddress: j.address || null,
+  walkIn: Boolean(j.walkIn),
+  eligibility: j.eligibility || [],
   benefits: j.benefits || [],
   postedAt: j.posted,
   closesOn: j.closesOn || null,
@@ -1059,176 +1071,27 @@ const ownerFilter = (req) => (['me', 'none'].includes(req.query.owner) ? req.que
 const matchesOwner = (ownerId, filter, user) => (filter === 'me' ? ownerId === user.id : filter === 'none' ? !ownerId : ownerId === filter);
 const validOwner = (id) => (team.members().some((u) => u.id === id) ? id : '');
 
-interviews.register(app, { adminAuth, sameOrigin, readSubmissions, writeSubmissions, mailer, site, adminUrl, baseUrl: BASE_URL, limit });
+const interviewDesk = interviews.register(app, { adminAuth, sameOrigin, readSubmissions, writeSubmissions, mailer, site, adminUrl, baseUrl: BASE_URL, limit });
 const clients = employers.register(app, {
   db, site, mailer, baseUrl: BASE_URL, adminAuth, sameOrigin, adminUrl, limit, downloadLinks, linkExpired,
   readSubmissions, saveSubmission, getJobs: () => jobs, appStatuses: APP_STATUSES,
   writeSubmissions, uploadsDir: UPLOADS_DIR, skillMatch, placementsFor: (emp) => billing.forClient(emp), timesheetsFor: (emp) => timesheets.forClient(emp),
+  sms: require('./sms'), companyContext: () => ({ cities: jobLocations().filter((l) => l !== 'Remote'), states: INDIAN_STATES }),
 });
 
 // "Post a Job": signed-in clients go to their portal's requirement form;
 // everyone else to the hiring form on /hire.
 app.get('/post-a-job', (req, res) => res.redirect(clients.currentEmployer(req) ? '/employer/jobs/new' : '/employer/register'));
 
-// ---------- employers posting their own jobs ----------
-// An employer's job starts as a draft. Publishing sends it to the team for a
-// check; the team approves it (only for approved employers) and it goes live,
-// or rejects it with a reason. Changing a live job sends it back for review.
-const EMPLOYER_JOB_FIELDS = ['title', 'location', 'mode', 'type', 'category', 'experience', 'salaryMin', 'salaryMax', 'salaryPeriod', 'payNote', 'education', 'schedule', 'skills', 'description', 'responsibilities', 'qualifications', 'benefits', 'closesOn', 'resume'];
-const jobAsForm = (j) => ({
-  title: j.title, location: j.location, mode: j.mode, type: j.type, category: j.category, experience: j.experience || '',
-  salaryMin: j.pay && j.pay.min ? String(j.pay.min) : '', salaryMax: j.pay && j.pay.max ? String(j.pay.max) : '', salaryPeriod: (j.pay && j.pay.period) || 'month',
-  payNote: j.payNote || '', salary: j.pay ? '' : j.salary || '', education: j.education || '', schedule: j.schedule || '',
-  skills: (j.skills || []).join(', '), description: j.description, responsibilities: (j.responsibilities || []).join('\n'),
-  qualifications: (j.qualifications || []).join('\n'), benefits: (j.benefits || []).join('\n'), closesOn: j.closesOn || '', resume: j.resume || '', work: j.work || '',
-});
-// The employer's input (a form, or JSON where lists may be arrays and pay an
-// object) on top of the job as it is, with the company and owner fixed.
-function employerJobInput(emp, input, existing) {
-  const body = existing ? jobAsForm(existing) : { mode: 'On-site', type: 'Full-time', salaryPeriod: 'month' };
-  const src = { ...input };
-  if (src.pay && typeof src.pay === 'object') Object.assign(src, { salaryMin: src.pay.min ?? '', salaryMax: src.pay.max ?? '', salaryPeriod: src.pay.period ?? body.salaryPeriod });
-  for (const k of EMPLOYER_JOB_FIELDS) {
-    if (src[k] === undefined || src[k] === null) continue;
-    body[k] = Array.isArray(src[k]) ? src[k].join(k === 'skills' ? ', ' : '\n') : String(src[k]);
-    if (['salaryMin', 'salaryMax'].includes(k)) body.salary = '';
-  }
-  const { job, errors } = parseJob({ ...body, company: emp.company, employerId: emp.id, ownerId: existing ? existing.ownerId : '', status: 'open' });
-  return { job, errors };
-}
-const employerJobView = (j) => ({ ...publicJob(j), status: j.status, submittedAt: j.submittedAt || null, rejectedReason: j.status === 'rejected' ? j.rejectedReason || '' : null });
-const ownJob = (emp, id) => jobs.find((j) => j.id === id && j.employerId === emp.id);
-
-function createEmployerJob(emp, input) {
-  const { job, errors } = employerJobInput(emp, input, null);
-  if (errors.length) return { errors };
-  const created = { id: nextJobId(), ...job, status: 'draft', posted: todayIst(), createdBy: 'employer', sample: false };
-  jobs.push(created);
-  saveJobs();
-  return { job: created, errors: [] };
-}
-function updateEmployerJob(emp, job, input) {
-  const { job: next, errors } = employerJobInput(emp, input, job);
-  if (errors.length) return { errors };
-  const status = ['open', 'pending'].includes(job.status) ? 'pending' : job.status === 'closed' ? 'closed' : 'draft';
-  Object.assign(job, next, { status, updatedAt: new Date().toISOString() });
-  delete job.closedReason;
-  if (status === 'pending') {
-    job.submittedAt = job.updatedAt;
-    mailer.employerJobSubmitted(job, emp, employers.isApproved(emp), true);
-  }
-  saveJobs();
-  return { job, errors: [] };
-}
-function publishEmployerJob(emp, job) {
-  if (job.status === 'pending') return { job, errors: [] };
-  if (!['draft', 'rejected'].includes(job.status)) return { errors: ['only drafts and rejected jobs can be sent for review'] };
-  const { errors } = employerJobInput(emp, {}, job);
-  if (errors.length) return { errors };
-  Object.assign(job, { status: 'pending', submittedAt: new Date().toISOString() });
-  delete job.rejectedReason;
-  saveJobs();
-  mailer.employerJobSubmitted(job, emp, employers.isApproved(emp), false);
-  return { job, errors: [] };
-}
-
-const employerJobPage = (res, emp, job, errors, status = 200) =>
-  res.status(status).render('employer-job', { title: job.id ? 'Edit job' : 'Post a job', page: 'employer', noindex: true, emp, job, errors, modes, jobTypes: JOB_TYPES, categoryGroups: groupCategories(jobCategories()), jobLocations: jobLocations(), approved: employers.isApproved(emp) });
-const toPortal = (res, msg) => res.redirect(`/employer?msg=${encodeURIComponent(msg)}#jobs`);
-
-app.get('/employer/jobs/new', clients.requireEmployer, (req, res) => employerJobPage(res, req.employer, { mode: 'On-site', type: 'Full-time', status: 'draft', skills: [], responsibilities: [] }, []));
-
-app.post('/employer/jobs', clients.requireEmployer, limit('employer-jobs', 30), sameOrigin, (req, res) => {
-  const { job, errors } = createEmployerJob(req.employer, req.body);
-  if (errors.length) return employerJobPage(res, req.employer, { ...employerJobInput(req.employer, req.body, null).job, status: 'draft' }, errors, 400);
-  if (req.body.action === 'publish') {
-    publishEmployerJob(req.employer, job);
-    return toPortal(res, `"${job.title}" was sent to the ${site.name} team for a quick check. It goes live once approved.`);
-  }
-  toPortal(res, `"${job.title}" was saved as a draft.`);
-});
-
-app.get('/employer/jobs/:id/edit', clients.requireEmployer, (req, res, next) => {
-  const job = ownJob(req.employer, req.params.id);
-  if (!job) return next();
-  employerJobPage(res, req.employer, job, []);
-});
-
-app.post('/employer/jobs/:id', clients.requireEmployer, limit('employer-jobs', 30), sameOrigin, (req, res, next) => {
-  const job = ownJob(req.employer, req.params.id);
-  if (!job) return next();
-  const wasLive = job.status === 'open';
-  const { errors } = updateEmployerJob(req.employer, job, req.body);
-  if (errors.length) return employerJobPage(res, req.employer, { ...employerJobInput(req.employer, req.body, job).job, id: job.id, status: job.status }, errors, 400);
-  if (req.body.action === 'publish' && job.status === 'draft') {
-    publishEmployerJob(req.employer, job);
-    return toPortal(res, `"${job.title}" was sent for a quick check. It goes live once approved.`);
-  }
-  toPortal(res, wasLive ? `Changes to "${job.title}" were sent for a quick check; the job is hidden until they're approved.` : `Saved "${job.title}".`);
-});
-
-app.post('/employer/jobs/:id/publish', clients.requireEmployer, limit('employer-jobs', 30), sameOrigin, (req, res, next) => {
-  const job = ownJob(req.employer, req.params.id);
-  if (!job) return next();
-  const { errors } = publishEmployerJob(req.employer, job);
-  toPortal(res, errors.length ? `Could not send "${job.title}": ${errors.join(', ')}` : `"${job.title}" was sent for a quick check. It goes live once approved.`);
-});
-
-// The same as JSON for the employer's own tools. Signed-in client only (401
-// otherwise); another employer's job is "not found".
-const requireEmployerApi = (req, res, next) => {
-  const emp = clients.currentEmployer(req);
-  if (!emp) return res.status(401).json({ ok: false, errors: ['sign in to your employer account first'] });
-  req.employer = emp;
-  res.set('Cache-Control', 'no-store');
-  next();
-};
-const notYours = (res) => res.status(404).json({ ok: false, errors: ['job not found'] });
-
-app.post('/api/jobs', requireEmployerApi, limit('employer-jobs', 30), sameOrigin, (req, res) => {
-  const { job, errors } = createEmployerJob(req.employer, req.body || {});
-  if (errors.length) return res.status(400).json({ ok: false, errors });
-  res.status(201).json({ ok: true, job: employerJobView(job) });
-});
-
-app.patch('/api/jobs/:id', requireEmployerApi, limit('employer-jobs', 30), sameOrigin, (req, res) => {
-  const job = ownJob(req.employer, req.params.id);
-  if (!job) return notYours(res);
-  const { errors } = updateEmployerJob(req.employer, job, req.body || {});
-  if (errors.length) return res.status(400).json({ ok: false, errors });
-  res.json({ ok: true, job: employerJobView(job) });
-});
-
-app.post('/api/jobs/:id/publish', requireEmployerApi, limit('employer-jobs', 30), sameOrigin, (req, res) => {
-  const job = ownJob(req.employer, req.params.id);
-  if (!job) return notYours(res);
-  const { errors } = publishEmployerJob(req.employer, job);
-  if (errors.length) return res.status(400).json({ ok: false, errors });
-  res.json({ ok: true, job: employerJobView(job) });
-});
-
-// The team's decision on a job an employer sent for review.
-app.post('/admin/jobs/:id/approve', adminAuth, sameOrigin, (req, res, next) => {
-  const job = jobs.find((j) => j.id === req.params.id && j.status === 'pending');
-  if (!job) return next();
-  const emp = clients.read().find((c) => c.id === job.employerId);
-  if (emp && !employers.isApproved(emp)) return res.redirect(adminUrl('jobs', `Approve ${emp.company} under Clients first, then this job`));
-  Object.assign(job, { status: 'open', posted: todayIst(), approvedAt: new Date().toISOString(), approvedBy: req.admin.name });
-  const alerted = sendJobAlerts(job);
-  saveJobs();
-  if (emp) mailer.employerJobDecision(emp, job, true, '', `${BASE_URL}${jobPath(job)}`);
-  res.redirect(adminUrl('jobs', `"${job.title}" is live${alertedNote(alerted)}`));
-});
-
-app.post('/admin/jobs/:id/reject', adminAuth, sameOrigin, (req, res, next) => {
-  const job = jobs.find((j) => j.id === req.params.id && j.status === 'pending');
-  if (!job) return next();
-  const reason = String(req.body.reason || '').trim().slice(0, 500) || 'It does not meet our listing rules.';
-  Object.assign(job, { status: 'rejected', rejectedReason: reason, rejectedAt: new Date().toISOString(), rejectedBy: req.admin.name });
-  saveJobs();
-  const emp = clients.read().find((c) => c.id === job.employerId);
-  if (emp) mailer.employerJobDecision(emp, job, false, reason, `${BASE_URL}/employer/jobs/${job.id}/edit`);
-  res.redirect(adminUrl('jobs', `"${job.title}" was sent back to the employer`));
+// ---------- employers hiring for themselves ----------
+// Their jobs (draft, the team's check, live, paused, closed), the people who
+// applied, status changes and interviews: employer-hiring.js.
+const hiring = employerHiring.register(app, {
+  site, mailer, baseUrl: BASE_URL, limit, sameOrigin, adminAuth, adminUrl, clients, readSubmissions, writeSubmissions, uploadsDir: UPLOADS_DIR, downloadLinks, linkExpired,
+  getJobs: () => jobs, saveJobs, parseJob, nextJobId, todayIst, publicJob, jobPath, sendJobAlerts, alertedNote: (n) => alertedNote(n),
+  appStatuses: APP_STATUSES, moveStage: history.moveStage, interviewDesk, parseInterview: interviews.parseInterview, interviewModes: interviews.MODES, interviewDurations: interviews.DURATIONS,
+  formatIst: interviews.formatIst, skillMatch,
+  jobFormLocals: (job, errors) => ({ job, errors, modes, jobTypes: JOB_TYPES, categoryGroups: groupCategories(jobCategories()), workKinds: WORK_KINDS, jobLocations: jobLocations() }),
 });
 const billing = placements.register(app, {
   db, site, mailer, baseUrl: BASE_URL, adminAuth, requireAdmin, sameOrigin, adminUrl, readSubmissions, writeSubmissions,
@@ -1451,7 +1314,7 @@ function buildDashboard(applications, user) {
 
 // ----- jobs -----
 function parseJob(body) {
-  const data = clean(body, ['title', 'company', 'location', 'mode', 'type', 'category', 'experience', 'salary', 'payNote', 'education', 'schedule', 'skills', 'description', 'responsibilities', 'qualifications', 'benefits', 'status']);
+  const data = clean(body, ['title', 'company', 'location', 'mode', 'type', 'category', 'experience', 'salary', 'payNote', 'education', 'schedule', 'shift', 'hours', 'openings', 'address', 'eligibility', 'skills', 'description', 'responsibilities', 'qualifications', 'benefits', 'status']);
   const errors = [];
   for (const f of ['title', 'company', 'location', 'category', 'description']) if (!data[f]) errors.push(`${f} is required`);
   if (data.category && !jobCategories().includes(data.category)) errors.push('pick a category from the list (add new ones in Settings)');
@@ -1467,6 +1330,10 @@ function parseJob(body) {
   const closesOn = String(body.closesOn || '').trim();
   if (closesOn && (!/^\d{4}-\d{2}-\d{2}$/.test(closesOn) || Number.isNaN(Date.parse(closesOn)))) errors.push('closing date is invalid');
   else if (closesOn && data.status !== 'closed' && closesOn < todayIst()) errors.push('closing date is in the past (pick a later date, or leave it blank to keep the job open)');
+  if (data.shift && !SHIFTS.includes(data.shift)) errors.push(`shift must be one of: ${SHIFTS.join(', ')}`);
+  if (data.openings && !(/^\d{1,4}$/.test(data.openings) && Number(data.openings) >= 1)) errors.push('number of openings must be a whole number from 1 to 9999');
+  const walkIn = ['1', 'on', 'true'].includes(String(body.walkIn ?? ''));
+  if (walkIn && !data.address) errors.push('add the workplace address for walk-in interviews');
   const job = {
     title: data.title,
     company: data.company,
@@ -1484,6 +1351,12 @@ function parseJob(body) {
     salary: !typedPay && data.salary && parsed.pay ? data.salary : salaryText(parsed.pay, payNote),
     education: data.education.slice(0, 200),
     schedule: data.schedule.slice(0, 200),
+    shift: data.shift,
+    hours: data.hours.slice(0, 120),
+    openings: data.openings ? Number(data.openings) : null,
+    address: data.address.slice(0, 300),
+    walkIn,
+    eligibility: lines(data.eligibility),
     qualifications: lines(data.qualifications),
     benefits: lines(data.benefits),
     skills: data.skills.split(',').map((s) => s.trim()).filter(Boolean),
@@ -1545,7 +1418,10 @@ app.post('/admin/jobs/:id', adminAuth, sameOrigin, (req, res, next) => {
 app.post('/admin/jobs/:id/toggle', adminAuth, sameOrigin, (req, res, next) => {
   const job = jobs.find((j) => j.id === req.params.id);
   if (!job) return next();
+  // Drafts and jobs waiting for review go live through approval, not here.
+  if (['draft', 'pending', 'rejected'].includes(job.status)) return res.redirect(adminUrl('jobs', `"${job.title}" is ${job.status === 'pending' ? 'waiting for review: approve or send it back' : 'not published yet'}`));
   job.status = job.status === 'open' ? 'closed' : 'open';
+  if (job.status === 'open') delete job.pausedAt;
   // Reopening a job whose closing date has passed would close it again at once.
   const clearedDate = job.status === 'open' && job.closesOn && job.closesOn < todayIst();
   if (clearedDate) job.closesOn = null;

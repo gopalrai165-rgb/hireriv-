@@ -1,0 +1,42 @@
+<%- include('partials/head') %>
+
+<section class="section admin portal">
+  <div class="container">
+    <%- include('partials/employer-nav', { heading: 'Applicants', tab: 'applicants' }) %>
+
+    <form class="form filter-bar" method="get" action="/employer/applicants">
+      <label>Job
+        <select name="job"><option value="">All jobs</option><% jobs.forEach(function (j) { %><option value="<%= j.id %>"<%= jobId === j.id ? ' selected' : '' %>><%= j.title %> · <%= j.location %></option><% }) %></select>
+      </label>
+      <label>Status
+        <select name="status"><option value="">Any</option><% statuses.concat(['Withdrawn']).forEach(function (s) { %><option<%= status === s ? ' selected' : '' %>><%= s %></option><% }) %></select>
+      </label>
+      <button class="btn btn-outline btn-sm" type="submit">Filter</button>
+    </form>
+
+    <% if (!jobs.length) { %>
+      <p class="muted dash-empty">People who apply to the jobs you post appear here. For jobs <%= site.name %> runs for you, your account manager shares a shortlist on the <a href="/employer#shortlist">dashboard</a>.</p>
+    <% } else if (!rows.length) { %>
+      <p class="muted dash-empty">No applicants match.</p>
+    <% } else { %>
+      <div class="table-wrap dash-card">
+        <table>
+          <thead><tr><th>Applicant</th><th>Job</th><th>Status</th><th>Applied</th></tr></thead>
+          <tbody>
+            <% rows.forEach(function (v) { %>
+              <tr>
+                <td><a href="/employer/applicants/<%= v.id %>"><b><%= v.name %></b></a><br><span class="muted small"><%= [v.experience, v.location].filter(Boolean).join(' · ') || '—' %></span><% if (v.match) { %> <%- include('partials/match-chip', { match: v.match }) %><% } %></td>
+                <td><%= v.jobTitle %></td>
+                <td><span class="pill st-<%= v.status.toLowerCase() %>"><%= v.status %></span></td>
+                <td class="muted small"><%= formatDate(v.appliedAt) %></td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+    <% } %>
+    <p class="muted small">Applicants' details are for this hiring process only. Opening an applicant's details or resume is recorded in your company's activity log.</p>
+  </div>
+</section>
+
+<%- include('partials/foot') %>

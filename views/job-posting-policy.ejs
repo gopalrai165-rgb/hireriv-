@@ -1,0 +1,54 @@
+<%- include('partials/head') %>
+
+<section class="page-hero page-hero-sm">
+  <span class="deco deco-spark" aria-hidden="true"></span><span class="deco deco-dots" aria-hidden="true"></span><span class="deco deco-squiggle" aria-hidden="true"></span>
+  <div class="container narrow">
+    <span class="eyebrow">For employers</span>
+    <h1>Job posting rules</h1>
+    <p class="muted">Last updated <%= formatDate(updated) %></p>
+  </div>
+</section>
+
+<section class="section">
+  <article class="container narrow prose">
+    <p>Every job on <%= site.name %> is checked by our team before it goes live, and again whenever it changes. These rules keep job seekers safe and make listings worth reading. By posting a job you agree to them, along with our <a href="/terms">Terms of Use</a>.</p>
+
+    <h2>Real vacancies only</h2>
+    <ul>
+      <li>Post only jobs you are actually hiring for, at your own company or for a client you are authorised to hire for.</li>
+      <li>Close or pause a job once it is filled. Don't post the same job many times or in cities where you aren't hiring.</li>
+      <li>No business opportunities, franchise or agency sign-ups, multi-level marketing, or "work from home" schemes dressed up as jobs.</li>
+    </ul>
+
+    <h2>Never charge candidates</h2>
+    <ul>
+      <li>Do not ask candidates for any money: no registration, interview, training, uniform, kit, security deposit or "processing" fee.</li>
+      <li>Do not ask for Aadhaar, PAN, bank details or OTPs to apply or to book an interview. Collect identity and bank details only after an offer, for payroll and as the law requires.</li>
+    </ul>
+
+    <h2>Honest details</h2>
+    <ul>
+      <li>Give the real job title, location, employment type, shift and working hours.</li>
+      <li>Show pay as a real range. If you'd rather not say, leave it blank: the job shows "Not disclosed". Don't inflate pay to attract applicants.</li>
+      <li>Mention any travel, night work, targets or commission-only pay clearly.</li>
+    </ul>
+
+    <h2>Fair hiring</h2>
+    <ul>
+      <li>Don't exclude people because of religion, caste, gender, marital status, disability or other personal characteristics, except where a law specifically requires it. Eligibility must be about the job, such as licences, certifications or age limits set by law.</li>
+      <li>Use applicants' details only for this hiring process. Don't share them outside your hiring team or add them to marketing lists.</li>
+    </ul>
+
+    <h2>Reporting a job</h2>
+    <p>Job seekers can report any job from its page. If a listing breaks these rules, or someone asks you for money in an employer's name, write to <a href="mailto:<%= site.email %>"><%= site.email %></a>.</p>
+
+    <h2>What we do</h2>
+    <ul>
+      <li>We may ask for changes before approving a job, or decline it.</li>
+      <li>We may take a live job down, pause an employer's posting, or close an employer account that breaks these rules, and report fraud to the police.</li>
+      <li>We keep a record of who posted and changed each job, and who viewed applicants, to investigate complaints.</li>
+    </ul>
+  </article>
+</section>
+
+<%- include('partials/foot') %>

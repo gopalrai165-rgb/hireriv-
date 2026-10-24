@@ -1,0 +1,64 @@
+<%- include('partials/head') %>
+
+<section class="section admin portal">
+  <div class="container">
+    <%- include('partials/employer-nav', { heading: 'Your settings', tab: 'settings' }) %>
+
+    <div class="dash-grid">
+      <section class="dash-card">
+        <div class="dash-head"><h2>Your details</h2></div>
+        <form class="form" method="post" action="/employer/settings">
+          <div class="form-grid">
+            <label class="span-2">Name*<input name="name" required maxlength="120" autocomplete="name" value="<%= user.name %>"></label>
+            <label class="span-2">Email<input value="<%= user.email %>" disabled></label>
+            <label class="span-2">Mobile<input type="tel" name="phone" maxlength="20" autocomplete="tel" inputmode="tel" value="<%= user.phone || '' %>"></label>
+          </div>
+          <button class="btn btn-primary" type="submit">Save</button>
+        </form>
+      </section>
+
+      <section class="dash-card" id="mobile">
+        <div class="dash-head"><h2>Mobile verification</h2><span class="pill <%= user.phoneVerifiedAt ? 'st-hired' : 'st-screening' %>"><%= user.phoneVerifiedAt ? 'Verified' : 'Not verified' %></span></div>
+        <% if (user.phoneVerifiedAt) { %>
+          <p class="muted small"><%= user.phone %> was verified on <%= formatDate(user.phoneVerifiedAt) %>.</p>
+        <% } else if (!user.phone) { %>
+          <p class="muted small">Add your mobile number above, then verify it with a code. Companies that signed up on <%= site.name %> need it before sending jobs for review.</p>
+        <% } else { %>
+          <p class="muted small">We'll text a 6-digit code to <%= user.phone %>. It expires in 10 minutes.</p>
+          <form method="post" action="/employer/settings/phone/send"><button class="btn btn-outline btn-sm" type="submit"><%= codeSent ? 'Send a new code' : 'Send code' %></button></form>
+          <% if (codeSent) { %>
+            <form class="form inline-form" method="post" action="/employer/settings/phone/verify">
+              <label>Code<input name="code" inputmode="numeric" autocomplete="one-time-code" pattern="\d{6}" maxlength="6" required></label>
+              <button class="btn btn-primary btn-sm" type="submit">Verify</button>
+            </form>
+          <% } %>
+          <% if (!smsReady) { %><p class="muted small">Text messages aren't set up on this site yet, so the code goes to the site's message outbox. Ask your account manager if it doesn't arrive.</p><% } %>
+        <% } %>
+      </section>
+
+      <section class="dash-card">
+        <div class="dash-head"><h2>Change password</h2></div>
+        <form class="form" method="post" action="/employer/settings/password">
+          <div class="form-grid">
+            <label class="span-2">Current password<input type="password" name="current" required autocomplete="current-password"></label>
+            <label>New password<input type="password" name="password" required minlength="10" autocomplete="new-password"></label>
+            <label>Confirm<input type="password" name="confirm" required minlength="10" autocomplete="new-password"></label>
+          </div>
+          <button class="btn btn-primary" type="submit">Change password</button>
+          <p class="muted small form-note">At least 10 characters. You'll be signed out on your other devices.</p>
+        </form>
+      </section>
+
+      <% if (myCompanies.length > 1) { %>
+        <section class="dash-card">
+          <div class="dash-head"><h2>Your companies</h2></div>
+          <ul class="activity">
+            <% myCompanies.forEach(function (x) { %><li><span class="activity-row"><span class="activity-text"><b><%= x.employer.company %></b></span><span class="muted small"><%= x.member.role === 'owner' ? 'Company owner' : x.member.role === 'manager' ? 'Hiring manager' : x.member.role === 'recruiter' ? 'Recruiter' : 'Viewer' %></span></span></li><% }) %>
+          </ul>
+        </section>
+      <% } %>
+    </div>
+  </div>
+</section>
+
+<%- include('partials/foot') %>
