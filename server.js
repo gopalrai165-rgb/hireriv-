@@ -478,11 +478,16 @@ app.get('/jobs/:id', (req, res, next) => {
   if (!job) return next();
   const related = openJobs().filter((j) => j.category === job.category && j.id !== job.id).slice(0, 3);
   const open = job.status === 'open';
+  // Signed-in candidates get one-click applying with their profile.
+  const account = candidateAccounts.accountForJob(req, job);
+  if (account) res.set('Cache-Control', 'private, no-store');
   res.render('job', {
     title: `${job.title} – ${job.location}`,
     page: 'jobs',
     job,
     related,
+    account,
+    msg: account ? String(req.query.msg || '').slice(0, 200) : '',
     quick: !resumeNeeded(job),
     whatsappApply: whatsappApplyLink(job),
     metaDescription: `${job.title} (${job.type}, ${job.mode}) in ${job.location}${job.experience ? `, ${job.experience}` : ''}${job.salary ? `, ${job.salary}` : ''}. ${job.description}`.slice(0, 300),
@@ -544,7 +549,7 @@ app.get('/industries/:slug', (req, res, next) => {
 app.get('/about', (req, res) => res.render('about', { title: 'About Us', page: 'about' }));
 app.get('/contact', (req, res) => res.render('contact', { title: 'Contact Us', page: 'contact' }));
 // Bump LEGAL_UPDATED whenever the wording of either page changes.
-const LEGAL_UPDATED = '2026-10-24';
+const LEGAL_UPDATED = '2026-10-25';
 app.get('/privacy', (req, res) => res.render('privacy', { title: 'Privacy Policy', page: 'legal', updated: LEGAL_UPDATED, metaDescription: `How ${site.name} collects, uses and protects the personal data of candidates, clients and visitors.` }));
 app.get('/terms', (req, res) => res.render('terms', { title: 'Terms of Use', page: 'legal', updated: LEGAL_UPDATED, metaDescription: `The terms for using the ${site.name} website as a job seeker or employer.` }));
 app.get('/blog', (req, res) => res.render('blog', { title: 'Career Resources', page: 'blog', posts: livePosts() }));
@@ -806,6 +811,7 @@ const candidateAccounts = candidates.register(app, {
   db, mailer, baseUrl: BASE_URL, sameOrigin, limit, readSubmissions, writeSubmissions,
   uploadsDir: UPLOADS_DIR, getJobs: () => jobs, formatIst: interviews.formatIst, interviewIcs, site,
   contractsFor: (email) => timesheets.forCandidate(email),
+  upload, saveApplication, isBot, isSample, resumeNeeded, skillMatch, saveSubmission, jobCategories, jobLocations,
 });
 const timesheets = timesheetsModule.register(app, {
   db, mailer, baseUrl: BASE_URL, sameOrigin, limit, adminAuth, requireAdmin, clients,

@@ -53,7 +53,7 @@ function periodRange(key) {
 const SOURCE_NAMES = {
   whatsapp: 'WhatsApp share', linkedin: 'LinkedIn', 'job-alert': 'Job alert email', share: 'Shared link',
   google: 'Google', facebook: 'Facebook', instagram: 'Instagram', naukri: 'Naukri', indeed: 'Indeed',
-  direct: 'Direct / typed in', website: 'Our website',
+  direct: 'Direct / typed in', website: 'Our website', account: 'Candidate account',
 };
 // How candidates reached the team when a recruiter adds them by hand.
 const MANUAL_SOURCES = {

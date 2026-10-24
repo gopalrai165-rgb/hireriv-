@@ -1277,3 +1277,23 @@ main:focus { outline: none; }
 .all-cats ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
 .all-cats li { display: flex; justify-content: space-between; gap: 10px; padding: 6px 0; border-bottom: 1px solid var(--line); }
 @media (max-width: 860px) { .all-cats { grid-template-columns: 1fr; } }
+
+/* ---------- job-seeker accounts ---------- */
+.nav-register { font-weight: 600; }
+.register-wrap { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 520px); gap: 48px; align-items: start; }
+.register-wrap .auth-card { max-width: none; }
+.register-intro h1 { font-size: clamp(2rem, 4vw, 2.6rem); margin: .3em 0 .4em; }
+@media (max-width: 900px) { .register-wrap { grid-template-columns: 1fr; gap: 24px; } }
+.check-row { display: flex; gap: 10px; align-items: flex-start; font-weight: 500; font-size: .92rem; }
+.check-row input { width: auto; margin-top: 4px; flex: none; }
+.notice p { margin: 0; }
+.one-click { display: grid; gap: 10px; }
+.one-click p { margin: 0; }
+.one-click-hint, .register-note { margin-top: 12px; }
+.match-list, .alert-list { list-style: none; padding: 0; margin: 0 0 12px; display: grid; gap: 0; }
+.match-list li, .alert-list li { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--line); }
+.match-list li:last-child, .alert-list li:last-child { border-bottom: 0; }
+.match-list li > div { display: grid; gap: 2px; min-width: 0; }
+.dash-sub { font-size: 1rem; margin: 22px 0 6px; }
+.inline-upload { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; }
+.inline-upload .file-field { flex: 1 1 220px; }

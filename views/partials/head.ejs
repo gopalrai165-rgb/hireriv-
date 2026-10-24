@@ -43,10 +43,11 @@
       <details class="nav-login">
         <summary>Login</summary>
         <div class="nav-login-menu">
-          <a href="/account/login"><b>Job seekers</b><span>Track your applications</span></a>
+          <a href="/account/login"><b>Job seekers</b><span>Your profile, applications and alerts</span></a>
           <a href="/employer/login"><b>Employers</b><span>Your roles, candidates and invoices</span></a>
         </div>
       </details>
+      <a href="/account/register" class="nav-register <%= page === 'account' ? 'active' : '' %>">Register</a>
       <a href="/post-a-job" class="btn btn-primary btn-sm nav-cta">Post a Job</a>
     </nav>
     <a href="/saved" class="mobile-saved" aria-label="Saved jobs"><svg class="i"><use href="#i-bookmark"/></svg><span class="saved-count" hidden></span></a>

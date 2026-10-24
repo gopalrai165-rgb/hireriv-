@@ -57,7 +57,22 @@
         <a href="/jobs" class="btn btn-primary btn-block">See open jobs</a>
       <% } else { %>
         <h2>Apply for this job</h2>
-        <%- include('partials/apply-form', { jobId: job.id, quick: quick, whatsappApply: whatsappApply }) %>
+        <% if (msg) { %><p class="notice" role="status"><%= msg %></p><% } %>
+        <% if (account && account.applied) { %>
+          <p class="notice">You applied for this job on <%= formatDate(account.applied) %>.</p>
+          <a href="/account" class="btn btn-primary btn-block">Track it in My account</a>
+        <% } else if (account && !account.missing.length) { %>
+          <div class="one-click">
+            <p class="small muted">Apply with your saved profile:</p>
+            <p><b><%= account.name %></b><br><span class="small"><%= account.email %> · <%= account.phone %><%= account.hasResume ? ' · resume on file' : '' %></span></p>
+            <form method="post" action="/account/apply/<%= job.id %>"><button class="btn btn-primary btn-block" type="submit">Apply in one click</button></form>
+            <p class="small muted">Something out of date? <a href="/account#profile">Update your profile</a> first.</p>
+          </div>
+        <% } else { %>
+          <% if (account) { %><p class="notice small">Add <%= account.missing.join(' and ') %> to <a href="/account#profile">your profile</a> to apply in one click, or use the form below.</p><% } %>
+          <%- include('partials/apply-form', { jobId: job.id, quick: quick, whatsappApply: whatsappApply }) %>
+          <% if (!account) { %><p class="small muted one-click-hint">Have an account? <a href="/account/login">Sign in</a> to apply in one click. New? <a href="/account/register">Create one free</a>.</p><% } %>
+        <% } %>
       <% } %>
     </aside>
   </div>

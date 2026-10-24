@@ -120,7 +120,7 @@ function createMailer(site) {
         html:
           p(`Your application for <b>${esc(a.jobTitle)}</b> is with our recruitment team.`) +
           p('A recruiter will review your profile and get back to you within 2 working days. If your experience is a strong match, we\'ll call you to talk about the role and next steps.') +
-          p(`You can follow your application any time at <a href="${esc(baseUrl)}/account/login" style="color:#123B70">My applications</a> (sign in with this email address).`) +
+          p(`You can follow your application any time at <a href="${esc(baseUrl)}/account/login" style="color:#123B70">your account</a> (sign in with this email address, no password needed).`) +
           p(`Meanwhile, take a look at our other <a href="${esc(baseUrl)}/jobs" style="color:#123B70">open roles</a>.`),
       });
     },
@@ -143,7 +143,7 @@ function createMailer(site) {
         heading: `Thanks, ${first(a.name)}`,
         html:
           p(`You'd already applied for <b>${esc(a.jobTitle)}</b>, so instead of a second application we've updated your existing one with your new resume and details. Your recruiter can see the changes.`) +
-          p(`You can follow your application any time at <a href="${esc(baseUrl)}/account/login" style="color:#123B70">My applications</a> (sign in with this email address).`),
+          p(`You can follow your application any time at <a href="${esc(baseUrl)}/account/login" style="color:#123B70">your account</a> (sign in with this email address, no password needed).`),
       });
     },
 
@@ -420,13 +420,41 @@ function createMailer(site) {
       });
     },
 
+    // A job seeker created an account (stored as a general application). The
+    // team hears about new sign-ups only; the candidate always gets a link.
+    candidateRegistered(a, link, hours, isNew) {
+      if (isNew) {
+        send(site, {
+          to: teamInbox,
+          replyTo: a.email,
+          subject: `New candidate account: ${a.name}`,
+          heading: 'A job seeker created an account',
+          html:
+            detailsTable([
+              ['Name', a.name], ['Email', a.email], ['Phone', a.phone], ['Skills', a.skills], ['Experience', a.experience],
+              ['Location', a.location], ['Notice period', a.noticePeriod], ['LinkedIn', a.linkedin], ['Resume', a.resume ? 'Uploaded' : 'Not yet'],
+            ]) + button(`${baseUrl}/admin?tab=applications`, 'See in admin'),
+        });
+      }
+      send(site, {
+        to: a.email,
+        subject: `Welcome to ${site.name}: open your account`,
+        heading: `Welcome, ${first(a.name)}!`,
+        html:
+          p(isNew ? 'Your job-seeker account is ready. Use the button below to sign in and see jobs that match your profile.' : 'You already have an account with this email, so we\'ve updated your profile with the details you just gave. Use the button below to sign in.') +
+          button(link, 'Open my account') +
+          p('In your account you can apply to jobs in one click with your saved profile and resume, set up job alerts and follow every application.') +
+          p(`<span style="color:#6b7690;font-size:13px">This link works once and expires in ${hours} hours. Later, sign in any time at ${esc(baseUrl)}/account/login with this email. Didn't create an account? Ignore this email.</span>`),
+      });
+    },
+
     candidateSignIn(email, link, minutes) {
       send(site, {
         to: email,
         subject: `Your ${site.name} sign-in link`,
-        heading: 'Sign in to My applications',
+        heading: 'Sign in to your account',
         html:
-          p('Use the button below to see the status of your applications, upcoming interviews and your profile.') +
+          p('Use the button below to see your applications, upcoming interviews, jobs that match your profile and your job alerts.') +
           button(link, 'Sign in') +
           p(`<span style="color:#6b7690;font-size:13px">This link works once and expires in ${minutes} minutes. Didn't ask for it? You can ignore this email.</span>`),
       });
