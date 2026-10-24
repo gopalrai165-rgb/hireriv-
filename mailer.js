@@ -277,6 +277,17 @@ function createMailer(site) {
       });
     },
 
+    // Two-step sign-in changes, so someone notices if it wasn't them.
+    teamSecurityNotice(user, subject, message) {
+      send(site, {
+        to: user.email,
+        replyTo: teamInbox,
+        subject: `${site.name}: ${subject}`,
+        heading: subject,
+        html: p(`Hi ${first(user.name)}, ${esc(message)}`) + button(`${baseUrl}/admin/security`, 'Review sign-in security'),
+      });
+    },
+
     employerInvite(emp, link, hours) {
       send(site, {
         to: emp.email,

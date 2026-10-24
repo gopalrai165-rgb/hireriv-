@@ -348,6 +348,7 @@ function setupTodo() {
   if (!b.legalName || !b.gstin || !b.bank) todo.push({ text: 'Add your legal name, GSTIN and bank details for invoices', href: settings });
   if (!process.env.SMTP_HOST) todo.push({ text: 'Set up email sending (SMTP_HOST). Until then emails are only saved to data/outbox' });
   if (process.env.NODE_ENV === 'production' && !process.env.SITE_URL) todo.push({ text: 'Set SITE_URL to your live https:// address' });
+  if (!team.requires2fa()) todo.push({ text: 'Protect team sign-ins: turn on two-step sign-in for yourself, then require it for the team', href: '/admin/security' });
   return todo;
 }
 
@@ -624,7 +625,7 @@ app.post('/api/newsletter', limit('newsletter', 5), (req, res) => {
 // ---------- admin (team logins; see team.js) ----------
 // ADMIN_USER / ADMIN_PASS is the built-in owner account; everyone else is
 // invited from the Team tab and signs in with their own email and password.
-const team = teamModule.create({ db, mailer, baseUrl: BASE_URL, ownerUser: ADMIN_USER, ownerPass: ADMIN_PASS });
+const team = teamModule.create({ db, mailer, site, baseUrl: BASE_URL, ownerUser: ADMIN_USER, ownerPass: ADMIN_PASS, resetOwner2fa: process.env.RESET_OWNER_2FA === '1' });
 const { adminAuth, requireAdmin } = team;
 
 // Data retention (off unless switched on in Settings): runs at start and daily.
@@ -711,7 +712,7 @@ app.get('/admin', adminAuth, (req, res) => {
   const pageOf = (list) => paginate(list, { page: req.query.page, size: ADMIN_PAGE_SIZE, query: req.query, path: '/admin' });
 
   if (tab === 'dashboard') return res.render('admin', { ...locals, rows: [], dash: buildDashboard(applications, req.admin), setupTodo: req.admin.role === 'Admin' ? setupTodo() : [] });
-  if (tab === 'team') return res.render('admin', { ...locals, rows: team.list(), roles: team.ROLES });
+  if (tab === 'team') return res.render('admin', { ...locals, rows: team.list(), roles: team.ROLES, requires2fa: team.requires2fa(), my2fa: team.has2fa(req.admin.id) });
   if (tab === 'templates') return res.render('admin', { ...locals, rows: templates.read(), placeholders: bulk.PLACEHOLDERS });
   if (tab === 'reports') return res.render('admin', { ...locals, rows: [], report: reports.build({ period: String(req.query.period || ''), isAdmin: req.admin.role === 'Admin' }), inr: billing.inr });
   if (tab === 'activity') {

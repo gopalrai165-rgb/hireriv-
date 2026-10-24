@@ -1164,3 +1164,21 @@ main:focus { outline: none; }
 .testimonial-edit .span-2 { grid-column: 1 / -1; }
 .testimonial-edit label { display: flex; flex-direction: column; gap: 6px; font-size: .82rem; font-weight: 600; color: var(--ink); }
 @media (max-width: 620px) { .testimonial-edit { grid-template-columns: 1fr; } }
+
+/* Sign-in security (two-step sign-in) */
+.qr-box { width: 200px; margin: 12px 0; padding: 0; background: #fff; border-radius: 12px; overflow: hidden; border: 1px solid var(--line); }
+.qr-box svg { display: block; width: 100%; height: auto; }
+.setup-steps { padding-left: 1.2em; display: grid; gap: 10px; }
+.setup-key { font-size: 1rem; letter-spacing: .06em; word-break: break-all; }
+.code-input { font-size: 1.3rem; letter-spacing: .25em; font-variant-numeric: tabular-nums; }
+.inline-code { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px; margin: 16px 0 0; }
+.inline-code label { flex: 1 1 240px; }
+.recovery-codes { columns: 2; column-gap: 32px; padding-left: 1.6em; margin: 14px 0; }
+.recovery-codes li { margin: 4px 0; }
+.recovery-codes code { font-size: 1.05rem; letter-spacing: .05em; }
+.recovery-card { border: 2px solid var(--primary); }
+.two-step-card { margin-bottom: 20px; }
+@media (max-width: 480px) { .recovery-codes { columns: 1; } }
+@media print {
+  .page-admin .site-header, .page-admin .site-footer, .page-admin .back-link, .page-admin main section.form-card:not(.recovery-card), .page-admin main form { display: none !important; }
+}

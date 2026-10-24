@@ -259,6 +259,16 @@ if (ivMode) {
 // Invoices: print (or save as PDF from the print dialog).
 document.querySelectorAll('[data-print]').forEach((btn) => btn.addEventListener('click', () => window.print()));
 
+// Copy a block of text, e.g. recovery codes on Sign-in security.
+document.querySelectorAll('[data-copy]').forEach((btn) => btn.addEventListener('click', async () => {
+  try {
+    await navigator.clipboard.writeText(btn.dataset.copy);
+    toast('Copied. Paste them somewhere safe.');
+  } catch {
+    window.prompt('Copy these:', btn.dataset.copy);
+  }
+}));
+
 // Admin: selects that save as soon as they change (e.g. placement status).
 document.querySelectorAll('select[data-autosubmit]').forEach((sel) => sel.addEventListener('change', () => sel.form.submit()));
 

@@ -8,9 +8,23 @@
 </form>
 <p class="muted small talent-summary"><b>Admin</b>: everything, including billing, settings, the team, the activity log, backups and deleting records. <b>Recruiter</b>: jobs, candidates, interviews, shortlists, clients and recording placements, but no invoices, payments, settings or deletions.</p>
 
+<section class="form-card two-step-card" id="two-step">
+  <h2>Two-step sign-in</h2>
+  <% const using = rows.filter(function (u) { return u.active && u.twoFactorOn; }).length; const activeCount = rows.filter(function (u) { return u.active; }).length; %>
+  <p class="muted small"><%= using %> of <%= activeCount %> active member<%= activeCount === 1 ? '' : 's' %> sign in with a code from an authenticator app after their password. Each person sets it up under <a href="/admin/security">Sign-in security</a>.</p>
+  <% if (requires2fa) { %>
+    <p><span class="pill st-hired">Required for everyone</span> Anyone without it is asked to set it up before they can use the admin panel.</p>
+    <form method="post" action="/admin/team/require-2fa" data-confirm="Make two-step sign-in optional again?"><input type="hidden" name="require" value="0"><button class="btn btn-outline btn-sm">Make it optional</button></form>
+  <% } else if (my2fa) { %>
+    <form method="post" action="/admin/team/require-2fa" data-confirm="Require two-step sign-in for everyone? People without it will have to set it up the next time they open the admin panel."><input type="hidden" name="require" value="1"><button class="btn btn-primary btn-sm">Require it for the whole team</button></form>
+  <% } else { %>
+    <p class="small">To require it for the team, first <a href="/admin/security">turn it on for your own account</a>.</p>
+  <% } %>
+</section>
+
 <div class="table-wrap">
   <table>
-    <thead><tr><th>Member</th><th>Role</th><th>Account</th><th></th></tr></thead>
+    <thead><tr><th>Member</th><th>Role</th><th>Account</th><th>Two-step</th><th></th></tr></thead>
     <tbody>
       <% rows.forEach(function (u) { %>
         <tr>
@@ -29,7 +43,9 @@
             <% } else if (u.pending) { %><span class="pill st-screening"><%= u.linkExpired ? 'Invite expired' : 'Invite pending' %></span>
             <% } else { %><span class="pill st-hired">Active</span><% } %>
           </td>
+          <td><%= u.twoFactorOn ? 'On' : 'Off' %></td>
           <td class="row-actions">
+            <% if (u.twoFactorOn && u.id !== admin.id) { %><form method="post" action="/admin/team/<%= u.id %>/reset-2fa" data-confirm="Reset two-step sign-in for <%= u.name %>? Use this if they lost their phone. They'll be signed out and can set it up again."><button class="btn btn-outline btn-sm">Reset two-step</button></form><% } %>
             <% if (!u.builtIn) { %>
               <% if (u.active) { %><form method="post" action="/admin/team/<%= u.id %>/invite"><button class="btn btn-outline btn-sm"><%= u.pending ? 'Resend invite' : 'Send reset link' %></button></form><% } %>
               <% if (u.id !== admin.id) { %><form method="post" action="/admin/team/<%= u.id %>/toggle"<% if (u.active) { %> data-confirm="Deactivate <%= u.name %>? They'll be signed out and can't sign in."<% } %>><button class="btn btn-sm <%= u.active ? 'btn-danger' : 'btn-outline' %>"><%= u.active ? 'Deactivate' : 'Re-activate' %></button></form><% } %>

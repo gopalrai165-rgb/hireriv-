@@ -1,0 +1,61 @@
+<%- include('partials/head') %>
+
+<section class="section admin">
+  <div class="container narrow">
+    <% if (!required || on) { %><a href="/admin" class="back-link">← Admin</a><% } %>
+    <h1>Sign-in security</h1>
+    <p class="muted">Signed in as <b><%= admin.name %></b> (<%= admin.email %>)</p>
+    <% if (msg) { %><p class="notice" role="status"><%= msg %></p><% } %>
+    <% if (required && !on) { %><p class="notice notice-err" role="alert">Your team requires two-step sign-in. Set it up below to carry on to the admin panel.</p><% } %>
+
+    <% if (codes) { %>
+      <section class="form-card recovery-card" aria-labelledby="codes-h">
+        <h2 id="codes-h">Your recovery codes</h2>
+        <p>If you lose your phone, each of these lets you sign in once instead of an app code. <b>They won't be shown again.</b> Print them or save them in a password manager.</p>
+        <ol class="recovery-codes"><% codes.forEach(function (c) { %><li><code><%= c %></code></li><% }) %></ol>
+        <p><button class="btn btn-outline btn-sm" type="button" data-print>Print</button> <button class="btn btn-outline btn-sm" type="button" data-copy="<%= codes.join('\n') %>">Copy all</button></p>
+      </section>
+    <% } %>
+
+    <section class="form-card">
+      <h2>Two-step sign-in</h2>
+      <% if (on) { %>
+        <p><span class="pill st-hired">On</span> <span class="muted small">since <%= formatDate(enabledAt) %> · <%= recoveryLeft %> of 10 recovery codes unused</span></p>
+        <p class="muted small">After your password you enter a code from your authenticator app. <% if (recoveryLeft <= 3) { %><b>You're running low on recovery codes; make new ones below.</b><% } %></p>
+
+        <form class="form inline-code" method="post" action="/admin/security/recovery">
+          <label>Make new recovery codes (the old ones stop working)<input name="code" required autocomplete="one-time-code" inputmode="numeric" maxlength="12" placeholder="Current app code"></label>
+          <button class="btn btn-outline btn-sm" type="submit">Make new codes</button>
+        </form>
+        <% if (!required) { %>
+          <form class="form inline-code" method="post" action="/admin/security/off" data-confirm="Turn off two-step sign-in? Only your password will be needed to sign in.">
+            <label>Turn off two-step sign-in<input name="code" required autocomplete="one-time-code" inputmode="numeric" maxlength="12" placeholder="Current app code"></label>
+            <button class="btn btn-danger btn-sm" type="submit">Turn off</button>
+          </form>
+        <% } else { %><p class="muted small">Your team requires two-step sign-in, so it can't be turned off. Changed phones? Ask an Admin to reset it, then set it up again.</p><% } %>
+      <% } else if (setup) { %>
+        <ol class="setup-steps">
+          <li>Install an authenticator app on your phone if you don't have one: Google Authenticator, Microsoft Authenticator or Authy all work.</li>
+          <li>In the app, add an account and scan this QR code.
+            <figure class="qr-box"><%- setup.qr %></figure>
+            <details><summary>Can't scan it?</summary><p class="small">Choose "Enter a setup key" in the app and type this key (time-based):</p><p><code class="setup-key"><%= setup.key %></code></p><p class="small">On this phone? <a href="<%= setup.url %>">Open in the authenticator app</a></p></details>
+          </li>
+          <li>Enter the 6-digit code the app now shows for <%= site.name %>.</li>
+        </ol>
+        <form class="form inline-code" method="post" action="/admin/security/confirm">
+          <label>Code from the app<input class="code-input" name="code" required autofocus autocomplete="one-time-code" inputmode="numeric" pattern="[0-9 ]{6,7}" maxlength="7"></label>
+          <button class="btn btn-primary" type="submit">Turn on</button>
+        </form>
+        <p class="muted small">This QR code works for 15 minutes. If it runs out, start again.</p>
+      <% } else { %>
+        <p><span class="pill st-screening">Off</span></p>
+        <p>Add a second step to signing in: after your password, you'll type a 6-digit code from an app on your phone. Someone who learns your password still can't get in without your phone.</p>
+        <form method="post" action="/admin/security/start"><button class="btn btn-primary" type="submit">Set up two-step sign-in</button></form>
+      <% } %>
+    </section>
+
+    <% if (required && !on) { %><form method="post" action="/admin/logout"><button class="link-btn small" type="submit">Sign out</button></form><% } %>
+  </div>
+</section>
+
+<%- include('partials/foot') %>
