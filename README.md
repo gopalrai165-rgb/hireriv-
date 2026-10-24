@@ -117,6 +117,15 @@ Everything the site stores (jobs, blog posts, settings, applications, requests, 
 - **Location:** set `DB_FILE` to keep the database somewhere else (e.g. a mounted disk).
 - Client and candidate sign-ins are stored in the database, so restarting the server keeps everyone signed in.
 
+### Optional: PostgreSQL copy of the jobs data
+Set `DATABASE_URL` (e.g. `postgres://hireriv:password@localhost:5432/hireriv` in `.env`) and the site also keeps the jobs data in PostgreSQL: jobs, their places, categories (under the three kinds of work), skills, applications and saved jobs, in proper tables with keys, indexes and rules (pay minimum ≤ maximum, one live application per person per job, full-text search). SQLite stays the main store; leave `DATABASE_URL` unset and nothing changes.
+
+- **Schema:** reviewed SQL files in `db/postgres/migrations/`. The server applies any pending ones when it starts (recorded in `schema_migrations`); `npm run pg:migrate` applies them ahead of a deploy.
+- **Kept up to date:** every saved change is copied moments later, in one transaction, only the rows that changed. On start the server copies anything Postgres missed while it was away.
+- **Search:** `GET /api/jobs` searches Postgres when it's connected and up to date, with the same filters, sorting and paging as the site. Keywords match the start of words ("dev" finds "developer"). If Postgres is down or behind, the API answers from the built-in search, and the site never waits for Postgres.
+- **Privacy:** no names, emails or phone numbers go to Postgres. Applications and saved jobs carry a keyed one-way hash of the candidate instead.
+- **Tests:** set `TEST_DATABASE_URL` to a Postgres where you may create schemas and `npm test` runs the Postgres tests too (each run uses its own schema and drops it). Without it they're skipped.
+
 > The testimonials, stats and sample jobs are placeholders. Replace them with real ones before going live.
 
 ## Go-live checklist

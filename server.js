@@ -9,7 +9,8 @@ const seo = require('./seo');
 const { skillMatch, buildPool, searchPool, phoneKey, candidateKey } = require('./match');
 const search = require('./search');
 const uploadSafety = require('./uploads');
-const { jobPath, findJobBySlug, parsePost, parseSettings, SOCIAL, DEFAULT_JOB_CATEGORIES, DEFAULT_JOB_LOCATIONS, SAMPLE_TESTIMONIALS, MAX_TESTIMONIALS, WORK_KINDS, WORK_KEYS, CATEGORY_WORK, workOf, workOfCategory, RESUME_OPTIONS, resumeNeeded, JOB_GROUPS, inGroup } = require('./content');
+const pgMirror = require('./pg');
+const { jobSlug, jobPath, findJobBySlug, parsePost, parseSettings, SOCIAL, DEFAULT_JOB_CATEGORIES, DEFAULT_JOB_LOCATIONS, SAMPLE_TESTIMONIALS, MAX_TESTIMONIALS, WORK_KINDS, WORK_KEYS, CATEGORY_WORK, workOf, workOfCategory, RESUME_OPTIONS, resumeNeeded, JOB_GROUPS, inGroup } = require('./content');
 const interviews = require('./interviews');
 const employers = require('./employers');
 const candidates = require('./candidates');
@@ -230,6 +231,32 @@ const APP_STATUSES = ['New', 'Screening', 'Interview', 'Offered', 'Hired', 'Reje
 // ---------- submissions (one collection per form type, newest first) ----------
 const readSubmissions = (type) => db.all(type);
 const writeSubmissions = (type, list) => db.replaceAll(type, list);
+
+// ---------- PostgreSQL copy of the jobs data (only with DATABASE_URL) ----------
+// Jobs, their places, categories and skills, applications and saved jobs are
+// copied to Postgres moments after each save, and /api/jobs searches there.
+// Candidates appear only as a keyed hash, never by name, email or phone.
+if (!db.metaGet('secret:pg-hash')) db.metaSet('secret:pg-hash', crypto.randomBytes(32).toString('hex'));
+const PG_HASH_SECRET = db.metaGet('secret:pg-hash');
+const pg = process.env.DATABASE_URL
+  ? pgMirror.create({
+    url: process.env.DATABASE_URL,
+    schema: process.env.PG_SCHEMA || '',
+    source: () => ({ jobs, applications: readSubmissions('applications'), savedJobs: readSubmissions('saved-jobs'), categories: jobCategories() }),
+    describe: {
+      workOf, workOfCategory, slugOf: jobSlug, stateOf: search.stateOf, monthlyMax: search.monthlyMax, experienceRange: search.experienceRange,
+      quickApply: (j) => !resumeNeeded(j), groupKeys: (j) => JOB_GROUPS.filter((g) => inGroup(g, j)).map((g) => g.key),
+    },
+    candidateHash: (r) => crypto.createHmac('sha256', PG_HASH_SECRET).update(candidateKey(r)).digest('hex'),
+    levels: search.EXPERIENCE_LEVELS,
+    words: search.words,
+    log: (m) => console.log(m),
+  })
+  : null;
+if (pg) {
+  db.onChange((collection) => { if (['jobs', 'applications', 'saved-jobs', 'site'].includes(collection)) pg.changed(); });
+  pg.start().catch((err) => console.error(`Postgres unavailable (the site keeps working from SQLite): ${err.message}`));
+}
 
 function saveSubmission(type, record) {
   const entry = { id: crypto.randomUUID(), createdAt: new Date().toISOString(), ...record };
@@ -854,7 +881,7 @@ const publicJob = (j) => ({
   url: `${BASE_URL}${jobPath(j)}`,
 });
 
-app.get('/api/jobs', limit('job-search', 120, 60 * 1000), (req, res) => {
+app.get('/api/jobs', limit('job-search', 120, 60 * 1000), async (req, res) => {
   const { filters: f, errors } = jobFilters(req.query);
   const int = (k, def, max) => {
     const v = req.query[k];
@@ -865,12 +892,24 @@ app.get('/api/jobs', limit('job-search', 120, 60 * 1000), (req, res) => {
   const page = int('page', 1, 1000);
   const size = int('limit', JOBS_PAGE_SIZE, API_MAX_LIMIT);
   if (errors.length) return res.status(400).json({ ok: false, errors });
-  const found = findJobs(openJobs().filter((j) => !isSample(j)), f);
-  const total = found.jobs.length;
-  res.set('Cache-Control', 'public, max-age=60').json({
-    ok: true, total, page, limit: size, pages: Math.max(1, Math.ceil(total / size)), sort: found.sort,
-    jobs: found.jobs.slice((page - 1) * size, page * size).map(publicJob),
+  const send = (total, sort, list) => res.set('Cache-Control', 'public, max-age=60').json({
+    ok: true, total, page, limit: size, pages: Math.max(1, Math.ceil(total / size)), sort, jobs: list.map(publicJob),
   });
+  // Postgres when it's connected and up to date; the same search in memory otherwise.
+  if (pg && pg.usable()) {
+    try {
+      await pg.flush();
+      const found = pg.usable() && (await pg.search(f, { page, size }));
+      if (found) {
+        const byId = new Map(jobs.map((j) => [j.id, j]));
+        return send(found.total, found.sort, found.ids.map((id) => byId.get(id)).filter((j) => j && isLive(j) && !isSample(j)));
+      }
+    } catch (err) {
+      console.error(`Postgres search failed, used the built-in search: ${err.message}`);
+    }
+  }
+  const found = findJobs(openJobs().filter((j) => !isSample(j)), f);
+  send(found.jobs.length, found.sort, found.jobs.slice((page - 1) * size, page * size));
 });
 
 app.get('/api/jobs/:id', limit('job-search', 120, 60 * 1000), (req, res) => {

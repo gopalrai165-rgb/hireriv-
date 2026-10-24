@@ -41,7 +41,7 @@ async function startServer(env = {}, seed = {}, { sampleJobs = false } = {}) {
     cwd: ROOT,
     env: {
       ...process.env, PORT: String(port), DB_FILE: paths.db, UPLOADS_DIR: paths.uploads, OUTBOX_DIR: paths.outbox,
-      ADMIN_PASS, SITE_URL: '', SMTP_HOST: '', NODE_ENV: 'test', TRUST_PROXY: '', ...env,
+      ADMIN_PASS, SITE_URL: '', SMTP_HOST: '', NODE_ENV: 'test', TRUST_PROXY: '', DATABASE_URL: '', PG_SCHEMA: '', ...env,
     },
     stdio: ['ignore', 'pipe', 'pipe'],
   });

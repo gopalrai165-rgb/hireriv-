@@ -10,9 +10,9 @@ No production code or database was changed for this audit. It added this file, [
 | --- | --- | --- |
 | Frontend | React / Next.js | Server-rendered EJS pages with a small `public/js/main.js`. Every page is SEO-ready already (Google for Jobs data, sitemap, share images) |
 | Backend | Node.js, Express or NestJS | Node.js 22 + Express 4 |
-| Database | PostgreSQL | SQLite through Node's built-in `node:sqlite` (`db.js`), with JSON documents grouped by collection, transactions, daily verified backups |
+| Database | PostgreSQL | SQLite through Node's built-in `node:sqlite` (`db.js`), with JSON documents grouped by collection, transactions, daily verified backups. Since Step 48, the jobs data is also kept in PostgreSQL tables when `DATABASE_URL` is set (`pg.js`, `db/postgres/migrations/`) |
 | File storage | Private object storage | `uploads/` on the server's disk, served only through signed-in routes |
-| Search | Postgres full-text | In-memory filtering and ranking (`match.js`), including resume text |
+| Search | Postgres full-text | In-memory filtering and ranking (`search.js`, `match.js`), including resume text. With `DATABASE_URL`, `/api/jobs` uses Postgres full-text search (Step 48) |
 | Auth | Secure sessions/tokens | Server-side sessions (hashed tokens) for team, clients and candidates; scrypt passwords; two-step sign-in for the team |
 
 **Recommendation: keep the current stack, and don't rewrite to Next.js + PostgreSQL now.** The plan's own rule is "reuse completed features instead of rebuilding working dashboards", and 39 tested steps already cover most of it. A rewrite would take months to get back to where the site is today. SQLite on one server comfortably handles a staffing business's volume (hundreds of thousands of applications).
@@ -97,7 +97,7 @@ Each item keeps what exists working and adds to it. Size: S ≈ one step, M ≈ 
 | 9 | **Employer packages** (job-post credits or subscriptions) with online payment, e.g. Razorpay | The plan's subscription revenue | L |
 | 10 | **Government jobs information** with source links, a verification step and a non-affiliation notice | Optional traffic driver | M |
 | 11 | **International recruitment**, only after the Emigration Act registration | Legal requirement | L |
-| 12 | **PostgreSQL**, only if a trigger in section 1 happens | Not needed yet | L |
+| 12 | ✅ **Started in Step 48**: the jobs data (jobs, places, categories, skills, applications, saved jobs) is kept in PostgreSQL and searched there. Moving the rest only if a trigger in section 1 happens | Not needed yet | L |
 
 Step 41 also made Google for Jobs read per-month, per-day and per-hour pay, and added a job-type filter to Find Work (part of item 3). Walk-in was left out of job types: it describes how candidates are interviewed rather than the job, so it fits better as a job detail later.
 

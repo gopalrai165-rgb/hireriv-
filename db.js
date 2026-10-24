@@ -36,6 +36,9 @@ function open(file) {
   if (!db.prepare('PRAGMA table_info(records)').all().some((c) => c.name === 'ukey')) db.exec('ALTER TABLE records ADD COLUMN ukey TEXT');
   db.exec('CREATE UNIQUE INDEX IF NOT EXISTS records_unique ON records (collection, ukey) WHERE ukey IS NOT NULL');
   const keyFns = {};
+  // Called with the collection's name after each committed write.
+  const listeners = [];
+  const changed = (collection) => listeners.forEach((fn) => fn(collection));
   const keyOf = (collection, doc) => (keyFns[collection] ? keyFns[collection](doc) || null : null);
 
   const q = {
@@ -79,12 +82,17 @@ function open(file) {
         q.clear.run(collection);
         list.forEach((doc, i) => q.put.run(collection, idOf(doc, i), i, JSON.stringify(doc), keyOf(collection, doc)));
       });
+      changed(collection);
     },
 
     // Add one document at the front (newest first), as submissions expect.
     prepend(collection, doc) {
       tx(() => q.put.run(collection, idOf(doc, 0), q.minPos.get(collection).p - 1, JSON.stringify(doc), keyOf(collection, doc)));
+      changed(collection);
     },
+
+    // fn(collection) runs after every write that commits (e.g. to copy it elsewhere).
+    onChange: (fn) => listeners.push(fn),
 
     // Register the unique key for a collection: fn(doc) returns a string, or
     // null for documents the rule doesn't cover. Writes that would break it
