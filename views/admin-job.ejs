@@ -32,9 +32,9 @@
           <span class="muted small">Add or rename categories in <a href="/admin?tab=settings#job-categories">Settings</a>.</span>
         </label>
         <label>Kind of work
-          <select name="collar">
-            <option value="">Same as the category<%= job.category ? ' (' + collarLabel(collarOf({ category: job.category })) + ')' : '' %></option>
-            <% collars.forEach(function (c) { %><option value="<%= c.key %>"<%= c.key === job.collar ? ' selected' : '' %>><%= c.label %> (<%= c.also %>)</option><% }) %>
+          <select name="work">
+            <option value="">Same as the category<%= job.category ? ' (' + workLabel(workOf({ category: job.category })) + ')' : '' %></option>
+            <% workKinds.forEach(function (c) { %><option value="<%= c.key %>"<%= c.key === job.work ? ' selected' : '' %>><%= c.label %></option><% }) %>
           </select>
           <span class="muted small">Sets which tab the job appears under on Find Work. Change it for jobs that don't fit their category, e.g. a site supervisor in Construction.</span>
         </label>

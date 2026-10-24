@@ -8,7 +8,7 @@ const EMPLOYMENT_TYPES = { 'Full-time': 'FULL_TIME', 'Part-time': 'PART_TIME', C
 const VALID_DAYS = 60;
 
 // Salary text → a range Google for Jobs understands, or null (e.g. "Competitive").
-// "₹14 – 20 LPA" is per year; blue-collar pay is usually per month, day or hour:
+// "₹14 – 20 LPA" is per year; skilled, factory and field jobs usually pay per month, day or hour:
 // "₹16,000 – 20,000 per month", "₹800/day".
 function parseSalary(text) {
   const s = String(text || '');

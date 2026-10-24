@@ -7,7 +7,7 @@ const { createMailer } = require('./mailer');
 const { open: openDb } = require('./db');
 const seo = require('./seo');
 const { skillMatch, buildPool, searchPool } = require('./match');
-const { parsePost, parseSettings, SOCIAL, DEFAULT_JOB_CATEGORIES, DEFAULT_JOB_LOCATIONS, SAMPLE_TESTIMONIALS, MAX_TESTIMONIALS, COLLARS, COLLAR_KEYS, CATEGORY_COLLAR, collarOf, collarOfCategory } = require('./content');
+const { parsePost, parseSettings, SOCIAL, DEFAULT_JOB_CATEGORIES, DEFAULT_JOB_LOCATIONS, SAMPLE_TESTIMONIALS, MAX_TESTIMONIALS, WORK_KINDS, WORK_KEYS, CATEGORY_WORK, workOf, workOfCategory } = require('./content');
 const interviews = require('./interviews');
 const employers = require('./employers');
 const candidates = require('./candidates');
@@ -59,7 +59,7 @@ const saveSite = () => db.replaceAll('site', [site]);
 if (!db.metaGet('upgraded:categories-v2')) {
   if (Array.isArray(site.jobCategories)) {
     const have = new Set(site.jobCategories.map((c) => c.toLowerCase()));
-    const added = Object.keys(CATEGORY_COLLAR).filter((c) => !have.has(c.toLowerCase()));
+    const added = Object.keys(CATEGORY_WORK).filter((c) => !have.has(c.toLowerCase()));
     if (added.length) {
       site.jobCategories = [...site.jobCategories, ...added].slice(0, 50);
       saveSite();
@@ -137,7 +137,7 @@ const categoriesOf = (list) => [...new Set(list.map((j) => j.category))];
 // The category list from Settings, plus any older category a job still uses.
 const jobCategories = () => [...new Set([...(site.jobCategories || DEFAULT_JOB_CATEGORIES), ...categoriesOf(jobs)])];
 // Categories split by kind of work, for grouped dropdowns.
-const groupCategories = (list) => COLLARS.map((c) => ({ ...c, categories: list.filter((cat) => collarOfCategory(cat) === c.key) })).filter((g) => g.categories.length);
+const groupCategories = (list) => WORK_KINDS.map((c) => ({ ...c, categories: list.filter((cat) => workOfCategory(cat) === c.key) })).filter((g) => g.categories.length);
 const locationsOf = (list) => [...new Set(list.map((j) => j.location))].sort();
 // The location list from Settings plus any a job still uses, A–Z with Remote first.
 const jobLocations = () =>
@@ -282,8 +282,8 @@ app.use(express.static(path.join(__dirname, 'public'), { maxAge: '1h' }));
 
 app.locals.site = site;
 app.locals.catalog = catalog;
-app.locals.collarOf = collarOf;
-app.locals.collarLabel = (key) => (COLLARS.find((c) => c.key === key) || COLLARS[0]).label;
+app.locals.workOf = workOf;
+app.locals.workLabel = (key) => (WORK_KINDS.find((c) => c.key === key) || WORK_KINDS[0]).label;
 // The homepage shows these until real testimonials are saved in Settings.
 app.locals.testimonialsFor = (s) => (Array.isArray(s.testimonials) ? s.testimonials : SAMPLE_TESTIMONIALS);
 app.locals.maxTestimonials = MAX_TESTIMONIALS;
@@ -374,8 +374,8 @@ function setupTodo() {
 // ---------- pages ----------
 app.get('/', (req, res) => {
   const live = openJobs();
-  const collarCounts = live.reduce((n, j) => ({ ...n, [collarOf(j)]: (n[collarOf(j)] || 0) + 1 }), {});
-  res.render('index', { title: 'Staffing & Recruitment Solutions', page: 'home', jobs: live.slice(0, 6), posts: livePosts().slice(0, 3), categories: categoriesOf(live), locations: jobLocations(), collars: COLLARS, collarCounts, jsonLd: seo.homePage(site, BASE_URL) });
+  const workCounts = live.reduce((n, j) => ({ ...n, [workOf(j)]: (n[workOf(j)] || 0) + 1 }), {});
+  res.render('index', { title: 'Staffing & Recruitment Solutions', page: 'home', jobs: live.slice(0, 6), posts: livePosts().slice(0, 3), categories: categoriesOf(live), locations: jobLocations(), workKinds: WORK_KINDS, workCounts, jsonLd: seo.homePage(site, BASE_URL) });
 });
 
 const JOBS_PAGE_SIZE = 20;
@@ -383,30 +383,30 @@ app.get('/jobs', (req, res) => {
   const live = openJobs();
   const q = String(req.query.q || '').trim().toLowerCase();
   const { category = '', location = '', mode = '', type = '' } = req.query;
-  const collar = COLLAR_KEYS.includes(req.query.collar) ? req.query.collar : '';
+  const work = WORK_KEYS.includes(req.query.work) ? req.query.work : '';
   const matches = (j, skip) =>
     (!q || [j.title, j.company, j.description, ...j.skills].join(' ').toLowerCase().includes(q)) &&
     (!category || j.category === category) &&
     (!location || j.location === location) &&
     (!mode || j.mode === mode) &&
     (!type || j.type === type) &&
-    (skip === 'collar' || !collar || collarOf(j) === collar);
+    (skip === 'work' || !work || workOf(j) === work);
   const results = live.filter((j) => matches(j));
   // Kind-of-work counts follow the other filters, so each tab says what it would show.
-  const collarCounts = live.filter((j) => matches(j, 'collar')).reduce((n, j) => ({ ...n, [collarOf(j)]: (n[collarOf(j)] || 0) + 1 }), {});
-  const { rows, pager } = paginate(results, { page: req.query.page, size: JOBS_PAGE_SIZE, query: { q: req.query.q, collar, category, location, mode, type }, path: '/jobs' });
+  const workCounts = live.filter((j) => matches(j, 'work')).reduce((n, j) => ({ ...n, [workOf(j)]: (n[workOf(j)] || 0) + 1 }), {});
+  const { rows, pager } = paginate(results, { page: req.query.page, size: JOBS_PAGE_SIZE, query: { q: req.query.q, work, category, location, mode, type }, path: '/jobs' });
   res.render('jobs', {
     title: pager.page > 1 ? `Find Work – page ${pager.page}` : 'Find Work',
     page: 'jobs',
     results: rows,
     pager,
     // Pages of the unfiltered list are canonical; filtered views point to /jobs.
-    canonical: `${BASE_URL}/jobs${pager.page > 1 && !(q || collar || category || location || mode || type) ? `?page=${pager.page}` : ''}`,
-    filters: { q: req.query.q || '', collar, category, location, mode, type },
+    canonical: `${BASE_URL}/jobs${pager.page > 1 && !(q || work || category || location || mode || type) ? `?page=${pager.page}` : ''}`,
+    filters: { q: req.query.q || '', work, category, location, mode, type },
     categories: jobCategories(),
     categoryGroups: groupCategories(jobCategories()),
-    collars: COLLARS,
-    collarCounts,
+    workKinds: WORK_KINDS,
+    workCounts,
     jobTypes: JOB_TYPES,
     typeCounts: live.reduce((n, j) => ({ ...n, [j.type]: (n[j.type] || 0) + 1 }), {}),
     categoryCounts: live.reduce((n, j) => ({ ...n, [j.category]: (n[j.category] || 0) + 1 }), {}),
@@ -899,7 +899,7 @@ function parseJob(body) {
     type: data.type,
     category: data.category,
     // Empty means "from the category", so re-categorising a job moves it too.
-    collar: COLLAR_KEYS.includes(body.collar) ? body.collar : '',
+    work: WORK_KEYS.includes(body.work) ? body.work : '',
     experience: data.experience,
     salary: data.salary,
     skills: data.skills.split(',').map((s) => s.trim()).filter(Boolean),
@@ -921,7 +921,7 @@ function nextJobId() {
 }
 
 const jobFormLocals = (job, errors) => ({
-  title: job.id ? 'Edit job' : 'Post a job', page: 'admin', job, errors, modes, jobTypes: JOB_TYPES, jobCategories: jobCategories(), categoryGroups: groupCategories(jobCategories()), collars: COLLARS, categoryCollar: CATEGORY_COLLAR, jobLocations: jobLocations(), clientOptions: clients.read(), members: team.members(),
+  title: job.id ? 'Edit job' : 'Post a job', page: 'admin', job, errors, modes, jobTypes: JOB_TYPES, jobCategories: jobCategories(), categoryGroups: groupCategories(jobCategories()), workKinds: WORK_KINDS, jobLocations: jobLocations(), clientOptions: clients.read(), members: team.members(),
 });
 
 app.get('/admin/jobs/new', adminAuth, (req, res) =>

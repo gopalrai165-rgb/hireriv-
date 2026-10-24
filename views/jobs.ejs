@@ -32,13 +32,13 @@
         <option value="">Any job type</option>
         <% jobTypes.forEach(function (t) { %><option value="<%= t %>" <%= filters.type === t ? 'selected' : '' %>><%= t %> (<%= typeCounts[t] || 0 %>)</option><% }) %>
       </select>
-      <% if (filters.collar) { %><input type="hidden" name="collar" value="<%= filters.collar %>"><% } %>
+      <% if (filters.work) { %><input type="hidden" name="work" value="<%= filters.work %>"><% } %>
       <button class="btn btn-primary" type="submit">Search</button>
     </form>
-    <% const withCollar = function (key) { const q = Object.assign({}, filters, { collar: key }); return '/jobs?' + Object.keys(q).filter(function (k) { return q[k]; }).map(function (k) { return k + '=' + encodeURIComponent(q[k]); }).join('&'); }; %>
-    <nav class="collar-tabs" aria-label="Kind of work">
-      <a href="<%= withCollar('').replace(/\?$/, '') %>"<%- !filters.collar ? ' aria-current="page"' : '' %>>All work</a>
-      <% collars.forEach(function (c) { %><a href="<%= withCollar(c.key) %>" title="<%= c.also %>: <%= c.examples %>"<%- filters.collar === c.key ? ' aria-current="page"' : '' %>><%= c.label %> <span class="count"><%= collarCounts[c.key] || 0 %></span></a><% }) %>
+    <% const withWork = function (key) { const q = Object.assign({}, filters, { work: key }); return '/jobs?' + Object.keys(q).filter(function (k) { return q[k]; }).map(function (k) { return k + '=' + encodeURIComponent(q[k]); }).join('&'); }; %>
+    <nav class="work-tabs" aria-label="Kind of work">
+      <a href="<%= withWork('').replace(/\?$/, '') %>"<%- !filters.work ? ' aria-current="page"' : '' %>>All work</a>
+      <% workKinds.forEach(function (c) { %><a href="<%= withWork(c.key) %>" title="<%= c.examples %>"<%- filters.work === c.key ? ' aria-current="page"' : '' %>><%= c.label %> <span class="count"><%= workCounts[c.key] || 0 %></span></a><% }) %>
     </nav>
   </div>
 </section>
@@ -47,7 +47,7 @@
   <div class="container">
     <div class="results-head">
       <p><b><%= pager.total %></b> <%= pager.total === 1 ? 'job' : 'jobs' %> found</p>
-      <% if (filters.q || filters.collar || filters.category || filters.location || filters.mode || filters.type) { %><a href="/jobs" class="small">Clear filters</a><% } %>
+      <% if (filters.q || filters.work || filters.category || filters.location || filters.mode || filters.type) { %><a href="/jobs" class="small">Clear filters</a><% } %>
     </div>
     <% if (results.length) { %>
       <div class="jobs-grid">

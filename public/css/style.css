@@ -1184,22 +1184,21 @@ main:focus { outline: none; }
 }
 
 /* Kinds of work: Find Work tabs and homepage cards */
-.collar-tabs { position: relative; z-index: 1; display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
-.collar-tabs a { display: inline-flex; align-items: center; gap: 8px; padding: 8px 16px; border-radius: 999px; background: #fff; border: 1px solid var(--line); color: var(--ink); font-weight: 600; font-size: .92rem; text-decoration: none; }
-.collar-tabs a:hover { border-color: var(--primary); }
-.collar-tabs a[aria-current="page"] { background: var(--primary); border-color: var(--primary); color: #fff; }
-.collar-tabs .count { font-size: .8rem; font-weight: 700; padding: 1px 8px; border-radius: 999px; background: var(--tint); color: var(--muted); }
-.collar-tabs a[aria-current="page"] .count { background: rgba(255, 255, 255, .22); color: #fff; }
-.collar-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; }
-.collar-card { display: flex; flex-direction: column; padding: 30px; border-radius: 26px; border: 1px solid var(--line); color: var(--text); text-decoration: none; transition: transform .3s, box-shadow .3s; }
-.collar-card:hover { transform: translateY(-6px); box-shadow: var(--shadow-lg); }
-.collar-card h3 { font-size: 1.35rem; margin: 0 0 2px; color: var(--ink); }
-.collar-card .muted { margin: 0 0 12px; }
-.collar-card .path-icon { width: 54px; height: 54px; border-radius: 18px; margin-bottom: 16px; }
-.collar-white { background: linear-gradient(180deg, #fff, var(--sky-50)); }
-.collar-grey { background: linear-gradient(180deg, #fff, var(--violet-50)); }
-.collar-grey .path-icon { background: linear-gradient(120deg, #7c5cff, #2f6bff); }
-.collar-blue { background: linear-gradient(180deg, #fff, var(--sun-50)); }
-.collar-blue .path-icon { background: var(--grad-sun); box-shadow: 0 14px 28px -10px rgba(255, 140, 30, .6); }
-.collar-more { margin-top: auto; padding-top: 8px; display: inline-flex; align-items: center; gap: 6px; font-weight: 700; color: var(--primary); }
-@media (max-width: 860px) { .collar-cards { grid-template-columns: 1fr; } }
+.work-tabs { position: relative; z-index: 1; display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+.work-tabs a { display: inline-flex; align-items: center; gap: 8px; padding: 8px 16px; border-radius: 999px; background: #fff; border: 1px solid var(--line); color: var(--ink); font-weight: 600; font-size: .92rem; text-decoration: none; }
+.work-tabs a:hover { border-color: var(--primary); }
+.work-tabs a[aria-current="page"] { background: var(--primary); border-color: var(--primary); color: #fff; }
+.work-tabs .count { font-size: .8rem; font-weight: 700; padding: 1px 8px; border-radius: 999px; background: var(--tint); color: var(--muted); }
+.work-tabs a[aria-current="page"] .count { background: rgba(255, 255, 255, .22); color: #fff; }
+.work-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; }
+.work-card { display: flex; flex-direction: column; padding: 30px; border-radius: 26px; border: 1px solid var(--line); color: var(--text); text-decoration: none; transition: transform .3s, box-shadow .3s; }
+.work-card:hover { transform: translateY(-6px); box-shadow: var(--shadow-lg); }
+.work-card h3 { font-size: 1.35rem; margin: 0 0 8px; color: var(--ink); }
+.work-card .path-icon { width: 54px; height: 54px; border-radius: 18px; margin-bottom: 16px; }
+.work-office { background: linear-gradient(180deg, #fff, var(--sky-50)); }
+.work-skilled { background: linear-gradient(180deg, #fff, var(--violet-50)); }
+.work-skilled .path-icon { background: linear-gradient(120deg, #7c5cff, #2f6bff); }
+.work-field { background: linear-gradient(180deg, #fff, var(--sun-50)); }
+.work-field .path-icon { background: var(--grad-sun); box-shadow: 0 14px 28px -10px rgba(255, 140, 30, .6); }
+.work-more { margin-top: auto; padding-top: 8px; display: inline-flex; align-items: center; gap: 6px; font-weight: 700; color: var(--primary); }
+@media (max-width: 860px) { .work-cards { grid-template-columns: 1fr; } }

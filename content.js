@@ -57,21 +57,21 @@ const DEFAULT_JOB_CATEGORIES = [
 
 // Kinds of work, so office jobs and shop-floor jobs are both easy to find.
 // Each job gets one from its category unless the job form picks another.
-const COLLARS = [
-  { key: 'white', label: 'Office & professional', also: 'White-collar', examples: 'Developers, accountants, sales, HR, marketing, managers' },
-  { key: 'grey', label: 'Skilled & technical', also: 'Grey-collar', examples: 'Electricians, welders, CNC operators, field technicians, lab and nursing staff' },
-  { key: 'blue', label: 'Industrial, field & service', also: 'Blue-collar', examples: 'Factory, warehouse, delivery, drivers, security, housekeeping, kitchen, store staff' },
+const WORK_KINDS = [
+  { key: 'office', label: 'Office & professional', examples: 'Developers, accountants, sales, HR, marketing, managers' },
+  { key: 'skilled', label: 'Skilled & technical', examples: 'Electricians, welders, CNC operators, field technicians, lab and nursing staff' },
+  { key: 'field', label: 'Industrial, field & service', examples: 'Factory, warehouse, delivery, drivers, security, housekeeping, kitchen, store staff' },
 ];
-const COLLAR_KEYS = COLLARS.map((c) => c.key);
-const CATEGORY_COLLAR = {
-  'Skilled Trades': 'grey', 'Technicians & Field Service': 'grey', 'Healthcare Technicians & Nursing': 'grey',
-  'Factory & Production': 'blue', 'Warehouse & Packing': 'blue', 'Delivery & Driving': 'blue', 'Construction & Site Work': 'blue',
-  'Security Services': 'blue', 'Housekeeping & Facility Services': 'blue', 'Hotel & Restaurant Staff': 'blue', 'Store & Counter Staff': 'blue',
-  'Domestic Help & Caregiving': 'blue', 'Events & Promotions': 'blue', 'Agriculture & Farm Work': 'blue',
+const WORK_KEYS = WORK_KINDS.map((c) => c.key);
+const CATEGORY_WORK = {
+  'Skilled Trades': 'skilled', 'Technicians & Field Service': 'skilled', 'Healthcare Technicians & Nursing': 'skilled',
+  'Factory & Production': 'field', 'Warehouse & Packing': 'field', 'Delivery & Driving': 'field', 'Construction & Site Work': 'field',
+  'Security Services': 'field', 'Housekeeping & Facility Services': 'field', 'Hotel & Restaurant Staff': 'field', 'Store & Counter Staff': 'field',
+  'Domestic Help & Caregiving': 'field', 'Events & Promotions': 'field', 'Agriculture & Farm Work': 'field',
 };
 // Categories added in Settings count as office work unless a job says otherwise.
-const collarOfCategory = (category) => CATEGORY_COLLAR[category] || 'white';
-const collarOf = (job) => (COLLAR_KEYS.includes(job.collar) ? job.collar : collarOfCategory(job.category));
+const workOfCategory = (category) => CATEGORY_WORK[category] || 'office';
+const workOf = (job) => (WORK_KEYS.includes(job.work) ? job.work : workOfCategory(job.category));
 
 // Job locations offered on the job form, the Find Work filter and job alerts.
 const DEFAULT_JOB_LOCATIONS = [
@@ -183,4 +183,4 @@ function parseSettings(body, current) {
   return { settings: next, errors };
 }
 
-module.exports = { parsePost, slugify, parseSettings, SOCIAL, DEFAULT_JOB_CATEGORIES, DEFAULT_JOB_LOCATIONS, SAMPLE_TESTIMONIALS, MAX_TESTIMONIALS, COLLARS, COLLAR_KEYS, CATEGORY_COLLAR, collarOf, collarOfCategory };
+module.exports = { parsePost, slugify, parseSettings, SOCIAL, DEFAULT_JOB_CATEGORIES, DEFAULT_JOB_LOCATIONS, SAMPLE_TESTIMONIALS, MAX_TESTIMONIALS, WORK_KINDS, WORK_KEYS, CATEGORY_WORK, workOf, workOfCategory };

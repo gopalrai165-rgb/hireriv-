@@ -121,15 +121,14 @@
       <h2>Office, skilled or on the ground</h2>
       <p>Whatever work you do, there's a recruiter here who hires for it. Applying is free for candidates, always.</p>
     </div>
-    <div class="collar-cards">
-      <% const collarIcons = { white: 'i-briefcase', grey: 'i-gear', blue: 'i-truck' }; %>
-      <% collars.forEach(function (c) { %>
-        <a class="collar-card collar-<%= c.key %> reveal" href="/jobs?collar=<%= c.key %>">
-          <span class="path-icon"><svg class="i"><use href="#<%= collarIcons[c.key] %>"/></svg></span>
+    <div class="work-cards">
+      <% const workIcons = { office: 'i-briefcase', skilled: 'i-gear', field: 'i-truck' }; %>
+      <% workKinds.forEach(function (c) { %>
+        <a class="work-card work-<%= c.key %> reveal" href="/jobs?work=<%= c.key %>">
+          <span class="path-icon"><svg class="i"><use href="#<%= workIcons[c.key] %>"/></svg></span>
           <h3><%= c.label %></h3>
-          <p class="muted small"><%= c.also %></p>
           <p><%= c.examples %></p>
-          <span class="collar-more"><%= collarCounts[c.key] ? collarCounts[c.key] + ' open job' + (collarCounts[c.key] === 1 ? '' : 's') : 'See jobs' %> <svg class="i"><use href="#i-arrow"/></svg></span>
+          <span class="work-more"><%= workCounts[c.key] ? workCounts[c.key] + ' open job' + (workCounts[c.key] === 1 ? '' : 's') : 'See jobs' %> <svg class="i"><use href="#i-arrow"/></svg></span>
         </a>
       <% }) %>
     </div>

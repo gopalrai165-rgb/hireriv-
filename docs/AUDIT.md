@@ -65,9 +65,9 @@ Checks found nothing wrong: every team route requires a team sign-in, every Admi
 
 ## 5. Coverage of the all-industry plan
 
-**White-collar:** well covered. There are 16 job categories (Technology, Finance, BFSI, Sales, Marketing, HR, Legal, Education, Healthcare, Engineering, Admin…), Remote/Hybrid modes, and executive search.
+**Office & professional jobs:** well covered. There are 16 job categories (Technology, Finance, BFSI, Sales, Marketing, HR, Legal, Education, Healthcare, Engineering, Admin…), Remote/Hybrid modes, and executive search.
 
-**Blue-collar and grey-collar: mostly missing.** Job categories have no separate home for factory and production, warehouse, delivery and driving, skilled trades, security, housekeeping and facilities, food and hospitality staff, domestic staff or agriculture. These are lumped into Logistics, Engineering & Manufacturing or Hospitality. The bigger blocker is the apply form: **an uploaded resume and an email address are both required**, and candidates sign in only by email. Many blue-collar applicants have neither and apply by phone or WhatsApp. The site is English-only.
+**Skilled, industrial, field and service jobs: mostly missing.** Job categories have no separate home for factory and production, warehouse, delivery and driving, skilled trades, security, housekeeping and facilities, food and hospitality staff, domestic staff or agriculture. These are lumped into Logistics, Engineering & Manufacturing or Hospitality. The bigger blocker is the apply form: **an uploaded resume and an email address are both required**, and candidates sign in only by email. Many applicants for these jobs have neither and apply by phone or WhatsApp. The site is English-only.
 
 **Employment types:** Full-time, Contract, Part-time and Internship. Missing: Temporary, Gig or daily wage, Apprenticeship, Walk-in. Salary is free text, so it can't be filtered or shown per day or per hour.
 
@@ -86,11 +86,11 @@ Each item keeps what exists working and adds to it. Size: S ≈ one step, M ≈ 
 
 | # | Item | Why | Size |
 | --- | --- | --- | --- |
-| 1 | **Blue-collar applying**: per-job "resume not needed" (default for blue-collar categories), email optional when a phone number is given, a 4-field quick apply, and a WhatsApp "apply by message" link | Without this the blue-collar plan can't work | M |
-| 2 | ✅ **Done in Step 41.** **Job taxonomy**: blue/grey-collar categories (Factory & Production, Warehouse, Delivery & Driving, Skilled Trades, Construction, Security, Facility & Housekeeping, Food & Hospitality, Domestic Staff, Agriculture); job types Temporary, Gig/Daily wage, Apprenticeship, Walk-in; a white/blue/grey "collar" tag | Lets jobs be posted and found properly | S |
-| 3 | **Structured pay + better search**: salary min/max per month, day or hour (existing text converted automatically), and filters for pay, experience, job type and collar | The plan's "search by salary and experience" | M |
-| 4 | **Services and industries**: Payroll & compliance service page, blue-collar industry desks, `/staffing-solutions` redirect | Matches the planned offer | S |
-| 5 | **Hindi** for the public site, the apply form and candidate emails | Reaches blue-collar and non-metro candidates | L |
+| 1 | **Easy applying for skilled and field jobs**: per-job "resume not needed" (default for skilled and field categories), email optional when a phone number is given, a 4-field quick apply, and a WhatsApp "apply by message" link | Without this, hiring for skilled and field jobs can't work | M |
+| 2 | ✅ **Done in Step 41.** **Job taxonomy**: skilled and field categories (Factory & Production, Warehouse, Delivery & Driving, Skilled Trades, Construction, Security, Facility & Housekeeping, Food & Hospitality, Domestic Staff, Agriculture); job types Temporary, Gig/Daily wage, Apprenticeship, Walk-in; a "kind of work" tag (Office & professional, Skilled & technical, Industrial, field & service) | Lets jobs be posted and found properly | S |
+| 3 | **Structured pay + better search**: salary min/max per month, day or hour (existing text converted automatically), and filters for pay, experience, job type and kind of work | The plan's "search by salary and experience" | M |
+| 4 | **Services and industries**: Payroll & compliance service page, industry desks for skilled and field work, `/staffing-solutions` redirect | Matches the planned offer | S |
+| 5 | **Hindi** for the public site, the apply form and candidate emails | Reaches field-work and non-metro candidates | L |
 | 6 | **Candidate accounts before applying**: profile + resume once, one-click apply, saved jobs and job alerts in the dashboard | The planned candidate dashboard | M |
 | 7 | **Client self-signup** with verification (work email + GSTIN), direct job posting held for Admin approval, and hiring analytics in the client portal | The planned employer portal | L |
 | 8 | **Phone sign-in by OTP** (SMS or WhatsApp) for candidates | Candidates without email; needs a paid provider and DLT registration for SMS in India | M |
@@ -101,7 +101,7 @@ Each item keeps what exists working and adds to it. Size: S ≈ one step, M ≈ 
 
 Step 41 also made Google for Jobs read per-month, per-day and per-hour pay, and added a job-type filter to Find Work (part of item 3). Walk-in was left out of job types: it describes how candidates are interviewed rather than the job, so it fits better as a job detail later.
 
-Suggested order: 2 → 1 → 3 → 4, which makes Hireriv usable for blue-collar hiring within about four steps; then 6, 7 and 5.
+Suggested order: 2 → 1 → 3 → 4, which makes Hireriv usable for skilled and field hiring within about four steps; then 6, 7 and 5.
 
 ## 7. Tests
 
