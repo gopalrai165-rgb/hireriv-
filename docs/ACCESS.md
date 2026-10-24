@@ -13,7 +13,7 @@ Every route the app serves, and who may use it. **This table is checked by `test
 
 Every state-changing team, candidate and client form also passes `sameOrigin` (cross-site posts are refused).
 
-Total: 159 routes.
+Total: 175 routes.
 
 ## Public website
 
@@ -59,6 +59,8 @@ Total: 159 routes.
 | --- | --- | --- | --- |
 | GET | `/account/verify/:token` | link | One-time emailed sign-in link |
 | POST | `/account/verify/:token` | link | One-time emailed sign-in link |
+| GET | `/employer/verify/:token` | link | One-time emailed confirmation link (24 hours) |
+| POST | `/employer/verify/:token` | link | One-time emailed confirmation link (24 hours) |
 | GET | `/employer/setup/:token` | link | One-time client invite link |
 | GET | `/employer/reset/:token` | link | One-time client reset link |
 | POST | `/employer/setup/:token` | link | One-time client invite link |
@@ -112,6 +114,8 @@ Total: 159 routes.
 
 | Method | Path | Policy | Notes |
 | --- | --- | --- | --- |
+| GET | `/employer/register` | public |  |
+| POST | `/employer/register` | public | Same reply whether or not the email has an account |
 | GET | `/employer/login` | public |  |
 | POST | `/employer/login` | public |  |
 | POST | `/employer/logout` | public |  |
@@ -123,6 +127,14 @@ Total: 159 routes.
 | POST | `/employer/candidates/:appId/feedback` | employer | Only candidates shared with this client; signed link, valid 15 minutes |
 | GET | `/employer/invoices/:id` | employer | Only this client's invoices |
 | GET | `/employer/invoices/:id/credit-notes/:cnId` | employer | Only this client's invoices |
+| GET | `/employer/jobs/new` | employer |  |
+| POST | `/employer/jobs` | employer |  |
+| GET | `/employer/jobs/:id/edit` | employer | Only the employer's own jobs |
+| POST | `/employer/jobs/:id` | employer | Only the employer's own jobs; a live job goes back for review |
+| POST | `/employer/jobs/:id/publish` | employer | Only the employer's own jobs; sends for the team's review |
+| POST | `/api/jobs` | employer | 401 when signed out; company and owner fixed to the account; starts as a draft |
+| PATCH | `/api/jobs/:id` | employer | 401 when signed out; only the employer's own jobs (404 otherwise) |
+| POST | `/api/jobs/:id/publish` | employer | 401 when signed out; only the employer's own jobs; sends for review |
 | POST | `/employer/timesheets/:pid/:tsId/approve` | employer | Only this client's placements |
 | POST | `/employer/timesheets/:pid/:tsId/reject` | employer | Only this client's placements |
 
@@ -137,6 +149,8 @@ Total: 159 routes.
 | POST | `/admin/clients` | team |  |
 | POST | `/admin/clients/:id/invite` | team |  |
 | POST | `/admin/clients/:id/toggle` | team |  |
+| POST | `/admin/clients/:id/approve` | team |  |
+| POST | `/admin/clients/:id/reject` | team |  |
 | POST | `/admin/applications/:id/share` | team |  |
 | POST | `/admin/applications/:id/unshare` | team |  |
 | GET | `/admin/applications/:id/interview` | team |  |
@@ -151,6 +165,8 @@ Total: 159 routes.
 | POST | `/admin/placements/:id` | team |  |
 | POST | `/admin/placements/:id/status` | team |  |
 | GET | `/admin/placements/:id/replacement` | team |  |
+| POST | `/admin/jobs/:id/approve` | team | Only for approved employers |
+| POST | `/admin/jobs/:id/reject` | team |  |
 | GET | `/admin/applications/new` | team | Add someone who applied by WhatsApp, phone, walk-in or referral |
 | POST | `/admin/applications/new` | team | Add someone who applied by WhatsApp, phone, walk-in or referral |
 | GET | `/admin` | team | Recruiters never get the Settings, Team or Activity tabs, and see Reports without money |

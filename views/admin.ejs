@@ -125,8 +125,12 @@
                   <% } else if (j.closedReason) { %><br><span class="muted small"><%= j.closedReason %></span><% } %>
                 </td>
                 <td><a href="/admin?tab=applications"><%= applicants[j.id] || 0 %></a></td>
-                <td><span class="pill st-<%= j.status === 'open' ? 'hired' : 'rejected' %>"><%= j.status === 'open' ? 'Open' : 'Closed' %></span></td>
+                <td><% const JS = { open: ['Open', 'hired'], closed: ['Closed', 'rejected'], draft: ['Employer draft', 'new'], pending: ['Needs review', 'screening'], rejected: ['Sent back', 'rejected'] }[j.status] || [j.status, 'new']; %><span class="pill st-<%= JS[1] %>"><%= JS[0] %></span><% if (j.createdBy === 'employer') { %><br><span class="muted small">Posted by employer</span><% } %></td>
                 <td class="row-actions">
+                  <% if (j.status === 'pending') { %>
+                    <form method="post" action="/admin/jobs/<%= j.id %>/approve"><button class="btn btn-primary btn-sm">Approve</button></form>
+                    <form method="post" action="/admin/jobs/<%= j.id %>/reject" class="reject-form"><label class="sr-only" for="rj-<%= j.id %>">What should the employer change?</label><input id="rj-<%= j.id %>" name="reason" maxlength="500" placeholder="What to change" required><button class="btn btn-outline btn-sm">Send back</button></form>
+                  <% } %>
                   <a class="btn btn-outline btn-sm" href="/admin/jobs/<%= j.id %>/edit">Edit</a>
                   <form method="post" action="/admin/jobs/<%= j.id %>/toggle"><button class="btn btn-outline btn-sm"><%= j.status === 'open' ? 'Close' : 'Reopen' %></button></form>
                   <% if (isAdmin) { %><form method="post" action="/admin/jobs/<%= j.id %>/delete" data-confirm="Delete this job permanently? Existing applications are kept."><button class="btn btn-sm btn-danger">Delete</button></form><% } %>

@@ -11,23 +11,31 @@
       <form method="post" action="/employer/logout"><button class="btn btn-outline btn-sm" type="submit">Log out</button></form>
     </div>
     <% if (welcome) { %><p class="notice" role="status">Your account is ready. Welcome aboard!</p><% } %>
+    <% if (!approved) { %><p class="notice" role="status">Thanks for signing up. Our team is checking your company, usually within one working day. You can draft jobs and send them for review now; they go live once you're approved.</p><% } %>
     <% if (msg) { %><p class="notice" role="status"><%= msg %></p><% } %>
 
     <div class="dash-grid">
-      <section class="dash-card dash-wide">
-        <div class="dash-head"><h2>Your open roles</h2><span class="muted small"><%= myJobs.length %> <%= myJobs.length === 1 ? 'role' : 'roles' %></span></div>
+      <section class="dash-card dash-wide" id="jobs">
+        <div class="dash-head"><h2>Your jobs</h2><a class="btn btn-primary btn-sm" href="/employer/jobs/new">+ Post a job</a></div>
         <% if (!myJobs.length) { %>
-          <p class="muted dash-empty">No roles linked to your account yet. Send a requirement below and your account manager will set it up.</p>
+          <p class="muted dash-empty">No jobs yet. Post one yourself, or send a requirement below and your account manager will set it up.</p>
         <% } else { %>
+          <% const STATUS = { draft: ['Draft', 'st-new'], pending: ['Waiting for review', 'st-screening'], open: ['Live', 'st-hired'], closed: ['Closed', 'st-rejected'], rejected: ['Needs changes', 'st-rejected'] }; %>
           <div class="table-wrap">
             <table>
-              <thead><tr><th>Role</th><th>Applicants</th><% stages.forEach(function (s) { %><th><%= s %></th><% }) %></tr></thead>
+              <thead><tr><th>Job</th><th>Status</th><th>Applicants</th><% stages.forEach(function (s) { %><th><%= s %></th><% }) %><th></th></tr></thead>
               <tbody>
-                <% myJobs.forEach(function (j) { %>
+                <% myJobs.forEach(function (j) { const st = STATUS[j.status] || [j.status, '']; %>
                   <tr>
-                    <td><b><%= j.title %></b><br><span class="muted small"><%= j.location %> · <%= j.status === 'open' ? 'Open' : 'Closed' %></span></td>
+                    <td><b><%= j.title %></b><br><span class="muted small"><%= j.location %> · <%= j.type %></span><% if (j.status === 'rejected' && j.rejectedReason) { %><br><span class="small">To change: <%= j.rejectedReason %></span><% } %></td>
+                    <td><span class="pill <%= st[1] %>"><%= st[0] %></span></td>
                     <td><b><%= j.total %></b></td>
                     <% stages.forEach(function (s) { %><td><%= j.stages[s] || '·' %></td><% }) %>
+                    <td class="row-actions">
+                      <% if (j.status === 'open') { %><a class="btn btn-outline btn-sm" href="<%= jobPath(j) %>" target="_blank" rel="noopener">View</a><% } %>
+                      <% if (j.createdBy === 'employer') { %><a class="btn btn-outline btn-sm" href="/employer/jobs/<%= j.id %>/edit">Edit</a><% } %>
+                      <% if (j.createdBy === 'employer' && ['draft', 'rejected'].includes(j.status)) { %><form method="post" action="/employer/jobs/<%= j.id %>/publish"><button class="btn btn-primary btn-sm">Send for review</button></form><% } %>
+                    </td>
                   </tr>
                 <% }) %>
               </tbody>

@@ -189,6 +189,9 @@ function saveJobs() {
 
 // Open, and not past its closing date (the hourly check closes it for good).
 const isLive = (j) => j.status === 'open' && !(j.closesOn && j.closesOn < todayIst());
+// Employer drafts, jobs waiting for the team's review and rejected ones are never public.
+const UNPUBLISHED = ['draft', 'pending', 'rejected'];
+const isPublicJob = (j) => !UNPUBLISHED.includes(j.status);
 const openJobs = () => jobs.filter(isLive);
 const todayIst = () => new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
 // Open jobs with no closing date are flagged in admin after this many days.
@@ -421,7 +424,7 @@ const og = ogImages.create({ baseUrl: BASE_URL });
 const sendPng = (res) => (png) => res.type('image/png').set('Cache-Control', 'public, max-age=604800').send(png);
 app.get('/og/site.png', (req, res, next) => og.site(site).then(sendPng(res), next));
 app.get('/og/jobs/:id.png', (req, res, next) => {
-  const job = jobs.find((j) => j.id === req.params.id);
+  const job = jobs.find((j) => j.id === req.params.id && isPublicJob(j));
   if (!job) return next();
   og.job(job, site).then(sendPng(res), next);
 });
@@ -457,6 +460,10 @@ function setupTodo() {
   if (!b.legalName || !b.gstin || !b.bank) todo.push({ text: 'Add your legal name, GSTIN and bank details for invoices', href: settings });
   if (!process.env.SMTP_HOST) todo.push({ text: 'Set up email sending (SMTP_HOST). Until then emails are only saved to data/outbox' });
   if (process.env.NODE_ENV === 'production' && !process.env.SITE_URL) todo.push({ text: 'Set SITE_URL to your live https:// address' });
+  const waitingJobs = jobs.filter((j) => j.status === 'pending').length;
+  if (waitingJobs) todo.push({ text: `${waitingJobs} employer job${waitingJobs === 1 ? ' is' : 's are'} waiting for your review`, href: '/admin?tab=jobs' });
+  const waitingClients = clients.read().filter((c) => c.active && c.selfSignup && c.emailVerifiedAt && !c.approvedAt).length;
+  if (waitingClients) todo.push({ text: `${waitingClients} new employer${waitingClients === 1 ? '' : 's'} signed up and ${waitingClients === 1 ? 'needs' : 'need'} approving`, href: '/admin?tab=clients' });
   const samples = jobs.filter(isSample).length;
   if (samples) todo.push({ text: `Replace the ${samples} sample job${samples === 1 ? '' : 's'} with real openings: edit one to make it real, or delete it`, href: '/admin?tab=jobs' });
   if (!team.requires2fa()) todo.push({ text: 'Protect team sign-ins: turn on two-step sign-in for yourself, then require it for the team', href: '/admin/security' });
@@ -602,7 +609,7 @@ const whatsappApplyLink = (job) =>
   realWhatsapp() ? `https://wa.me/${site.whatsapp}?text=${encodeURIComponent(`Hi ${site.name}, I want to apply for ${job.title} in ${job.location} (job ${job.id}). My name is `)}` : '';
 
 app.get('/jobs/:id', (req, res, next) => {
-  const job = findJobBySlug(jobs, req.params.id);
+  const job = findJobBySlug(jobs.filter(isPublicJob), req.params.id);
   if (!job) return next();
   // An old title in the address (the job was renamed) moves to the current one.
   if (req.params.id !== job.id && req.params.id !== jobPath(job).slice(6)) {
@@ -643,7 +650,7 @@ app.get('/saved', (req, res) => res.render('saved', { title: 'Saved jobs', page:
 
 app.get('/saved/cards', (req, res) => {
   const ids = String(req.query.ids || '').split(',').filter((id) => /^[A-Za-z0-9_-]{1,40}$/.test(id)).slice(0, 100);
-  const list = ids.map((id) => jobs.find((j) => j.id === id)).filter(Boolean);
+  const list = ids.map((id) => jobs.find((j) => j.id === id && isPublicJob(j))).filter(Boolean);
   res.set('X-Robots-Tag', 'noindex').render('partials/saved-cards', { list });
 });
 
@@ -687,7 +694,7 @@ app.get('/industries/:slug', (req, res, next) => {
 app.get('/about', (req, res) => res.render('about', { title: 'About Us', page: 'about' }));
 app.get('/contact', (req, res) => res.render('contact', { title: 'Contact Us', page: 'contact' }));
 // Bump LEGAL_UPDATED whenever the wording of either page changes.
-const LEGAL_UPDATED = '2026-10-27';
+const LEGAL_UPDATED = '2026-10-28';
 app.get('/privacy', (req, res) => res.render('privacy', { title: 'Privacy Policy', page: 'legal', updated: LEGAL_UPDATED, metaDescription: `How ${site.name} collects, uses and protects the personal data of candidates, clients and visitors.` }));
 app.get('/terms', (req, res) => res.render('terms', { title: 'Terms of Use', page: 'legal', updated: LEGAL_UPDATED, metaDescription: `The terms for using the ${site.name} website as a job seeker or employer.` }));
 app.get('/blog', (req, res) => res.render('blog', { title: 'Career Resources', page: 'blog', posts: livePosts() }));
@@ -820,7 +827,7 @@ const API_MAX_LIMIT = 50;
 // (their company and contact checked by the team when the client was added).
 function verifiedEmployer(job) {
   const c = job.employerId && clients.read().find((x) => x.id === job.employerId);
-  return Boolean(c && c.active !== false);
+  return employers.isApproved(c);
 }
 const publicJob = (j) => ({
   id: j.id,
@@ -1022,7 +1029,168 @@ const clients = employers.register(app, {
 
 // "Post a Job": signed-in clients go to their portal's requirement form;
 // everyone else to the hiring form on /hire.
-app.get('/post-a-job', (req, res) => res.redirect(clients.currentEmployer(req) ? '/employer#new-requirement' : '/hire#requirement'));
+app.get('/post-a-job', (req, res) => res.redirect(clients.currentEmployer(req) ? '/employer/jobs/new' : '/employer/register'));
+
+// ---------- employers posting their own jobs ----------
+// An employer's job starts as a draft. Publishing sends it to the team for a
+// check; the team approves it (only for approved employers) and it goes live,
+// or rejects it with a reason. Changing a live job sends it back for review.
+const EMPLOYER_JOB_FIELDS = ['title', 'location', 'mode', 'type', 'category', 'experience', 'salaryMin', 'salaryMax', 'salaryPeriod', 'payNote', 'education', 'schedule', 'skills', 'description', 'responsibilities', 'qualifications', 'benefits', 'closesOn', 'resume'];
+const jobAsForm = (j) => ({
+  title: j.title, location: j.location, mode: j.mode, type: j.type, category: j.category, experience: j.experience || '',
+  salaryMin: j.pay && j.pay.min ? String(j.pay.min) : '', salaryMax: j.pay && j.pay.max ? String(j.pay.max) : '', salaryPeriod: (j.pay && j.pay.period) || 'month',
+  payNote: j.payNote || '', salary: j.pay ? '' : j.salary || '', education: j.education || '', schedule: j.schedule || '',
+  skills: (j.skills || []).join(', '), description: j.description, responsibilities: (j.responsibilities || []).join('\n'),
+  qualifications: (j.qualifications || []).join('\n'), benefits: (j.benefits || []).join('\n'), closesOn: j.closesOn || '', resume: j.resume || '', work: j.work || '',
+});
+// The employer's input (a form, or JSON where lists may be arrays and pay an
+// object) on top of the job as it is, with the company and owner fixed.
+function employerJobInput(emp, input, existing) {
+  const body = existing ? jobAsForm(existing) : { mode: 'On-site', type: 'Full-time', salaryPeriod: 'month' };
+  const src = { ...input };
+  if (src.pay && typeof src.pay === 'object') Object.assign(src, { salaryMin: src.pay.min ?? '', salaryMax: src.pay.max ?? '', salaryPeriod: src.pay.period ?? body.salaryPeriod });
+  for (const k of EMPLOYER_JOB_FIELDS) {
+    if (src[k] === undefined || src[k] === null) continue;
+    body[k] = Array.isArray(src[k]) ? src[k].join(k === 'skills' ? ', ' : '\n') : String(src[k]);
+    if (['salaryMin', 'salaryMax'].includes(k)) body.salary = '';
+  }
+  const { job, errors } = parseJob({ ...body, company: emp.company, employerId: emp.id, ownerId: existing ? existing.ownerId : '', status: 'open' });
+  return { job, errors };
+}
+const employerJobView = (j) => ({ ...publicJob(j), status: j.status, submittedAt: j.submittedAt || null, rejectedReason: j.status === 'rejected' ? j.rejectedReason || '' : null });
+const ownJob = (emp, id) => jobs.find((j) => j.id === id && j.employerId === emp.id);
+
+function createEmployerJob(emp, input) {
+  const { job, errors } = employerJobInput(emp, input, null);
+  if (errors.length) return { errors };
+  const created = { id: nextJobId(), ...job, status: 'draft', posted: todayIst(), createdBy: 'employer', sample: false };
+  jobs.push(created);
+  saveJobs();
+  return { job: created, errors: [] };
+}
+function updateEmployerJob(emp, job, input) {
+  const { job: next, errors } = employerJobInput(emp, input, job);
+  if (errors.length) return { errors };
+  const status = ['open', 'pending'].includes(job.status) ? 'pending' : job.status === 'closed' ? 'closed' : 'draft';
+  Object.assign(job, next, { status, updatedAt: new Date().toISOString() });
+  delete job.closedReason;
+  if (status === 'pending') {
+    job.submittedAt = job.updatedAt;
+    mailer.employerJobSubmitted(job, emp, employers.isApproved(emp), true);
+  }
+  saveJobs();
+  return { job, errors: [] };
+}
+function publishEmployerJob(emp, job) {
+  if (job.status === 'pending') return { job, errors: [] };
+  if (!['draft', 'rejected'].includes(job.status)) return { errors: ['only drafts and rejected jobs can be sent for review'] };
+  const { errors } = employerJobInput(emp, {}, job);
+  if (errors.length) return { errors };
+  Object.assign(job, { status: 'pending', submittedAt: new Date().toISOString() });
+  delete job.rejectedReason;
+  saveJobs();
+  mailer.employerJobSubmitted(job, emp, employers.isApproved(emp), false);
+  return { job, errors: [] };
+}
+
+const employerJobPage = (res, emp, job, errors, status = 200) =>
+  res.status(status).render('employer-job', { title: job.id ? 'Edit job' : 'Post a job', page: 'employer', noindex: true, emp, job, errors, modes, jobTypes: JOB_TYPES, categoryGroups: groupCategories(jobCategories()), jobLocations: jobLocations(), approved: employers.isApproved(emp) });
+const toPortal = (res, msg) => res.redirect(`/employer?msg=${encodeURIComponent(msg)}#jobs`);
+
+app.get('/employer/jobs/new', clients.requireEmployer, (req, res) => employerJobPage(res, req.employer, { mode: 'On-site', type: 'Full-time', status: 'draft', skills: [], responsibilities: [] }, []));
+
+app.post('/employer/jobs', clients.requireEmployer, limit('employer-jobs', 30), sameOrigin, (req, res) => {
+  const { job, errors } = createEmployerJob(req.employer, req.body);
+  if (errors.length) return employerJobPage(res, req.employer, { ...employerJobInput(req.employer, req.body, null).job, status: 'draft' }, errors, 400);
+  if (req.body.action === 'publish') {
+    publishEmployerJob(req.employer, job);
+    return toPortal(res, `"${job.title}" was sent to the ${site.name} team for a quick check. It goes live once approved.`);
+  }
+  toPortal(res, `"${job.title}" was saved as a draft.`);
+});
+
+app.get('/employer/jobs/:id/edit', clients.requireEmployer, (req, res, next) => {
+  const job = ownJob(req.employer, req.params.id);
+  if (!job) return next();
+  employerJobPage(res, req.employer, job, []);
+});
+
+app.post('/employer/jobs/:id', clients.requireEmployer, limit('employer-jobs', 30), sameOrigin, (req, res, next) => {
+  const job = ownJob(req.employer, req.params.id);
+  if (!job) return next();
+  const wasLive = job.status === 'open';
+  const { errors } = updateEmployerJob(req.employer, job, req.body);
+  if (errors.length) return employerJobPage(res, req.employer, { ...employerJobInput(req.employer, req.body, job).job, id: job.id, status: job.status }, errors, 400);
+  if (req.body.action === 'publish' && job.status === 'draft') {
+    publishEmployerJob(req.employer, job);
+    return toPortal(res, `"${job.title}" was sent for a quick check. It goes live once approved.`);
+  }
+  toPortal(res, wasLive ? `Changes to "${job.title}" were sent for a quick check; the job is hidden until they're approved.` : `Saved "${job.title}".`);
+});
+
+app.post('/employer/jobs/:id/publish', clients.requireEmployer, limit('employer-jobs', 30), sameOrigin, (req, res, next) => {
+  const job = ownJob(req.employer, req.params.id);
+  if (!job) return next();
+  const { errors } = publishEmployerJob(req.employer, job);
+  toPortal(res, errors.length ? `Could not send "${job.title}": ${errors.join(', ')}` : `"${job.title}" was sent for a quick check. It goes live once approved.`);
+});
+
+// The same as JSON for the employer's own tools. Signed-in client only (401
+// otherwise); another employer's job is "not found".
+const requireEmployerApi = (req, res, next) => {
+  const emp = clients.currentEmployer(req);
+  if (!emp) return res.status(401).json({ ok: false, errors: ['sign in to your employer account first'] });
+  req.employer = emp;
+  res.set('Cache-Control', 'no-store');
+  next();
+};
+const notYours = (res) => res.status(404).json({ ok: false, errors: ['job not found'] });
+
+app.post('/api/jobs', requireEmployerApi, limit('employer-jobs', 30), sameOrigin, (req, res) => {
+  const { job, errors } = createEmployerJob(req.employer, req.body || {});
+  if (errors.length) return res.status(400).json({ ok: false, errors });
+  res.status(201).json({ ok: true, job: employerJobView(job) });
+});
+
+app.patch('/api/jobs/:id', requireEmployerApi, limit('employer-jobs', 30), sameOrigin, (req, res) => {
+  const job = ownJob(req.employer, req.params.id);
+  if (!job) return notYours(res);
+  const { errors } = updateEmployerJob(req.employer, job, req.body || {});
+  if (errors.length) return res.status(400).json({ ok: false, errors });
+  res.json({ ok: true, job: employerJobView(job) });
+});
+
+app.post('/api/jobs/:id/publish', requireEmployerApi, limit('employer-jobs', 30), sameOrigin, (req, res) => {
+  const job = ownJob(req.employer, req.params.id);
+  if (!job) return notYours(res);
+  const { errors } = publishEmployerJob(req.employer, job);
+  if (errors.length) return res.status(400).json({ ok: false, errors });
+  res.json({ ok: true, job: employerJobView(job) });
+});
+
+// The team's decision on a job an employer sent for review.
+app.post('/admin/jobs/:id/approve', adminAuth, sameOrigin, (req, res, next) => {
+  const job = jobs.find((j) => j.id === req.params.id && j.status === 'pending');
+  if (!job) return next();
+  const emp = clients.read().find((c) => c.id === job.employerId);
+  if (emp && !employers.isApproved(emp)) return res.redirect(adminUrl('jobs', `Approve ${emp.company} under Clients first, then this job`));
+  Object.assign(job, { status: 'open', posted: todayIst(), approvedAt: new Date().toISOString(), approvedBy: req.admin.name });
+  const alerted = sendJobAlerts(job);
+  saveJobs();
+  if (emp) mailer.employerJobDecision(emp, job, true, '', `${BASE_URL}${jobPath(job)}`);
+  res.redirect(adminUrl('jobs', `"${job.title}" is live${alertedNote(alerted)}`));
+});
+
+app.post('/admin/jobs/:id/reject', adminAuth, sameOrigin, (req, res, next) => {
+  const job = jobs.find((j) => j.id === req.params.id && j.status === 'pending');
+  if (!job) return next();
+  const reason = String(req.body.reason || '').trim().slice(0, 500) || 'It does not meet our listing rules.';
+  Object.assign(job, { status: 'rejected', rejectedReason: reason, rejectedAt: new Date().toISOString(), rejectedBy: req.admin.name });
+  saveJobs();
+  const emp = clients.read().find((c) => c.id === job.employerId);
+  if (emp) mailer.employerJobDecision(emp, job, false, reason, `${BASE_URL}/employer/jobs/${job.id}/edit`);
+  res.redirect(adminUrl('jobs', `"${job.title}" was sent back to the employer`));
+});
 const billing = placements.register(app, {
   db, site, mailer, baseUrl: BASE_URL, adminAuth, requireAdmin, sameOrigin, adminUrl, readSubmissions, writeSubmissions,
   getJobs: () => jobs, clients, requireEmployer: clients.requireEmployer,

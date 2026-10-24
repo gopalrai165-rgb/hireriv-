@@ -44,7 +44,8 @@
         <summary>Login</summary>
         <div class="nav-login-menu">
           <a href="/account/login"><b>Job seekers</b><span>Your profile, applications and alerts</span></a>
-          <a href="/employer/login"><b>Employers</b><span>Your roles, candidates and invoices</span></a>
+          <a href="/employer/login"><b>Employers</b><span>Post jobs, see candidates and invoices</span></a>
+          <a href="/employer/register" class="nav-login-extra">New employer? Create an account</a>
         </div>
       </details>
       <% if (typeof candidateSignedIn !== 'undefined' && candidateSignedIn) { %><a href="/account" class="nav-register <%= page === 'account' ? 'active' : '' %>">My account</a><% } else { %><a href="/account/register" class="nav-register <%= page === 'account' ? 'active' : '' %>">Register</a><% } %>

@@ -44,7 +44,7 @@ test('Job Categories page and the group filter on Find Jobs', async () => {
 test('Post a Job and Staffing Solutions links go to the right place', async () => {
   const post = await srv.request('/post-a-job');
   assert.equal(post.status, 302);
-  assert.equal(post.headers.get('location'), '/hire#requirement');
+  assert.equal(post.headers.get('location'), '/employer/register');
   const sol = await srv.request('/staffing-solutions');
   assert.equal(sol.status, 301);
   assert.equal(sol.headers.get('location'), '/services');

@@ -1,0 +1,14 @@
+<%- include('partials/head') %>
+
+<section class="section auth-section">
+  <div class="container auth-wrap">
+    <div class="form-card auth-card">
+      <span class="eyebrow"><%= emp.company %></span>
+      <h1>Confirm your email</h1>
+      <p class="muted">Confirm <b><%= emp.email %></b> to finish creating your employer account.</p>
+      <form class="form" method="post"><button class="btn btn-primary btn-block" type="submit">Confirm and continue</button></form>
+    </div>
+  </div>
+</section>
+
+<%- include('partials/foot') %>

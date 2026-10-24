@@ -92,7 +92,7 @@ Each item keeps what exists working and adds to it. Size: S ≈ one step, M ≈ 
 | 4 | **Services and industries**: Payroll & compliance service page, industry desks for skilled and field work (the `/staffing-solutions` redirect was done in Step 43) | Matches the planned offer | S |
 | 5 | **Hindi** for the public site, the apply form and candidate emails | Reaches field-work and non-metro candidates | L |
 | 6 | ✅ **Done in Steps 44 and 45** (saved jobs follow the account from Step 45). **Candidate accounts before applying**: profile + resume once, one-click apply, saved jobs and job alerts in the dashboard | The planned candidate dashboard | M |
-| 7 | **Client self-signup** with verification (work email + GSTIN), direct job posting held for Admin approval, and hiring analytics in the client portal | The planned employer portal | L |
+| 7 | ✅ **Done in Step 47** (hiring analytics still to come). **Client self-signup** with verification (work email + GSTIN), direct job posting held for Admin approval, and hiring analytics in the client portal | The planned employer portal | L |
 | 8 | **Phone sign-in by OTP** (SMS or WhatsApp) for candidates | Candidates without email; needs a paid provider and DLT registration for SMS in India | M |
 | 9 | **Employer packages** (job-post credits or subscriptions) with online payment, e.g. Razorpay | The plan's subscription revenue | L |
 | 10 | **Government jobs information** with source links, a verification step and a non-affiliation notice | Optional traffic driver | M |

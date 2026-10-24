@@ -1,0 +1,66 @@
+<%- include('partials/head') %>
+
+<section class="section admin portal">
+  <div class="container">
+    <div class="admin-head">
+      <div>
+        <span class="eyebrow"><%= emp.company %></span>
+        <h1><%= job.id ? 'Edit job' : 'Post a job' %></h1>
+        <% if (job.id) { %><p class="muted">Status: <b><%= { draft: 'Draft', pending: 'Waiting for review', open: 'Live', closed: 'Closed', rejected: 'Needs changes' }[job.status] || job.status %></b></p><% } %>
+      </div>
+      <a class="btn btn-outline btn-sm" href="/employer#jobs">Back to portal</a>
+    </div>
+    <% if (!approved) { %><p class="notice" role="status">Our team is still checking your company. Save drafts and send jobs for review now; they go live once your company is approved.</p><% } %>
+    <% if (job.status === 'rejected' && job.rejectedReason) { %><p class="notice notice-err">What to change: <%= job.rejectedReason %></p><% } %>
+    <% if (job.status === 'open') { %><p class="notice">This job is live. Saving changes sends it for a quick check, and it's hidden until they're approved.</p><% } %>
+    <% if (errors.length) { %><div class="notice notice-err" role="alert"><% errors.forEach(function (e) { %><p><%= e %></p><% }) %></div><% } %>
+
+    <form class="form form-card" method="post" action="<%= job.id ? '/employer/jobs/' + job.id : '/employer/jobs' %>">
+      <div class="form-grid">
+        <label class="span-2">Job title*<input name="title" required maxlength="120" value="<%= job.title || '' %>" placeholder="e.g. Warehouse Supervisor"></label>
+        <label>Category*
+          <select name="category" required>
+            <option value="">Choose…</option>
+            <% categoryGroups.forEach(function (g) { %><optgroup label="<%= g.label %>"><% g.categories.forEach(function (c) { %><option<%= job.category === c ? ' selected' : '' %>><%= c %></option><% }) %></optgroup><% }) %>
+          </select>
+        </label>
+        <label>City*
+          <select name="location" required>
+            <option value="">Choose…</option>
+            <% jobLocations.forEach(function (l) { %><option<%= job.location === l ? ' selected' : '' %>><%= l %></option><% }) %>
+          </select>
+        </label>
+        <label>Work arrangement<select name="mode"><% modes.forEach(function (m) { %><option<%= job.mode === m ? ' selected' : '' %>><%= m %></option><% }) %></select></label>
+        <label>Employment type<select name="type"><% jobTypes.forEach(function (t) { %><option<%= job.type === t ? ' selected' : '' %>><%= t %></option><% }) %></select></label>
+        <label>Experience<input name="experience" maxlength="60" value="<%= job.experience || '' %>" placeholder="e.g. 1-3 years, or Freshers welcome"></label>
+        <label>Education <span class="muted small">(optional)</span><input name="education" maxlength="200" value="<%= job.education || '' %>" placeholder="e.g. 12th pass, ITI, B.Com"></label>
+        <% const pf = job.payForm || (job.pay ? { salaryMin: job.pay.min || '', salaryMax: job.pay.max || '', salaryPeriod: job.pay.period } : {}); %>
+        <fieldset class="span-2 pay-fields">
+          <legend>Pay in rupees <span class="muted small">(leave blank if you'd rather not say)</span></legend>
+          <label>From ₹<input name="salaryMin" inputmode="numeric" value="<%= pf.salaryMin || '' %>"></label>
+          <label>Up to ₹<input name="salaryMax" inputmode="numeric" value="<%= pf.salaryMax || '' %>"></label>
+          <label>Per<select name="salaryPeriod"><% [['month', 'Month'], ['year', 'Year (CTC)'], ['day', 'Day'], ['hour', 'Hour']].forEach(function (o) { %><option value="<%= o[0] %>"<%= (pf.salaryPeriod || 'month') === o[0] ? ' selected' : '' %>><%= o[1] %></option><% }) %></select></label>
+          <label>Note<input name="payNote" maxlength="120" value="<%= job.payNote || '' %>" placeholder="e.g. + PF & ESI"></label>
+        </fieldset>
+        <label>Work schedule <span class="muted small">(optional)</span><input name="schedule" maxlength="200" value="<%= job.schedule || '' %>" placeholder="e.g. Day shift, Mon–Sat"></label>
+        <label>Last day to apply <span class="muted small">(optional)</span><input type="date" name="closesOn" value="<%= job.closesOn || '' %>"></label>
+        <label class="span-2">About the role*<textarea name="description" rows="3" required maxlength="2000"><%= job.description || '' %></textarea></label>
+        <label class="span-2">Responsibilities <span class="muted small">(one per line)</span><textarea name="responsibilities" rows="4"><%= (job.responsibilities || []).join('\n') %></textarea></label>
+        <label class="span-2">Requirements <span class="muted small">(one per line)</span><textarea name="qualifications" rows="3"><%= (job.qualifications || []).join('\n') %></textarea></label>
+        <label class="span-2">Key skills <span class="muted small">(comma separated)</span><input name="skills" value="<%= (job.skills || []).join(', ') %>"></label>
+        <label class="span-2">Benefits <span class="muted small">(one per line)</span><textarea name="benefits" rows="3"><%= (job.benefits || []).join('\n') %></textarea></label>
+      </div>
+      <p class="muted small">Listings must be real vacancies and may never ask candidates for money. The <%= site.name %> team checks every job before it goes live.</p>
+      <div class="row-actions">
+        <% if (!job.id || ['draft', 'rejected'].includes(job.status)) { %>
+          <button class="btn btn-primary" type="submit" name="action" value="publish">Send for review</button>
+          <button class="btn btn-outline" type="submit" name="action" value="save">Save draft</button>
+        <% } else { %>
+          <button class="btn btn-primary" type="submit" name="action" value="save"><%= job.status === 'open' ? 'Save and send for review' : 'Save changes' %></button>
+        <% } %>
+      </div>
+    </form>
+  </div>
+</section>
+
+<%- include('partials/foot') %>

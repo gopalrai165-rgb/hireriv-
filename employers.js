@@ -1,4 +1,5 @@
-// Employer (client) accounts: invites, password login, sessions and the portal.
+// Employer (client) accounts: invites from the team or self-signup (email
+// confirmation, then approval by the team), password login, sessions and the portal.
 // Accounts live in data/submissions/employers.json (git-ignored, like all submissions).
 const crypto = require('crypto');
 const fs = require('fs');
@@ -9,6 +10,27 @@ const INVITE_HOURS = 72;
 const RESET_HOURS = 2;
 const COOKIE = 'hr_emp';
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+const PHONE_RE = /^[+\d][\d\s-]{7,16}$/;
+const VERIFY_HOURS = 24;
+// Personal mailboxes: allowed (many small employers use them) but flagged for
+// the team, who check every self-signup before its jobs can go live.
+const FREE_EMAIL = new Set(['gmail.com', 'googlemail.com', 'yahoo.com', 'yahoo.co.in', 'ymail.com', 'outlook.com', 'hotmail.com', 'live.com', 'msn.com', 'rediffmail.com', 'icloud.com', 'me.com', 'aol.com', 'proton.me', 'protonmail.com', 'zohomail.in', 'gmx.com', 'mail.com']);
+const isFreeEmail = (email) => FREE_EMAIL.has(String(email).split('@')[1] || '');
+
+// GSTIN: 2-digit state code, PAN, entity number, Z, and a check character.
+const GST_CHARS = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+function gstinCheckChar(first14) {
+  let sum = 0;
+  for (let i = 0; i < 14; i++) {
+    const product = GST_CHARS.indexOf(first14[i]) * (i % 2 ? 2 : 1);
+    sum += Math.floor(product / 36) + (product % 36);
+  }
+  return GST_CHARS[(36 - (sum % 36)) % 36];
+}
+const validGstin = (g) => /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/.test(g) && gstinCheckChar(g.slice(0, 14)) === g[14];
+
+// Clients the team added are approved; self-signups once the team approves them.
+const isApproved = (emp) => Boolean(emp) && emp.active && (!emp.selfSignup || Boolean(emp.approvedAt));
 
 // ---------- passwords & tokens ----------
 function hashPassword(password) {
@@ -70,7 +92,7 @@ function register(app, deps) {
     const s = db.sessions.get('employer', sha(token));
     if (!s) return null;
     const emp = read().find((e) => e.id === s.subject);
-    return emp && emp.active ? emp : null;
+    return emp && emp.active && (!emp.selfSignup || emp.emailVerifiedAt) ? emp : null;
   }
   const requireEmployer = (req, res, next) => {
     const emp = currentEmployer(req);
@@ -85,7 +107,7 @@ function register(app, deps) {
   function issueLink(emp, kind, hours) {
     const token = newToken();
     emp.link = { kind, hash: sha(token), exp: Date.now() + hours * 3600000 };
-    return `${baseUrl}/employer/${kind === 'invite' ? 'setup' : 'reset'}/${token}`;
+    return `${baseUrl}/employer/${{ invite: 'setup', reset: 'reset', verify: 'verify' }[kind]}/${token}`;
   }
   function findByLink(token, kind) {
     const list = read();
@@ -138,6 +160,92 @@ function register(app, deps) {
     res.redirect(adminUrl('clients', `${emp.company} ${emp.active ? 're-activated' : 'deactivated'}`));
   });
 
+  // Self-signups: the team checks the company (GSTIN, website, a call) and
+  // approves it; until then its jobs can be drafted and sent for review only.
+  app.post('/admin/clients/:id/approve', adminAuth, sameOrigin, (req, res, next) => {
+    const list = read();
+    const emp = list.find((e) => e.id === req.params.id && e.selfSignup);
+    if (!emp) return next();
+    if (!emp.approvedAt) {
+      Object.assign(emp, { approvedAt: new Date().toISOString(), approvedBy: req.admin.name });
+      write(list);
+      mailer.employerApproved(emp);
+    }
+    res.redirect(adminUrl('clients', `${emp.company} approved · their jobs can now go live after review`));
+  });
+
+  app.post('/admin/clients/:id/reject', adminAuth, sameOrigin, (req, res, next) => {
+    const list = read();
+    const emp = list.find((e) => e.id === req.params.id && e.selfSignup && !e.approvedAt);
+    if (!emp) return next();
+    const reason = String(req.body.reason || '').trim().slice(0, 500);
+    Object.assign(emp, { active: false, rejectedAt: new Date().toISOString(), rejectedReason: reason });
+    write(list);
+    endAllSessions(emp.id);
+    mailer.employerRejected(emp, reason);
+    res.redirect(adminUrl('clients', `${emp.company}'s sign-up was declined and the account closed`));
+  });
+
+  // ---------- employer: self-signup and email confirmation ----------
+  const registerPage = (res, locals, status = 200) => page(res, 'employer-register', { title: 'Create an employer account', values: {}, done: false, ...locals }, status);
+  app.get('/employer/register', (req, res) => {
+    if (currentEmployer(req)) return res.redirect('/employer');
+    registerPage(res, {});
+  });
+
+  app.post('/employer/register', limit('employer-register', 5), sameOrigin, (req, res) => {
+    const get = (k, max) => String(req.body[k] ?? '').trim().slice(0, max);
+    const values = {
+      company: get('company', 120), name: get('name', 120), email: get('email', 160).toLowerCase(), phone: get('phone', 20),
+      gstin: get('gstin', 20).toUpperCase().replace(/\s+/g, ''),
+    };
+    if (String(req.body.website || '').trim()) return registerPage(res, { done: true, title: 'Check your email' }); // bot trap
+    const errors = [];
+    if (!values.company) errors.push('Please enter your company name.');
+    if (!values.name) errors.push('Please enter your name.');
+    if (!EMAIL_RE.test(values.email)) errors.push('Please enter a valid work email.');
+    if (!PHONE_RE.test(values.phone)) errors.push('Please enter a valid phone number.');
+    if (values.gstin && !validGstin(values.gstin)) errors.push("That GSTIN doesn't look right. Check it, or leave it blank and we'll ask for other proof.");
+    const problem = passwordProblem(String(req.body.password || ''), String(req.body.confirm || ''));
+    if (problem) errors.push(`${problem[0].toUpperCase()}${problem.slice(1)}.`);
+    if (!req.body.agree) errors.push('Please agree to the Terms of Use and Privacy Policy.');
+    if (errors.length) return registerPage(res, { values, errors }, 400);
+
+    const list = read();
+    const existing = list.find((e) => e.email === values.email);
+    // The same reply either way, so the form can't reveal who has an account.
+    if (existing) {
+      mailer.employerAlreadyRegistered(existing);
+      return registerPage(res, { done: true, title: 'Check your email' });
+    }
+    const emp = {
+      id: crypto.randomUUID(), ...values, freeEmail: isFreeEmail(values.email), active: true, selfSignup: true,
+      createdAt: new Date().toISOString(), emailVerifiedAt: null, approvedAt: null, passwordHash: hashPassword(String(req.body.password)),
+    };
+    const link = issueLink(emp, 'verify', VERIFY_HOURS);
+    list.push(emp);
+    write(list);
+    mailer.employerVerify(emp, link, VERIFY_HOURS);
+    registerPage(res, { done: true, title: 'Check your email' });
+  });
+
+  // GET shows a button (mail scanners open links); POST confirms.
+  app.get('/employer/verify/:token', (req, res) => {
+    const { emp } = findByLink(req.params.token, 'verify');
+    if (!emp) return page(res, 'employer-message', { title: 'Link expired', heading: 'This link has expired', message: 'Confirmation links work once and expire after 24 hours. Log in with your email and password and we\'ll send a new one.' }, 410);
+    page(res, 'employer-verify', { title: 'Confirm your email', emp });
+  });
+
+  app.post('/employer/verify/:token', limit('employer-password', 10), sameOrigin, (req, res) => {
+    const { list, emp } = findByLink(req.params.token, 'verify');
+    if (!emp) return page(res, 'employer-message', { title: 'Link expired', heading: 'This link has expired', message: 'Log in with your email and password and we\'ll send a new confirmation link.' }, 410);
+    Object.assign(emp, { emailVerifiedAt: new Date().toISOString(), link: null });
+    write(list);
+    mailer.employerSignedUp(emp, `${baseUrl}/admin?tab=clients`);
+    startSession(res, emp.id);
+    res.redirect('/employer?welcome=1');
+  });
+
   // ---------- employer: set password (invite) / reset ----------
   for (const kind of ['invite', 'reset']) {
     const route = `/employer/${kind === 'invite' ? 'setup' : 'reset'}/:token`;
@@ -176,6 +284,14 @@ function register(app, deps) {
     // Same message and similar work for unknown emails, so accounts can't be probed.
     const ok = emp && emp.active && emp.passwordHash ? checkPassword(pw, emp.passwordHash) : (hashPassword(pw), false);
     if (!ok) return page(res, 'employer-login', { title: 'Client login', email, errors: ['Email or password is incorrect.'] }, 401);
+    if (emp.selfSignup && !emp.emailVerifiedAt) {
+      const list = read();
+      const fresh = list.find((e) => e.id === emp.id);
+      const link = issueLink(fresh, 'verify', VERIFY_HOURS);
+      write(list);
+      mailer.employerVerify(fresh, link, VERIFY_HOURS);
+      return page(res, 'employer-login', { title: 'Client login', email, errors: ['Please confirm your email first. We\'ve sent you a new confirmation link.'] }, 403);
+    }
     startSession(res, emp.id);
     res.redirect('/employer');
   });
@@ -211,7 +327,7 @@ function register(app, deps) {
         return { ...j, total: forJob.length, stages: Object.fromEntries(appStatuses.map((s) => [s, forJob.filter((a) => statusOf(a) === s).length])) };
       });
     const requirements = readSubmissions('hire-requests').filter((h) => h.employerId === emp.id);
-    page(res, 'employer-dashboard', { title: `${emp.company} · Client portal`, myJobs, requirements, stages: appStatuses, shortlist: shortlistFor(emp), placements: placementsFor(emp), timesheets: timesheetsFor(emp), decisions: DECISIONS, welcome: req.query.welcome === '1', msg: String(req.query.msg || '') });
+    page(res, 'employer-dashboard', { title: `${emp.company} · Client portal`, approved: isApproved(emp), myJobs, requirements, stages: appStatuses, shortlist: shortlistFor(emp), placements: placementsFor(emp), timesheets: timesheetsFor(emp), decisions: DECISIONS, welcome: req.query.welcome === '1', msg: String(req.query.msg || '') });
   });
 
   app.post('/employer/requirements', requireEmployer, limit('employer-req', 10), sameOrigin, (req, res) => {
@@ -297,7 +413,7 @@ function register(app, deps) {
     res.redirect('/employer?msg=' + encodeURIComponent(`Thanks! Your feedback on ${a.name} was sent to your account manager.`) + '#shortlist');
   });
 
-  return { read, currentEmployer, requireEmployer, shortlistFor, DECISIONS };
+  return { read, write, currentEmployer, requireEmployer, shortlistFor, DECISIONS, isApproved };
 }
 
-module.exports = { register, hashPassword, checkPassword };
+module.exports = { register, hashPassword, checkPassword, validGstin, gstinCheckChar, isFreeEmail, isApproved };

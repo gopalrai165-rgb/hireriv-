@@ -1328,3 +1328,4 @@ main:focus { outline: none; }
 .pay-fields { border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 12px 14px; display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px 14px; margin: 0; }
 .pay-fields legend { font-weight: 600; padding: 0 4px; }
 .pay-fields .span-all { grid-column: 1 / -1; }
+.nav-login-menu .nav-login-extra { font-size: .85rem; color: var(--primary); font-weight: 600; }

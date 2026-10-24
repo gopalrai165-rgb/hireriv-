@@ -289,6 +289,99 @@ function createMailer(site) {
       });
     },
 
+    // ---------- employer self-signup ----------
+    employerVerify(emp, link, hours) {
+      send(site, {
+        to: emp.email,
+        replyTo: teamInbox,
+        subject: `Confirm your email for ${site.name}`,
+        heading: `Confirm your email, ${first(emp.name)}`,
+        html:
+          p(`Thanks for creating an employer account for <b>${esc(emp.company)}</b>. Confirm this is your email to finish signing up.`) +
+          button(link, 'Confirm my email') +
+          p('Next, our team checks your company (usually within one working day). You can draft jobs straight away; they go live once your company and each job are approved.') +
+          p(`<span style="color:#6b7690;font-size:13px">This link works once and expires in ${hours} hours. Didn't sign up? Ignore this email.</span>`),
+      });
+    },
+
+    // Someone tried to register an email that already has an employer account.
+    employerAlreadyRegistered(emp) {
+      send(site, {
+        to: emp.email,
+        replyTo: teamInbox,
+        subject: `You already have a ${site.name} employer account`,
+        heading: 'You already have an account',
+        html:
+          p(`Someone (probably you) tried to create a new employer account with this email, but <b>${esc(emp.company)}</b> already has one.`) +
+          button(`${baseUrl}/employer/login`, 'Log in') +
+          p(`Forgotten your password? <a href="${esc(baseUrl)}/employer/forgot" style="color:#123B70">Reset it here</a>. If this wasn't you, you can ignore this email.`),
+      });
+    },
+
+    employerSignedUp(emp, adminLink) {
+      send(site, {
+        to: teamInbox,
+        replyTo: emp.email,
+        subject: `New employer sign-up to approve: ${emp.company}`,
+        heading: 'A new employer signed up',
+        html:
+          p('They have confirmed their email. Check the company before approving it: their jobs can only go live after that.') +
+          detailsTable([
+            ['Company', emp.company], ['Contact', emp.name], ['Email', `${emp.email}${emp.freeEmail ? ' (personal mailbox)' : ''}`], ['Phone', emp.phone], ['GSTIN', emp.gstin || 'Not given'],
+          ]) + button(adminLink, 'Review in admin'),
+      });
+    },
+
+    employerApproved(emp) {
+      send(site, {
+        to: emp.email,
+        replyTo: teamInbox,
+        subject: `${emp.company} is approved on ${site.name}`,
+        heading: `You're approved, ${first(emp.name)}!`,
+        html:
+          p(`Our team has checked <b>${esc(emp.company)}</b>. Jobs you send for review can now go live, usually within one working day.`) +
+          button(`${baseUrl}/employer/jobs/new`, 'Post a job'),
+      });
+    },
+
+    employerRejected(emp, reason) {
+      send(site, {
+        to: emp.email,
+        replyTo: teamInbox,
+        subject: `About your ${site.name} employer account`,
+        heading: 'We could not approve your account',
+        html:
+          p(`Thanks for signing up <b>${esc(emp.company)}</b>. We weren't able to verify the company, so the account has been closed.`) +
+          (reason ? p(`<b>Reason:</b> ${esc(reason)}`) : '') +
+          p('If you think this is a mistake, reply to this email with your company details (GSTIN, website or registration certificate) and we will look again.'),
+      });
+    },
+
+    employerJobSubmitted(job, emp, approved, isChange) {
+      send(site, {
+        to: teamInbox,
+        replyTo: emp.email,
+        subject: `${isChange ? 'Changed job' : 'Job'} to review: ${job.title} (${emp.company})`,
+        heading: isChange ? 'An employer changed a job' : 'An employer sent a job for review',
+        html:
+          p(approved ? 'Check the listing, then approve it or send it back with a reason.' : `<b>${esc(emp.company)} isn't approved yet.</b> Approve the company under Clients before this job can go live.`) +
+          detailsTable([['Job', `${job.title} (${job.id})`], ['Company', emp.company], ['Location', `${job.location} (${job.mode})`], ['Type', job.type], ['Pay', job.salary || 'Not disclosed']]) +
+          button(`${baseUrl}/admin?tab=jobs`, 'Review jobs'),
+      });
+    },
+
+    employerJobDecision(emp, job, approved, reason, link) {
+      send(site, {
+        to: emp.email,
+        replyTo: teamInbox,
+        subject: approved ? `Your job is live: ${job.title}` : `Changes needed: ${job.title}`,
+        heading: approved ? 'Your job is live' : 'Your job needs changes',
+        html: approved
+          ? p(`<b>${esc(job.title)}</b> is now live on ${esc(site.name)}. We'll screen applicants and share the strongest with you in your portal.`) + button(link, 'See the job')
+          : p(`We couldn't publish <b>${esc(job.title)}</b> yet.`) + p(`<b>What to change:</b> ${esc(reason)}`) + button(link, 'Edit the job'),
+      });
+    },
+
     employerInvite(emp, link, hours) {
       send(site, {
         to: emp.email,

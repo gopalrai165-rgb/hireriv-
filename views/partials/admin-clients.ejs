@@ -15,10 +15,15 @@
       <tbody>
         <% rows.forEach(function (c) { %>
           <tr>
-            <td><b><%= c.company %></b><br><span class="muted small">Added <%= formatDate(c.createdAt) %></span></td>
-            <td><%= c.name %><br><a href="mailto:<%= c.email %>"><%= c.email %></a></td>
+            <td><b><%= c.company %></b><br><span class="muted small"><%= c.selfSignup ? 'Signed up' : 'Added' %> <%= formatDate(c.createdAt) %></span>
+              <% if (c.gstin) { %><br><span class="small">GSTIN <%= c.gstin %></span><% } %>
+              <% if (c.phone) { %><br><span class="small"><%= c.phone %></span><% } %></td>
+            <td><%= c.name %><br><a href="mailto:<%= c.email %>"><%= c.email %></a><% if (c.freeEmail) { %><br><span class="pill st-screening" title="A personal mailbox, not a company domain: check the company another way">Personal email</span><% } %></td>
             <td>
-              <% if (!c.active) { %><span class="pill st-rejected">Deactivated</span>
+              <% if (!c.active && c.rejectedAt) { %><span class="pill st-rejected">Declined</span>
+              <% } else if (!c.active) { %><span class="pill st-rejected">Deactivated</span>
+              <% } else if (c.selfSignup && !c.emailVerifiedAt) { %><span class="pill st-new">Email not confirmed</span>
+              <% } else if (c.selfSignup && !c.approvedAt) { %><span class="pill st-screening">Awaiting approval</span>
               <% } else if (c.passwordHash) { %><span class="pill st-hired">Active</span>
               <% } else { %><span class="pill st-screening">Invite pending</span><% } %>
             </td>
@@ -32,6 +37,10 @@
               <% } else { %><span class="muted">—</span><% } %>
             </td>
             <td class="row-actions">
+              <% if (c.active && c.selfSignup && !c.approvedAt) { %>
+                <form method="post" action="/admin/clients/<%= c.id %>/approve"><button class="btn btn-primary btn-sm">Approve</button></form>
+                <form method="post" action="/admin/clients/<%= c.id %>/reject" data-confirm="Decline this sign-up and close the account?"><input type="hidden" name="reason" value="We could not verify the company."><button class="btn btn-sm btn-danger">Decline</button></form>
+              <% } %>
               <% if (c.active) { %><form method="post" action="/admin/clients/<%= c.id %>/invite"><button class="btn btn-outline btn-sm"><%= c.passwordHash ? 'Send reset link' : 'Resend invite' %></button></form><% } %>
               <form method="post" action="/admin/clients/<%= c.id %>/toggle"<% if (c.active) { %> data-confirm="Deactivate this client? They will be signed out and can't log in."<% } %>><button class="btn btn-sm <%= c.active ? 'btn-danger' : 'btn-outline' %>"><%= c.active ? 'Deactivate' : 'Re-activate' %></button></form>
             </td>
