@@ -7,7 +7,7 @@
     <div class="hero-copy">
       <span class="eyebrow"><svg class="i"><use href="#i-spark"/></svg> AI-assisted, recruiter-verified hiring</span>
       <h1>Tech-driven staffing that <span class="grad">moves businesses</span> and <span class="underline-swoosh">careers</span> forward</h1>
-      <p class="lead">Hireriv connects growing companies with pre-screened talent across Technology, Finance, BFSI, Sales, Healthcare, Manufacturing, Logistics and more, and helps professionals find roles where they can do their best work.</p>
+      <p class="lead">Hireriv connects startups, corporates, factories, hospitals, warehouses and stores with pre-screened people, from software engineers and accountants to technicians, drivers and production staff, and helps everyone find work where they can do their best.</p>
       <div class="hero-ctas">
         <a href="/hire" class="btn btn-primary btn-lg">Hire a Team <svg class="i"><use href="#i-arrow"/></svg></a>
         <a href="/jobs" class="btn btn-outline btn-lg">Find Work</a>
@@ -24,7 +24,7 @@
         <button class="btn btn-accent" type="submit">Search jobs</button>
       </form>
       <p class="hero-popular small">Popular:
-        <a href="/jobs?q=developer">Developer</a> <a href="/jobs?q=accountant">Accountant</a> <a href="/jobs?q=marketing">Marketing</a> <a href="/jobs?q=logistics">Logistics</a>
+        <a href="/jobs?q=developer">Developer</a> <a href="/jobs?q=accountant">Accountant</a> <a href="/jobs?q=sales">Sales</a> <a href="/jobs?q=electrician">Electrician</a> <a href="/jobs?q=driver">Driver</a> <a href="/jobs?q=warehouse">Warehouse</a>
       </p>
       <% const placed = site.stats[1] || site.stats[0]; %>
       <div class="trust">
@@ -109,6 +109,29 @@
         </ul>
         <a href="/jobs" class="btn btn-dark">Browse jobs <svg class="i"><use href="#i-arrow"/></svg></a>
       </div>
+    </div>
+  </div>
+</section>
+
+<!-- KINDS OF WORK -->
+<section class="section" id="kinds-of-work">
+  <div class="container">
+    <div class="section-head">
+      <span class="eyebrow">Jobs for every kind of work</span>
+      <h2>Office, skilled or on the ground</h2>
+      <p>Whatever work you do, there's a recruiter here who hires for it. Applying is free for candidates, always.</p>
+    </div>
+    <div class="collar-cards">
+      <% const collarIcons = { white: 'i-briefcase', grey: 'i-gear', blue: 'i-truck' }; %>
+      <% collars.forEach(function (c) { %>
+        <a class="collar-card collar-<%= c.key %> reveal" href="/jobs?collar=<%= c.key %>">
+          <span class="path-icon"><svg class="i"><use href="#<%= collarIcons[c.key] %>"/></svg></span>
+          <h3><%= c.label %></h3>
+          <p class="muted small"><%= c.also %></p>
+          <p><%= c.examples %></p>
+          <span class="collar-more"><%= collarCounts[c.key] ? collarCounts[c.key] + ' open job' + (collarCounts[c.key] === 1 ? '' : 's') : 'See jobs' %> <svg class="i"><use href="#i-arrow"/></svg></span>
+        </a>
+      <% }) %>
     </div>
   </div>
 </section>

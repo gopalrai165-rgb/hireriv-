@@ -87,7 +87,7 @@ Each item keeps what exists working and adds to it. Size: S ≈ one step, M ≈ 
 | # | Item | Why | Size |
 | --- | --- | --- | --- |
 | 1 | **Blue-collar applying**: per-job "resume not needed" (default for blue-collar categories), email optional when a phone number is given, a 4-field quick apply, and a WhatsApp "apply by message" link | Without this the blue-collar plan can't work | M |
-| 2 | **Job taxonomy**: blue/grey-collar categories (Factory & Production, Warehouse, Delivery & Driving, Skilled Trades, Construction, Security, Facility & Housekeeping, Food & Hospitality, Domestic Staff, Agriculture); job types Temporary, Gig/Daily wage, Apprenticeship, Walk-in; a white/blue/grey "collar" tag | Lets jobs be posted and found properly | S |
+| 2 | ✅ **Done in Step 41.** **Job taxonomy**: blue/grey-collar categories (Factory & Production, Warehouse, Delivery & Driving, Skilled Trades, Construction, Security, Facility & Housekeeping, Food & Hospitality, Domestic Staff, Agriculture); job types Temporary, Gig/Daily wage, Apprenticeship, Walk-in; a white/blue/grey "collar" tag | Lets jobs be posted and found properly | S |
 | 3 | **Structured pay + better search**: salary min/max per month, day or hour (existing text converted automatically), and filters for pay, experience, job type and collar | The plan's "search by salary and experience" | M |
 | 4 | **Services and industries**: Payroll & compliance service page, blue-collar industry desks, `/staffing-solutions` redirect | Matches the planned offer | S |
 | 5 | **Hindi** for the public site, the apply form and candidate emails | Reaches blue-collar and non-metro candidates | L |
@@ -98,6 +98,8 @@ Each item keeps what exists working and adds to it. Size: S ≈ one step, M ≈ 
 | 10 | **Government jobs information** with source links, a verification step and a non-affiliation notice | Optional traffic driver | M |
 | 11 | **International recruitment**, only after the Emigration Act registration | Legal requirement | L |
 | 12 | **PostgreSQL**, only if a trigger in section 1 happens | Not needed yet | L |
+
+Step 41 also made Google for Jobs read per-month, per-day and per-hour pay, and added a job-type filter to Find Work (part of item 3). Walk-in was left out of job types: it describes how candidates are interviewed rather than the job, so it fits better as a job detail later.
 
 Suggested order: 2 → 1 → 3 → 4, which makes Hireriv usable for blue-collar hiring within about four steps; then 6, 7 and 5.
 

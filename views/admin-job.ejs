@@ -22,13 +22,21 @@
         </label>
         <label>Job type
           <select name="type"><% jobTypes.forEach(function (t) { %><option<%= t === job.type ? ' selected' : '' %>><%= t %></option><% }) %></select>
+          <span class="muted small">Temporary: a fixed short period. Daily wage / Gig: paid per day or per task. Apprenticeship: paid on-the-job training.</span>
         </label>
         <label>Category*
           <select name="category" required>
             <option value="">Choose a category</option>
-            <% jobCategories.forEach(function (c) { %><option<%= c === job.category ? ' selected' : '' %>><%= c %></option><% }) %>
+            <% categoryGroups.forEach(function (g) { %><optgroup label="<%= g.label %>"><% g.categories.forEach(function (c) { %><option<%= c === job.category ? ' selected' : '' %>><%= c %></option><% }) %></optgroup><% }) %>
           </select>
           <span class="muted small">Add or rename categories in <a href="/admin?tab=settings#job-categories">Settings</a>.</span>
+        </label>
+        <label>Kind of work
+          <select name="collar">
+            <option value="">Same as the category<%= job.category ? ' (' + collarLabel(collarOf({ category: job.category })) + ')' : '' %></option>
+            <% collars.forEach(function (c) { %><option value="<%= c.key %>"<%= c.key === job.collar ? ' selected' : '' %>><%= c.label %> (<%= c.also %>)</option><% }) %>
+          </select>
+          <span class="muted small">Sets which tab the job appears under on Find Work. Change it for jobs that don't fit their category, e.g. a site supervisor in Construction.</span>
         </label>
         <label>Experience<input name="experience" value="<%= job.experience || '' %>" placeholder="e.g. 3-5 years"></label>
         <label>Salary<input name="salary" value="<%= job.salary || '' %>" placeholder="e.g. ₹14 – 20 LPA"></label>

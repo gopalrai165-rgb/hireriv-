@@ -15,7 +15,7 @@
       <label class="sr-only" for="f-cat">Category</label>
       <select id="f-cat" name="category">
         <option value="">All categories</option>
-        <% categories.forEach(function (c) { %><option value="<%= c %>" <%= filters.category === c ? 'selected' : '' %>><%= c %> (<%= categoryCounts[c] || 0 %>)</option><% }) %>
+        <% categoryGroups.forEach(function (g) { %><optgroup label="<%= g.label %>"><% g.categories.forEach(function (c) { %><option value="<%= c %>" <%= filters.category === c ? 'selected' : '' %>><%= c %> (<%= categoryCounts[c] || 0 %>)</option><% }) %></optgroup><% }) %>
       </select>
       <label class="sr-only" for="f-loc">Location</label>
       <select id="f-loc" name="location">
@@ -27,8 +27,19 @@
         <option value="">Any work mode</option>
         <% modes.forEach(function (m) { %><option value="<%= m %>" <%= filters.mode === m ? 'selected' : '' %>><%= m %> (<%= modeCounts[m] || 0 %>)</option><% }) %>
       </select>
+      <label class="sr-only" for="f-type">Job type</label>
+      <select id="f-type" name="type">
+        <option value="">Any job type</option>
+        <% jobTypes.forEach(function (t) { %><option value="<%= t %>" <%= filters.type === t ? 'selected' : '' %>><%= t %> (<%= typeCounts[t] || 0 %>)</option><% }) %>
+      </select>
+      <% if (filters.collar) { %><input type="hidden" name="collar" value="<%= filters.collar %>"><% } %>
       <button class="btn btn-primary" type="submit">Search</button>
     </form>
+    <% const withCollar = function (key) { const q = Object.assign({}, filters, { collar: key }); return '/jobs?' + Object.keys(q).filter(function (k) { return q[k]; }).map(function (k) { return k + '=' + encodeURIComponent(q[k]); }).join('&'); }; %>
+    <nav class="collar-tabs" aria-label="Kind of work">
+      <a href="<%= withCollar('').replace(/\?$/, '') %>"<%- !filters.collar ? ' aria-current="page"' : '' %>>All work</a>
+      <% collars.forEach(function (c) { %><a href="<%= withCollar(c.key) %>" title="<%= c.also %>: <%= c.examples %>"<%- filters.collar === c.key ? ' aria-current="page"' : '' %>><%= c.label %> <span class="count"><%= collarCounts[c.key] || 0 %></span></a><% }) %>
+    </nav>
   </div>
 </section>
 
@@ -36,7 +47,7 @@
   <div class="container">
     <div class="results-head">
       <p><b><%= pager.total %></b> <%= pager.total === 1 ? 'job' : 'jobs' %> found</p>
-      <% if (filters.q || filters.category || filters.location || filters.mode) { %><a href="/jobs" class="small">Clear filters</a><% } %>
+      <% if (filters.q || filters.collar || filters.category || filters.location || filters.mode || filters.type) { %><a href="/jobs" class="small">Clear filters</a><% } %>
     </div>
     <% if (results.length) { %>
       <div class="jobs-grid">

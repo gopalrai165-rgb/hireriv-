@@ -1,20 +1,25 @@
 // Structured data (schema.org JSON-LD) so jobs show up in Google for Jobs and
 // the site gets rich results.
 
-const EMPLOYMENT_TYPES = { 'Full-time': 'FULL_TIME', 'Part-time': 'PART_TIME', Contract: 'CONTRACTOR', Internship: 'INTERN' };
+const EMPLOYMENT_TYPES = { 'Full-time': 'FULL_TIME', 'Part-time': 'PART_TIME', Contract: 'CONTRACTOR', Temporary: 'TEMPORARY', 'Daily wage / Gig': 'PER_DIEM', Apprenticeship: 'OTHER', Internship: 'INTERN' };
 // Without a closing date, a posting is assumed valid for this long after it was
 // posted. Once that has passed, validThrough is left out rather than telling
 // Google a job that is still open has expired.
 const VALID_DAYS = 60;
 
-// "₹14 – 20 LPA" → { min: 1400000, max: 2000000 }. Anything else (e.g. "Competitive") → null.
+// Salary text → a range Google for Jobs understands, or null (e.g. "Competitive").
+// "₹14 – 20 LPA" is per year; blue-collar pay is usually per month, day or hour:
+// "₹16,000 – 20,000 per month", "₹800/day".
 function parseSalary(text) {
   const s = String(text || '');
-  if (!/lpa|lakh/i.test(s)) return null;
-  const nums = (s.match(/\d+(?:\.\d+)?/g) || []).map(Number);
+  const nums = (s.replace(/(\d),(?=\d)/g, '$1').match(/\d+(?:\.\d+)?/g) || []).map(Number);
   if (!nums.length) return null;
-  const lakh = 100000;
-  return { min: Math.round(nums[0] * lakh), max: Math.round((nums[1] ?? nums[0]) * lakh) };
+  const range = (scale, unit) => ({ min: Math.round(nums[0] * scale), max: Math.round((nums[1] ?? nums[0]) * scale), unit });
+  if (/lpa|lakh/i.test(s)) return range(100000, 'YEAR');
+  if (/per\s*month|\/\s*month|monthly/i.test(s)) return range(1, 'MONTH');
+  if (/per\s*day|\/\s*day|daily/i.test(s)) return range(1, 'DAY');
+  if (/per\s*hour|\/\s*h(?:ou)?r|hourly/i.test(s)) return range(1, 'HOUR');
+  return null;
 }
 
 function organization(site, baseUrl) {
@@ -55,7 +60,7 @@ function jobPosting(job, site, baseUrl) {
       ? { jobLocationType: 'TELECOMMUTE', applicantLocationRequirements: { '@type': 'Country', name: 'India' } }
       : { jobLocation: { '@type': 'Place', address: { '@type': 'PostalAddress', addressLocality: job.location, addressCountry: 'IN' } } }),
     ...(salary
-      ? { baseSalary: { '@type': 'MonetaryAmount', currency: 'INR', value: { '@type': 'QuantitativeValue', minValue: salary.min, maxValue: salary.max, unitText: 'YEAR' } } }
+      ? { baseSalary: { '@type': 'MonetaryAmount', currency: 'INR', value: { '@type': 'QuantitativeValue', minValue: salary.min, maxValue: salary.max, unitText: salary.unit } } }
       : {}),
     skills: job.skills.join(', '),
     industry: job.category,

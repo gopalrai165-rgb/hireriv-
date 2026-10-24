@@ -200,8 +200,13 @@ test('working days and timesheet month summaries', () => {
 
 // ---------- SEO ----------
 test('salary text becomes a Google for Jobs salary range', () => {
-  assert.deepEqual(seo.parseSalary('₹14 – 20 LPA'), { min: 1400000, max: 2000000 });
-  assert.deepEqual(seo.parseSalary('₹2.5 – 4 LPA + incentives'), { min: 250000, max: 400000 });
+  assert.deepEqual(seo.parseSalary('₹14 – 20 LPA'), { min: 1400000, max: 2000000, unit: 'YEAR' });
+  assert.deepEqual(seo.parseSalary('₹2.5 – 4 LPA + incentives'), { min: 250000, max: 400000, unit: 'YEAR' });
+  assert.deepEqual(seo.parseSalary('₹16,000 – 20,000 per month + PF'), { min: 16000, max: 20000, unit: 'MONTH' });
+  assert.deepEqual(seo.parseSalary('₹800/day'), { min: 800, max: 800, unit: 'DAY' });
+  assert.deepEqual(seo.parseSalary('₹1,10,000 monthly'), { min: 110000, max: 110000, unit: 'MONTH' });
+  assert.deepEqual(seo.parseSalary('₹150 per hour'), { min: 150, max: 150, unit: 'HOUR' });
+  assert.equal(seo.parseSalary('₹18,000 + incentives'), null); // no period, so no guess
   assert.equal(seo.parseSalary('Competitive'), null);
 });
 

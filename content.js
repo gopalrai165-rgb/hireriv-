@@ -48,7 +48,30 @@ const DEFAULT_JOB_CATEGORIES = [
   'Marketing & Creative', 'Human Resources', 'Logistics & Operations', 'Engineering & Manufacturing',
   'Healthcare & Pharma', 'Customer Support & BPO', 'Retail & E-commerce', 'Education & Training',
   'Legal & Compliance', 'Admin & Office Support', 'Construction & Real Estate', 'Hospitality & Travel',
+  // Skilled, industrial, field and service work (added in Step 41).
+  'Skilled Trades', 'Technicians & Field Service', 'Healthcare Technicians & Nursing',
+  'Factory & Production', 'Warehouse & Packing', 'Delivery & Driving', 'Construction & Site Work',
+  'Security Services', 'Housekeeping & Facility Services', 'Hotel & Restaurant Staff', 'Store & Counter Staff',
+  'Domestic Help & Caregiving', 'Events & Promotions', 'Agriculture & Farm Work',
 ];
+
+// Kinds of work, so office jobs and shop-floor jobs are both easy to find.
+// Each job gets one from its category unless the job form picks another.
+const COLLARS = [
+  { key: 'white', label: 'Office & professional', also: 'White-collar', examples: 'Developers, accountants, sales, HR, marketing, managers' },
+  { key: 'grey', label: 'Skilled & technical', also: 'Grey-collar', examples: 'Electricians, welders, CNC operators, field technicians, lab and nursing staff' },
+  { key: 'blue', label: 'Industrial, field & service', also: 'Blue-collar', examples: 'Factory, warehouse, delivery, drivers, security, housekeeping, kitchen, store staff' },
+];
+const COLLAR_KEYS = COLLARS.map((c) => c.key);
+const CATEGORY_COLLAR = {
+  'Skilled Trades': 'grey', 'Technicians & Field Service': 'grey', 'Healthcare Technicians & Nursing': 'grey',
+  'Factory & Production': 'blue', 'Warehouse & Packing': 'blue', 'Delivery & Driving': 'blue', 'Construction & Site Work': 'blue',
+  'Security Services': 'blue', 'Housekeeping & Facility Services': 'blue', 'Hotel & Restaurant Staff': 'blue', 'Store & Counter Staff': 'blue',
+  'Domestic Help & Caregiving': 'blue', 'Events & Promotions': 'blue', 'Agriculture & Farm Work': 'blue',
+};
+// Categories added in Settings count as office work unless a job says otherwise.
+const collarOfCategory = (category) => CATEGORY_COLLAR[category] || 'white';
+const collarOf = (job) => (COLLAR_KEYS.includes(job.collar) ? job.collar : collarOfCategory(job.category));
 
 // Job locations offered on the job form, the Find Work filter and job alerts.
 const DEFAULT_JOB_LOCATIONS = [
@@ -160,4 +183,4 @@ function parseSettings(body, current) {
   return { settings: next, errors };
 }
 
-module.exports = { parsePost, slugify, parseSettings, SOCIAL, DEFAULT_JOB_CATEGORIES, DEFAULT_JOB_LOCATIONS, SAMPLE_TESTIMONIALS, MAX_TESTIMONIALS };
+module.exports = { parsePost, slugify, parseSettings, SOCIAL, DEFAULT_JOB_CATEGORIES, DEFAULT_JOB_LOCATIONS, SAMPLE_TESTIMONIALS, MAX_TESTIMONIALS, COLLARS, COLLAR_KEYS, CATEGORY_COLLAR, collarOf, collarOfCategory };
