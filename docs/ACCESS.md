@@ -6,14 +6,14 @@ Every route the app serves, and who may use it. **This table is checked by `test
 | --- | --- | --- |
 | public | Anyone | Public forms (`/api/*`) have a bot trap and a per-IP rate limit |
 | link | Whoever holds a one-time emailed link | Random 256-bit token, stored hashed, single-use or expiring |
-| candidate | A candidate signed in with an emailed link (`hr_cand` session) | `requireCandidate`; data is limited to applications made with their email |
+| candidate | A candidate signed in with an emailed link or their password (`hr_cand` session: HttpOnly, SameSite=Lax, Secure on https) | `requireCandidate`; data is limited to applications made with their email |
 | employer | A client signed in to the client portal | `requireEmployer`; data is limited to their own company |
 | team | Anyone on the recruiting team (Admin or Recruiter) | `adminAuth` (+ two-step sign-in when the team requires it) |
 | admin | Team members with the Admin role | `adminAuth` + `requireAdmin` (403 for Recruiters) |
 
 Every state-changing team, candidate and client form also passes `sameOrigin` (cross-site posts are refused).
 
-Total: 175 routes.
+Total: 214 routes.
 
 ## Public website
 
@@ -59,6 +59,8 @@ Total: 175 routes.
 | --- | --- | --- | --- |
 | GET | `/account/verify/:token` | link | One-time emailed sign-in link |
 | POST | `/account/verify/:token` | link | One-time emailed sign-in link |
+| GET | `/account/reset/:token` | link | One-time emailed reset link (30 minutes) |
+| POST | `/account/reset/:token` | link | One-time emailed reset link (30 minutes); signs out every other session |
 | GET | `/employer/verify/:token` | link | One-time emailed confirmation link (24 hours) |
 | POST | `/employer/verify/:token` | link | One-time emailed confirmation link (24 hours) |
 | GET | `/employer/setup/:token` | link | One-time client invite link |
@@ -83,30 +85,67 @@ Total: 175 routes.
 | POST | `/admin/login/code` | public | Only after a correct password; 5 wrong codes restart sign-in |
 | POST | `/admin/logout` | public |  |
 
-## Candidate portal (My applications)
+## Candidate portal (My account; /candidate/* addresses lead here)
 
 | Method | Path | Policy | Notes |
 | --- | --- | --- | --- |
 | GET | `/account/register` | public |  |
 | POST | `/account/register` | public | Same reply whether or not the email has an account; opened only by the emailed link |
 | GET | `/account/login` | public |  |
-| POST | `/account/login` | public |  |
+| POST | `/account/login` | public | Password (8 wrong tries per email pause it for 15 minutes) or an emailed link; same reply whether or not the email has an account |
 | POST | `/account/logout` | public |  |
+| GET | `/account/forgot` | public | Same reply whether or not the email has an account |
+| POST | `/account/forgot` | public | Same reply whether or not the email has an account |
 | GET | `/account` | candidate |  |
-| POST | `/account/apply/:jobId` | candidate | Applies with the signed-in candidate's own profile and resume |
+| GET | `/account/profile` | candidate |  |
+| POST | `/account/profile/:section` | candidate | Only the signed-in candidate's own profile |
+| POST | `/account/profile/:section/:id/delete` | candidate | Only the signed-in candidate's own profile |
+| POST | `/account/profile` | candidate |  |
 | POST | `/account/resume` | candidate | Replaces the signed-in candidate's own resume |
+| POST | `/account/resumes` | candidate | Adds to the signed-in candidate's own resumes (up to 3) |
+| POST | `/account/resumes/:id/default` | candidate | Only the candidate's own resumes |
+| POST | `/account/resumes/:id/delete` | candidate | Only the candidate's own resumes |
+| GET | `/account/resumes/:id` | candidate | Only the candidate's own resumes; signed link, valid 15 minutes |
+| POST | `/account/apply/:jobId` | candidate | Applies with the signed-in candidate's own profile and resume |
 | POST | `/account/alerts` | candidate |  |
 | POST | `/account/alerts/:id/delete` | candidate | Only the candidate's own job alerts |
+| GET | `/account/saved` | candidate |  |
+| POST | `/account/saved/:jobId/delete` | candidate | Only the candidate's own saved jobs |
+| GET | `/account/interviews` | candidate |  |
+| GET | `/account/settings` | candidate |  |
+| POST | `/account/password` | candidate | Needs the current password when one is set; signs out other sessions |
+| POST | `/account/settings` | candidate |  |
+| POST | `/account/sessions/revoke` | candidate | Signs out every session of the candidate's own account |
+| POST | `/account/applications/:id/withdraw` | candidate | Only the candidate's own applications |
+| GET | `/account/my-data.json` | candidate | Only the signed-in email's own data |
+| GET | `/account/resume/:appId` | candidate | Only the candidate's own applications; signed link, valid 15 minutes |
+| GET | `/account/interviews/:appId/:ivId.ics` | candidate | Only the candidate's own interviews |
+| POST | `/account/delete` | candidate |  |
+| GET | `/candidate` | public |  |
+| GET | `/candidate/dashboard` | public |  |
+| GET | `/candidate/register` | public |  |
+| GET | `/candidate/login` | public |  |
+| GET | `/candidate/forgot-password` | public |  |
+| GET | `/candidate/profile` | public |  |
+| GET | `/candidate/resumes` | public |  |
+| GET | `/candidate/applications` | public |  |
+| GET | `/candidate/saved-jobs` | public |  |
+| GET | `/candidate/alerts` | public |  |
+| GET | `/candidate/interviews` | public |  |
+| GET | `/candidate/settings` | public |  |
+| POST | `/api/auth/register` | public | Bot trap, per-IP limit; same reply whether or not the email has an account |
+| POST | `/api/auth/login` | public | Per-IP limit and per-email lock-out; unconfirmed emails get a new link instead |
+| POST | `/api/auth/logout` | public |  |
+| POST | `/api/auth/verify-email` | public | Takes the one-time token from the emailed link |
+| GET | `/api/candidate/profile` | candidate | 401 when signed out; resume downloads are signed links valid 15 minutes |
+| PATCH | `/api/candidate/profile` | candidate | 401 when signed out; only the candidate's own profile; unknown fields refused |
+| POST | `/api/candidate/resumes` | candidate | 401 when signed out; files checked before saving |
+| DELETE | `/api/candidate/resumes/:id` | candidate | 401 when signed out; only the candidate's own resumes |
 | GET | `/api/candidate/saved-jobs` | candidate | 401 when signed out; only the candidate's own saved jobs |
 | PUT | `/api/candidate/saved-jobs/:jobId` | candidate | 401 when signed out; only the candidate's own saved jobs |
 | DELETE | `/api/candidate/saved-jobs/:jobId` | candidate | 401 when signed out; only the candidate's own saved jobs |
 | GET | `/api/candidate/applications` | candidate | 401 when signed out; only the candidate's own applications, without contact details |
-| GET | `/account/my-data.json` | candidate | Only the signed-in email's own data |
-| GET | `/account/resume/:appId` | candidate | Only the candidate's own applications; signed link, valid 15 minutes |
-| GET | `/account/interviews/:appId/:ivId.ics` | candidate | Only the candidate's own interviews |
-| POST | `/account/profile` | candidate |  |
-| POST | `/account/applications/:id/withdraw` | candidate | Only the candidate's own applications |
-| POST | `/account/delete` | candidate |  |
+| DELETE | `/api/candidate/account` | candidate | 401 when signed out; needs {"confirm": "DELETE"} |
 | GET | `/account/timesheets/:pid` | candidate | Only the contractor's own placement |
 | POST | `/account/timesheets/:pid` | candidate | Only the contractor's own placement |
 

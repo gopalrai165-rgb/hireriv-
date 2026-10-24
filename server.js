@@ -721,7 +721,7 @@ app.get('/industries/:slug', (req, res, next) => {
 app.get('/about', (req, res) => res.render('about', { title: 'About Us', page: 'about' }));
 app.get('/contact', (req, res) => res.render('contact', { title: 'Contact Us', page: 'contact' }));
 // Bump LEGAL_UPDATED whenever the wording of either page changes.
-const LEGAL_UPDATED = '2026-10-28';
+const LEGAL_UPDATED = '2026-10-29';
 app.get('/privacy', (req, res) => res.render('privacy', { title: 'Privacy Policy', page: 'legal', updated: LEGAL_UPDATED, metaDescription: `How ${site.name} collects, uses and protects the personal data of candidates, clients and visitors.` }));
 app.get('/terms', (req, res) => res.render('terms', { title: 'Terms of Use', page: 'legal', updated: LEGAL_UPDATED, metaDescription: `The terms for using the ${site.name} website as a job seeker or employer.` }));
 app.get('/blog', (req, res) => res.render('blog', { title: 'Career Resources', page: 'blog', posts: livePosts() }));
@@ -1244,8 +1244,16 @@ const candidateAccounts = candidates.register(app, {
   uploadsDir: UPLOADS_DIR, getJobs: () => jobs, formatIst: interviews.formatIst, interviewIcs, site,
   contractsFor: (email) => timesheets.forCandidate(email),
   upload, saveApplication, isBot, isSample, isLive, resumeNeeded, skillMatch, saveSubmission, jobCategories, jobLocations,
-  vetUpload: resumeCheck.vet, downloadLinks, linkExpired,
+  vetUpload: resumeCheck.vet, downloadLinks, linkExpired, jobTypes: JOB_TYPES, modes, stateOf: search.stateOf,
 });
+// Candidates who turned off "let recruiters find me" stay out of the Talent pool.
+const searchableApplications = (list) => {
+  const hidden = candidateAccounts.hiddenFromSearch();
+  return hidden.size ? list.filter((a) => !hidden.has(String(a.email).toLowerCase())) : list;
+};
+// Accounts whose applications were all removed (e.g. by data retention) go too.
+candidateAccounts.pruneAccounts();
+setInterval(candidateAccounts.pruneAccounts, 24 * 60 * 60 * 1000).unref();
 const timesheets = timesheetsModule.register(app, {
   db, mailer, baseUrl: BASE_URL, sameOrigin, limit, adminAuth, requireAdmin, clients,
   requireCandidate: candidateAccounts.requireCandidate, requireEmployer: clients.requireEmployer,
@@ -1371,7 +1379,7 @@ app.get('/admin', adminAuth, (req, res) => {
       jobId: String(req.query.job || ''),
     };
     const job = jobs.find((j) => j.id === f.jobId) || null;
-    const { rows, pager } = pageOf(searchPool(buildPool(applications), { ...f, job }));
+    const { rows, pager } = pageOf(searchPool(buildPool(searchableApplications(applications)), { ...f, job }));
     const unread = applications.filter((a) => a.resume && a.resumeText === undefined).length;
     return res.render('admin', { ...locals, rows, pager, f, unread, matchJob: job, jobOptions: jobs, statuses: APP_STATUSES, experienceOptions: EXPERIENCE, noticeOptions: NOTICE });
   }
@@ -1685,7 +1693,7 @@ app.get('/admin/export/:type.csv', adminAuth, (req, res, next) => {
     type === 'jobs' ? jobs
     : type === 'placements' ? billing.csvRows()
     : type === 'activity' ? team.activity({ limit: 5000 })
-    : type === 'talent' ? buildPool(readSubmissions('applications')).map(({ skillsAll, resumeText, history: h, interviews: ivs, emails, shared, ...c }) => ({ ...c, jobsApplied: c.jobsApplied.join('; '), resumeSkills: (c.resumeSkills || []).join(', ') }))
+    : type === 'talent' ? buildPool(searchableApplications(readSubmissions('applications'))).map(({ skillsAll, resumeText, history: h, interviews: ivs, emails, shared, ...c }) => ({ ...c, jobsApplied: c.jobsApplied.join('; '), resumeSkills: (c.resumeSkills || []).join(', ') }))
     : type === 'applications' ? readSubmissions('applications').map(applicationCsvRow)
     : readSubmissions(type);
   sendCsv(res, type, rows);

@@ -1329,3 +1329,33 @@ main:focus { outline: none; }
 .pay-fields legend { font-weight: 600; padding: 0 4px; }
 .pay-fields .span-all { grid-column: 1 / -1; }
 .nav-login-menu .nav-login-extra { font-size: .85rem; color: var(--primary); font-weight: 600; }
+
+/* ---------- candidate account: tabs, profile meter, profile sections ---------- */
+.account-tabs { display: flex; gap: 4px; overflow-x: auto; margin: 0 0 18px; border-bottom: 1px solid var(--line); scrollbar-width: none; }
+.account-tabs a { padding: 10px 14px; white-space: nowrap; font-weight: 600; font-size: .92rem; color: var(--muted); text-decoration: none; border-bottom: 3px solid transparent; margin-bottom: -1px; }
+.account-tabs a:hover { color: var(--ink); }
+.account-tabs a.active { color: var(--primary); border-bottom-color: var(--primary); }
+.profile-meter { margin-bottom: 16px; }
+.meter { height: 10px; border-radius: 99px; background: var(--line); overflow: hidden; margin: 4px 0 12px; }
+.meter span { display: block; height: 100%; border-radius: 99px; background: var(--primary); }
+.meter-next { margin: 0; padding-left: 18px; display: grid; gap: 4px; font-size: .92rem; }
+.welcome-card { margin-bottom: 16px; border-color: var(--primary); }
+.welcome-card h2 { margin-top: 0; }
+.profile-summary { display: grid; gap: 6px; margin: 0 0 8px; }
+.profile-summary div { display: grid; grid-template-columns: 90px minmax(0, 1fr); gap: 8px; }
+.profile-summary dt { color: var(--muted); }
+.profile-summary dd { margin: 0; overflow-wrap: anywhere; }
+.profile-note { margin: 0 0 16px; }
+.check-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 6px 14px; padding: 8px 0; }
+.check-set { border: 0; padding: 0; margin: 10px 0; display: grid; gap: 6px; }
+.check-set legend { font-weight: 700; font-size: .92rem; margin-bottom: 4px; padding: 0; }
+details.pick, details.add-entry, details.more-fields { border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; margin: 10px 0; }
+details.pick summary, details.add-entry summary, details.more-fields summary { cursor: pointer; font-weight: 600; }
+details.more-fields .form-grid { margin-top: 12px; }
+.lang-row { margin-bottom: 6px; }
+.resume-list, .entry-list { list-style: none; padding: 0; margin: 0 0 12px; }
+.resume-list li, .entry-list li { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--line); }
+.resume-list li:last-child, .entry-list li:last-child { border-bottom: 0; }
+.resume-list li > div:first-child, .entry-list li > div:first-child { min-width: 0; overflow-wrap: anywhere; }
+.entry-list p { margin: 4px 0 0; }
+@media (max-width: 560px) { .resume-list li { flex-direction: column; } .check-grid { grid-template-columns: minmax(0, 1fr); } }

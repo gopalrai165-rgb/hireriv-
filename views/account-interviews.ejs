@@ -1,0 +1,38 @@
+<%- include('partials/head') %>
+
+<section class="section admin portal">
+  <div class="container">
+    <%- include('partials/account-nav', { heading: 'Interviews' }) %>
+    <section class="dash-card dash-wide">
+      <div class="dash-head"><h2>Coming up</h2></div>
+      <% if (!upcoming.length) { %>
+        <p class="muted dash-empty">No interviews scheduled. When a recruiter books one, it appears here and we email you the details.</p>
+      <% } else { %>
+        <ul class="entry-list">
+          <% upcoming.forEach(function (iv) { %>
+            <li>
+              <div>
+                <b><%= iv.jobTitle %></b>
+                <br><span><%= formatIst(iv.at) %> · <%= iv.duration %> min · <%= iv.mode %></span>
+                <% if (/^https:\/\//.test(iv.where)) { %><br><a href="<%= iv.where %>" target="_blank" rel="noopener noreferrer">Join link</a><% } else if (iv.where) { %><br><span class="small"><%= iv.where %></span><% } %>
+              </div>
+              <a class="btn btn-outline btn-sm" href="/account/interviews/<%= iv.appId %>/<%= iv.id %>.ics">Add to calendar</a>
+            </li>
+          <% }) %>
+        </ul>
+      <% } %>
+    </section>
+    <% if (past.length) { %>
+      <section class="dash-card dash-wide">
+        <div class="dash-head"><h2>Earlier</h2></div>
+        <ul class="entry-list">
+          <% past.forEach(function (iv) { %>
+            <li><div><b><%= iv.jobTitle %></b><br><span class="muted small"><%= formatIst(iv.at) %> · <%= iv.status === 'cancelled' ? 'Cancelled' : 'Done' %></span></div></li>
+          <% }) %>
+        </ul>
+      </section>
+    <% } %>
+  </div>
+</section>
+
+<%- include('partials/foot') %>

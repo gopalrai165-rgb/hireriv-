@@ -1,0 +1,31 @@
+<%- include('partials/head') %>
+
+<section class="section admin portal">
+  <div class="container">
+    <%- include('partials/account-nav', { heading: 'Saved jobs' }) %>
+    <section class="dash-card dash-wide">
+      <div class="dash-head"><h2>Jobs you saved</h2><a class="small" href="/jobs">Find more jobs</a></div>
+      <% if (!saved.length) { %>
+        <p class="muted dash-empty">Nothing saved yet. Tap the ☆ on any job to keep it here, on every device you sign in on.</p>
+      <% } else { %>
+        <ul class="match-list">
+          <% saved.forEach(function (s) { const j = s.job; const open = s.open; %>
+            <li>
+              <div>
+                <% if (open) { %><a href="<%= jobPath(j) %>"><b><%= j.title %></b></a><% } else { %><b><%= s.title || 'A job that was removed' %></b><% } %>
+                <span class="muted small"><%= open ? [j.company, j.location, j.type].filter(Boolean).join(' · ') + ' · ' : '' %><%= s.savedAt ? 'saved ' + formatDate(s.savedAt) : '' %></span>
+                <% if (!open) { %><span class="small">No longer taking applications</span><% } %>
+              </div>
+              <div class="row-actions">
+                <% if (open) { %><a class="btn btn-outline btn-sm" href="<%= jobPath(j) %>#apply">View &amp; apply</a><% } %>
+                <form method="post" action="/account/saved/<%= encodeURIComponent(s.jobId) %>/delete"><button class="link-btn small" type="submit" aria-label="Remove <%= open ? j.title : 'this job' %> from saved jobs">Remove</button></form>
+              </div>
+            </li>
+          <% }) %>
+        </ul>
+      <% } %>
+    </section>
+  </div>
+</section>
+
+<%- include('partials/foot') %>

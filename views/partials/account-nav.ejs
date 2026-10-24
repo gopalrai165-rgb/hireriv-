@@ -1,0 +1,15 @@
+<%# Header, tabs and profile meter shared by the candidate account pages. %>
+<div class="admin-head">
+  <div>
+    <span class="eyebrow">My account</span>
+    <h1><%= heading %></h1>
+    <p class="muted">Signed in as <%= email %></p>
+  </div>
+  <form method="post" action="/account/logout"><button class="btn btn-outline btn-sm" type="submit">Log out</button></form>
+</div>
+<nav class="account-tabs" aria-label="My account">
+  <% [['dashboard', '/account', 'Dashboard'], ['profile', '/account/profile', 'Profile & resume'], ['saved', '/account/saved', 'Saved jobs'], ['interviews', '/account/interviews', 'Interviews'], ['settings', '/account/settings', 'Settings']].forEach(function (t) { %>
+    <a href="<%= t[1] %>"<%- tab === t[0] ? ' aria-current="page" class="active"' : '' %>><%= t[2] %></a>
+  <% }) %>
+</nav>
+<% if (typeof msg !== 'undefined' && msg) { %><p class="notice" role="status"><%= msg %></p><% } %>

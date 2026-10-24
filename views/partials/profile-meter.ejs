@@ -1,0 +1,13 @@
+<%# How complete the profile is, and the next things to add. %>
+<section class="dash-card dash-wide profile-meter" aria-labelledby="meter-h">
+  <div class="dash-head"><h2 id="meter-h">Your profile is <%= completion.percent %>% complete</h2><a class="small" href="/account/profile">Edit profile</a></div>
+  <div class="meter" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="<%= completion.percent %>" aria-label="Profile completion"><span style="width: <%= completion.percent %>%"></span></div>
+  <% if (completion.missing.length) { %>
+    <p class="small muted">Complete profiles get matched to jobs faster. Next, add:</p>
+    <ul class="meter-next">
+      <% completion.missing.slice(0, 3).forEach(function (m) { %><li><a href="<%= m.href %>"><%= m.label %></a></li><% }) %>
+    </ul>
+  <% } else { %>
+    <p class="small muted">All done. Keep it up to date when anything changes.</p>
+  <% } %>
+</section>

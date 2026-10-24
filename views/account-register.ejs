@@ -20,29 +20,39 @@
           <li>Jobs that match your skills and city</li>
           <li>Job alerts by email, switched on in a click</li>
           <li>Follow every application and interview</li>
-          <li>Free for job seekers, always. No password to remember</li>
+          <li>Free for job seekers, always. Sign in with an email link, or add a password later</li>
+          <li>We never ask for Aadhaar, PAN or bank details to apply</li>
         </ul>
-        <p class="small muted">Already have an account? <a href="/account/login">Sign in</a></p>
+        <p class="small muted">Already have an account? <a href="/account/login<%= next ? '?next=' + encodeURIComponent(next) : '' %>">Sign in</a></p>
       </div>
       <div class="form-card auth-card">
         <% if (errors.length) { %><div class="notice notice-err" role="alert"><% errors.forEach(function (e) { %><p><%= e %></p><% }) %></div><% } %>
         <form class="form" method="post" action="/account/register" enctype="multipart/form-data">
           <%- include('partials/honeypot') %>
+          <% if (next) { %><input type="hidden" name="next" value="<%= next %>"><% } %>
           <div class="form-grid">
             <label class="span-2">Full name*<input name="name" required maxlength="120" autocomplete="name" value="<%= values.name || '' %>"></label>
             <label>Email*<input type="email" name="email" required maxlength="160" autocomplete="email" value="<%= values.email || '' %>"></label>
             <label>Mobile number*<input type="tel" name="phone" required maxlength="20" autocomplete="tel" inputmode="tel" placeholder="98xxxxxxxx" value="<%= values.phone || '' %>"></label>
             <label>Current city<input name="location" maxlength="120" autocomplete="address-level2" value="<%= values.location || '' %>"></label>
+            <label class="file-field">Resume <span class="muted small">(optional · PDF, DOC or DOCX, max 5 MB)</span><input type="file" name="resume" accept=".pdf,.doc,.docx"></label>
+          </div>
+          <details class="more-fields"<%= values.experience || values.noticePeriod || values.skills || values.linkedin ? ' open' : '' %>>
+            <summary>Add experience and skills now <span class="muted small">(optional, you can do it later)</span></summary>
+            <div class="form-grid">
             <label>Experience
               <select name="experience"><option value="">Select…</option><% experienceOptions.forEach(function (o) { %><option<%= o === values.experience ? ' selected' : '' %>><%= o %></option><% }) %></select>
             </label>
             <label>Notice period / can start
               <select name="noticePeriod"><option value="">Select…</option><% noticeOptions.forEach(function (o) { %><option<%= o === values.noticePeriod ? ' selected' : '' %>><%= o %></option><% }) %></select>
             </label>
-            <label class="file-field">Resume <span class="muted small">(optional · PDF, DOC or DOCX, max 5 MB)</span><input type="file" name="resume" accept=".pdf,.doc,.docx"></label>
             <label class="span-2">Key skills, licences or certificates <span class="muted small">(comma separated)</span><input name="skills" maxlength="500" placeholder="e.g. Tally, GST or ITI Electrician, forklift" value="<%= values.skills || '' %>"></label>
             <label class="span-2">LinkedIn / portfolio <span class="muted small">(optional)</span><input type="url" name="linkedin" maxlength="300" placeholder="https://" value="<%= values.linkedin || '' %>"></label>
+            </div>
+          </details>
+          <div class="form-grid">
             <label class="span-2 check-row"><input type="checkbox" name="agree" value="1" required> <span>I agree to the <a href="/terms">Terms of Use</a> and the <a href="/privacy">Privacy Policy</a>, and to be contacted by a <%= site.name %> recruiter about jobs that fit my profile.</span></label>
+            <label class="span-2 check-row"><input type="checkbox" name="whatsapp" value="1"> <span>Also send me job matches on WhatsApp <span class="muted small">(optional, switch off any time in Settings)</span></span></label>
           </div>
           <button class="btn btn-primary btn-block" type="submit">Create account</button>
           <p class="muted small form-note">We'll email you a link to open your account. Your details are shared with an employer only when you apply or agree to it.</p>

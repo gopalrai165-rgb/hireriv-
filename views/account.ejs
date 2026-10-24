@@ -2,15 +2,15 @@
 
 <section class="section admin portal">
   <div class="container">
-    <div class="admin-head">
-      <div>
-        <span class="eyebrow">My account</span>
-        <h1>Hi <%= String(profile.name || '').split(' ')[0] || 'there' %></h1>
-        <p class="muted">Signed in as <%= email %></p>
-      </div>
-      <form method="post" action="/account/logout"><button class="btn btn-outline btn-sm" type="submit">Log out</button></form>
-    </div>
-    <% if (msg) { %><p class="notice" role="status"><%= msg %></p><% } %>
+    <%- include('partials/account-nav', { heading: 'Hi ' + (String(profile.name || '').split(' ')[0] || 'there') }) %>
+    <% if (welcome) { %>
+      <section class="dash-card dash-wide welcome-card">
+        <h2>Welcome! Your account is ready</h2>
+        <p class="small">You can always sign in with a link we email you. Prefer a password? Set one now, and you can use either.</p>
+        <p><a class="btn btn-primary btn-sm" href="/account/settings#password">Set a password</a> <a class="btn btn-outline btn-sm" href="/account/profile">Complete your profile</a></p>
+      </section>
+    <% } %>
+    <%- include('partials/profile-meter') %>
 
     <% if (contracts.length) { %>
       <section class="dash-card dash-wide app-list">
@@ -38,7 +38,7 @@
     <section class="dash-card dash-wide" id="jobs-for-you">
       <div class="dash-head"><h2>Jobs for you</h2><a class="small" href="/jobs">All jobs</a></div>
       <% if (!matches.length) { %>
-        <p class="muted dash-empty">No matches yet. Add your key skills and city to <a href="#profile">your profile</a> and we'll show open jobs that fit.</p>
+        <p class="muted dash-empty">No matches yet. Add your key skills and the places you'd work to <a href="/account/profile">your profile</a> and we'll show open jobs that fit.</p>
       <% } else { %>
         <ul class="match-list">
           <% matches.forEach(function (m) { %>
@@ -55,14 +55,14 @@
       <% } %>
     </section>
 
-    <section class="dash-card dash-wide app-list">
+    <section class="dash-card dash-wide app-list" id="applications">
       <div class="dash-head"><h2>Your applications</h2><a class="small" href="/jobs">Find more jobs</a></div>
       <% if (!apps.length) { %><p class="muted dash-empty">No applications found.</p><% } %>
       <% apps.forEach(function (a) { %>
         <article class="my-app">
           <div class="my-app-head">
             <div>
-              <h3><% if (a.jobId && a.jobOpen) { %><a href="/jobs/<%= a.jobId %>"><%= a.jobTitle %></a><% } else { %><%= a.jobTitle %><% } %></h3>
+              <h3><% if (a.job) { %><a href="<%= jobPath(a.job) %>"><%= a.jobTitle %></a><% } else { %><%= a.jobTitle %><% } %></h3>
               <p class="muted small">Applied <%= formatDate(a.createdAt) %><% if (a.hasResume) { %> · <a href="<%= signedLink('/account/resume/' + a.id) %>">Your resume</a><% } %></p>
             </div>
             <span class="pill <%= a.withdrawn || a.stage === 'Not selected' ? 'st-rejected' : a.stage === 'Hired' || a.stage === 'Offer' ? 'st-hired' : 'st-interview' %>"><%= a.stage %></span>
@@ -90,34 +90,23 @@
 
     <div class="dash-grid">
       <section class="dash-card" id="profile">
-        <div class="dash-head"><h2>Your profile</h2></div>
-        <p class="muted small">Used for one-click applying and job matches. Keep it up to date and recruiters will match you to new roles faster. Changes apply to all your applications.</p>
-        <form class="form" method="post" action="/account/profile">
-          <div class="form-grid">
-            <label>Full name<input name="name" maxlength="120" autocomplete="name" value="<%= profile.name || '' %>"></label>
-            <label>Mobile number<input type="tel" name="phone" maxlength="20" autocomplete="tel" value="<%= profile.phone || '' %>"></label>
-            <label class="span-2">Key skills<input name="skills" maxlength="500" value="<%= profile.skills || '' %>" placeholder="e.g. React, Node.js, AWS"></label>
-            <label>Experience
-              <select name="experience"><option value="">Select…</option><% experienceOptions.forEach(function (o) { %><option<%= o === profile.experience ? ' selected' : '' %>><%= o %></option><% }) %></select>
-            </label>
-            <label>Notice period
-              <select name="noticePeriod"><option value="">Select…</option><% noticeOptions.forEach(function (o) { %><option<%= o === profile.noticePeriod ? ' selected' : '' %>><%= o %></option><% }) %></select>
-            </label>
-            <label class="span-2">Current city<input name="location" maxlength="120" value="<%= profile.location || '' %>"></label>
-            <label class="span-2">LinkedIn / portfolio<input type="url" name="linkedin" maxlength="300" value="<%= profile.linkedin || '' %>" placeholder="https://"></label>
-          </div>
-          <button class="btn btn-primary" type="submit">Save profile</button>
-        </form>
+        <div class="dash-head"><h2>Your profile</h2><a class="small" href="/account/profile">Edit</a></div>
+        <dl class="profile-summary small">
+          <div><dt>Name</dt><dd><%= profile.name || 'Not added' %></dd></div>
+          <div><dt>Mobile</dt><dd><%= profile.phone || 'Not added' %></dd></div>
+          <div><dt>City</dt><dd><%= profile.location || 'Not added' %></dd></div>
+          <div><dt>Skills</dt><dd><%= profile.skills || 'Not added' %></dd></div>
+        </dl>
         <h3 class="dash-sub">Resume</h3>
         <% if (profile.resume) { %>
-          <p class="small">On file since <%= formatDate(profile.resume.at) %> · <a href="<%= signedLink('/account/resume/' + profile.resume.appId) %>">Download</a></p>
+          <p class="small">On file since <%= formatDate(profile.resume.at) %> · <a href="<%= signedLink(profile.resume.href) %>">Download</a> · <a href="/account/profile#resume">Manage resumes</a></p>
         <% } else { %>
           <p class="small muted">No resume yet. Office jobs need one for one-click applying.</p>
+          <form class="form inline-upload" method="post" action="/account/resume" enctype="multipart/form-data">
+            <label class="file-field">Upload resume <span class="muted small">(PDF, DOC or DOCX, max 5 MB)</span><input type="file" name="resume" accept=".pdf,.doc,.docx" required></label>
+            <button class="btn btn-outline btn-sm" type="submit">Upload</button>
+          </form>
         <% } %>
-        <form class="form inline-upload" method="post" action="/account/resume" enctype="multipart/form-data">
-          <label class="file-field"><%= profile.resume ? 'Replace resume' : 'Upload resume' %> <span class="muted small">(PDF, DOC or DOCX, max 5 MB)</span><input type="file" name="resume" accept=".pdf,.doc,.docx" required></label>
-          <button class="btn btn-outline btn-sm" type="submit">Upload</button>
-        </form>
       </section>
 
       <section class="dash-card" id="alerts">
@@ -140,19 +129,9 @@
           </div>
           <button class="btn btn-outline btn-sm" type="submit">Add job alert</button>
         </form>
-        <p class="small muted">Saved jobs are kept on this device: <a href="/saved">see your saved jobs</a>.</p>
+        <p class="small muted">You have <%= savedCount %> saved <%= savedCount === 1 ? 'job' : 'jobs' %>: <a href="/account/saved">see them</a>.</p>
       </section>
 
-      <section class="dash-card">
-        <div class="dash-head"><h2>Your data</h2></div>
-        <p class="muted small">Download a copy of what we hold about you: your applications and details, their progress, interviews, emails we sent you, and your job alerts.</p>
-        <p><a class="btn btn-outline btn-sm" href="/account/my-data.json" download>Download my data</a></p>
-        <p class="muted small">You can delete your account and everything we hold about you: your profile, all applications, resumes, job alerts and newsletter subscription. This can't be undone.</p>
-        <form class="form delete-data" method="post" action="/account/delete" data-confirm="Permanently delete all your data?">
-          <label>Type DELETE to confirm<input name="confirm" autocomplete="off" required pattern="[Dd][Ee][Ll][Ee][Tt][Ee]"></label>
-          <button class="btn btn-sm btn-danger" type="submit">Delete my data</button>
-        </form>
-      </section>
     </div>
   </div>
 </section>

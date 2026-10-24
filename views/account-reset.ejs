@@ -1,0 +1,22 @@
+<%- include('partials/head') %>
+
+<section class="section auth-section">
+  <div class="container auth-wrap">
+    <div class="form-card auth-card">
+      <span class="eyebrow">Job-seeker account</span>
+      <h1>Choose a new password</h1>
+      <p class="muted">For <b><%= email %></b>. At least 10 characters; a short sentence is easy to remember and hard to guess.</p>
+      <% if (errors.length) { %><p class="notice notice-err" role="alert"><%= errors.join(' ') %></p><% } %>
+      <form class="form" method="post">
+        <input type="text" name="username" value="<%= email %>" autocomplete="username" hidden>
+        <div class="form-grid">
+          <label class="span-2">New password<input type="password" name="password" required minlength="10" maxlength="200" autocomplete="new-password"></label>
+          <label class="span-2">Type it again<input type="password" name="confirm" required minlength="10" maxlength="200" autocomplete="new-password"></label>
+        </div>
+        <button class="btn btn-primary btn-block" type="submit">Save password and sign in</button>
+      </form>
+    </div>
+  </div>
+</section>
+
+<%- include('partials/foot') %>

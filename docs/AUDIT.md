@@ -43,7 +43,7 @@ Revisit PostgreSQL only when one of these becomes true: the site needs **more th
 | Find Jobs | `/jobs` | `/jobs`, `/jobs/:id`, `/saved` | Partly: keyword, category, location and work-mode filters; **no salary, experience or job-type filters** |
 | Staffing & Recruitment | `/staffing-solutions` | `/services`, `/services/:slug`, `/industries` | Done under a different path; **no payroll service page** |
 | Employer Portal | `/employers` | `/employer` (client portal) + `/hire` (public form) | Partly: invite-only, so **clients can't sign up or post jobs directly**; they send requirements |
-| Candidate Portal | `/candidate/dashboard` | `/account` | Partly: applications, interviews, profile, timesheets, data download/delete; **no account before applying; saved jobs stay on one device** |
+| Candidate Portal | `/candidate/dashboard` | `/account` (the `/candidate/*` addresses redirect there) | ✅ Since Step 49: registration, email link or password sign-in with reset, structured profile with completion, several resumes, applications, saved jobs, alerts, interviews, settings, activity log, data download/delete |
 | Recruiter Portal | `/recruiter/dashboard` | `/admin` with the Recruiter role | Done (ownership, "Mine" filters, no billing) |
 | Admin Panel | `/admin` | `/admin` | Done; job approval isn't needed while only the team posts jobs |
 

@@ -1,0 +1,166 @@
+<%- include('partials/head') %>
+<% const p = candidate.profile; const pref = p.preferences; const has = function (list, v) { return (list || []).indexOf(v) !== -1; }; %>
+
+<section class="section admin portal">
+  <div class="container">
+    <%- include('partials/account-nav', { heading: 'Your profile' }) %>
+    <%- include('partials/profile-meter') %>
+    <p class="small muted profile-note">Recruiters use your profile to match you to jobs, and one-click applying sends it with your resume. Fill in what you like: nothing here is required to browse or apply. We never ask for Aadhaar, PAN, bank details or date of birth.</p>
+
+    <div class="dash-grid">
+      <section class="dash-card" id="basics">
+        <div class="dash-head"><h2>Basic details</h2></div>
+        <form class="form" method="post" action="/account/profile/basics">
+          <div class="form-grid">
+            <label class="span-2">Full name*<input name="name" required maxlength="120" autocomplete="name" value="<%= p.name %>"></label>
+            <label>Mobile number*<input type="tel" name="phone" required maxlength="20" autocomplete="tel" inputmode="tel" value="<%= p.phone %>"></label>
+            <label>Experience
+              <select name="experienceLevel"><option value="">Select…</option><% opts.EXPERIENCE.forEach(function (o) { %><option<%= o === p.experienceLevel ? ' selected' : '' %>><%= o %></option><% }) %></select>
+            </label>
+            <label>City<input name="city" maxlength="80" autocomplete="address-level2" list="city-list" value="<%= p.city %>"></label>
+            <label>State
+              <select name="state"><option value="">Select…</option><% opts.INDIAN_STATES.forEach(function (s) { %><option<%= s === p.state ? ' selected' : '' %>><%= s %></option><% }) %></select>
+            </label>
+            <label class="span-2">Headline <span class="muted small">(optional)</span><input name="headline" maxlength="120" value="<%= p.headline %>" placeholder="e.g. Forklift operator with 4 years in warehousing"></label>
+            <label class="span-2">LinkedIn / portfolio <span class="muted small">(optional)</span><input type="url" name="linkedin" maxlength="300" placeholder="https://" value="<%= p.linkedin %>"></label>
+          </div>
+          <datalist id="city-list"><% ctx.cities.filter(function (c) { return c !== 'Remote' && c !== 'Multiple locations'; }).forEach(function (c) { %><option value="<%= c %>"><% }) %></datalist>
+          <button class="btn btn-primary btn-sm" type="submit">Save</button>
+        </form>
+      </section>
+
+      <section class="dash-card" id="preferences">
+        <div class="dash-head"><h2>Jobs you want</h2></div>
+        <form class="form" method="post" action="/account/profile/preferences">
+          <label>Roles you're looking for<input name="roles" maxlength="200" value="<%= pref.roles %>" placeholder="e.g. Accountant, Store manager"></label>
+          <details class="pick"<%= pref.categories.length ? ' open' : '' %>>
+            <summary>Job categories <span class="muted small">(up to <%= opts.LIMITS.categories %>)</span></summary>
+            <div class="check-grid"><% ctx.categories.forEach(function (c) { %><label class="check-row"><input type="checkbox" name="categories" value="<%= c %>"<%= has(pref.categories, c) ? ' checked' : '' %>> <span><%= c %></span></label><% }) %></div>
+          </details>
+          <details class="pick"<%= pref.locations.length ? ' open' : '' %>>
+            <summary>Places you'd work <span class="muted small">(up to <%= opts.LIMITS.locations %>)</span></summary>
+            <div class="check-grid"><% ctx.cities.forEach(function (c) { %><label class="check-row"><input type="checkbox" name="locations" value="<%= c %>"<%= has(pref.locations, c) ? ' checked' : '' %>> <span><%= c %></span></label><% }) %></div>
+          </details>
+          <fieldset class="check-set"><legend>Employment type</legend><div class="check-grid"><% ctx.types.forEach(function (t) { %><label class="check-row"><input type="checkbox" name="types" value="<%= t %>"<%= has(pref.types, t) ? ' checked' : '' %>> <span><%= t %></span></label><% }) %></div></fieldset>
+          <fieldset class="check-set"><legend>Work arrangement</legend><div class="check-grid"><% ctx.modes.forEach(function (m) { %><label class="check-row"><input type="checkbox" name="arrangements" value="<%= m %>"<%= has(pref.arrangements, m) ? ' checked' : '' %>> <span><%= m %></span></label><% }) %></div></fieldset>
+          <fieldset class="check-set"><legend>Shifts</legend><div class="check-grid"><% opts.SHIFTS.forEach(function (s) { %><label class="check-row"><input type="checkbox" name="shifts" value="<%= s %>"<%= has(pref.shifts, s) ? ' checked' : '' %>> <span><%= s %></span></label><% }) %></div></fieldset>
+          <label class="check-row"><input type="checkbox" name="relocate" value="1"<%= pref.relocate ? ' checked' : '' %>> <span>I'm open to moving to another city</span></label>
+          <div class="form-grid">
+            <label>Expected pay ₹<input name="salaryExpected" inputmode="numeric" maxlength="12" value="<%= p.salary.expected || '' %>"></label>
+            <label>Per<select name="salaryPeriod"><option value="month"<%= p.salary.period === 'month' ? ' selected' : '' %>>Month</option><option value="year"<%= p.salary.period === 'year' ? ' selected' : '' %>>Year (CTC)</option></select></label>
+            <label>Notice period
+              <select name="noticePeriod"><option value="">Select…</option><% opts.NOTICE.forEach(function (o) { %><option<%= o === p.availability.noticePeriod ? ' selected' : '' %>><%= o %></option><% }) %></select>
+            </label>
+            <label>Can start from <span class="muted small">(optional)</span><input type="date" name="availableFrom" value="<%= p.availability.availableFrom %>"></label>
+          </div>
+          <p class="small muted">Your expected pay is shared with recruiters only, never shown publicly.</p>
+          <button class="btn btn-primary btn-sm" type="submit">Save</button>
+        </form>
+      </section>
+
+      <section class="dash-card" id="skills">
+        <div class="dash-head"><h2>Skills, certificates &amp; languages</h2></div>
+        <form class="form" method="post" action="/account/profile/skills">
+          <label>Key skills <span class="muted small">(comma separated)</span><input name="skills" maxlength="1500" value="<%= p.skills.join(', ') %>" placeholder="e.g. Tally, GST, forklift, welding"></label>
+          <label>Certificates and licences <span class="muted small">(one per line)</span><textarea name="certifications" rows="3" placeholder="e.g. ITI Electrician&#10;Heavy vehicle driving licence"><%= p.certifications.map(function (c) { return c.name; }).join('\n') %></textarea></label>
+          <fieldset class="check-set"><legend>Languages</legend>
+            <% for (let i = 0; i < 4; i++) { const l = p.languages[i] || { name: '', level: '' }; %>
+              <div class="form-grid lang-row">
+                <label><span class="sr-only">Language <%= i + 1 %></span><input name="language<%= i %>" maxlength="40" value="<%= l.name %>" placeholder="<%= ['e.g. Hindi', 'e.g. English', 'Another language', 'Another language'][i] %>"></label>
+                <label><span class="sr-only">Level for language <%= i + 1 %></span><select name="languageLevel<%= i %>"><% opts.LANGUAGE_LEVELS.forEach(function (lv) { %><option<%= (l.level || 'Conversational') === lv ? ' selected' : '' %>><%= lv %></option><% }) %></select></label>
+              </div>
+            <% } %>
+          </fieldset>
+          <button class="btn btn-primary btn-sm" type="submit">Save</button>
+        </form>
+      </section>
+
+      <section class="dash-card" id="resume">
+        <div class="dash-head"><h2>Resumes</h2><span class="muted small"><%= candidate.resumes.length %> of <%= maxResumes %></span></div>
+        <% if (!candidate.resumes.length) { %>
+          <p class="small muted">No resume yet. Skilled and field jobs don't need one; office jobs do for one-click applying.</p>
+        <% } else { %>
+          <ul class="resume-list">
+            <% candidate.resumes.forEach(function (r) { const isDefault = r.id === candidate.defaultResumeId; %>
+              <li>
+                <div>
+                  <b><%= r.name %></b><% if (isDefault) { %> <span class="pill st-hired">Sent with applications</span><% } %>
+                  <br><span class="muted small">Uploaded <%= formatDate(r.uploadedAt) %><%= r.size ? ' · ' + Math.max(1, Math.round(r.size / 1024)) + ' KB' : '' %></span>
+                </div>
+                <div class="row-actions">
+                  <a class="btn btn-outline btn-sm" href="<%= signedLink('/account/resumes/' + r.id) %>">Download</a>
+                  <% if (!isDefault) { %><form method="post" action="/account/resumes/<%= r.id %>/default"><button class="btn btn-outline btn-sm" type="submit">Use this one</button></form><% } %>
+                  <form method="post" action="/account/resumes/<%= r.id %>/delete" data-confirm="Delete <%= r.name %>? Applications you already sent keep their copy."><button class="btn btn-sm btn-danger" type="submit">Delete</button></form>
+                </div>
+              </li>
+            <% }) %>
+          </ul>
+        <% } %>
+        <% if (candidate.resumes.length < maxResumes) { %>
+          <form class="form inline-upload" method="post" action="/account/resumes" enctype="multipart/form-data">
+            <label class="file-field">Upload a resume <span class="muted small">(PDF, DOC or DOCX, max 5 MB)</span><input type="file" name="resume" accept=".pdf,.doc,.docx" required></label>
+            <button class="btn btn-outline btn-sm" type="submit">Upload</button>
+          </form>
+        <% } %>
+        <p class="small muted">Files are checked before they're saved, and download links expire after 15 minutes.</p>
+      </section>
+
+      <section class="dash-card" id="experience">
+        <div class="dash-head"><h2>Work experience</h2></div>
+        <% if (!p.experiences.length) { %><p class="small muted">No jobs added yet. New to work? Choose "Fresher" under Experience in Basic details.</p><% } %>
+        <ul class="entry-list">
+          <% p.experiences.forEach(function (e) { %>
+            <li>
+              <div>
+                <b><%= e.title %></b><%= e.company ? ' · ' + e.company : '' %>
+                <br><span class="muted small"><%= e.from || '' %><%= e.from || e.to || e.current ? ' – ' : '' %><%= e.current ? 'now' : e.to %></span>
+                <% if (e.summary) { %><p class="small"><%= e.summary %></p><% } %>
+              </div>
+              <form method="post" action="/account/profile/experience/<%= e.id %>/delete"><button class="link-btn small" type="submit" aria-label="Remove <%= e.title %>">Remove</button></form>
+            </li>
+          <% }) %>
+        </ul>
+        <details class="add-entry"<%= p.experiences.length ? '' : ' open' %>>
+          <summary>Add a job</summary>
+          <form class="form" method="post" action="/account/profile/experience">
+            <div class="form-grid">
+              <label>Job title*<input name="title" required maxlength="120"></label>
+              <label>Company<input name="company" maxlength="120"></label>
+              <label>From<input type="month" name="from" placeholder="2023-06"></label>
+              <label>To<input type="month" name="to" placeholder="2024-12"></label>
+              <label class="span-2 check-row"><input type="checkbox" name="current" value="1"> <span>I work here now</span></label>
+              <label class="span-2">What you did <span class="muted small">(optional)</span><textarea name="summary" rows="2" maxlength="1000"></textarea></label>
+            </div>
+            <button class="btn btn-outline btn-sm" type="submit">Add job</button>
+          </form>
+        </details>
+      </section>
+
+      <section class="dash-card" id="education">
+        <div class="dash-head"><h2>Education</h2></div>
+        <ul class="entry-list">
+          <% p.education.forEach(function (e) { %>
+            <li>
+              <div><b><%= e.level %></b><%= e.course ? ' · ' + e.course : '' %><br><span class="muted small"><%= [e.institution, e.year].filter(Boolean).join(' · ') %></span></div>
+              <form method="post" action="/account/profile/education/<%= e.id %>/delete"><button class="link-btn small" type="submit" aria-label="Remove <%= e.level %>">Remove</button></form>
+            </li>
+          <% }) %>
+        </ul>
+        <details class="add-entry"<%= p.education.length ? '' : ' open' %>>
+          <summary>Add education</summary>
+          <form class="form" method="post" action="/account/profile/education">
+            <div class="form-grid">
+              <label>Level*<select name="level" required><option value="">Select…</option><% opts.EDUCATION_LEVELS.forEach(function (l) { %><option><%= l %></option><% }) %></select></label>
+              <label>Course or trade <span class="muted small">(optional)</span><input name="course" maxlength="120" placeholder="e.g. B.Com, ITI Fitter"></label>
+              <label>School, college or institute <span class="muted small">(optional)</span><input name="institution" maxlength="160"></label>
+              <label>Year finished <span class="muted small">(optional)</span><input name="year" inputmode="numeric" maxlength="4" pattern="\d{4}"></label>
+            </div>
+            <button class="btn btn-outline btn-sm" type="submit">Add education</button>
+          </form>
+        </details>
+      </section>
+    </div>
+  </div>
+</section>
+
+<%- include('partials/foot') %>

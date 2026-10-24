@@ -37,7 +37,8 @@ test('signed out: team, candidate and client routes are all refused', async () =
     // JSON endpoints answer 401 instead of redirecting to a sign-in page.
     const [status, location] = r.path.startsWith('/api/') ? [401] : want[r.policy];
     assert.equal(res.status, status, `${r.method} ${r.path}`);
-    if (location) assert.equal(res.headers.get('location'), location, `${r.method} ${r.path}`);
+    // Pages send people back where they were going after signing in.
+    if (location) assert.ok([location, `${location}?next=${encodeURIComponent(fill(r.path))}`].includes(res.headers.get('location')), `${r.method} ${r.path}: ${res.headers.get('location')}`);
   }
 });
 

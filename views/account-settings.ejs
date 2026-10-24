@@ -1,0 +1,65 @@
+<%- include('partials/head') %>
+<% const c = candidate; %>
+
+<section class="section admin portal">
+  <div class="container">
+    <%- include('partials/account-nav', { heading: 'Settings' }) %>
+    <div class="dash-grid">
+      <section class="dash-card" id="password">
+        <div class="dash-head"><h2>Password</h2></div>
+        <p class="small muted"><%= c.passwordHash ? 'You can sign in with your password or an email link.' : "You sign in with a link we email you. Add a password if you'd rather type one; email links keep working." %></p>
+        <form class="form" method="post" action="/account/password">
+          <input type="text" name="username" value="<%= email %>" autocomplete="username" hidden>
+          <div class="form-grid">
+            <% if (c.passwordHash) { %><label class="span-2">Current password<input type="password" name="current" required maxlength="200" autocomplete="current-password"></label><% } %>
+            <label>New password<input type="password" name="password" required minlength="10" maxlength="200" autocomplete="new-password"></label>
+            <label>Type it again<input type="password" name="confirm" required minlength="10" maxlength="200" autocomplete="new-password"></label>
+          </div>
+          <p class="small muted">At least 10 characters. Changing it signs you out on your other devices.</p>
+          <button class="btn btn-primary btn-sm" type="submit"><%= c.passwordHash ? 'Change password' : 'Set password' %></button>
+        </form>
+      </section>
+
+      <section class="dash-card" id="privacy">
+        <div class="dash-head"><h2>Privacy &amp; messages</h2></div>
+        <form class="form" method="post" action="/account/settings">
+          <fieldset class="check-set"><legend>Who can find you</legend>
+            <label class="check-row"><input type="checkbox" name="visibleToRecruiters" value="1"<%= c.privacy.visibleToRecruiters ? ' checked' : '' %>> <span>Let <%= site.name %> recruiters find my profile for other jobs that fit</span></label>
+            <p class="small muted">Off: recruiters see you only for jobs you apply to. Employers never see your details unless you apply or agree.</p>
+          </fieldset>
+          <fieldset class="check-set"><legend>How we may contact you</legend>
+            <p class="small muted">We always email you about your applications and account.</p>
+            <label class="check-row"><input type="checkbox" name="whatsapp" value="1"<%= c.comms.whatsapp ? ' checked' : '' %>> <span>Job matches and updates on WhatsApp</span></label>
+            <label class="check-row"><input type="checkbox" name="sms" value="1"<%= c.comms.sms ? ' checked' : '' %>> <span>Interview reminders by SMS</span></label>
+            <label class="check-row"><input type="checkbox" name="offers" value="1"<%= c.comms.offers ? ' checked' : '' %>> <span>Career tips and news from <%= site.name %></span></label>
+          </fieldset>
+          <button class="btn btn-primary btn-sm" type="submit">Save settings</button>
+        </form>
+      </section>
+
+      <section class="dash-card" id="activity">
+        <div class="dash-head"><h2>Recent activity</h2></div>
+        <% if (!log.length) { %><p class="small muted">Nothing yet.</p><% } else { %>
+          <ul class="entry-list small">
+            <% log.forEach(function (e) { %><li><span><%= e.label %><%= e.detail ? ' (' + e.detail + ')' : '' %></span><span class="muted"><%= formatIst(e.at) %></span></li><% }) %>
+          </ul>
+        <% } %>
+        <p class="small muted">Something you don't recognise? Sign out everywhere and change your password.</p>
+        <form method="post" action="/account/sessions/revoke"><button class="btn btn-outline btn-sm" type="submit">Sign out on all devices</button></form>
+      </section>
+
+      <section class="dash-card" id="data">
+        <div class="dash-head"><h2>Your data</h2></div>
+        <p class="muted small">Download a copy of what we hold about you: your profile, applications and their progress, interviews, emails we sent you, job alerts, saved jobs and account activity.</p>
+        <p><a class="btn btn-outline btn-sm" href="/account/my-data.json" download>Download my data</a></p>
+        <p class="muted small">You can delete your account and everything we hold about you: your profile, all applications, resumes, job alerts, saved jobs and newsletter subscription. This can't be undone.</p>
+        <form class="form delete-data" method="post" action="/account/delete" data-confirm="Permanently delete all your data?">
+          <label>Type DELETE to confirm<input name="confirm" autocomplete="off" required pattern="[Dd][Ee][Ll][Ee][Tt][Ee]"></label>
+          <button class="btn btn-sm btn-danger" type="submit">Delete my account and data</button>
+        </form>
+      </section>
+    </div>
+  </div>
+</section>
+
+<%- include('partials/foot') %>

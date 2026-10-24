@@ -69,9 +69,14 @@ function toText(site, heading, html) {
   return `${heading}\n\n${body}\n\n--\n${site.name} · ${site.phone} · ${site.email}\n`;
 }
 
+// Outbox files are named in the order emails were sent (not the order the
+// async rendering finishes), so the newest file is always the latest email.
+let sent = 0;
+
 // Never let a mail failure break a form submission; log it and move on.
 async function send(site, { to, subject, heading, html, replyTo, headers, icalEvent }) {
   if (!to) return;
+  const order = `${Date.now()}-${String(++sent).padStart(6, '0')}`;
   try {
     const info = await transport.sendMail({
       from: MAIL_FROM || `"${site.name}" <${site.email}>`,
@@ -86,7 +91,7 @@ async function send(site, { to, subject, heading, html, replyTo, headers, icalEv
     if (!SMTP_HOST) {
       fs.mkdirSync(OUTBOX_DIR, { recursive: true });
       const safe = subject.replace(/[^a-z0-9]+/gi, '-').slice(0, 50).toLowerCase();
-      fs.writeFileSync(path.join(OUTBOX_DIR, `${Date.now()}-${safe}.eml`), info.message);
+      fs.writeFileSync(path.join(OUTBOX_DIR, `${order}-${safe}.eml`), info.message);
     }
   } catch (err) {
     console.error(`Email "${subject}" to ${to} failed:`, err.message);
@@ -566,6 +571,30 @@ function createMailer(site) {
           p('Use the button below to see your applications, upcoming interviews, jobs that match your profile and your job alerts.') +
           button(link, 'Sign in') +
           p(`<span style="color:#6b7690;font-size:13px">This link works once and expires in ${minutes} minutes. Didn't ask for it? You can ignore this email.</span>`),
+      });
+    },
+
+    candidatePasswordReset(email, link, minutes) {
+      send(site, {
+        to: email,
+        subject: `Reset your ${site.name} password`,
+        heading: 'Choose a new password',
+        html:
+          p('Someone (hopefully you) asked to reset the password for your job-seeker account. Use the button below to choose a new one.') +
+          button(link, 'Choose a new password') +
+          p(`<span style="color:#6b7690;font-size:13px">This link works once and expires in ${minutes} minutes. Didn't ask for it? Ignore this email and your password stays the same.</span>`),
+      });
+    },
+
+    // A security notice whenever the password is set, changed or reset.
+    candidatePasswordChanged(email, what) {
+      send(site, {
+        to: email,
+        subject: `Your ${site.name} password was ${what}`,
+        heading: `Password ${what}`,
+        html:
+          p(`The password for your job-seeker account was ${what} just now, and you were signed out on your other devices.`) +
+          p(`Wasn't you? Use "Forgot password" on the sign-in page to choose a new one, and reply to this email so we can help.`),
       });
     },
 

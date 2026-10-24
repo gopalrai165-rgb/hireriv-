@@ -8,6 +8,8 @@ const ROOT = path.join(__dirname, '..');
 // Route paths built in a loop; listed here so each real path is checked.
 const EXPAND = {
   route: ['/employer/setup/:token', '/employer/reset/:token'],
+  resumePath: ['/account/resume', '/account/resumes'],
+  '`/candidate${from}`': ['/candidate', '/candidate/dashboard', '/candidate/register', '/candidate/login', '/candidate/forgot-password', '/candidate/profile', '/candidate/resumes', '/candidate/applications', '/candidate/saved-jobs', '/candidate/alerts', '/candidate/interviews', '/candidate/settings'],
 };
 
 function policyOf(args, p) {
