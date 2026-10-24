@@ -11,6 +11,7 @@
       <h1>Admin</h1>
       <div class="admin-actions">
         <% if (tab === 'jobs') { %><a class="btn btn-primary btn-sm" href="/admin/jobs/new">+ Post a job</a><% } %>
+        <% if (tab === 'applications') { %><a class="btn btn-primary btn-sm" href="/admin/applications/new">+ Add candidate</a><% } %>
         <% if (tab === 'blog') { %><a class="btn btn-primary btn-sm" href="/admin/blog/new">+ Write an article</a><% } %>
         <% if (rows.length && !['blog', 'interviews', 'clients', 'team'].includes(tab) && (isAdmin || !['placements', 'activity'].includes(tab))) { %><a class="btn btn-outline btn-sm" href="/admin/export/<%= tab %>.csv">Export CSV</a><% } %>
       </div>
@@ -157,7 +158,7 @@
             <% rows.forEach(function (r) { %>
               <tr>
                 <td class="check-col"><input type="checkbox" name="ids" value="<%= r.id %>" form="bulk-form" aria-label="Select <%= r.name %>" data-row-check></td>
-                <td><b><%= r.name %></b><% if (r.withdrawnAt) { %> <span class="pill st-rejected" title="Withdrawn <%= formatDate(r.withdrawnAt) %>">Withdrawn</span><% } %><br><a href="mailto:<%= r.email %>"><%= r.email %></a><br><%= r.phone %>
+                <td><b><%= r.name %></b><% if (r.withdrawnAt) { %> <span class="pill st-rejected" title="Withdrawn <%= formatDate(r.withdrawnAt) %>">Withdrawn</span><% } %><%- include('partials/contact-links', { person: r }) %>
                   <% if (r.linkedin) { %><br><a href="<%= /^https?:\/\//i.test(r.linkedin) ? r.linkedin : '#' %>" target="_blank" rel="noopener noreferrer">LinkedIn / portfolio</a><% } %>
                   <% if (r.resume) { %><br><a href="/admin/resume/<%= encodeURIComponent(r.resume) %>">Download resume</a><% } %>
                   <% const lastMail = (r.emails || [])[(r.emails || []).length - 1]; %>

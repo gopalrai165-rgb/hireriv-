@@ -1202,3 +1202,11 @@ main:focus { outline: none; }
 .work-field .path-icon { background: var(--grad-sun); box-shadow: 0 14px 28px -10px rgba(255, 140, 30, .6); }
 .work-more { margin-top: auto; padding-top: 8px; display: inline-flex; align-items: center; gap: 6px; font-weight: 700; color: var(--primary); }
 @media (max-width: 860px) { .work-cards { grid-template-columns: 1fr; } }
+
+/* Quick apply (skilled and field jobs) */
+.quick-note { margin: 0 0 14px; }
+.more-details { margin: 6px 0 18px; border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 10px 14px; }
+.more-details summary { cursor: pointer; font-weight: 600; color: var(--ink); }
+.more-details[open] summary { margin-bottom: 12px; }
+.wa-apply { margin-top: 10px; display: flex; align-items: center; justify-content: center; gap: 8px; }
+.wa-apply .i { color: #25d366; }

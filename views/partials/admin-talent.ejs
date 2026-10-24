@@ -43,7 +43,7 @@
         <% rows.forEach(function (c) { %>
           <tr>
             <% if (matchJob) { %><td><% if (c.match) { %><%- include('match-chip', { match: c.match }) %><% } else { %><span class="muted small">No skills listed on job</span><% } %></td><% } %>
-            <td><b><%= c.name %></b><br><a href="mailto:<%= c.email %>"><%= c.email %></a><br><%= c.phone %>
+            <td><b><%= c.name %></b><%- include('contact-links', { person: c }) %>
               <% if (c.resume) { %><br><a href="/admin/resume/<%= encodeURIComponent(c.resume) %>">Latest resume</a><% } %>
             </td>
             <td><%= c.skills || '—' %></td>

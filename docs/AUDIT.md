@@ -86,7 +86,7 @@ Each item keeps what exists working and adds to it. Size: S ≈ one step, M ≈ 
 
 | # | Item | Why | Size |
 | --- | --- | --- | --- |
-| 1 | **Easy applying for skilled and field jobs**: per-job "resume not needed" (default for skilled and field categories), email optional when a phone number is given, a 4-field quick apply, and a WhatsApp "apply by message" link | Without this, hiring for skilled and field jobs can't work | M |
+| 1 | ✅ **Done in Step 42.** **Easy applying for skilled and field jobs**: per-job "resume not needed" (default for skilled and field categories), email optional when a phone number is given, a 4-field quick apply, and a WhatsApp "apply by message" link | Without this, hiring for skilled and field jobs can't work | M |
 | 2 | ✅ **Done in Step 41.** **Job taxonomy**: skilled and field categories (Factory & Production, Warehouse, Delivery & Driving, Skilled Trades, Construction, Security, Facility & Housekeeping, Food & Hospitality, Domestic Staff, Agriculture); job types Temporary, Gig/Daily wage, Apprenticeship, Walk-in; a "kind of work" tag (Office & professional, Skilled & technical, Industrial, field & service) | Lets jobs be posted and found properly | S |
 | 3 | **Structured pay + better search**: salary min/max per month, day or hour (existing text converted automatically), and filters for pay, experience, job type and kind of work | The plan's "search by salary and experience" | M |
 | 4 | **Services and industries**: Payroll & compliance service page, industry desks for skilled and field work, `/staffing-solutions` redirect | Matches the planned offer | S |

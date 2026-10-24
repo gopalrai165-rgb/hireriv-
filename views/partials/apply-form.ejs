@@ -1,32 +1,67 @@
+<% const quickApply = typeof quick !== 'undefined' && quick; %>
 <form class="form js-form" action="/api/apply" method="post" enctype="multipart/form-data">
   <%- include('honeypot') %>
   <input type="hidden" name="jobId" value="<%= jobId %>">
   <input type="hidden" name="source" value="" data-source>
-  <div class="form-grid">
-    <label class="span-2 file-field">Resume* <span class="muted small">(PDF, DOC or DOCX, max 5 MB) · add it first and we'll fill in what we can</span>
-      <input type="file" name="resume" accept=".pdf,.doc,.docx" required data-resume-autofill>
-      <span class="small resume-status" data-resume-status aria-live="polite"></span>
-    </label>
-    <label>Full name*<input name="name" required autocomplete="name"></label>
-    <label>Email*<input type="email" name="email" required autocomplete="email"></label>
-    <label>Phone*<input type="tel" name="phone" required autocomplete="tel" placeholder="+91 98xxxxxxxx"></label>
-    <label>Total experience
-      <select name="experience">
-        <option>Fresher</option><option>0-1 years</option><option>1-3 years</option>
-        <option>3-5 years</option><option>5-10 years</option><option>10+ years</option>
-      </select>
-    </label>
-    <label>Current location<input name="location" autocomplete="address-level2"></label>
-    <label>Notice period
-      <select name="noticePeriod">
-        <option>Immediate</option><option>15 days</option><option>30 days</option>
-        <option>60 days</option><option>90 days</option>
-      </select>
-    </label>
-    <label class="span-2">Key skills <span class="muted small">(comma separated, helps us match you faster)</span><input name="skills" placeholder="e.g. React, Node.js, AWS"></label>
-    <label class="span-2">LinkedIn / portfolio URL<input type="url" name="linkedin" placeholder="https://"></label>
-    <label class="span-2">Anything else we should know?<textarea name="message" rows="3"></textarea></label>
-  </div>
+  <% if (quickApply) { %>
+    <%# Skilled and field jobs: name and phone are enough; the rest is optional. %>
+    <p class="muted small quick-note">Takes a minute. No resume or email needed: a recruiter will call you.</p>
+    <div class="form-grid">
+      <label>Full name*<input name="name" required autocomplete="name"></label>
+      <label>Mobile number (WhatsApp)*<input type="tel" name="phone" required autocomplete="tel" inputmode="tel" placeholder="98xxxxxxxx"></label>
+      <label>Area / city you live in<input name="location" autocomplete="address-level2"></label>
+      <label>Experience in this work
+        <select name="experience">
+          <option>Fresher</option><option>0-1 years</option><option>1-3 years</option>
+          <option>3-5 years</option><option>5-10 years</option><option>10+ years</option>
+        </select>
+      </label>
+      <label>When can you start?
+        <select name="noticePeriod">
+          <option>Immediate</option><option>15 days</option><option>30 days</option><option>60 days</option>
+        </select>
+      </label>
+    </div>
+    <details class="more-details">
+      <summary>Add email, resume or skills (optional)</summary>
+      <div class="form-grid">
+        <label>Email<input type="email" name="email" autocomplete="email"></label>
+        <label class="file-field">Resume <span class="muted small">(PDF, DOC or DOCX, max 5 MB)</span>
+          <input type="file" name="resume" accept=".pdf,.doc,.docx" data-resume-autofill>
+          <span class="small resume-status" data-resume-status aria-live="polite"></span>
+        </label>
+        <label class="span-2">Skills, licences or certificates <span class="muted small">(e.g. ITI Electrician, two-wheeler licence, forklift)</span><input name="skills"></label>
+        <label class="span-2">Anything else we should know?<textarea name="message" rows="2"></textarea></label>
+      </div>
+    </details>
+  <% } else { %>
+    <div class="form-grid">
+      <label class="span-2 file-field">Resume* <span class="muted small">(PDF, DOC or DOCX, max 5 MB) · add it first and we'll fill in what we can</span>
+        <input type="file" name="resume" accept=".pdf,.doc,.docx" required data-resume-autofill>
+        <span class="small resume-status" data-resume-status aria-live="polite"></span>
+      </label>
+      <label>Full name*<input name="name" required autocomplete="name"></label>
+      <label>Email*<input type="email" name="email" required autocomplete="email"></label>
+      <label>Phone*<input type="tel" name="phone" required autocomplete="tel" placeholder="+91 98xxxxxxxx"></label>
+      <label>Total experience
+        <select name="experience">
+          <option>Fresher</option><option>0-1 years</option><option>1-3 years</option>
+          <option>3-5 years</option><option>5-10 years</option><option>10+ years</option>
+        </select>
+      </label>
+      <label>Current location<input name="location" autocomplete="address-level2"></label>
+      <label>Notice period
+        <select name="noticePeriod">
+          <option>Immediate</option><option>15 days</option><option>30 days</option>
+          <option>60 days</option><option>90 days</option>
+        </select>
+      </label>
+      <label class="span-2">Key skills <span class="muted small">(comma separated, helps us match you faster)</span><input name="skills" placeholder="e.g. React, Node.js, AWS"></label>
+      <label class="span-2">LinkedIn / portfolio URL<input type="url" name="linkedin" placeholder="https://"></label>
+      <label class="span-2">Anything else we should know?<textarea name="message" rows="3"></textarea></label>
+    </div>
+  <% } %>
   <button class="btn btn-primary btn-block" type="submit">Submit application</button>
-  <p class="muted small form-note">By applying you agree to be contacted by a <%= site.name %> recruiter about this and similar roles, as described in our <a href="/privacy">Privacy Policy</a>.</p>
+  <% if (quickApply && whatsappApply) { %><a class="btn btn-outline btn-block wa-apply" href="<%= whatsappApply %>" target="_blank" rel="noopener"><svg class="i"><use href="#i-whatsapp"/></svg> Or apply on WhatsApp</a><% } %>
+  <p class="muted small form-note">By applying you agree to be contacted by a <%= site.name %> recruiter about this and similar roles<%= quickApply ? ' by phone, WhatsApp or SMS' : '' %>, as described in our <a href="/privacy">Privacy Policy</a>. Applying is always free: we never ask candidates for money.</p>
 </form>

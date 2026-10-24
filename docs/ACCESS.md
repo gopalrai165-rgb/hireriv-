@@ -13,7 +13,7 @@ Every route the app serves, and who may use it. **This table is checked by `test
 
 Every state-changing team, candidate and client form also passes `sameOrigin` (cross-site posts are refused).
 
-Total: 141 routes.
+Total: 143 routes.
 
 ## Public website
 
@@ -135,6 +135,8 @@ Total: 141 routes.
 | POST | `/admin/placements/:id` | team |  |
 | POST | `/admin/placements/:id/status` | team |  |
 | GET | `/admin/placements/:id/replacement` | team |  |
+| GET | `/admin/applications/new` | team | Add someone who applied by WhatsApp, phone, walk-in or referral |
+| POST | `/admin/applications/new` | team | Add someone who applied by WhatsApp, phone, walk-in or referral |
 | GET | `/admin` | team | Recruiters never get the Settings, Team or Activity tabs, and see Reports without money |
 | GET | `/admin/jobs/new` | team |  |
 | GET | `/admin/jobs/:id/edit` | team |  |

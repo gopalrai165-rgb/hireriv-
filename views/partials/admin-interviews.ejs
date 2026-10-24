@@ -28,7 +28,7 @@
         <% rows.forEach(function (iv) { %>
           <tr>
             <td><b><%= formatIst(iv.at) %></b><br><span class="muted small"><%= iv.duration %> min</span></td>
-            <td><b><%= iv.app.name %></b><br><a href="mailto:<%= iv.app.email %>"><%= iv.app.email %></a><br><%= iv.app.phone %></td>
+            <td><b><%= iv.app.name %></b><%- include('contact-links', { person: iv.app }) %></td>
             <td><%= iv.app.jobTitle %></td>
             <td><%= iv.mode %><br><% if (/^https?:\/\//.test(iv.where)) { %><a href="<%= iv.where %>" target="_blank" rel="noopener noreferrer">Join link</a><% } else { %><span class="muted small"><%= iv.where %></span><% } %></td>
             <td><%= iv.interviewer || '—' %><% if (iv.interviewerEmail) { %><br><span class="muted small"><%= iv.interviewerEmail %></span><% } %></td>

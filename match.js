@@ -25,13 +25,27 @@ function skillMatch(candidate, job) {
   };
 }
 
-// One entry per candidate (by email), built from their newest application,
+// Mobile numbers by their last 10 digits, so +91 98765 43210 and 09876543210 match.
+const phoneKey = (phone) => {
+  const d = String(phone || '').replace(/\D/g, '');
+  return d.length >= 8 ? d.slice(-10) : '';
+};
+
+// One person across applications: their email, or their phone when they gave no
+// email (people applying for field jobs often don't have one).
+function candidateKey(a) {
+  const email = String(a.email || '').trim().toLowerCase();
+  if (email) return email;
+  const tel = phoneKey(a.phone);
+  return tel ? `tel:${tel}` : `id:${a.id}`;
+}
+
+// One entry per candidate (see candidateKey), built from their newest application,
 // remembering every job they applied for and every skill they listed.
 function buildPool(applications) {
   const byEmail = new Map();
   for (const a of applications) {
-    const key = String(a.email || '').toLowerCase();
-    if (!key) continue;
+    const key = candidateKey(a);
     const entry = byEmail.get(key);
     if (!entry) {
       byEmail.set(key, { ...a, status: a.status || 'New', applicationCount: 1, jobsApplied: [a.jobTitle], skillsAll: [a.skills].filter(Boolean) });
@@ -67,4 +81,4 @@ function searchPool(pool, { q = '', experience = '', notice = '', status = '', j
   return list;
 }
 
-module.exports = { skillMatch, buildPool, searchPool, norm };
+module.exports = { skillMatch, buildPool, searchPool, norm, candidateKey, phoneKey };

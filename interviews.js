@@ -161,7 +161,7 @@ function register(app, { adminAuth, sameOrigin, readSubmissions, writeSubmission
     writeSubmissions('applications', list);
     mailer.interviewScheduled(a, iv, icsFor('REQUEST', iv, a), formatIst(at));
     if (feedbackUrl) mailer.interviewerBriefing(f.interviewerEmail, a, iv, formatIst(at), feedbackUrl);
-    res.redirect(adminUrl('interviews', `Interview booked with ${a.name} for ${formatIst(at)} · invite emailed${feedbackUrl ? ` · feedback link sent to ${f.interviewerEmail}` : ''}`));
+    res.redirect(adminUrl('interviews', `Interview booked with ${a.name} for ${formatIst(at)} · ${a.email ? 'invite emailed' : 'no email on file, so tell them by phone or WhatsApp'}${feedbackUrl ? ` · feedback link sent to ${f.interviewerEmail}` : ''}`));
   });
 
   // ---------- scorecards ----------

@@ -6,8 +6,8 @@ const crypto = require('crypto');
 const { createMailer } = require('./mailer');
 const { open: openDb } = require('./db');
 const seo = require('./seo');
-const { skillMatch, buildPool, searchPool } = require('./match');
-const { parsePost, parseSettings, SOCIAL, DEFAULT_JOB_CATEGORIES, DEFAULT_JOB_LOCATIONS, SAMPLE_TESTIMONIALS, MAX_TESTIMONIALS, WORK_KINDS, WORK_KEYS, CATEGORY_WORK, workOf, workOfCategory } = require('./content');
+const { skillMatch, buildPool, searchPool, phoneKey } = require('./match');
+const { parsePost, parseSettings, SOCIAL, DEFAULT_JOB_CATEGORIES, DEFAULT_JOB_LOCATIONS, SAMPLE_TESTIMONIALS, MAX_TESTIMONIALS, WORK_KINDS, WORK_KEYS, CATEGORY_WORK, workOf, workOfCategory, RESUME_OPTIONS, resumeNeeded } = require('./content');
 const interviews = require('./interviews');
 const employers = require('./employers');
 const candidates = require('./candidates');
@@ -283,6 +283,13 @@ app.use(express.static(path.join(__dirname, 'public'), { maxAge: '1h' }));
 app.locals.site = site;
 app.locals.catalog = catalog;
 app.locals.workOf = workOf;
+// Chat link for a candidate's mobile number (10-digit Indian numbers get +91).
+app.locals.waLink = (phone) => {
+  let d = String(phone || '').replace(/\D/g, '');
+  if (d.length === 11 && d.startsWith('0')) d = d.slice(1);
+  if (d.length === 10) d = `91${d}`;
+  return d.length >= 10 ? `https://wa.me/${d}` : '';
+};
 app.locals.workLabel = (key) => (WORK_KINDS.find((c) => c.key === key) || WORK_KINDS[0]).label;
 // The homepage shows these until real testimonials are saved in Settings.
 app.locals.testimonialsFor = (s) => (Array.isArray(s.testimonials) ? s.testimonials : SAMPLE_TESTIMONIALS);
@@ -418,6 +425,12 @@ app.get('/jobs', (req, res) => {
 });
 
 // Closed jobs keep their page (old links still resolve) but no longer take applications.
+// "Apply on WhatsApp" opens a chat with the team, pre-filled with the job.
+// Hidden while the WhatsApp number in Settings is still the placeholder.
+const realWhatsapp = () => /^\d{10,15}$/.test(site.whatsapp || '') && !/^\d{2}0+$/.test(site.whatsapp);
+const whatsappApplyLink = (job) =>
+  realWhatsapp() ? `https://wa.me/${site.whatsapp}?text=${encodeURIComponent(`Hi ${site.name}, I want to apply for ${job.title} in ${job.location} (job ${job.id}). My name is `)}` : '';
+
 app.get('/jobs/:id', (req, res, next) => {
   const job = jobs.find((j) => j.id === req.params.id);
   if (!job) return next();
@@ -428,6 +441,8 @@ app.get('/jobs/:id', (req, res, next) => {
     page: 'jobs',
     job,
     related,
+    quick: !resumeNeeded(job),
+    whatsappApply: whatsappApplyLink(job),
     metaDescription: `${job.title} (${job.type}, ${job.mode}) in ${job.location}${job.experience ? `, ${job.experience}` : ''}${job.salary ? `, ${job.salary}` : ''}. ${job.description}`.slice(0, 300),
     // Google requires expired postings to drop their JobPosting markup.
     jsonLd: open ? seo.jobPosting(job, site, BASE_URL) : null,
@@ -487,7 +502,7 @@ app.get('/industries/:slug', (req, res, next) => {
 app.get('/about', (req, res) => res.render('about', { title: 'About Us', page: 'about' }));
 app.get('/contact', (req, res) => res.render('contact', { title: 'Contact Us', page: 'contact' }));
 // Bump LEGAL_UPDATED whenever the wording of either page changes.
-const LEGAL_UPDATED = '2026-10-17';
+const LEGAL_UPDATED = '2026-10-24';
 app.get('/privacy', (req, res) => res.render('privacy', { title: 'Privacy Policy', page: 'legal', updated: LEGAL_UPDATED, metaDescription: `How ${site.name} collects, uses and protects the personal data of candidates, clients and visitors.` }));
 app.get('/terms', (req, res) => res.render('terms', { title: 'Terms of Use', page: 'legal', updated: LEGAL_UPDATED, metaDescription: `The terms for using the ${site.name} website as a job seeker or employer.` }));
 app.get('/blog', (req, res) => res.render('blog', { title: 'Blog & Articles', page: 'blog', posts: livePosts() }));
@@ -498,6 +513,38 @@ app.get('/blog/:slug', (req, res, next) => {
 });
 
 // ---------- form endpoints ----------
+// Saves an application, or updates this person's earlier one for the same job
+// instead of creating a second candidate. People are matched by email, or by
+// phone when either application has no email. Someone who withdrew and comes
+// back gets a fresh application.
+const APPLICATION_FIELDS = ['name', 'email', 'phone', 'skills', 'experience', 'location', 'noticePeriod', 'linkedin', 'message'];
+async function saveApplication(data, file, job, extra = {}) {
+  // Keep the resume text for searching, and its skills for matching. If the
+  // candidate left "Key skills" empty, the skills found in the resume fill it.
+  const resumeText = file ? await resumes.extractText(file.path, file.originalname) : '';
+  const found = resumes.analyze(resumeText, allJobSkills());
+  if (!data.skills && found.skills.length) data.skills = found.skills.join(', ');
+  const list = readSubmissions('applications');
+  const sameJob = (a) => (a.jobId || '') === (job ? job.id : data.jobId || '');
+  const email = String(data.email || '').toLowerCase();
+  const tel = phoneKey(data.phone);
+  const samePerson = (a) => (email && String(a.email || '').toLowerCase() === email) || ((!email || !a.email) && tel && phoneKey(a.phone) === tel);
+  const prev = list.find((a) => !a.withdrawnAt && sameJob(a) && samePerson(a));
+  if (prev) {
+    for (const k of APPLICATION_FIELDS) if (data[k]) prev[k] = data[k];
+    if (file) {
+      if (prev.resume) fs.unlink(path.join(UPLOADS_DIR, path.basename(prev.resume)), () => {});
+      Object.assign(prev, { resume: file.filename, resumeText, resumeSkills: found.skills });
+    }
+    const now = new Date().toISOString();
+    Object.assign(prev, { updatedAt: now, reapplied: [...(prev.reapplied || []), now].slice(-20) });
+    writeSubmissions('applications', list);
+    return { app: prev, updated: true };
+  }
+  const entry = saveSubmission('applications', { ...data, jobTitle: job ? job.title : 'General application', resume: file ? file.filename : '', resumeText, resumeSkills: found.skills, status: 'New', notes: '', ...extra });
+  return { app: entry, updated: false };
+}
+
 app.post('/api/apply', limit('apply', 6), (req, res) => {
   upload.single('resume')(req, res, (err) => {
     if (!err && isBot(req.body)) {
@@ -505,39 +552,29 @@ app.post('/api/apply', limit('apply', 6), (req, res) => {
       return respond(req, res, [], 'Thanks! Your application is in.');
     }
     if (err) return respond(req, res, [err.code === 'LIMIT_FILE_SIZE' ? 'Resume must be under 5 MB' : err.message]);
-    const data = clean(req.body, ['jobId', 'name', 'email', 'phone', 'skills', 'experience', 'location', 'noticePeriod', 'linkedin', 'message', 'source']);
+    const data = clean(req.body, ['jobId', ...APPLICATION_FIELDS, 'source']);
     data.source = reportsModule.cleanSource(data.source);
-    const errors = validate(data, ['name', 'email', 'phone']);
-    if (!req.file) errors.push('resume is required');
     const job = jobs.find((j) => j.id === data.jobId);
+    // Quick applications (skilled and field jobs): a name and phone number are enough.
+    const quick = !resumeNeeded(job);
+    const errors = validate(data, quick ? ['name', 'phone'] : ['name', 'email', 'phone']);
+    if (!req.file && !quick) errors.push('resume is required');
     if (job && job.status !== 'open') errors.push('this job is no longer accepting applications');
     if (errors.length) {
       if (req.file) fs.unlink(req.file.path, () => {});
       return respond(req, res, errors);
     }
-    // Keep the resume text for searching, and its skills for matching. If the
-    // candidate left "Key skills" empty, the skills found in the resume fill it.
-    resumes.extractText(req.file.path, req.file.originalname).then((resumeText) => {
-      const found = resumes.analyze(resumeText, allJobSkills());
-      if (!data.skills && found.skills.length) data.skills = found.skills.join(', ');
-      // Applying again for the same job updates the existing application (new
-      // resume and details) instead of creating a second candidate. Someone who
-      // withdrew and comes back gets a fresh application.
-      const list = readSubmissions('applications');
-      const sameJob = (a) => (a.jobId || '') === (job ? job.id : data.jobId || '');
-      const prev = list.find((a) => !a.withdrawnAt && String(a.email).toLowerCase() === data.email.toLowerCase() && sameJob(a));
-      if (prev) {
-        if (prev.resume) fs.unlink(path.join(UPLOADS_DIR, path.basename(prev.resume)), () => {});
-        for (const k of ['name', 'phone', 'skills', 'experience', 'location', 'noticePeriod', 'linkedin', 'message']) if (data[k]) prev[k] = data[k];
-        const now = new Date().toISOString();
-        Object.assign(prev, { resume: req.file.filename, resumeText, resumeSkills: found.skills, updatedAt: now, reapplied: [...(prev.reapplied || []), now].slice(-20) });
-        writeSubmissions('applications', list);
-        mailer.applicationUpdated(prev);
-        return respond(req, res, [], `Thanks ${data.name.split(' ')[0]}! You'd already applied for this job, so we've updated your application with your new resume and details.`);
+    saveApplication(data, req.file, job).then(({ app, updated }) => {
+      const first = data.name.split(' ')[0];
+      if (updated) {
+        mailer.applicationUpdated(app);
+        return respond(req, res, [], `Thanks ${first}! You'd already applied for this job, so we've updated your application with your new details.`);
       }
-      const entry = saveSubmission('applications', { ...data, jobTitle: job ? job.title : 'General application', resume: req.file.filename, resumeText, resumeSkills: found.skills, status: 'New', notes: '' });
-      mailer.applicationReceived(entry);
-      respond(req, res, [], `Thanks ${data.name.split(' ')[0]}! Your application is in. A recruiter will contact you within 2 working days.`);
+      mailer.applicationReceived(app);
+      respond(req, res, [], `Thanks ${first}! Your application is in. A recruiter will ${data.email ? 'contact you' : `call you on ${data.phone}`} within 2 working days.`);
+    }).catch((e) => {
+      console.error(e);
+      respond(req, res, ['Could not save your application. Please try again.']);
     });
   });
 });
@@ -728,6 +765,42 @@ const timesheets = timesheetsModule.register(app, {
   requireCandidate: candidateAccounts.requireCandidate, requireEmployer: clients.requireEmployer,
 });
 
+// The team adds people who applied by WhatsApp, phone call, walk-in or referral.
+const addCandidatePage = (req, res, f, errors, status = 200) =>
+  res.status(status).render('admin-add-candidate', { title: 'Add a candidate', page: 'admin', f, errors, jobs: openJobs(), channels: reportsModule.MANUAL_SOURCES });
+
+app.get('/admin/applications/new', adminAuth, (req, res) =>
+  addCandidatePage(req, res, { jobId: String(req.query.job || ''), source: 'whatsapp-chat' }, []));
+
+app.post('/admin/applications/new', adminAuth, sameOrigin, (req, res) => {
+  upload.single('resume')(req, res, (err) => {
+    const f = clean(req.body, ['jobId', ...APPLICATION_FIELDS, 'source', 'notes']);
+    const errors = err ? [err.code === 'LIMIT_FILE_SIZE' ? 'resume must be under 5 MB' : err.message] : validate(f, ['name', 'phone']);
+    const job = openJobs().find((j) => j.id === f.jobId);
+    if (f.jobId && !job) errors.push('pick an open job, or General application');
+    if (!reportsModule.MANUAL_SOURCES[f.source]) errors.push('choose how they reached us');
+    if (errors.length) {
+      if (req.file) fs.unlink(req.file.path, () => {});
+      return addCandidatePage(req, res, f, errors, 400);
+    }
+    const data = { jobId: job ? job.id : 'general', source: f.source };
+    for (const k of APPLICATION_FIELDS) data[k] = f[k];
+    const extra = { addedBy: req.admin.name, addedById: req.admin.id, addedVia: reportsModule.MANUAL_SOURCES[f.source], notes: f.notes };
+    saveApplication(data, req.file, job, extra).then(({ app, updated }) => {
+      if (updated && f.notes) {
+        const list = readSubmissions('applications');
+        const a = list.find((x) => x.id === app.id);
+        a.notes = [a.notes, f.notes].filter(Boolean).join('\n');
+        writeSubmissions('applications', list);
+      }
+      res.redirect(adminUrl('applications', updated ? `${data.name} had already applied for ${app.jobTitle}, so their application was updated` : `Added ${data.name} for ${app.jobTitle}`));
+    }).catch((e) => {
+      console.error(e);
+      addCandidatePage(req, res, f, ['could not save, please try again'], 500);
+    });
+  });
+});
+
 app.get('/admin', adminAuth, (req, res) => {
   const tabs = tabsFor(req.admin);
   const tab = tabs.includes(req.query.tab) ? req.query.tab : 'dashboard';
@@ -900,6 +973,8 @@ function parseJob(body) {
     category: data.category,
     // Empty means "from the category", so re-categorising a job moves it too.
     work: WORK_KEYS.includes(body.work) ? body.work : '',
+    // Empty means "from the kind of work": required for office jobs, optional otherwise.
+    resume: RESUME_OPTIONS.includes(body.resume) ? body.resume : '',
     experience: data.experience,
     salary: data.salary,
     skills: data.skills.split(',').map((s) => s.trim()).filter(Boolean),

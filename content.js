@@ -73,6 +73,11 @@ const CATEGORY_WORK = {
 const workOfCategory = (category) => CATEGORY_WORK[category] || 'office';
 const workOf = (job) => (WORK_KEYS.includes(job.work) ? job.work : workOfCategory(job.category));
 
+// Skilled and field jobs take a quick application (name and phone are enough);
+// office jobs ask for a resume and email. The job form can override either way.
+const RESUME_OPTIONS = ['required', 'optional'];
+const resumeNeeded = (job) => !job || job.resume === 'required' || (job.resume !== 'optional' && workOf(job) === 'office');
+
 // Job locations offered on the job form, the Find Work filter and job alerts.
 const DEFAULT_JOB_LOCATIONS = [
   'Remote', 'Bengaluru', 'Mumbai', 'Navi Mumbai', 'Thane', 'Delhi', 'Delhi NCR', 'Gurugram', 'Noida',
@@ -183,4 +188,4 @@ function parseSettings(body, current) {
   return { settings: next, errors };
 }
 
-module.exports = { parsePost, slugify, parseSettings, SOCIAL, DEFAULT_JOB_CATEGORIES, DEFAULT_JOB_LOCATIONS, SAMPLE_TESTIMONIALS, MAX_TESTIMONIALS, WORK_KINDS, WORK_KEYS, CATEGORY_WORK, workOf, workOfCategory };
+module.exports = { parsePost, slugify, parseSettings, SOCIAL, DEFAULT_JOB_CATEGORIES, DEFAULT_JOB_LOCATIONS, SAMPLE_TESTIMONIALS, MAX_TESTIMONIALS, WORK_KINDS, WORK_KEYS, CATEGORY_WORK, workOf, workOfCategory, RESUME_OPTIONS, resumeNeeded };

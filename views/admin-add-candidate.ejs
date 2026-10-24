@@ -1,0 +1,41 @@
+<%- include('partials/head') %>
+
+<section class="section admin">
+  <div class="container narrow">
+    <a href="/admin?tab=applications" class="back-link">← Applications</a>
+    <h1>Add a candidate</h1>
+    <p class="muted">For people who applied by WhatsApp, phone call, walk-in or referral. A name and mobile number are enough. If they already applied for the same job (same email, or same mobile number when there's no email), their application is updated instead of added twice.</p>
+    <% if (errors.length) { %><p class="notice notice-err" role="alert">Please fix: <%= errors.join(', ') %></p><% } %>
+
+    <form class="form form-card" method="post" action="/admin/applications/new" enctype="multipart/form-data">
+      <div class="form-grid">
+        <label class="span-2">Job
+          <select name="jobId">
+            <option value="">General application (no particular job)</option>
+            <% jobs.forEach(function (j) { %><option value="<%= j.id %>"<%= j.id === f.jobId ? ' selected' : '' %>><%= j.title %> · <%= j.company %> · <%= j.location %></option><% }) %>
+          </select>
+        </label>
+        <label>Full name*<input name="name" required maxlength="120" value="<%= f.name || '' %>"></label>
+        <label>Mobile number*<input type="tel" name="phone" required value="<%= f.phone || '' %>" placeholder="98xxxxxxxx"></label>
+        <label>How they reached us*
+          <select name="source" required><% Object.keys(channels).forEach(function (k) { %><option value="<%= k %>"<%= k === f.source ? ' selected' : '' %>><%= channels[k] %></option><% }) %></select>
+        </label>
+        <label>Email <span class="muted small">(optional)</span><input type="email" name="email" value="<%= f.email || '' %>"></label>
+        <label>Area / city<input name="location" value="<%= f.location || '' %>"></label>
+        <label>Experience
+          <select name="experience"><% ['Fresher', '0-1 years', '1-3 years', '3-5 years', '5-10 years', '10+ years'].forEach(function (x) { %><option<%= x === f.experience ? ' selected' : '' %>><%= x %></option><% }) %></select>
+        </label>
+        <label>Can start
+          <select name="noticePeriod"><% ['Immediate', '15 days', '30 days', '60 days', '90 days'].forEach(function (x) { %><option<%= x === f.noticePeriod ? ' selected' : '' %>><%= x %></option><% }) %></select>
+        </label>
+        <label class="file-field">Resume <span class="muted small">(optional; PDF, DOC or DOCX)</span><input type="file" name="resume" accept=".pdf,.doc,.docx"></label>
+        <label class="span-2">Skills, licences or certificates<input name="skills" value="<%= f.skills || '' %>" placeholder="e.g. ITI Electrician, two-wheeler licence, forklift"></label>
+        <label class="span-2">Recruiter notes <span class="muted small">(only the team sees these)</span><textarea name="notes" rows="3" maxlength="2000"><%= f.notes || '' %></textarea></label>
+      </div>
+      <button class="btn btn-primary" type="submit">Add candidate</button>
+      <p class="muted small">Nothing is sent to the candidate. Tell them they've been added, and that applying through <%= site.name %> is free.</p>
+    </form>
+  </div>
+</section>
+
+<%- include('partials/foot') %>

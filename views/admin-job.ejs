@@ -38,6 +38,14 @@
           </select>
           <span class="muted small">Sets which tab the job appears under on Find Work. Change it for jobs that don't fit their category, e.g. a site supervisor in Construction.</span>
         </label>
+        <label>Resume
+          <select name="resume">
+            <option value="">Same as the kind of work (required for office jobs)</option>
+            <option value="required"<%= job.resume === 'required' ? ' selected' : '' %>>Required, with an email address</option>
+            <option value="optional"<%= job.resume === 'optional' ? ' selected' : '' %>>Optional: quick apply with name and phone</option>
+          </select>
+          <span class="muted small">Quick apply suits jobs where most people don't have a resume or email. It also shows an "Apply on WhatsApp" button once your WhatsApp number is in Settings.</span>
+        </label>
         <label>Experience<input name="experience" value="<%= job.experience || '' %>" placeholder="e.g. 3-5 years"></label>
         <label>Salary<input name="salary" value="<%= job.salary || '' %>" placeholder="e.g. ₹14 – 20 LPA"></label>
         <label>Client <span class="muted small">(lets this client see the job in their portal)</span>

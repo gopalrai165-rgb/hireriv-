@@ -55,6 +55,11 @@ const SOURCE_NAMES = {
   google: 'Google', facebook: 'Facebook', instagram: 'Instagram', naukri: 'Naukri', indeed: 'Indeed',
   direct: 'Direct / typed in', website: 'Our website',
 };
+// How candidates reached the team when a recruiter adds them by hand.
+const MANUAL_SOURCES = {
+  'whatsapp-chat': 'WhatsApp message', 'phone-call': 'Phone call', 'walk-in': 'Walk-in', referral: 'Referral', 'job-fair': 'Job fair or hiring camp', other: 'Other',
+};
+Object.assign(SOURCE_NAMES, MANUAL_SOURCES);
 const sourceName = (s) => (!s ? 'Not tracked (older)' : SOURCE_NAMES[s] || s.charAt(0).toUpperCase() + s.slice(1));
 
 // How quickly the team first moves a new application out of "New".
@@ -225,4 +230,4 @@ function create({ readSubmissions, getJobs, getPlacements, team, appOwner }) {
 // Normalise the source sent by the apply form: a short lowercase slug.
 const cleanSource = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9.-]/g, '').slice(0, 40);
 
-module.exports = { create, cleanSource, sourceName };
+module.exports = { create, cleanSource, sourceName, MANUAL_SOURCES };

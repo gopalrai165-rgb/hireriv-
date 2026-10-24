@@ -52,7 +52,7 @@
         <a href="/jobs" class="btn btn-primary btn-block">See open jobs</a>
       <% } else { %>
         <h2>Apply for this job</h2>
-        <%- include('partials/apply-form', { jobId: job.id }) %>
+        <%- include('partials/apply-form', { jobId: job.id, quick: quick, whatsappApply: whatsappApply }) %>
       <% } %>
     </aside>
   </div>

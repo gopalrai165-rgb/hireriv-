@@ -7,6 +7,7 @@
 // the unsubscribe link).
 const fs = require('fs');
 const path = require('path');
+const { candidateKey } = require('./match');
 
 const PERIODS = [0, 12, 24, 36]; // months; 0 = keep until deleted by hand
 // Candidates linked to a placement in one of these states are always kept.
@@ -39,18 +40,22 @@ function candidatesDue(applications, placements, { months, now = new Date() }) {
   if (!months) return [];
   const cutoff = monthsBefore(now, months);
   const nowIso = new Date(now).toISOString();
-  const keepEmails = new Set(placements.filter((p) => ACTIVE_PLACEMENT.includes(p.status)).map((p) => String(p.candidateEmail || '').toLowerCase()));
+  const active = placements.filter((p) => ACTIVE_PLACEMENT.includes(p.status));
+  const keepEmails = new Set(active.map((p) => String(p.candidateEmail || '').toLowerCase()).filter(Boolean));
+  const keepApps = new Set(active.map((p) => p.appId));
+  // Grouped per person: by email, or by phone for people who applied without one.
   const byEmail = new Map();
   for (const a of applications) {
+    const key = candidateKey(a);
     const email = String(a.email || '').toLowerCase();
-    const c = byEmail.get(email) || { email, name: a.name, last: '', appIds: [], upcoming: false };
+    const c = byEmail.get(key) || { email, name: a.name, last: '', appIds: [], upcoming: false };
     const last = lastActivity(a);
     if (last > c.last) c.last = last;
     c.appIds.push(a.id);
     if ((a.interviews || []).some((iv) => iv.status === 'scheduled' && iv.at > nowIso)) c.upcoming = true;
-    byEmail.set(email, c);
+    byEmail.set(key, c);
   }
-  return [...byEmail.values()].filter((c) => c.last < cutoff && !c.upcoming && !keepEmails.has(c.email));
+  return [...byEmail.values()].filter((c) => c.last < cutoff && !c.upcoming && !keepEmails.has(c.email) && !c.appIds.some((id) => keepApps.has(id)));
 }
 
 // Old messages and requests, and stale unconfirmed alerts.
@@ -96,7 +101,7 @@ function create({ db, site, uploadsDir, readSubmissions, writeSubmissions, log }
       if (ids.size) {
         for (const a of apps) if (ids.has(a.id) && a.resume) fs.unlink(path.join(uploadsDir, path.basename(a.resume)), () => {});
         writeSubmissions('applications', apps.filter((a) => !ids.has(a.id)));
-        for (const c of due) db.sessions.deleteSubject('candidate', c.email);
+        for (const c of due) if (c.email) db.sessions.deleteSubject('candidate', c.email);
         done.candidates = due.length;
         done.applications = ids.size;
       }
