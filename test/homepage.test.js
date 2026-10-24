@@ -64,7 +64,7 @@ test('starter jobs are labelled as samples, take no applications and stay out of
   assert.match(JSON.stringify(await res.json()), /sample listing/);
   assert.equal(srv.records('applications').length, 0);
 
-  assert.doesNotMatch(await page('/sitemap.xml'), /\/jobs\/hr-114</);
+  assert.doesNotMatch(await page('/sitemap.xml'), /-hr-114</);
   assert.match(await page('/admin', { cookie: admin }), /Replace the \d+ sample jobs/);
 });
 
@@ -79,5 +79,5 @@ test('editing a sample job makes it a real job', async () => {
   assert.equal(res.status, 302);
   assert.equal(srv.records('jobs').find((j) => j.id === 'hr-114').sample, false);
   assert.match(await page('/jobs/hr-114'), /"@type":"JobPosting"/);
-  assert.match(await page('/sitemap.xml'), /\/jobs\/hr-114</);
+  assert.match(await page('/sitemap.xml'), /-hr-114</);
 });

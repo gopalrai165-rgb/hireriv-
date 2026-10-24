@@ -207,4 +207,11 @@ function parseSettings(body, current) {
   return { settings: next, errors };
 }
 
-module.exports = { parsePost, slugify, parseSettings, SOCIAL, DEFAULT_JOB_CATEGORIES, DEFAULT_JOB_LOCATIONS, SAMPLE_TESTIMONIALS, MAX_TESTIMONIALS, WORK_KINDS, WORK_KEYS, CATEGORY_WORK, workOf, workOfCategory, RESUME_OPTIONS, resumeNeeded, JOB_GROUPS, inGroup, isFresherJob };
+// A job's address: its title and city for people and search engines, ending in
+// the job id, which is what finds the job. Old /jobs/<id> links keep working,
+// and a changed title only changes the words.
+const jobSlug = (job) => [slugify(job.title).slice(0, 60).replace(/-+$/, ''), slugify(job.location), String(job.id)].filter(Boolean).join('-');
+const jobPath = (job) => `/jobs/${jobSlug(job)}`;
+const findJobBySlug = (list, param) => list.find((j) => param === j.id) || list.find((j) => param.endsWith(`-${j.id}`));
+
+module.exports = { jobSlug, jobPath, findJobBySlug, parsePost, slugify, parseSettings, SOCIAL, DEFAULT_JOB_CATEGORIES, DEFAULT_JOB_LOCATIONS, SAMPLE_TESTIMONIALS, MAX_TESTIMONIALS, WORK_KINDS, WORK_KEYS, CATEGORY_WORK, workOf, workOfCategory, RESUME_OPTIONS, resumeNeeded, JOB_GROUPS, inGroup, isFresherJob };

@@ -10,6 +10,8 @@ const VALID_DAYS = 60;
 // Salary text → a range Google for Jobs understands, or null (e.g. "Competitive").
 // "₹14 – 20 LPA" is per year; skilled, factory and field jobs usually pay per month, day or hour:
 // "₹16,000 – 20,000 per month", "₹800/day".
+const { jobPath } = require('./content');
+
 function parseSalary(text) {
   const s = String(text || '');
   const nums = (s.replace(/(\d),(?=\d)/g, '$1').match(/\d+(?:\.\d+)?/g) || []).map(Number);
@@ -72,7 +74,7 @@ function jobPosting(job, site, baseUrl) {
     skills: job.skills.join(', '),
     industry: job.category,
     directApply: true,
-    url: `${baseUrl}/jobs/${job.id}`,
+    url: `${baseUrl}${jobPath(job)}`,
   };
 }
 
@@ -118,7 +120,7 @@ function sitemap(baseUrl, { jobs, posts, staticPaths }) {
     '<?xml version="1.0" encoding="UTF-8"?>',
     '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
     ...staticPaths.map((p) => url(p, today)),
-    ...jobs.map((j) => url(`/jobs/${j.id}`, j.posted)),
+    ...jobs.map((j) => url(jobPath(j), j.posted)),
     ...posts.map((p) => url(`/blog/${p.slug}`, p.date)),
     '</urlset>',
   ].join('\n');

@@ -6,9 +6,10 @@ const crypto = require('crypto');
 const { createMailer } = require('./mailer');
 const { open: openDb } = require('./db');
 const seo = require('./seo');
-const { skillMatch, buildPool, searchPool, phoneKey } = require('./match');
+const { skillMatch, buildPool, searchPool, phoneKey, candidateKey } = require('./match');
 const search = require('./search');
-const { parsePost, parseSettings, SOCIAL, DEFAULT_JOB_CATEGORIES, DEFAULT_JOB_LOCATIONS, SAMPLE_TESTIMONIALS, MAX_TESTIMONIALS, WORK_KINDS, WORK_KEYS, CATEGORY_WORK, workOf, workOfCategory, RESUME_OPTIONS, resumeNeeded, JOB_GROUPS, inGroup } = require('./content');
+const uploadSafety = require('./uploads');
+const { jobPath, findJobBySlug, parsePost, parseSettings, SOCIAL, DEFAULT_JOB_CATEGORIES, DEFAULT_JOB_LOCATIONS, SAMPLE_TESTIMONIALS, MAX_TESTIMONIALS, WORK_KINDS, WORK_KEYS, CATEGORY_WORK, workOf, workOfCategory, RESUME_OPTIONS, resumeNeeded, JOB_GROUPS, inGroup } = require('./content');
 const interviews = require('./interviews');
 const employers = require('./employers');
 const candidates = require('./candidates');
@@ -48,6 +49,39 @@ for (const type of [...FORM_TYPES, 'employers']) {
   if (n) console.log(`Imported ${n} ${type} from data/submissions/${type}.json`);
 }
 db.importOnce('jobs', path.join(DATA_DIR, 'jobs.json'));
+
+// One live application per person per job, enforced by the database as well as
+// by saveApplication. Withdrawn applications don't count, so people can apply
+// again after withdrawing.
+const applicationKey = (a) => (a.withdrawnAt || a.duplicateOf ? null : `${a.jobId || 'general'}|${candidateKey(a)}`);
+db.uniqueKey('applications', applicationKey);
+// Before the rule existed, a person could end up with two live applications
+// for one job. Once: keep the one furthest along (the earliest if level) and
+// mark the others as duplicates of it, so nothing is lost and the rule can apply.
+if (!db.metaGet('upgraded:application-unique-v1')) {
+  const list = db.all('applications');
+  const rank = { Hired: 5, Offered: 4, Interview: 3, Screening: 2, New: 1, Rejected: 0 };
+  const groups = new Map();
+  for (const a of list) {
+    const k = applicationKey(a);
+    if (k) groups.set(k, [...(groups.get(k) || []), a]);
+  }
+  let marked = 0;
+  for (const group of groups.values()) {
+    if (group.length < 2) continue;
+    group.sort((x, y) => (rank[y.status] ?? 1) - (rank[x.status] ?? 1) || String(x.createdAt).localeCompare(String(y.createdAt)));
+    for (const dup of group.slice(1)) { dup.duplicateOf = group[0].id; marked++; }
+  }
+  db.replaceAll('applications', list);
+  if (marked) console.log(`Marked ${marked} duplicate application${marked === 1 ? '' : 's'} (kept the furthest along for each person and job)`);
+  db.metaSet('upgraded:application-unique-v1', new Date().toISOString());
+}
+
+// Resume uploads: real PDF/Word files only, scanned when CLAMAV_HOST is set.
+const resumeCheck = uploadSafety.create();
+// Resume downloads go through signed links that expire after 15 minutes.
+if (!db.metaGet('secret:links')) db.metaSet('secret:links', crypto.randomBytes(32).toString('hex'));
+const downloadLinks = uploadSafety.links(db.metaGet('secret:links'));
 db.importOnce('posts', path.join(DATA_DIR, 'posts.json'));
 db.importOnce('site', path.join(DATA_DIR, 'site.json'));
 
@@ -329,6 +363,9 @@ app.locals.site = site;
 app.locals.catalog = catalog;
 app.locals.workOf = workOf;
 app.locals.isSample = (j) => j.sample === true;
+app.locals.jobPath = jobPath;
+// Resume links in pages are signed and expire, so a copied link stops working.
+app.locals.signedLink = (url) => downloadLinks.signed(url);
 // Chat link for a candidate's mobile number (10-digit Indian numbers get +91).
 app.locals.waLink = (phone) => {
   let d = String(phone || '').replace(/\D/g, '');
@@ -565,8 +602,13 @@ const whatsappApplyLink = (job) =>
   realWhatsapp() ? `https://wa.me/${site.whatsapp}?text=${encodeURIComponent(`Hi ${site.name}, I want to apply for ${job.title} in ${job.location} (job ${job.id}). My name is `)}` : '';
 
 app.get('/jobs/:id', (req, res, next) => {
-  const job = jobs.find((j) => j.id === req.params.id);
+  const job = findJobBySlug(jobs, req.params.id);
   if (!job) return next();
+  // An old title in the address (the job was renamed) moves to the current one.
+  if (req.params.id !== job.id && req.params.id !== jobPath(job).slice(6)) {
+    const qs = req.originalUrl.includes('?') ? req.originalUrl.slice(req.originalUrl.indexOf('?')) : '';
+    return res.redirect(301, jobPath(job) + qs);
+  }
   const related = openJobs().filter((j) => j.category === job.category && j.id !== job.id).slice(0, 3);
   const open = job.status === 'open';
   // Signed-in candidates get one-click applying with their profile.
@@ -589,6 +631,7 @@ app.get('/jobs/:id', (req, res, next) => {
     // Google requires expired postings to drop their JobPosting markup.
     jsonLd: open && !isSample(job) ? seo.jobPosting(job, site, BASE_URL) : null,
     ogImage: `${BASE_URL}/og/jobs/${job.id}.png?v=${og.jobVersion(job)}`,
+    canonical: BASE_URL + jobPath(job),
     ogImageAlt: `${job.title} at ${job.company}, ${job.location}`,
     noindex: !open || isSample(job),
   });
@@ -644,7 +687,7 @@ app.get('/industries/:slug', (req, res, next) => {
 app.get('/about', (req, res) => res.render('about', { title: 'About Us', page: 'about' }));
 app.get('/contact', (req, res) => res.render('contact', { title: 'Contact Us', page: 'contact' }));
 // Bump LEGAL_UPDATED whenever the wording of either page changes.
-const LEGAL_UPDATED = '2026-10-26';
+const LEGAL_UPDATED = '2026-10-27';
 app.get('/privacy', (req, res) => res.render('privacy', { title: 'Privacy Policy', page: 'legal', updated: LEGAL_UPDATED, metaDescription: `How ${site.name} collects, uses and protects the personal data of candidates, clients and visitors.` }));
 app.get('/terms', (req, res) => res.render('terms', { title: 'Terms of Use', page: 'legal', updated: LEGAL_UPDATED, metaDescription: `The terms for using the ${site.name} website as a job seeker or employer.` }));
 app.get('/blog', (req, res) => res.render('blog', { title: 'Career Resources', page: 'blog', posts: livePosts() }));
@@ -671,7 +714,7 @@ async function saveApplication(data, file, job, extra = {}) {
   const email = String(data.email || '').toLowerCase();
   const tel = phoneKey(data.phone);
   const samePerson = (a) => (email && String(a.email || '').toLowerCase() === email) || ((!email || !a.email) && tel && phoneKey(a.phone) === tel);
-  const prev = list.find((a) => !a.withdrawnAt && sameJob(a) && samePerson(a));
+  const prev = list.find((a) => !a.withdrawnAt && !a.duplicateOf && sameJob(a) && samePerson(a));
   if (prev) {
     for (const k of APPLICATION_FIELDS) if (data[k]) prev[k] = data[k];
     if (file) {
@@ -683,8 +726,17 @@ async function saveApplication(data, file, job, extra = {}) {
     writeSubmissions('applications', list);
     return { app: prev, updated: true };
   }
-  const entry = saveSubmission('applications', { ...data, jobTitle: job ? job.title : 'General application', resume: file ? file.filename : '', resumeText, resumeSkills: found.skills, status: 'New', notes: '', ...extra });
-  return { app: entry, updated: false };
+  const record = { ...data, jobTitle: job ? job.title : 'General application', resume: file ? file.filename : '', resumeText, resumeSkills: found.skills, status: 'New', notes: '', ...extra };
+  try {
+    return { app: saveSubmission('applications', record), updated: false };
+  } catch (err) {
+    // The database's one-application-per-person rule caught a duplicate the
+    // check above missed: keep the existing application.
+    if (err.code !== 'ERR_UNIQUE') throw err;
+    if (file) fs.unlink(file.path, () => {});
+    const key = applicationKey({ id: '', ...record });
+    return { app: readSubmissions('applications').find((a) => applicationKey(a) === key), updated: true, duplicate: true };
+  }
 }
 
 app.post('/api/apply', limit('apply', 6), (req, res) => {
@@ -707,7 +759,9 @@ app.post('/api/apply', limit('apply', 6), (req, res) => {
       if (req.file) fs.unlink(req.file.path, () => {});
       return respond(req, res, errors);
     }
-    saveApplication(data, req.file, job).then(({ app, updated }) => {
+    resumeCheck.vet(req.file).then((bad) => {
+      if (bad) return respond(req, res, [bad]);
+      return saveApplication(data, req.file, job).then(({ app, updated }) => {
       const first = data.name.split(' ')[0];
       if (updated) {
         mailer.applicationUpdated(app);
@@ -715,6 +769,7 @@ app.post('/api/apply', limit('apply', 6), (req, res) => {
       }
       mailer.applicationReceived(app);
       respond(req, res, [], `Thanks ${first}! Your application is in. A recruiter will ${data.email ? 'contact you' : `call you on ${data.phone}`} within 2 working days.`);
+      });
     }).catch((e) => {
       console.error(e);
       respond(req, res, ['Could not save your application. Please try again.']);
@@ -789,7 +844,7 @@ const publicJob = (j) => ({
   postedAt: j.posted,
   closesOn: j.closesOn || null,
   quickApply: !resumeNeeded(j),
-  url: `${BASE_URL}/jobs/${j.id}`,
+  url: `${BASE_URL}${jobPath(j)}`,
 });
 
 app.get('/api/jobs', limit('job-search', 120, 60 * 1000), (req, res) => {
@@ -960,7 +1015,7 @@ const validOwner = (id) => (team.members().some((u) => u.id === id) ? id : '');
 
 interviews.register(app, { adminAuth, sameOrigin, readSubmissions, writeSubmissions, mailer, site, adminUrl, baseUrl: BASE_URL, limit });
 const clients = employers.register(app, {
-  db, site, mailer, baseUrl: BASE_URL, adminAuth, sameOrigin, adminUrl, limit,
+  db, site, mailer, baseUrl: BASE_URL, adminAuth, sameOrigin, adminUrl, limit, downloadLinks, linkExpired,
   readSubmissions, saveSubmission, getJobs: () => jobs, appStatuses: APP_STATUSES,
   writeSubmissions, uploadsDir: UPLOADS_DIR, skillMatch, placementsFor: (emp) => billing.forClient(emp), timesheetsFor: (emp) => timesheets.forClient(emp),
 });
@@ -982,6 +1037,7 @@ const candidateAccounts = candidates.register(app, {
   uploadsDir: UPLOADS_DIR, getJobs: () => jobs, formatIst: interviews.formatIst, interviewIcs, site,
   contractsFor: (email) => timesheets.forCandidate(email),
   upload, saveApplication, isBot, isSample, isLive, resumeNeeded, skillMatch, saveSubmission, jobCategories, jobLocations,
+  vetUpload: resumeCheck.vet, downloadLinks, linkExpired,
 });
 const timesheets = timesheetsModule.register(app, {
   db, mailer, baseUrl: BASE_URL, sameOrigin, limit, adminAuth, requireAdmin, clients,
@@ -1009,7 +1065,9 @@ app.post('/admin/applications/new', adminAuth, sameOrigin, (req, res) => {
     const data = { jobId: job ? job.id : 'general', source: f.source };
     for (const k of APPLICATION_FIELDS) data[k] = f[k];
     const extra = { addedBy: req.admin.name, addedById: req.admin.id, addedVia: reportsModule.MANUAL_SOURCES[f.source], notes: f.notes };
-    saveApplication(data, req.file, job, extra).then(({ app, updated }) => {
+    resumeCheck.vet(req.file).then((bad) => {
+      if (bad) return addCandidatePage(req, res, f, [bad], 400);
+      return saveApplication(data, req.file, job, extra).then(({ app, updated }) => {
       if (updated && f.notes) {
         const list = readSubmissions('applications');
         const a = list.find((x) => x.id === app.id);
@@ -1017,6 +1075,7 @@ app.post('/admin/applications/new', adminAuth, sameOrigin, (req, res) => {
         writeSubmissions('applications', list);
       }
       res.redirect(adminUrl('applications', updated ? `${data.name} had already applied for ${app.jobTitle}, so their application was updated` : `Added ${data.name} for ${app.jobTitle}`));
+      });
     }).catch((e) => {
       console.error(e);
       addCandidatePage(req, res, f, ['could not save, please try again'], 500);
@@ -1467,7 +1526,13 @@ app.post('/admin/resumes/reindex', adminAuth, requireAdmin, sameOrigin, async (r
   res.redirect(adminUrl('talent', `Read ${read} of ${todo.length} older resume${todo.length === 1 ? '' : 's'}${todo.length - read ? ` (${todo.length - read} couldn't be read: scans or old .doc files)` : ''}`));
 });
 
+// A resume link opened after it expired: the page it came from makes a fresh one.
+function linkExpired(res, back) {
+  res.status(410).set('Cache-Control', 'no-store').render('thanks', { title: 'Link expired', page: '', ok: false, noindex: true, message: `This download link has expired (they last ${uploadSafety.LINK_MINUTES} minutes). Go back and refresh the page for a new one.` });
+}
+
 app.get('/admin/resume/:file', adminAuth, (req, res) => {
+  if (!downloadLinks.valid(req)) return linkExpired(res, '/admin?tab=applications');
   const file = path.basename(req.params.file);
   res.download(path.join(UPLOADS_DIR, file), file, (err) => err && !res.headersSent && res.status(404).end());
 });

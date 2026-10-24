@@ -31,12 +31,18 @@ function open(file) {
     CREATE INDEX IF NOT EXISTS sessions_subject ON sessions (kind, subject);
     CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
   `);
+  // A per-collection unique key (e.g. one live application per person and job),
+  // enforced by SQLite itself. Documents without a key are not constrained.
+  if (!db.prepare('PRAGMA table_info(records)').all().some((c) => c.name === 'ukey')) db.exec('ALTER TABLE records ADD COLUMN ukey TEXT');
+  db.exec('CREATE UNIQUE INDEX IF NOT EXISTS records_unique ON records (collection, ukey) WHERE ukey IS NOT NULL');
+  const keyFns = {};
+  const keyOf = (collection, doc) => (keyFns[collection] ? keyFns[collection](doc) || null : null);
 
   const q = {
     all: db.prepare('SELECT data FROM records WHERE collection = ? ORDER BY pos'),
     count: db.prepare('SELECT COUNT(*) AS n FROM records WHERE collection = ?'),
     clear: db.prepare('DELETE FROM records WHERE collection = ?'),
-    put: db.prepare('INSERT INTO records (collection, id, pos, data) VALUES (?, ?, ?, ?)'),
+    put: db.prepare('INSERT INTO records (collection, id, pos, data, ukey) VALUES (?, ?, ?, ?, ?)'),
     minPos: db.prepare('SELECT COALESCE(MIN(pos), 0) AS p FROM records WHERE collection = ?'),
     metaGet: db.prepare('SELECT value FROM meta WHERE key = ?'),
     metaSet: db.prepare('INSERT INTO meta (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value'),
@@ -55,6 +61,7 @@ function open(file) {
       return out;
     } catch (err) {
       db.exec('ROLLBACK');
+      if (/UNIQUE constraint failed: records\.collection, records\.ukey/.test(err.message)) err.code = 'ERR_UNIQUE';
       throw err;
     }
   }
@@ -70,13 +77,20 @@ function open(file) {
     replaceAll(collection, list) {
       tx(() => {
         q.clear.run(collection);
-        list.forEach((doc, i) => q.put.run(collection, idOf(doc, i), i, JSON.stringify(doc)));
+        list.forEach((doc, i) => q.put.run(collection, idOf(doc, i), i, JSON.stringify(doc), keyOf(collection, doc)));
       });
     },
 
     // Add one document at the front (newest first), as submissions expect.
     prepend(collection, doc) {
-      tx(() => q.put.run(collection, idOf(doc, 0), q.minPos.get(collection).p - 1, JSON.stringify(doc)));
+      tx(() => q.put.run(collection, idOf(doc, 0), q.minPos.get(collection).p - 1, JSON.stringify(doc), keyOf(collection, doc)));
+    },
+
+    // Register the unique key for a collection: fn(doc) returns a string, or
+    // null for documents the rule doesn't cover. Writes that would break it
+    // throw an error with `code === 'ERR_UNIQUE'` and nothing is changed.
+    uniqueKey(collection, fn) {
+      keyFns[collection] = fn;
     },
 
     metaGet: (key) => (q.metaGet.get(key) || {}).value,

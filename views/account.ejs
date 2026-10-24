@@ -44,11 +44,11 @@
           <% matches.forEach(function (m) { %>
             <li>
               <div>
-                <a href="/jobs/<%= m.job.id %>"><b><%= m.job.title %></b></a>
+                <a href="<%= jobPath(m.job) %>"><b><%= m.job.title %></b></a>
                 <span class="muted small"><%= m.job.company %> · <%= m.job.location %> · <%= m.job.type %><%= m.job.salary ? ' · ' + m.job.salary : '' %></span>
                 <% if (m.matched.length) { %><span class="small">Your skills: <%= m.matched.join(', ') %></span><% } else if (m.near) { %><span class="small">Near you</span><% } %>
               </div>
-              <a class="btn btn-outline btn-sm" href="/jobs/<%= m.job.id %>#apply">View &amp; apply</a>
+              <a class="btn btn-outline btn-sm" href="<%= jobPath(m.job) %>#apply">View &amp; apply</a>
             </li>
           <% }) %>
         </ul>
@@ -63,7 +63,7 @@
           <div class="my-app-head">
             <div>
               <h3><% if (a.jobId && a.jobOpen) { %><a href="/jobs/<%= a.jobId %>"><%= a.jobTitle %></a><% } else { %><%= a.jobTitle %><% } %></h3>
-              <p class="muted small">Applied <%= formatDate(a.createdAt) %><% if (a.hasResume) { %> · <a href="/account/resume/<%= a.id %>">Your resume</a><% } %></p>
+              <p class="muted small">Applied <%= formatDate(a.createdAt) %><% if (a.hasResume) { %> · <a href="<%= signedLink('/account/resume/' + a.id) %>">Your resume</a><% } %></p>
             </div>
             <span class="pill <%= a.withdrawn || a.stage === 'Not selected' ? 'st-rejected' : a.stage === 'Hired' || a.stage === 'Offer' ? 'st-hired' : 'st-interview' %>"><%= a.stage %></span>
           </div>
@@ -110,7 +110,7 @@
         </form>
         <h3 class="dash-sub">Resume</h3>
         <% if (profile.resume) { %>
-          <p class="small">On file since <%= formatDate(profile.resume.at) %> · <a href="/account/resume/<%= profile.resume.appId %>">Download</a></p>
+          <p class="small">On file since <%= formatDate(profile.resume.at) %> · <a href="<%= signedLink('/account/resume/' + profile.resume.appId) %>">Download</a></p>
         <% } else { %>
           <p class="small muted">No resume yet. Office jobs need one for one-click applying.</p>
         <% } %>

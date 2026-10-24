@@ -6,7 +6,7 @@
       <button type="button" class="save-btn" data-save-job="<%= job.id %>" aria-pressed="false" aria-label="Save <%= job.title %>" title="Save job"><svg class="i"><use href="#i-bookmark"/></svg></button>
     </span>
   </div>
-  <h3><a href="/jobs/<%= job.id %>"><%= job.title %></a></h3>
+  <h3><a href="<%= jobPath(job) %>"><%= job.title %></a></h3>
   <p class="muted small"><%= job.company %> · <%= job.category %></p>
   <span class="tag tag-<%= job.mode.toLowerCase().replace(/[^a-z]+/g, '-') %>"><%= job.mode %></span>
   <ul class="job-meta">
@@ -16,5 +16,5 @@
     <% if (job.salary) { %><li><svg class="i" aria-hidden="true"><use href="#i-wallet"/></svg><span class="sr-only">Salary: </span><%= job.salary %></li><% } %>
   </ul>
   <div class="chips"><% job.skills.slice(0, 4).forEach(function (s) { %><span class="chip"><%= s %></span><% }) %></div>
-  <a class="card-link" href="/jobs/<%= job.id %>"><%= isSample(job) ? 'View example' : 'View & apply' %> <svg class="i"><use href="#i-arrow"/></svg></a>
+  <a class="card-link" href="<%= jobPath(job) %>"><%= isSample(job) ? 'View example' : 'View & apply' %> <svg class="i"><use href="#i-arrow"/></svg></a>
 </article>

@@ -217,7 +217,7 @@ test('job structured data and sitemap escape and include what they should', () =
   assert.match(ld.description, /A &amp; B/);
   assert.equal(seo.toJsonLd({ t: '</script>' }).includes('</script>'), false);
   const xml = seo.sitemap('https://hireriv.com', { jobs: [job], posts: [], staticPaths: ['/'] });
-  assert.match(xml, /<loc>https:\/\/hireriv.com\/jobs\/j1<\/loc><lastmod>2026-10-01<\/lastmod>/);
+  assert.match(xml, /<loc>https:\/\/hireriv.com\/jobs\/dev-lead-remote-j1<\/loc><lastmod>2026-10-01<\/lastmod>/);
 });
 
 test('validThrough uses the closing date, and is left out once an undated job is old', () => {

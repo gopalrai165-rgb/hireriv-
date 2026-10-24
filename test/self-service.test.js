@@ -47,8 +47,12 @@ test('candidates can download their data and their own resume, nobody else\'s', 
   assert.equal('notes' in data.applications[0], false);
 
   const [mine, theirs] = ['priya@example.in', 'ravi@example.in'].map((e) => srv.records('applications').find((a) => a.email === e));
-  assert.equal((await srv.request(`/account/resume/${mine.id}`, { cookie })).status, 200);
-  assert.equal((await srv.request(`/account/resume/${theirs.id}`, { cookie })).status, 404);
+  // Downloads go through the signed link on the account page, which expires.
+  const link = (await (await srv.request('/account', { cookie })).text()).match(/href="(\/account\/resume\/[^"]+)"/)[1].replace(/&amp;/g, '&');
+  assert.equal((await srv.request(link, { cookie })).status, 200);
+  assert.equal((await srv.request(`/account/resume/${mine.id}`, { cookie })).status, 410);
+  assert.equal((await srv.request(link.replace(/sig=[^&]+/, 'sig=forged'), { cookie })).status, 410);
+  assert.equal((await srv.request(`/account/resume/${theirs.id}${link.slice(link.indexOf('?'))}`, { cookie })).status, 404);
   assert.equal((await srv.request('/account/my-data.json')).status, 302); // signed out
 });
 

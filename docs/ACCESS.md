@@ -100,7 +100,7 @@ Total: 159 routes.
 | DELETE | `/api/candidate/saved-jobs/:jobId` | candidate | 401 when signed out; only the candidate's own saved jobs |
 | GET | `/api/candidate/applications` | candidate | 401 when signed out; only the candidate's own applications, without contact details |
 | GET | `/account/my-data.json` | candidate | Only the signed-in email's own data |
-| GET | `/account/resume/:appId` | candidate | Only the candidate's own applications |
+| GET | `/account/resume/:appId` | candidate | Only the candidate's own applications; signed link, valid 15 minutes |
 | GET | `/account/interviews/:appId/:ivId.ics` | candidate | Only the candidate's own interviews |
 | POST | `/account/profile` | candidate |  |
 | POST | `/account/applications/:id/withdraw` | candidate | Only the candidate's own applications |
@@ -119,8 +119,8 @@ Total: 159 routes.
 | POST | `/employer/forgot` | public |  |
 | GET | `/employer` | employer |  |
 | POST | `/employer/requirements` | employer |  |
-| GET | `/employer/resume/:appId` | employer | Only candidates shared with this client |
-| POST | `/employer/candidates/:appId/feedback` | employer | Only candidates shared with this client |
+| GET | `/employer/resume/:appId` | employer | Only candidates shared with this client; signed link, valid 15 minutes |
+| POST | `/employer/candidates/:appId/feedback` | employer | Only candidates shared with this client; signed link, valid 15 minutes |
 | GET | `/employer/invoices/:id` | employer | Only this client's invoices |
 | GET | `/employer/invoices/:id/credit-notes/:cnId` | employer | Only this client's invoices |
 | POST | `/employer/timesheets/:pid/:tsId/approve` | employer | Only this client's placements |
@@ -166,7 +166,7 @@ Total: 159 routes.
 | POST | `/admin/applications/:id/status` | team |  |
 | GET | `/admin/reports/:section.csv` | team | Money figures only for Admins (checked in the handler) |
 | GET | `/admin/export/:type.csv` | team | Placements and Activity exports are Admin only (checked in the handler) |
-| GET | `/admin/resume/:file` | team | Any team member can download any resume |
+| GET | `/admin/resume/:file` | team | Any team member can download any resume; signed link, valid 15 minutes |
 | GET | `/admin/security` | team | Your own account only. Still reachable when the team rule blocks everything else |
 | POST | `/admin/security/start` | team | Your own account only |
 | POST | `/admin/security/confirm` | team | Your own account only |

@@ -56,7 +56,7 @@
                 </ul>
                 <% if (c.skills) { %><div class="chips"><% c.skills.split(',').map(function (s) { return s.trim(); }).filter(Boolean).slice(0, 8).forEach(function (s) { %><span class="chip"><%= s %></span><% }) %></div><% } %>
                 <% if (c.summary) { %><p class="cand-note"><b>Recruiter's note:</b> <%= c.summary %></p><% } %>
-                <% if (c.hasResume) { %><a class="small cand-resume" href="/employer/resume/<%= c.id %>">Download resume</a><% } %>
+                <% if (c.hasResume) { %><a class="small cand-resume" href="<%= signedLink('/employer/resume/' + c.id) %>">Download resume</a><% } %>
                 <form class="form cand-feedback" method="post" action="/employer/candidates/<%= c.id %>/feedback">
                   <div class="decision-row" role="radiogroup" aria-label="Your decision on <%= c.name %>">
                     <% decisions.forEach(function (d) { %><label class="decision decision-<%= d.toLowerCase().split(' ').join('-') %>"><input type="radio" name="decision" value="<%= d %>" required<%= c.feedback && c.feedback.decision === d ? ' checked' : '' %>><span><%= d %></span></label><% }) %>

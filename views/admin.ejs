@@ -116,7 +116,7 @@
           <tbody>
             <% rows.forEach(function (j) { %>
               <tr>
-                <td><a href="/jobs/<%= j.id %>" target="_blank" rel="noopener"><b><%= j.title %></b></a><% if (isSample(j)) { %> <span class="pill pill-sample" title="Shown as an example, takes no applications. Edit it to make it a real job, or delete it.">Sample</span><% } %><br><span class="muted"><%= j.company %> · <%= j.category %> · <%= j.id %></span></td>
+                <td><a href="<%= jobPath(j) %>" target="_blank" rel="noopener"><b><%= j.title %></b></a><% if (isSample(j)) { %> <span class="pill pill-sample" title="Shown as an example, takes no applications. Edit it to make it a real job, or delete it.">Sample</span><% } %><br><span class="muted"><%= j.company %> · <%= j.category %> · <%= j.id %></span></td>
                 <td><%= j.location %><br><span class="muted"><%= j.mode %> · <%= j.type %></span></td>
                 <td><%= j.ownerId ? (memberName[j.ownerId] || 'Former member') : '—' %></td>
                 <td><%= formatDate(j.posted) %>
@@ -158,9 +158,9 @@
             <% rows.forEach(function (r) { %>
               <tr>
                 <td class="check-col"><input type="checkbox" name="ids" value="<%= r.id %>" form="bulk-form" aria-label="Select <%= r.name %>" data-row-check></td>
-                <td><b><%= r.name %></b><% if (r.withdrawnAt) { %> <span class="pill st-rejected" title="Withdrawn <%= formatDate(r.withdrawnAt) %>">Withdrawn</span><% } %><%- include('partials/contact-links', { person: r }) %>
+                <td><b><%= r.name %></b><% if (r.withdrawnAt) { %> <span class="pill st-rejected" title="Withdrawn <%= formatDate(r.withdrawnAt) %>">Withdrawn</span><% } %><% if (r.duplicateOf) { %> <span class="pill st-screening" title="This person already has a live application for this job; that one is kept">Duplicate</span><% } %><%- include('partials/contact-links', { person: r }) %>
                   <% if (r.linkedin) { %><br><a href="<%= /^https?:\/\//i.test(r.linkedin) ? r.linkedin : '#' %>" target="_blank" rel="noopener noreferrer">LinkedIn / portfolio</a><% } %>
-                  <% if (r.resume) { %><br><a href="/admin/resume/<%= encodeURIComponent(r.resume) %>">Download resume</a><% } %>
+                  <% if (r.resume) { %><br><a href="<%= signedLink('/admin/resume/' + encodeURIComponent(r.resume)) %>">Download resume</a><% } %>
                   <% const lastMail = (r.emails || [])[(r.emails || []).length - 1]; %>
                   <% if (lastMail) { %><br><span class="muted small" title="<%= lastMail.subject %>">Emailed <%= formatDate(lastMail.at) %> by <%= lastMail.by %><%= r.emails.length > 1 ? ' (' + r.emails.length + ' emails)' : '' %></span><% } %>
                   <details class="timeline-box"><summary class="small">Timeline (<%= r.timeline.length %>)</summary>

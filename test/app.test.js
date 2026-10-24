@@ -40,7 +40,7 @@ describe('public site', () => {
 
   test('sitemap lists open jobs, articles and legal pages; robots hides private areas', async () => {
     const xml = await (await app.request('/sitemap.xml')).text();
-    for (const p of [`/jobs/${JOB}`, '/blog/resume-tips-2026', '/privacy', '/terms']) assert.ok(xml.includes(`${p}</loc>`), p);
+    for (const p of [`-${JOB}`, '/blog/resume-tips-2026', '/privacy', '/terms']) assert.ok(xml.includes(`${p}</loc>`), p);
     const robots = await (await app.request('/robots.txt')).text();
     assert.match(robots, /Disallow: \/admin/);
   });

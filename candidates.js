@@ -6,6 +6,7 @@
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
+const { jobPath } = require('./content');
 
 const COOKIE = 'hr_cand';
 const LINK_MINUTES = 30;
@@ -35,7 +36,7 @@ function parseCookies(header) {
 
 function register(app, deps) {
   const { db, mailer, baseUrl, sameOrigin, limit, readSubmissions, writeSubmissions, uploadsDir, getJobs, formatIst, interviewIcs, site, contractsFor } = deps;
-  const { upload, saveApplication, isBot, isSample, isLive, resumeNeeded, skillMatch, saveSubmission, jobCategories, jobLocations } = deps;
+  const { upload, saveApplication, isBot, isSample, isLive, resumeNeeded, skillMatch, saveSubmission, jobCategories, jobLocations, vetUpload, downloadLinks, linkExpired } = deps;
   const secureCookie = /^https:/.test(baseUrl);
 
   const mine = (email) => readSubmissions('applications').filter((a) => String(a.email).toLowerCase() === email);
@@ -111,7 +112,9 @@ function register(app, deps) {
       if (!req.body.agree) errors.push('Please agree to the Privacy Policy and Terms of Use.');
       if (errors.length) { drop(); return registerPage(res, { values, errors }, 400); }
 
-      saveApplication({ jobId: 'general', ...values, source: 'account' }, req.file, null, { registeredAt: new Date().toISOString() })
+      vetUpload(req.file).then((bad) => {
+        if (bad) return registerPage(res, { values, errors: [bad] }, 400);
+        return saveApplication({ jobId: 'general', ...values, source: 'account' }, req.file, null, { registeredAt: new Date().toISOString() })
         .then(({ app: a, updated }) => {
           // The welcome email carries a sign-in link, so only the owner of the
           // address can open the account. Someone who already has one gets the
@@ -120,12 +123,12 @@ function register(app, deps) {
           db.sessions.set('candidate-link', sha(token), values.email, Date.now() + WELCOME_HOURS * 3600000);
           mailer.candidateRegistered(a, `${baseUrl}/account/verify/${token}`, WELCOME_HOURS, !updated);
           registerPage(res, { done: true, title: 'Check your email' });
-        })
-        .catch((e) => {
-          console.error(e);
-          drop();
-          registerPage(res, { values, errors: ['Could not create your account. Please try again.'] }, 500);
         });
+      }).catch((e) => {
+        console.error(e);
+        drop();
+        registerPage(res, { values, errors: ['Could not create your account. Please try again.'] }, 500);
+      });
     });
   });
 
@@ -216,7 +219,7 @@ function register(app, deps) {
   app.post('/account/apply/:jobId', requireCandidate, limit('account-apply', 20), sameOrigin, (req, res, next) => {
     const job = getJobs().find((j) => j.id === req.params.jobId);
     if (!job) return next();
-    const toJob = (msg) => res.redirect(`/jobs/${job.id}?msg=${encodeURIComponent(msg)}#apply`);
+    const toJob = (msg) => res.redirect(`${jobPath(job)}?msg=${encodeURIComponent(msg)}#apply`);
     if (!isLive(job) || isSample(job)) return toJob("This job isn't taking applications.");
     const account = accountForJob(req, job);
     if (account.applied) return toJob("You've already applied for this job.");
@@ -257,8 +260,8 @@ function register(app, deps) {
       const profile = profileFor(req.candidateEmail);
       const data = { jobId: 'general', email: req.candidateEmail, source: 'account' };
       for (const k of PROFILE_FIELDS) if (profile[k]) data[k] = profile[k];
-      saveApplication(data, req.file, null)
-        .then(() => back(res, 'Resume updated. It will be used for your next applications.'))
+      vetUpload(req.file)
+        .then((bad) => (bad ? back(res, bad) : saveApplication(data, req.file, null).then(() => back(res, 'Resume updated. It will be used for your next applications.'))))
         .catch((e) => {
           console.error(e);
           back(res, 'Could not save your resume. Please try again.');
@@ -365,6 +368,7 @@ function register(app, deps) {
   app.get('/account/resume/:appId', requireCandidate, (req, res, next) => {
     const a = mine(req.candidateEmail).find((x) => x.id === req.params.appId);
     if (!a || !a.resume) return next();
+    if (!downloadLinks.valid(req)) return linkExpired(res, '/account');
     const file = path.basename(a.resume);
     res.download(path.join(uploadsDir, file), `my-resume${path.extname(file)}`, (err) => err && !res.headersSent && res.status(404).end());
   });

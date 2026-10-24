@@ -103,7 +103,7 @@
     <% } else { %>
       <ol class="top-jobs">
         <% dash.topJobs.forEach(function (t) { %>
-          <li><a href="/jobs/<%= t.id %>" target="_blank" rel="noopener"><%= t.job.title %></a><span class="muted small"><%= t.job.location %><%= t.job.status === 'closed' ? ' · closed' : '' %></span><b><%= t.count %></b></li>
+          <li><a href="<%= jobPath(t.job) %>" target="_blank" rel="noopener"><%= t.job.title %></a><span class="muted small"><%= t.job.location %><%= t.job.status === 'closed' ? ' · closed' : '' %></span><b><%= t.count %></b></li>
         <% }) %>
       </ol>
     <% } %>

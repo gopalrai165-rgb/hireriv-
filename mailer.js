@@ -3,6 +3,7 @@
 const nodemailer = require('nodemailer');
 const path = require('path');
 const fs = require('fs');
+const { jobPath } = require('./content');
 
 const OUTBOX_DIR = process.env.OUTBOX_DIR ? path.resolve(process.env.OUTBOX_DIR) : path.join(__dirname, 'data', 'outbox');
 const { SMTP_HOST, SMTP_PORT = '587', SMTP_USER, SMTP_PASS, MAIL_FROM, NOTIFY_EMAIL, SITE_URL } = process.env;
@@ -511,7 +512,7 @@ function createMailer(site) {
           p(`<span style="color:#6b7690">${esc(job.company)}</span>`) +
           detailsTable([['Location', `${job.location} (${job.mode})`], ['Type', job.type], ['Experience', job.experience], ['Salary', job.salary], ['Skills', job.skills.join(', ')]]) +
           p(esc(job.description)) +
-          button(`${baseUrl}/jobs/${job.id}?utm_source=job-alert`, 'View job & apply') +
+          button(`${baseUrl}${jobPath(job)}?utm_source=job-alert`, 'View job & apply') +
           p(`<span style="color:#6b7690;font-size:12px">You're getting this because you set up an alert for ${esc(describeAlert(sub))}. <a href="${esc(unsubscribe)}" style="color:#6b7690">Unsubscribe</a></span>`),
       });
     },

@@ -225,7 +225,7 @@ function register(app, deps) {
   });
 
   // ---------- shortlist sharing ----------
-  const { writeSubmissions, uploadsDir, skillMatch } = deps;
+  const { writeSubmissions, uploadsDir, skillMatch, downloadLinks, linkExpired } = deps;
   const DECISIONS = ['Interested', 'Maybe', 'Not a fit'];
 
   // What a client may see about a candidate: no email or phone, so introductions
@@ -279,6 +279,7 @@ function register(app, deps) {
     const a = readSubmissions('applications').find((x) => x.id === req.params.appId);
     // Only candidates shared with this client, never by guessing ids.
     if (!a || !a.shared || a.shared.employerId !== req.employer.id || !a.resume) return next();
+    if (!downloadLinks.valid(req)) return linkExpired(res, '/employer');
     const file = path.basename(a.resume);
     const safeName = `${String(a.name).replace(/[^a-z0-9]+/gi, '-')}-resume${path.extname(file)}`;
     res.download(path.join(uploadsDir, file), safeName, (err) => err && !res.headersSent && res.status(404).end());
