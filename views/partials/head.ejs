@@ -24,7 +24,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/css/style.css?v=<%= assetVersion %>">
 </head>
-<body class="page-<%= page || 'misc' %>">
+<body class="page-<%= page || 'misc' %>"<%- typeof candidateSignedIn !== 'undefined' && candidateSignedIn ? ' data-account="1"' : '' %>>
 <a class="skip-link" href="#main">Skip to content</a>
 <%- include('icons') %>
 <header class="site-header" id="top">
@@ -47,7 +47,7 @@
           <a href="/employer/login"><b>Employers</b><span>Your roles, candidates and invoices</span></a>
         </div>
       </details>
-      <a href="/account/register" class="nav-register <%= page === 'account' ? 'active' : '' %>">Register</a>
+      <% if (typeof candidateSignedIn !== 'undefined' && candidateSignedIn) { %><a href="/account" class="nav-register <%= page === 'account' ? 'active' : '' %>">My account</a><% } else { %><a href="/account/register" class="nav-register <%= page === 'account' ? 'active' : '' %>">Register</a><% } %>
       <a href="/post-a-job" class="btn btn-primary btn-sm nav-cta">Post a Job</a>
     </nav>
     <a href="/saved" class="mobile-saved" aria-label="Saved jobs"><svg class="i"><use href="#i-bookmark"/></svg><span class="saved-count" hidden></span></a>

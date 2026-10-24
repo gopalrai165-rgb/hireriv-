@@ -8,18 +8,18 @@
       <div>
         <div class="chips"><span class="tag tag-<%= job.mode.toLowerCase().replace(/[^a-z]+/g, '-') %>"><%= job.mode %></span><span class="chip"><%= job.type %></span><span class="chip"><%= job.category %></span></div>
         <h1><%= job.title %></h1>
-        <p class="lead"><%= job.company %></p>
+        <p class="lead"><%= job.company %><% if (verifiedEmployer) { %> <span class="verified" title="A client account checked by the <%= site.name %> team"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg>Verified employer</span><% } %></p>
       </div>
-      <% if (job.status !== 'closed') { %><div class="job-actions"><button type="button" class="btn btn-outline btn-lg save-btn save-btn-lg" data-save-job="<%= job.id %>" aria-pressed="false"><svg class="i"><use href="#i-bookmark"/></svg><span class="save-label">Save job</span></button><a href="#apply" class="btn btn-primary btn-lg">Apply now</a></div><% } else { %><span class="pill st-rejected">No longer accepting applications</span><% } %>
+      <% if (live) { %><div class="job-actions"><button type="button" class="btn btn-outline btn-lg save-btn save-btn-lg" data-save-job="<%= job.id %>" aria-pressed="false"><svg class="i"><use href="#i-bookmark"/></svg><span class="save-label">Save job</span></button><a href="#apply" class="btn btn-primary btn-lg">Apply now</a></div><% } else { %><span class="pill st-rejected">No longer accepting applications</span><% } %>
     </div>
     <ul class="job-meta job-meta-lg">
-      <li><svg class="i"><use href="#i-pin"/></svg><%= job.location %></li>
-      <li><svg class="i"><use href="#i-briefcase"/></svg><%= job.experience %></li>
-      <li><svg class="i"><use href="#i-wallet"/></svg><%= job.salary %></li>
+      <li><svg class="i"><use href="#i-pin"/></svg><span class="sr-only">Location: </span><%= job.location %><%= stateName && stateName !== job.location ? ', ' + stateName : '' %></li>
+      <% if (job.experience) { %><li><svg class="i"><use href="#i-briefcase"/></svg><span class="sr-only">Experience: </span><%= job.experience %></li><% } %>
+      <li><svg class="i"><use href="#i-wallet"/></svg><span class="sr-only">Pay: </span><%= job.salary || 'Pay not disclosed' %></li>
       <li><svg class="i"><use href="#i-clock"/></svg>Posted <%= daysAgo(job.posted).toLowerCase() %></li>
-      <% if (job.status === 'open' && job.closesOn) { %><li><svg class="i"><use href="#i-clock"/></svg>Apply by <%= formatDate(job.closesOn) %></li><% } %>
+      <% if (live && job.closesOn) { %><li><svg class="i"><use href="#i-clock"/></svg>Apply by <%= formatDate(job.closesOn) %></li><% } %>
     </ul>
-    <% if (job.status !== 'closed') { %>
+    <% if (live) { %>
       <%# Shared links carry utm_source so Reports can show which shares bring applicants. %>
       <% const shareText = job.title + ' (' + job.location + ') – apply via ' + site.name + ': ' + canonical + '?utm_source=whatsapp'; %>
       <div class="share-row" data-share-url="<%= canonical %>?utm_source=share" data-share-title="<%= job.title %> – <%= site.name %>">
@@ -38,12 +38,53 @@
     <article class="job-body">
       <h2>About the role</h2>
       <p><%= job.description %></p>
-      <h2>What you'll do</h2>
-      <ul class="checks"><% job.responsibilities.forEach(function (r) { %><li><%= r %></li><% }) %></ul>
-      <h2>Key skills</h2>
-      <div class="chips chips-lg"><% job.skills.forEach(function (s) { %><span class="chip"><%= s %></span><% }) %></div>
+      <% if (job.responsibilities.length) { %>
+        <h2>What you'll do</h2>
+        <ul class="checks"><% job.responsibilities.forEach(function (r) { %><li><%= r %></li><% }) %></ul>
+      <% } %>
+      <% if ((job.qualifications || []).length) { %>
+        <h2>What you need</h2>
+        <ul class="checks"><% job.qualifications.forEach(function (r) { %><li><%= r %></li><% }) %></ul>
+      <% } %>
+      <% if (job.skills.length) { %>
+        <h2>Key skills</h2>
+        <div class="chips chips-lg"><% job.skills.forEach(function (s) { %><span class="chip"><%= s %></span><% }) %></div>
+      <% } %>
+      <h2>Job details</h2>
+      <dl class="job-facts">
+        <div><dt>Employment type</dt><dd><%= job.type %></dd></div>
+        <div><dt>Work arrangement</dt><dd><%= job.mode %></dd></div>
+        <div><dt>Workplace</dt><dd><%= job.location %><%= stateName && stateName !== job.location ? ', ' + stateName : '' %></dd></div>
+        <div><dt>Pay</dt><dd><%= job.salary || 'Not disclosed' %></dd></div>
+        <div><dt>Experience</dt><dd><%= job.experience || 'Not specified' %></dd></div>
+        <% if (job.education) { %><div><dt>Education</dt><dd><%= job.education %></dd></div><% } %>
+        <% if (job.schedule) { %><div><dt>Work schedule</dt><dd><%= job.schedule %></dd></div><% } %>
+        <div><dt>Apply by</dt><dd><%= job.closesOn ? formatDate(job.closesOn) : 'Open until filled' %></dd></div>
+      </dl>
+      <% if ((job.benefits || []).length) { %>
+        <h2>Benefits</h2>
+        <ul class="checks"><% job.benefits.forEach(function (b) { %><li><%= b %></li><% }) %></ul>
+      <% } %>
       <h2>Why apply through Hireriv?</h2>
-      <p>You'll work with a dedicated recruiter who shares honest feedback, helps you prepare for each interview round and negotiates on your behalf. It's completely free for candidates.</p>
+      <p>You'll work with a dedicated recruiter who shares honest feedback, helps you prepare for each interview round and negotiates on your behalf. It's completely free for candidates: <b>we never ask job seekers for money</b>.</p>
+      <details class="report-job" id="report">
+        <summary>Report this job</summary>
+        <p class="small muted">Does this listing look fake, ask for money, or have wrong details? Tell us and our team will check it within one working day.</p>
+        <form class="form js-form" action="/api/jobs/<%= job.id %>/report" method="post">
+          <%- include('partials/honeypot') %>
+          <div class="form-grid">
+            <label class="span-2">What's wrong?*
+              <select name="reason" required>
+                <option value="">Choose a reason…</option>
+                <% reportReasons.forEach(function (r) { %><option><%= r %></option><% }) %>
+              </select>
+            </label>
+            <label class="span-2">Details <span class="muted small">(optional)</span><textarea name="details" rows="3" maxlength="1000"></textarea></label>
+            <label class="span-2">Your email <span class="muted small">(optional, if you'd like a reply)</span><input type="email" name="email" autocomplete="email"></label>
+          </div>
+          <button class="btn btn-outline btn-sm" type="submit">Send report</button>
+        </form>
+      </details>
     </article>
     <aside class="form-card sticky" id="apply">
       <% if (isSample(job)) { %>
@@ -51,7 +92,7 @@
         <p class="notice sample-note">This is an example that shows how jobs appear on <%= site.name %>. It isn't a real vacancy, so it isn't taking applications.</p>
         <a href="/jobs" class="btn btn-primary btn-block">See open jobs</a>
         <a href="/jobs#register" class="btn btn-outline btn-block">Send us your CV</a>
-      <% } else if (job.status === 'closed') { %>
+      <% } else if (!live) { %>
         <h2>This role is closed</h2>
         <p class="muted">We're no longer accepting applications for this job. Browse our open roles or send us your CV, and we'll match you to the next one.</p>
         <a href="/jobs" class="btn btn-primary btn-block">See open jobs</a>

@@ -35,7 +35,7 @@ function parseCookies(header) {
 
 function register(app, deps) {
   const { db, mailer, baseUrl, sameOrigin, limit, readSubmissions, writeSubmissions, uploadsDir, getJobs, formatIst, interviewIcs, site, contractsFor } = deps;
-  const { upload, saveApplication, isBot, isSample, resumeNeeded, skillMatch, saveSubmission, jobCategories, jobLocations } = deps;
+  const { upload, saveApplication, isBot, isSample, isLive, resumeNeeded, skillMatch, saveSubmission, jobCategories, jobLocations } = deps;
   const secureCookie = /^https:/.test(baseUrl);
 
   const mine = (email) => readSubmissions('applications').filter((a) => String(a.email).toLowerCase() === email);
@@ -202,7 +202,7 @@ function register(app, deps) {
     const city = String(profile.location || '').toLowerCase();
     const near = (j) => j.mode === 'Remote' || (Boolean(city) && (city.includes(String(j.location).toLowerCase()) || String(j.location).toLowerCase().includes(city)));
     return getJobs()
-      .filter((j) => j.status === 'open' && !isSample(j) && !appliedTo.has(j.id))
+      .filter((j) => isLive(j) && !isSample(j) && !appliedTo.has(j.id))
       .map((j) => {
         const m = skillMatch(profile, j);
         return { job: j, score: m ? m.score : 0, near: near(j), matched: m ? m.matched : [] };
@@ -217,7 +217,7 @@ function register(app, deps) {
     const job = getJobs().find((j) => j.id === req.params.jobId);
     if (!job) return next();
     const toJob = (msg) => res.redirect(`/jobs/${job.id}?msg=${encodeURIComponent(msg)}#apply`);
-    if (job.status !== 'open' || isSample(job)) return toJob("This job isn't taking applications.");
+    if (!isLive(job) || isSample(job)) return toJob("This job isn't taking applications.");
     const account = accountForJob(req, job);
     if (account.applied) return toJob("You've already applied for this job.");
     if (account.missing.length) return toJob(`Add ${account.missing.join(' and ')} to your profile first.`);
@@ -291,6 +291,45 @@ function register(app, deps) {
     back(res, 'Job alert removed.');
   });
 
+  // ---------- JSON for the page script ----------
+  // Same sign-in as the pages, but a 401 instead of a redirect.
+  const requireCandidateApi = (req, res, next) => {
+    const email = currentEmail(req);
+    if (!email) return res.status(401).json({ ok: false, errors: ['sign in to your account first'] });
+    req.candidateEmail = email;
+    res.set('Cache-Control', 'no-store');
+    next();
+  };
+  const savedOf = (email) => readSubmissions('saved-jobs').filter((s) => s.email === email);
+
+  // Saved jobs follow a signed-in candidate to every device. The browser keeps
+  // its own copy too, so saving still works signed out.
+  app.get('/api/candidate/saved-jobs', requireCandidateApi, (req, res) => {
+    res.json({ ok: true, jobIds: savedOf(req.candidateEmail).map((s) => s.jobId) });
+  });
+  app.put('/api/candidate/saved-jobs/:jobId', requireCandidateApi, limit('saved-jobs', 120), sameOrigin, (req, res) => {
+    if (!getJobs().some((j) => j.id === req.params.jobId)) return res.status(404).json({ ok: false, errors: ['job not found'] });
+    if (!savedOf(req.candidateEmail).some((s) => s.jobId === req.params.jobId)) saveSubmission('saved-jobs', { email: req.candidateEmail, jobId: req.params.jobId });
+    res.json({ ok: true });
+  });
+  app.delete('/api/candidate/saved-jobs/:jobId', requireCandidateApi, limit('saved-jobs', 120), sameOrigin, (req, res) => {
+    const list = readSubmissions('saved-jobs');
+    const rest = list.filter((s) => !(s.email === req.candidateEmail && s.jobId === req.params.jobId));
+    if (rest.length !== list.length) writeSubmissions('saved-jobs', rest);
+    res.json({ ok: true });
+  });
+
+  // The signed-in candidate's own applications, newest first.
+  app.get('/api/candidate/applications', requireCandidateApi, (req, res) => {
+    res.json({
+      ok: true,
+      applications: mine(req.candidateEmail).sort(newestFirst).map((a) => ({
+        id: a.id, jobId: a.jobId === 'general' ? null : a.jobId, job: a.jobTitle, appliedAt: a.createdAt,
+        status: a.withdrawnAt ? 'Withdrawn' : CANDIDATE_STAGE[a.status || 'New'] || 'Received',
+      })),
+    });
+  });
+
   // Right of access: everything the candidate gave us and what happened to it,
   // as a file they can keep. Recruiters' private notes and interview scorecards
   // are internal assessments and are not part of the download.
@@ -315,6 +354,7 @@ function register(app, deps) {
         sharedWithClient: a.shared ? { at: a.shared.sharedAt } : null,
         withdrawnAt: a.withdrawnAt || null,
       })),
+      savedJobs: readSubmissions('saved-jobs').filter((s) => s.email === email).map((s) => ({ jobId: s.jobId, savedAt: s.createdAt })),
       jobAlerts: subs('job-alerts').map((s) => ({ category: s.category || 'Any', location: s.location || 'Any', confirmed: Boolean(s.confirmed), since: s.createdAt })),
       newsletter: subs('newsletter').map((s) => ({ since: s.createdAt })),
     };
@@ -389,7 +429,7 @@ function register(app, deps) {
       } else keep.push(a);
     }
     writeSubmissions('applications', keep);
-    for (const type of ['job-alerts', 'newsletter']) {
+    for (const type of ['job-alerts', 'newsletter', 'saved-jobs']) {
       const subs = readSubmissions(type);
       const rest = subs.filter((s) => String(s.email).toLowerCase() !== req.candidateEmail);
       if (rest.length !== subs.length) writeSubmissions(type, rest);

@@ -24,7 +24,7 @@ function sourceRoutes() {
   const files = fs.readdirSync(ROOT).filter((f) => f.endsWith('.js'));
   for (const file of files) {
     for (const line of fs.readFileSync(path.join(ROOT, file), 'utf8').split(/\r?\n/)) {
-      const m = /app\.(get|post)\((.+?)(?:, (?:async )?\(req, res)/.exec(line);
+      const m = /app\.(get|post|put|delete)\((.+?)(?:, (?:async )?\(req, res)/.exec(line);
       if (!m) continue;
       const method = m[1].toUpperCase();
       const first = m[2].split(',')[0].trim();
@@ -43,7 +43,7 @@ function sourceRoutes() {
 // Rows of the table in docs/ACCESS.md: | METHOD | `path` | policy | notes |
 function documentedRoutes() {
   const md = fs.readFileSync(path.join(ROOT, 'docs', 'ACCESS.md'), 'utf8');
-  return [...md.matchAll(/^\| (GET|POST) \| `([^`]+)` \| (\w+) \|/gm)].map((m) => ({ method: m[1], path: m[2], policy: m[3] }));
+  return [...md.matchAll(/^\| (GET|POST|PUT|DELETE) \| `([^`]+)` \| (\w+) \|/gm)].map((m) => ({ method: m[1], path: m[2], policy: m[3] }));
 }
 
 module.exports = { sourceRoutes, documentedRoutes };

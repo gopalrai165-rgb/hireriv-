@@ -8,7 +8,12 @@ function paginate(list, { page, size, query = {}, path = '' }) {
   const start = (current - 1) * size;
   const urlFor = (n) => {
     const params = new URLSearchParams();
-    for (const [k, v] of Object.entries(query)) if (k !== 'page' && k !== 'msg' && v !== undefined && v !== '') params.set(k, Array.isArray(v) ? v[0] : String(v));
+    for (const [k, v] of Object.entries(query)) {
+      if (k === 'page' || k === 'msg' || v === undefined || v === '') continue;
+      // Repeated filters (several categories) keep every value.
+      if (Array.isArray(v)) v.forEach((x) => params.append(k, String(x)));
+      else params.set(k, String(v));
+    }
     if (n > 1) params.set('page', String(n));
     const qs = params.toString();
     return qs ? `${path}?${qs}` : path;

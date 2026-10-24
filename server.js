@@ -7,6 +7,7 @@ const { createMailer } = require('./mailer');
 const { open: openDb } = require('./db');
 const seo = require('./seo');
 const { skillMatch, buildPool, searchPool, phoneKey } = require('./match');
+const search = require('./search');
 const { parsePost, parseSettings, SOCIAL, DEFAULT_JOB_CATEGORIES, DEFAULT_JOB_LOCATIONS, SAMPLE_TESTIMONIALS, MAX_TESTIMONIALS, WORK_KINDS, WORK_KEYS, CATEGORY_WORK, workOf, workOfCategory, RESUME_OPTIONS, resumeNeeded, JOB_GROUPS, inGroup } = require('./content');
 const interviews = require('./interviews');
 const employers = require('./employers');
@@ -41,7 +42,7 @@ fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 // fresh install, and old data/submissions/*.json files are imported once.
 const DB_FILE = process.env.DB_FILE ? path.resolve(process.env.DB_FILE) : path.join(DATA_DIR, 'hireriv.db');
 const db = openDb(DB_FILE);
-const FORM_TYPES = ['applications', 'hire-requests', 'contacts', 'newsletter', 'job-alerts'];
+const FORM_TYPES = ['applications', 'hire-requests', 'contacts', 'newsletter', 'job-alerts', 'job-reports'];
 for (const type of [...FORM_TYPES, 'employers']) {
   const n = db.importOnce(type, path.join(SUBMISSIONS_DIR, `${type}.json`));
   if (n) console.log(`Imported ${n} ${type} from data/submissions/${type}.json`);
@@ -124,6 +125,24 @@ if (!db.metaGet('upgraded:sample-jobs')) {
   db.metaSet('upgraded:sample-jobs', new Date().toISOString());
 }
 const isSample = (j) => j.sample === true;
+
+// Pay is kept as numbers ({ min, max, period, currency }) so jobs can be
+// filtered and sorted by pay. Older jobs only had salary text: read the numbers
+// out of it once. The text stays as shown; editing the job rebuilds it.
+if (!db.metaGet('upgraded:pay-v1')) {
+  let n = 0;
+  for (const j of jobs) {
+    if (j.pay !== undefined) continue;
+    j.pay = search.payFromText(j.salary);
+    const extra = String(j.salary || '').match(/\+\s*(.+)$/);
+    j.payNote = j.pay ? (extra ? `+ ${extra[1].trim()}` : '') : String(j.salary || '');
+    n++;
+  }
+  if (n) db.replaceAll('jobs', jobs);
+  db.metaSet('upgraded:pay-v1', new Date().toISOString());
+}
+// What job cards and pages show: the pay from its numbers, plus any note.
+const salaryText = (pay, note) => [search.payText(pay), note].filter(Boolean).join(' ');
 // Jobs that were live before job alerts existed count as already announced.
 for (const j of jobs) if (j.status === 'open' && !j.alertsSentAt) j.alertsSentAt = j.posted;
 const sortJobs = () => jobs.sort((a, b) => b.posted.localeCompare(a.posted));
@@ -134,7 +153,9 @@ function saveJobs() {
   db.replaceAll('jobs', jobs);
 }
 
-const openJobs = () => jobs.filter((j) => j.status === 'open');
+// Open, and not past its closing date (the hourly check closes it for good).
+const isLive = (j) => j.status === 'open' && !(j.closesOn && j.closesOn < todayIst());
+const openJobs = () => jobs.filter(isLive);
 const todayIst = () => new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
 // Open jobs with no closing date are flagged in admin after this many days.
 const STALE_JOB_DAYS = 60;
@@ -252,6 +273,11 @@ const upload = multer({
 
 // ---------- app ----------
 const app = express();
+// Lets the header show "My account" and the page script keep saved jobs in the account.
+app.use((req, res, next) => {
+  res.locals.candidateSignedIn = /(?:^|;\s*)hr_cand=/.test(req.headers.cookie || '') && Boolean(candidateAccounts.currentEmail(req));
+  next();
+});
 // Behind a reverse proxy (Nginx, Render, etc.) set TRUST_PROXY=1 so req.ip is the visitor, not the proxy.
 if (process.env.TRUST_PROXY) app.set('trust proxy', Number(process.env.TRUST_PROXY) || process.env.TRUST_PROXY);
 app.set('view engine', 'ejs');
@@ -425,32 +451,97 @@ app.get('/categories', (req, res) => {
 app.get('/staffing-solutions', (req, res) => res.redirect(301, '/services'));
 
 const JOBS_PAGE_SIZE = 20;
+// Search filters from a query string, shared by Find Jobs and /api/jobs. Bad
+// values are dropped and listed in `errors`: the page ignores them, the API
+// refuses the request. The API's names (keyword, city, employmentType…) work too.
+const EMPLOYMENT_KEYS = { full_time: 'Full-time', part_time: 'Part-time', contract: 'Contract', temporary: 'Temporary', gig: 'Daily wage / Gig', apprenticeship: 'Apprenticeship', internship: 'Internship' };
+const ARRANGEMENT_KEYS = { on_site: 'On-site', hybrid: 'Hybrid', remote: 'Remote', field: 'Field work', client_site: 'Client site' };
+function jobFilters(query) {
+  const errors = [];
+  const one = (...keys) => {
+    for (const k of keys) {
+      const v = Array.isArray(query[k]) ? query[k][0] : query[k];
+      if (v !== undefined && String(v).trim() !== '') return { key: k, value: String(v).trim().slice(0, 100) };
+    }
+    return { key: keys[0], value: '' };
+  };
+  const pick = (keys, ok, map = {}) => {
+    const { key, value } = one(...keys);
+    const v = map[value] || value;
+    if (!v) return '';
+    if (ok(v)) return v;
+    errors.push(`${key} is invalid`);
+    return '';
+  };
+  const cities = jobLocations();
+  const f = {
+    q: one('q', 'keyword').value,
+    location: pick(['location', 'city', 'state'], (v) => v === 'Remote' || cities.includes(v) || search.statesOf(cities).includes(v)),
+    categories: [],
+    type: pick(['type', 'employmentType'], (v) => JOB_TYPES.includes(v), EMPLOYMENT_KEYS),
+    mode: pick(['mode', 'workArrangement'], (v) => modes.includes(v), ARRANGEMENT_KEYS),
+    work: pick(['work'], (v) => WORK_KEYS.includes(v)),
+    group: pick(['group'], (v) => JOB_GROUPS.some((g) => g.key === v)),
+    experience: pick(['experience'], (v) => search.EXPERIENCE_LEVELS.some((l) => l.key === v)),
+    minPay: 0,
+    sort: pick(['sort'], (v) => search.SORTS.includes(v)),
+  };
+  const known = jobCategories();
+  for (const c of [].concat(query.category ?? [], query.categories ?? []).map(String).filter(Boolean).slice(0, 20)) {
+    if (known.includes(c)) { if (!f.categories.includes(c)) f.categories.push(c); } else errors.push('category is invalid');
+  }
+  const pay = one('minPay').value;
+  if (pay) {
+    if (/^\d{1,8}$/.test(pay) && Number(pay) > 0) f.minPay = Number(pay);
+    else errors.push('minPay is invalid');
+  }
+  return { filters: f, errors: [...new Set(errors)] };
+}
+// The search itself: live jobs, these filters, the category group and kind of
+// work on top. `skipWork` gives the counts for the kind-of-work tabs.
+function findJobs(list, f, { skipWork = false } = {}) {
+  const group = JOB_GROUPS.find((g) => g.key === f.group);
+  return search.searchJobs(list, f, { extra: (j) => (!group || inGroup(group, j)) && (skipWork || !f.work || workOf(j) === f.work) });
+}
+// The filters as query parameters (repeated for several categories).
+const filterQuery = (f) => ({ q: f.q, group: f.group, work: f.work, category: f.categories, location: f.location, mode: f.mode, type: f.type, experience: f.experience, minPay: f.minPay || '', sort: f.sort });
+const hasFilters = (f) => Boolean(f.q || f.group || f.work || f.categories.length || f.location || f.mode || f.type || f.experience || f.minPay);
+
 app.get('/jobs', (req, res) => {
   const live = openJobs();
-  const q = String(req.query.q || '').trim().toLowerCase();
-  const { category = '', location = '', mode = '', type = '' } = req.query;
-  const work = WORK_KEYS.includes(req.query.work) ? req.query.work : '';
-  const group = JOB_GROUPS.find((g) => g.key === req.query.group) || null;
-  const matches = (j, skip) =>
-    (!q || [j.title, j.company, j.description, ...j.skills].join(' ').toLowerCase().includes(q)) &&
-    (!category || j.category === category) &&
-    (!location || j.location === location) &&
-    (!mode || j.mode === mode) &&
-    (!type || j.type === type) &&
-    (!group || inGroup(group, j)) &&
-    (skip === 'work' || !work || workOf(j) === work);
-  const results = live.filter((j) => matches(j));
+  const { filters: f } = jobFilters(req.query);
+  const group = JOB_GROUPS.find((g) => g.key === f.group) || null;
+  const found = findJobs(live, f);
   // Kind-of-work counts follow the other filters, so each tab says what it would show.
-  const workCounts = live.filter((j) => matches(j, 'work')).reduce((n, j) => ({ ...n, [workOf(j)]: (n[workOf(j)] || 0) + 1 }), {});
-  const { rows, pager } = paginate(results, { page: req.query.page, size: JOBS_PAGE_SIZE, query: { q: req.query.q, group: group ? group.key : '', work, category, location, mode, type }, path: '/jobs' });
+  const workCounts = findJobs(live, f, { skipWork: true }).jobs.reduce((n, j) => ({ ...n, [workOf(j)]: (n[workOf(j)] || 0) + 1 }), {});
+  const { rows, pager } = paginate(found.jobs, { page: req.query.page, size: JOBS_PAGE_SIZE, query: filterQuery(f), path: '/jobs' });
+  // Each active filter, with the link that removes it, for the "no results" help.
+  const removeLink = (patch) => paginate([], { size: 1, query: { ...filterQuery(f), ...patch }, path: '/jobs' }).pager.urlFor(1);
+  const payLabel = (n) => `₹${n.toLocaleString('en-IN')}+ a month`;
+  const active = [
+    f.q && { label: `“${f.q}”`, href: removeLink({ q: '' }) },
+    group && { label: group.label, href: removeLink({ group: '' }) },
+    f.work && { label: WORK_KINDS.find((w) => w.key === f.work).label, href: removeLink({ work: '' }) },
+    ...f.categories.map((c) => ({ label: c, href: removeLink({ category: f.categories.filter((x) => x !== c) }) })),
+    f.location && { label: f.location, href: removeLink({ location: '' }) },
+    f.mode && { label: f.mode, href: removeLink({ mode: '' }) },
+    f.type && { label: f.type, href: removeLink({ type: '' }) },
+    f.experience && { label: search.EXPERIENCE_LEVELS.find((l) => l.key === f.experience).label, href: removeLink({ experience: '' }) },
+    f.minPay && { label: payLabel(f.minPay), href: removeLink({ minPay: '' }) },
+  ].filter(Boolean);
   res.render('jobs', {
-    title: pager.page > 1 ? `Find Work – page ${pager.page}` : 'Find Work',
+    title: pager.page > 1 ? `Find Jobs – page ${pager.page}` : 'Find Jobs',
     page: 'jobs',
     results: rows,
     pager,
     // Pages of the unfiltered list are canonical; filtered views point to /jobs.
-    canonical: `${BASE_URL}/jobs${pager.page > 1 && !(q || group || work || category || location || mode || type) ? `?page=${pager.page}` : ''}`,
-    filters: { q: req.query.q || '', group: group ? group.key : '', work, category, location, mode, type },
+    canonical: `${BASE_URL}/jobs${pager.page > 1 && !hasFilters(f) ? `?page=${pager.page}` : ''}`,
+    filters: { ...f, category: f.categories[0] || '' },
+    sort: found.sort,
+    active,
+    experienceLevels: search.EXPERIENCE_LEVELS,
+    minPayOptions: search.MIN_PAY_OPTIONS.map((n) => ({ value: n, label: payLabel(n) })),
+    states: search.statesOf(jobLocations()),
     group,
     categories: jobCategories(),
     categoryGroups: groupCategories(jobCategories()),
@@ -488,6 +579,10 @@ app.get('/jobs/:id', (req, res, next) => {
     related,
     account,
     msg: account ? String(req.query.msg || '').slice(0, 200) : '',
+    live: isLive(job),
+    verifiedEmployer: verifiedEmployer(job),
+    stateName: search.stateOf(job.location),
+    reportReasons: REPORT_REASONS,
     quick: !resumeNeeded(job),
     whatsappApply: whatsappApplyLink(job),
     metaDescription: `${job.title} (${job.type}, ${job.mode}) in ${job.location}${job.experience ? `, ${job.experience}` : ''}${job.salary ? `, ${job.salary}` : ''}. ${job.description}`.slice(0, 300),
@@ -549,7 +644,7 @@ app.get('/industries/:slug', (req, res, next) => {
 app.get('/about', (req, res) => res.render('about', { title: 'About Us', page: 'about' }));
 app.get('/contact', (req, res) => res.render('contact', { title: 'Contact Us', page: 'contact' }));
 // Bump LEGAL_UPDATED whenever the wording of either page changes.
-const LEGAL_UPDATED = '2026-10-25';
+const LEGAL_UPDATED = '2026-10-26';
 app.get('/privacy', (req, res) => res.render('privacy', { title: 'Privacy Policy', page: 'legal', updated: LEGAL_UPDATED, metaDescription: `How ${site.name} collects, uses and protects the personal data of candidates, clients and visitors.` }));
 app.get('/terms', (req, res) => res.render('terms', { title: 'Terms of Use', page: 'legal', updated: LEGAL_UPDATED, metaDescription: `The terms for using the ${site.name} website as a job seeker or employer.` }));
 app.get('/blog', (req, res) => res.render('blog', { title: 'Career Resources', page: 'blog', posts: livePosts() }));
@@ -606,7 +701,7 @@ app.post('/api/apply', limit('apply', 6), (req, res) => {
     const quick = !resumeNeeded(job);
     const errors = validate(data, quick ? ['name', 'phone'] : ['name', 'email', 'phone']);
     if (!req.file && !quick) errors.push('resume is required');
-    if (job && job.status !== 'open') errors.push('this job is no longer accepting applications');
+    if (job && !isLive(job)) errors.push('this job is no longer accepting applications');
     else if (job && isSample(job)) errors.push('this is a sample listing, not a real vacancy. Send us your details with a general application instead');
     if (errors.length) {
       if (req.file) fs.unlink(req.file.path, () => {});
@@ -660,6 +755,81 @@ app.post('/api/contact', limit('contact', 5), (req, res) => {
   const errors = validate(data, ['name', 'email', 'message']);
   if (!errors.length) mailer.contactReceived(saveSubmission('contacts', data));
   respond(req, res, errors, "Thanks for reaching out. We'll get back to you shortly.");
+});
+
+// ---------- public jobs API ----------
+// Published, open jobs that are still within their application period. Sample
+// listings are left out. Same filters and order as the Find Jobs page.
+const API_MAX_LIMIT = 50;
+// A job's employer is verified when it's linked to an active client account
+// (their company and contact checked by the team when the client was added).
+function verifiedEmployer(job) {
+  const c = job.employerId && clients.read().find((x) => x.id === job.employerId);
+  return Boolean(c && c.active !== false);
+}
+const publicJob = (j) => ({
+  id: j.id,
+  title: j.title,
+  company: j.company,
+  verifiedEmployer: verifiedEmployer(j),
+  location: { city: j.location === 'Remote' ? null : j.location, state: search.stateOf(j.location) || null, country: 'IN', workArrangement: j.mode },
+  category: j.category,
+  kindOfWork: workOf(j),
+  employmentType: j.type,
+  experience: j.experience || null,
+  pay: j.pay ? { ...j.pay } : null,
+  payText: j.salary || null,
+  skills: j.skills || [],
+  description: j.description,
+  responsibilities: j.responsibilities || [],
+  qualifications: j.qualifications || [],
+  education: j.education || null,
+  schedule: j.schedule || null,
+  benefits: j.benefits || [],
+  postedAt: j.posted,
+  closesOn: j.closesOn || null,
+  quickApply: !resumeNeeded(j),
+  url: `${BASE_URL}/jobs/${j.id}`,
+});
+
+app.get('/api/jobs', limit('job-search', 120, 60 * 1000), (req, res) => {
+  const { filters: f, errors } = jobFilters(req.query);
+  const int = (k, def, max) => {
+    const v = req.query[k];
+    if (v === undefined || v === '') return def;
+    if (!/^\d{1,4}$/.test(String(v)) || Number(v) < 1 || Number(v) > max) { errors.push(`${k} must be a whole number from 1 to ${max}`); return def; }
+    return Number(v);
+  };
+  const page = int('page', 1, 1000);
+  const size = int('limit', JOBS_PAGE_SIZE, API_MAX_LIMIT);
+  if (errors.length) return res.status(400).json({ ok: false, errors });
+  const found = findJobs(openJobs().filter((j) => !isSample(j)), f);
+  const total = found.jobs.length;
+  res.set('Cache-Control', 'public, max-age=60').json({
+    ok: true, total, page, limit: size, pages: Math.max(1, Math.ceil(total / size)), sort: found.sort,
+    jobs: found.jobs.slice((page - 1) * size, page * size).map(publicJob),
+  });
+});
+
+app.get('/api/jobs/:id', limit('job-search', 120, 60 * 1000), (req, res) => {
+  const job = jobs.find((j) => j.id === req.params.id);
+  if (!job || !isLive(job) || isSample(job)) return res.status(404).json({ ok: false, errors: ['job not found or no longer open'] });
+  res.json({ ok: true, job: publicJob(job) });
+});
+
+// Anyone can flag a listing that looks fake, asks for money or is misleading.
+// The team gets an email and sees it under Inbox → Reported jobs.
+const REPORT_REASONS = ['Looks fake or like a scam', 'Asks candidates to pay money', 'Wrong or misleading details', 'Already filled or closed', 'Discriminatory or offensive', 'Something else'];
+app.post('/api/jobs/:id/report', limit('job-report', 5), (req, res, next) => {
+  const job = jobs.find((j) => j.id === req.params.id);
+  if (!job) return next();
+  const thanks = 'Thanks for telling us. Our team will check this job within one working day.';
+  if (isBot(req.body)) return respond(req, res, [], thanks);
+  const data = clean(req.body, ['reason', 'details', 'email']);
+  const errors = validate(data, ['reason']);
+  if (data.reason && !REPORT_REASONS.includes(data.reason)) errors.push('reason is invalid');
+  if (!errors.length) mailer.jobReported(saveSubmission('job-reports', { jobId: job.id, jobTitle: job.title, company: job.company, reason: data.reason, details: data.details.slice(0, 1000), email: data.email.toLowerCase() }));
+  respond(req, res, errors, thanks);
 });
 
 // ---------- job alerts (double opt-in) ----------
@@ -767,11 +937,11 @@ const TAB_GROUPS = [
   ['Overview', ['dashboard', 'reports']],
   ['Recruiting', ['applications', 'jobs', 'talent', 'interviews']],
   ['Clients & billing', ['clients', 'placements']],
-  ['Inbox', ['hire-requests', 'contacts', 'job-alerts', 'newsletter']],
+  ['Inbox', ['hire-requests', 'contacts', 'job-reports', 'job-alerts', 'newsletter']],
   ['Content', ['blog', 'templates']],
   ['Admin', ['settings', 'team', 'activity']],
 ];
-const TAB_LABELS = { 'hire-requests': 'Hire requests', 'job-alerts': 'Job alerts' };
+const TAB_LABELS = { 'hire-requests': 'Hire requests', 'job-alerts': 'Job alerts', 'job-reports': 'Reported jobs' };
 const ADMIN_TABS = ['dashboard', 'reports', 'jobs', 'talent', 'interviews', 'placements', 'clients', ...FORM_TYPES, 'templates', 'blog', 'settings', 'team', 'activity'];
 // Recruiters don't see these tabs.
 const ADMIN_ONLY_TABS = ['settings', 'team', 'activity'];
@@ -811,7 +981,7 @@ const candidateAccounts = candidates.register(app, {
   db, mailer, baseUrl: BASE_URL, sameOrigin, limit, readSubmissions, writeSubmissions,
   uploadsDir: UPLOADS_DIR, getJobs: () => jobs, formatIst: interviews.formatIst, interviewIcs, site,
   contractsFor: (email) => timesheets.forCandidate(email),
-  upload, saveApplication, isBot, isSample, resumeNeeded, skillMatch, saveSubmission, jobCategories, jobLocations,
+  upload, saveApplication, isBot, isSample, isLive, resumeNeeded, skillMatch, saveSubmission, jobCategories, jobLocations,
 });
 const timesheets = timesheetsModule.register(app, {
   db, mailer, baseUrl: BASE_URL, sameOrigin, limit, adminAuth, requireAdmin, clients,
@@ -1007,13 +1177,19 @@ function buildDashboard(applications, user) {
 
 // ----- jobs -----
 function parseJob(body) {
-  const data = clean(body, ['title', 'company', 'location', 'mode', 'type', 'category', 'experience', 'salary', 'skills', 'description', 'responsibilities', 'status']);
+  const data = clean(body, ['title', 'company', 'location', 'mode', 'type', 'category', 'experience', 'salary', 'payNote', 'education', 'schedule', 'skills', 'description', 'responsibilities', 'qualifications', 'benefits', 'status']);
   const errors = [];
   for (const f of ['title', 'company', 'location', 'category', 'description']) if (!data[f]) errors.push(`${f} is required`);
   if (data.category && !jobCategories().includes(data.category)) errors.push('pick a category from the list (add new ones in Settings)');
   if (data.location && !jobLocations().includes(data.location)) errors.push('pick a location from the list (add new ones in Settings)');
   if (!modes.includes(data.mode)) errors.push('work mode is invalid');
   if (!JOB_TYPES.includes(data.type)) errors.push('job type is invalid');
+  // Pay as numbers. A plain salary text (older forms, imports) is still read.
+  const typedPay = ['salaryMin', 'salaryMax'].some((k) => String(body[k] ?? '').trim());
+  const parsed = typedPay ? search.parsePayFields(body) : { pay: data.salary ? search.payFromText(data.salary) : null, errors: [] };
+  errors.push(...parsed.errors);
+  const payNote = typedPay || !data.salary || parsed.pay ? data.payNote.slice(0, 120) : data.salary.slice(0, 120);
+  const lines = (s) => s.split(/\r?\n/).map((x) => x.trim()).filter(Boolean).slice(0, 20);
   const closesOn = String(body.closesOn || '').trim();
   if (closesOn && (!/^\d{4}-\d{2}-\d{2}$/.test(closesOn) || Number.isNaN(Date.parse(closesOn)))) errors.push('closing date is invalid');
   else if (closesOn && data.status !== 'closed' && closesOn < todayIst()) errors.push('closing date is in the past (pick a later date, or leave it blank to keep the job open)');
@@ -1029,7 +1205,13 @@ function parseJob(body) {
     // Empty means "from the kind of work": required for office jobs, optional otherwise.
     resume: RESUME_OPTIONS.includes(body.resume) ? body.resume : '',
     experience: data.experience,
-    salary: data.salary,
+    pay: parsed.pay,
+    payNote,
+    salary: !typedPay && data.salary && parsed.pay ? data.salary : salaryText(parsed.pay, payNote),
+    education: data.education.slice(0, 200),
+    schedule: data.schedule.slice(0, 200),
+    qualifications: lines(data.qualifications),
+    benefits: lines(data.benefits),
     skills: data.skills.split(',').map((s) => s.trim()).filter(Boolean),
     description: data.description,
     responsibilities: data.responsibilities.split(/\r?\n/).map((s) => s.trim()).filter(Boolean),
@@ -1038,6 +1220,8 @@ function parseJob(body) {
     employerId: clients.read().some((c) => c.id === body.employerId) ? body.employerId : '',
     ownerId: validOwner(String(body.ownerId || '')),
   };
+  // Shown back on the form when there are errors.
+  if (errors.length) job.payForm = { salaryMin: String(body.salaryMin ?? ''), salaryMax: String(body.salaryMax ?? ''), salaryPeriod: String(body.salaryPeriod ?? '') };
   return { job, errors };
 }
 

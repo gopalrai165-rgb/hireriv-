@@ -34,7 +34,8 @@ test('signed out: team, candidate and client routes are all refused', async () =
   const want = { team: [401], admin: [401], candidate: [302, '/account/login'], employer: [302, '/employer/login'] };
   for (const r of routes.filter((x) => want[x.policy])) {
     const res = await srv.request(fill(r.path), { method: r.method, form: r.method === 'POST' ? {} : undefined });
-    const [status, location] = want[r.policy];
+    // JSON endpoints answer 401 instead of redirecting to a sign-in page.
+    const [status, location] = r.path.startsWith('/api/') ? [401] : want[r.policy];
     assert.equal(res.status, status, `${r.method} ${r.path}`);
     if (location) assert.equal(res.headers.get('location'), location, `${r.method} ${r.path}`);
   }

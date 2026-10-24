@@ -37,12 +37,19 @@ function jobPosting(job, site, baseUrl) {
   const assumed = new Date(new Date(job.posted).getTime() + VALID_DAYS * 86400000).toISOString().slice(0, 10);
   const validThrough = job.closesOn ? `${job.closesOn}T23:59:59+05:30` : (assumed >= new Date().toISOString().slice(0, 10) ? assumed : null);
   const remote = job.mode === 'Remote';
-  const salary = parseSalary(job.salary);
+  // Pay from its numbers; older jobs without them fall back to the salary text.
+  const salary = job.pay
+    ? { min: job.pay.min || job.pay.max, max: job.pay.max || job.pay.min, unit: String(job.pay.period).toUpperCase() }
+    : job.pay === null ? null : parseSalary(job.salary);
   const description = [
     `<p>${escapeHtml(job.description)}</p>`,
     job.responsibilities.length ? `<p><strong>Responsibilities</strong></p><ul>${job.responsibilities.map((r) => `<li>${escapeHtml(r)}</li>`).join('')}</ul>` : '',
     job.skills.length ? `<p><strong>Key skills:</strong> ${escapeHtml(job.skills.join(', '))}</p>` : '',
+    (job.qualifications || []).length ? `<p><strong>Qualifications</strong></p><ul>${job.qualifications.map((r) => `<li>${escapeHtml(r)}</li>`).join('')}</ul>` : '',
     job.experience ? `<p><strong>Experience:</strong> ${escapeHtml(job.experience)}</p>` : '',
+    job.education ? `<p><strong>Education:</strong> ${escapeHtml(job.education)}</p>` : '',
+    job.schedule ? `<p><strong>Work schedule:</strong> ${escapeHtml(job.schedule)}</p>` : '',
+    (job.benefits || []).length ? `<p><strong>Benefits:</strong> ${escapeHtml(job.benefits.join(', '))}</p>` : '',
   ].join('');
 
   return {

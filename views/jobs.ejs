@@ -3,40 +3,70 @@
 <section class="page-hero">
   <span class="deco deco-spark" aria-hidden="true"></span><span class="deco deco-dots" aria-hidden="true"></span><span class="deco deco-squiggle" aria-hidden="true"></span>
   <div class="container">
-    <span class="eyebrow">Find work</span>
+    <span class="eyebrow">Find jobs</span>
     <h1>Find your next role</h1>
     <p class="lead">Hand-picked openings with verified employers. Apply in two minutes, and a real recruiter will get back to you.</p>
     <form class="job-filters" action="/jobs" method="get" role="search">
       <div class="filter-search">
         <svg class="i"><use href="#i-search"/></svg>
         <label class="sr-only" for="f-q">Keyword</label>
-        <input id="f-q" name="q" value="<%= filters.q %>" placeholder="Job title, skill or company">
+        <input id="f-q" name="q" value="<%= filters.q %>" placeholder="Job title, skill, company or keyword">
       </div>
-      <label class="sr-only" for="f-cat">Category</label>
-      <select id="f-cat" name="category">
-        <option value="">All categories</option>
-        <% categoryGroups.forEach(function (g) { %><optgroup label="<%= g.label %>"><% g.categories.forEach(function (c) { %><option value="<%= c %>" <%= filters.category === c ? 'selected' : '' %>><%= c %> (<%= categoryCounts[c] || 0 %>)</option><% }) %></optgroup><% }) %>
-      </select>
       <label class="sr-only" for="f-loc">Location</label>
       <select id="f-loc" name="location">
-        <option value="">All locations</option>
-        <% locations.forEach(function (l) { %><option value="<%= l %>" <%= filters.location === l ? 'selected' : '' %>><%= l %> (<%= locationCounts[l] || 0 %>)</option><% }) %>
+        <option value="">All of India</option>
+        <option value="Remote" <%= filters.location === 'Remote' ? 'selected' : '' %>>Remote / work from home</option>
+        <optgroup label="States">
+          <% states.forEach(function (st) { %><option value="<%= st %>" <%= filters.location === st ? 'selected' : '' %>><%= st %></option><% }) %>
+        </optgroup>
+        <optgroup label="Cities">
+          <% locations.filter(function (l) { return l !== 'Remote'; }).forEach(function (l) { %><option value="<%= l %>" <%= filters.location === l ? 'selected' : '' %>><%= l %> (<%= locationCounts[l] || 0 %>)</option><% }) %>
+        </optgroup>
       </select>
-      <label class="sr-only" for="f-mode">Work mode</label>
-      <select id="f-mode" name="mode">
-        <option value="">Any work mode</option>
-        <% modes.forEach(function (m) { %><option value="<%= m %>" <%= filters.mode === m ? 'selected' : '' %>><%= m %> (<%= modeCounts[m] || 0 %>)</option><% }) %>
-      </select>
-      <label class="sr-only" for="f-type">Job type</label>
-      <select id="f-type" name="type">
-        <option value="">Any job type</option>
-        <% jobTypes.forEach(function (t) { %><option value="<%= t %>" <%= filters.type === t ? 'selected' : '' %>><%= t %> (<%= typeCounts[t] || 0 %>)</option><% }) %>
-      </select>
+      <button class="btn btn-primary" type="submit">Search</button>
+      <div class="filter-row">
+        <details class="filter-cats"<%- filters.categories.length ? ' open' : '' %>>
+          <summary>Categories<% if (filters.categories.length) { %> <span class="count"><%= filters.categories.length %></span><% } %></summary>
+          <div class="filter-cats-panel">
+            <% categoryGroups.forEach(function (g) { %>
+              <fieldset>
+                <legend><%= g.label %></legend>
+                <% g.categories.forEach(function (c) { %><label class="check-row"><input type="checkbox" name="category" value="<%= c %>"<%= filters.categories.includes(c) ? ' checked' : '' %>> <span><%= c %> <span class="muted">(<%= categoryCounts[c] || 0 %>)</span></span></label><% }) %>
+              </fieldset>
+            <% }) %>
+          </div>
+        </details>
+        <label class="sr-only" for="f-exp">Experience</label>
+        <select id="f-exp" name="experience">
+          <option value="">Any experience</option>
+          <% experienceLevels.forEach(function (l) { %><option value="<%= l.key %>" <%= filters.experience === l.key ? 'selected' : '' %>><%= l.label %></option><% }) %>
+        </select>
+        <label class="sr-only" for="f-pay">Minimum pay</label>
+        <select id="f-pay" name="minPay">
+          <option value="">Any pay</option>
+          <% minPayOptions.forEach(function (o) { %><option value="<%= o.value %>" <%= filters.minPay === o.value ? 'selected' : '' %>><%= o.label %></option><% }) %>
+        </select>
+        <label class="sr-only" for="f-type">Job type</label>
+        <select id="f-type" name="type">
+          <option value="">Any job type</option>
+          <% jobTypes.forEach(function (t) { %><option value="<%= t %>" <%= filters.type === t ? 'selected' : '' %>><%= t %> (<%= typeCounts[t] || 0 %>)</option><% }) %>
+        </select>
+        <label class="sr-only" for="f-mode">Work arrangement</label>
+        <select id="f-mode" name="mode">
+          <option value="">Any work arrangement</option>
+          <% modes.forEach(function (m) { %><option value="<%= m %>" <%= filters.mode === m ? 'selected' : '' %>><%= m %> (<%= modeCounts[m] || 0 %>)</option><% }) %>
+        </select>
+        <label class="sr-only" for="f-sort">Sort by</label>
+        <select id="f-sort" name="sort">
+          <option value="relevance" <%= sort === 'relevance' ? 'selected' : '' %>>Sort: most relevant</option>
+          <option value="newest" <%= sort === 'newest' ? 'selected' : '' %>>Sort: newest</option>
+          <option value="salary" <%= sort === 'salary' ? 'selected' : '' %>>Sort: highest pay</option>
+        </select>
+      </div>
       <% if (filters.work) { %><input type="hidden" name="work" value="<%= filters.work %>"><% } %>
       <% if (filters.group) { %><input type="hidden" name="group" value="<%= filters.group %>"><% } %>
-      <button class="btn btn-primary" type="submit">Search</button>
     </form>
-    <% const withWork = function (key) { const q = Object.assign({}, filters, { work: key }); return '/jobs?' + Object.keys(q).filter(function (k) { return q[k]; }).map(function (k) { return k + '=' + encodeURIComponent(q[k]); }).join('&'); }; %>
+    <% const withWork = function (key) { const q = Object.assign({}, filters, { work: key, category: filters.categories, categories: '', minPay: filters.minPay || '', sort: filters.sort }); return '/jobs?' + Object.keys(q).filter(function (k) { return q[k] && (!Array.isArray(q[k]) || q[k].length); }).map(function (k) { return [].concat(q[k]).map(function (v) { return k + '=' + encodeURIComponent(v); }).join('&'); }).join('&'); }; %>
     <nav class="work-tabs" aria-label="Kind of work">
       <a href="<%= withWork('').replace(/\?$/, '') %>"<%- !filters.work ? ' aria-current="page"' : '' %>>All work</a>
       <% workKinds.forEach(function (c) { %><a href="<%= withWork(c.key) %>" title="<%= c.examples %>"<%- filters.work === c.key ? ' aria-current="page"' : '' %>><%= c.label %> <span class="count"><%= workCounts[c.key] || 0 %></span></a><% }) %>
@@ -48,7 +78,7 @@
   <div class="container">
     <div class="results-head">
       <p><b><%= pager.total %></b> <%= pager.total === 1 ? 'job' : 'jobs' %> found<% if (group) { %> in <b><%= group.label %></b><% } %></p>
-      <% if (filters.q || filters.group || filters.work || filters.category || filters.location || filters.mode || filters.type) { %><a href="/jobs" class="small">Clear filters</a><% } %>
+      <% if (active.length) { %><a href="/jobs" class="small">Clear all filters</a><% } %>
     </div>
     <% if (results.length) { %>
       <div class="jobs-grid">
@@ -56,9 +86,16 @@
       </div>
       <%- include('partials/pager', { pager: pager, pagerLabel: 'Job result pages' }) %>
     <% } else { %>
-      <div class="empty">
-        <h3>No matching jobs right now</h3>
-        <p>New roles come in every week. Send us your CV below and we'll reach out when something fits.</p>
+      <div class="empty" role="status">
+        <h3>No jobs match <%= active.length ? 'all of these filters' : 'right now' %></h3>
+        <% if (active.length) { %>
+          <p>Try removing a filter:</p>
+          <ul class="active-filters">
+            <% active.forEach(function (a) { %><li><a href="<%= a.href %>" aria-label="Remove filter: <%= a.label %>"><%= a.label %> <span aria-hidden="true">×</span></a></li><% }) %>
+          </ul>
+          <p><a href="/jobs" class="btn btn-outline btn-sm">Clear all filters</a></p>
+        <% } %>
+        <p>New roles come in every week. <a href="#alerts">Get a job alert</a>, or send us your CV below and we'll reach out when something fits.</p>
       </div>
     <% } %>
   </div>
@@ -81,7 +118,7 @@
         <label class="sr-only" for="a-cat">Category</label>
         <select id="a-cat" name="category">
           <option value="">All categories</option>
-          <% categories.forEach(function (c) { %><option <%= filters.category === c ? 'selected' : '' %>><%= c %></option><% }) %>
+          <% categoryGroups.forEach(function (g) { %><optgroup label="<%= g.label %>"><% g.categories.forEach(function (c) { %><option <%= filters.category === c ? 'selected' : '' %>><%= c %></option><% }) %></optgroup><% }) %>
         </select>
         <label class="sr-only" for="a-loc">Location</label>
         <select id="a-loc" name="location">

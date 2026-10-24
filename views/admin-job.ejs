@@ -47,7 +47,21 @@
           <span class="muted small">Quick apply suits jobs where most people don't have a resume or email. It also shows an "Apply on WhatsApp" button once your WhatsApp number is in Settings.</span>
         </label>
         <label>Experience<input name="experience" value="<%= job.experience || '' %>" placeholder="e.g. 3-5 years"></label>
-        <label>Salary<input name="salary" value="<%= job.salary || '' %>" placeholder="e.g. ₹14 – 20 LPA"></label>
+        <% const pf = job.payForm || (job.pay ? { salaryMin: job.pay.min || '', salaryMax: job.pay.max || '', salaryPeriod: job.pay.period } : {}); %>
+        <fieldset class="span-2 pay-fields">
+          <legend>Pay <span class="muted small">(in rupees; leave both blank if not disclosed)</span></legend>
+          <label>From ₹<input name="salaryMin" inputmode="numeric" value="<%= pf.salaryMin || '' %>" placeholder="e.g. 18000"></label>
+          <label>Up to ₹<input name="salaryMax" inputmode="numeric" value="<%= pf.salaryMax || '' %>" placeholder="e.g. 24000"></label>
+          <label>Per
+            <select name="salaryPeriod">
+              <% [['month', 'Month'], ['year', 'Year (CTC)'], ['day', 'Day'], ['hour', 'Hour']].forEach(function (o) { %><option value="<%= o[0] %>"<%= (pf.salaryPeriod || 'month') === o[0] ? ' selected' : '' %>><%= o[1] %></option><% }) %>
+            </select>
+          </label>
+          <label>Note <span class="muted small">(optional)</span><input name="payNote" maxlength="120" value="<%= job.payNote || '' %>" placeholder="e.g. + PF & ESI, + incentives"></label>
+          <span class="muted small span-all">Yearly pay of ₹1 lakh or more shows as LPA, e.g. 1400000 to 2000000 a year shows as ₹14 – 20 LPA.</span>
+        </fieldset>
+        <label>Education <span class="muted small">(optional)</span><input name="education" maxlength="200" value="<%= job.education || '' %>" placeholder="e.g. ITI / Diploma, or B.Com"></label>
+        <label>Work schedule <span class="muted small">(optional)</span><input name="schedule" maxlength="200" value="<%= job.schedule || '' %>" placeholder="e.g. Day shift, Mon–Sat, 9 am – 6 pm"></label>
         <label>Client <span class="muted small">(lets this client see the job in their portal)</span>
           <select name="employerId">
             <option value="">No client (Hireriv job)</option>
@@ -74,6 +88,8 @@
         <label class="span-2">Key skills <span class="muted small">(comma separated)</span><input name="skills" value="<%= (job.skills || []).join(', ') %>" placeholder="React, Node.js, AWS"></label>
         <label class="span-2">About the role*<textarea name="description" rows="3" required><%= job.description || '' %></textarea></label>
         <label class="span-2">Responsibilities <span class="muted small">(one per line)</span><textarea name="responsibilities" rows="5"><%= (job.responsibilities || []).join('\n') %></textarea></label>
+        <label class="span-2">Qualifications and requirements <span class="muted small">(one per line, optional)</span><textarea name="qualifications" rows="3" placeholder="e.g. Valid two-wheeler licence"><%= (job.qualifications || []).join('\n') %></textarea></label>
+        <label class="span-2">Benefits <span class="muted small">(one per line, optional)</span><textarea name="benefits" rows="3" placeholder="e.g. PF and ESI&#10;Free meals"><%= (job.benefits || []).join('\n') %></textarea></label>
       </div>
       <button class="btn btn-primary" type="submit"><%= job.id ? 'Save changes' : 'Publish job' %></button>
       <a class="btn btn-outline" href="/admin?tab=jobs">Cancel</a>

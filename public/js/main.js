@@ -158,7 +158,8 @@ document.addEventListener('click', (e) => {
   const ids = readSaved();
   const wasSaved = ids.includes(id);
   const next = wasSaved ? ids.filter((x) => x !== id) : [id, ...ids];
-  if (!writeSaved(next)) return toast('Your browser is blocking saved jobs on this site.', true);
+  if (!writeSaved(next) && !signedIn) return toast('Your browser is blocking saved jobs on this site.', true);
+  if (signedIn) fetch(`/api/candidate/saved-jobs/${encodeURIComponent(id)}`, { method: wasSaved ? 'DELETE' : 'PUT' }).catch(() => {});
   paintSaved();
   toast(wasSaved ? 'Removed from saved jobs' : 'Saved! Find it any time under "Saved".');
   if (wasSaved && savedList) {
@@ -166,6 +167,25 @@ document.addEventListener('click', (e) => {
     renderSavedSummary(next.length);
   }
 });
+
+// Signed in to a job-seeker account: saved jobs are kept in the account too,
+// so they follow the candidate to other devices. Both lists are merged once.
+const signedIn = document.body.dataset.account === '1';
+async function syncSaved() {
+  try {
+    const res = await fetch('/api/candidate/saved-jobs');
+    if (!res.ok) return;
+    const { jobIds } = await res.json();
+    const local = readSaved();
+    for (const id of local.filter((x) => !jobIds.includes(x))) fetch(`/api/candidate/saved-jobs/${encodeURIComponent(id)}`, { method: 'PUT' }).catch(() => {});
+    const merged = [...local, ...jobIds.filter((x) => !local.includes(x))];
+    if (merged.length !== local.length) {
+      writeSaved(merged);
+      paintSaved();
+      if (savedList) loadSavedPage();
+    }
+  } catch { /* offline: the browser's list still works */ }
+}
 
 // Keep several open tabs in sync.
 window.addEventListener('storage', (e) => { if (e.key === SAVED_KEY) paintSaved(); });
@@ -195,6 +215,7 @@ async function loadSavedPage() {
   }
 }
 
+if (signedIn) syncSaved();
 if (savedList) {
   loadSavedPage();
   document.getElementById('saved-clear').addEventListener('click', () => {

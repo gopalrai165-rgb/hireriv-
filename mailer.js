@@ -448,6 +448,21 @@ function createMailer(site) {
       });
     },
 
+    // Someone flagged a job listing as suspicious or misleading.
+    jobReported(r) {
+      send(site, {
+        to: teamInbox,
+        ...(r.email ? { replyTo: r.email } : {}),
+        subject: `Job reported: ${r.jobTitle} (${r.reason})`,
+        heading: 'A visitor reported a job listing',
+        html:
+          p('Please check this listing within one working day. If it breaks the rules, close or edit it.') +
+          detailsTable([['Job', `${r.jobTitle} · ${r.company} (${r.jobId})`], ['Reason', r.reason], ['Details', r.details], ['Their email', r.email || 'Not given']]) +
+          button(`${baseUrl}/admin/jobs/${encodeURIComponent(r.jobId)}/edit`, 'Open the job') +
+          button(`${baseUrl}/admin?tab=job-reports`, 'All reported jobs'),
+      });
+    },
+
     candidateSignIn(email, link, minutes) {
       send(site, {
         to: email,

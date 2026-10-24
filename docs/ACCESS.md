@@ -13,7 +13,7 @@ Every route the app serves, and who may use it. **This table is checked by `test
 
 Every state-changing team, candidate and client form also passes `sameOrigin` (cross-site posts are refused).
 
-Total: 152 routes.
+Total: 159 routes.
 
 ## Public website
 
@@ -46,6 +46,9 @@ Total: 152 routes.
 | POST | `/api/resume-parse` | public |  |
 | POST | `/api/hire` | public |  |
 | POST | `/api/contact` | public |  |
+| GET | `/api/jobs` | public | Open, published jobs only (no samples); validated filters; 120 a minute per IP |
+| GET | `/api/jobs/:id` | public | Open, published jobs only |
+| POST | `/api/jobs/:id/report` | public | 5 per 10 minutes per IP |
 | POST | `/api/job-alerts` | public |  |
 | POST | `/api/newsletter` | public |  |
 | GET | `/post-a-job` | public | Signed-in client: /employer#new-requirement; anyone else: /hire#requirement |
@@ -92,6 +95,10 @@ Total: 152 routes.
 | POST | `/account/resume` | candidate | Replaces the signed-in candidate's own resume |
 | POST | `/account/alerts` | candidate |  |
 | POST | `/account/alerts/:id/delete` | candidate | Only the candidate's own job alerts |
+| GET | `/api/candidate/saved-jobs` | candidate | 401 when signed out; only the candidate's own saved jobs |
+| PUT | `/api/candidate/saved-jobs/:jobId` | candidate | 401 when signed out; only the candidate's own saved jobs |
+| DELETE | `/api/candidate/saved-jobs/:jobId` | candidate | 401 when signed out; only the candidate's own saved jobs |
+| GET | `/api/candidate/applications` | candidate | 401 when signed out; only the candidate's own applications, without contact details |
 | GET | `/account/my-data.json` | candidate | Only the signed-in email's own data |
 | GET | `/account/resume/:appId` | candidate | Only the candidate's own applications |
 | GET | `/account/interviews/:appId/:ivId.ics` | candidate | Only the candidate's own interviews |
