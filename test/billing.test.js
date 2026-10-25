@@ -66,7 +66,7 @@ function mockRazorpay() {
 const company = (id, name, extra = {}) => ({ id, company: name, name, email: `owner@${id}.in`, active: true, createdAt: iso(30 * DAY), ...extra });
 const person = (id, email, name) => ({ id, email, name, phone: '9800000001', passwordHash: hashPassword(`${name} long password`), emailVerifiedAt: iso(DAY), phoneVerifiedAt: iso(DAY), createdAt: iso(DAY), active: true, link: null });
 const membership = (id, employerId, userId, role) => ({ id, employerId, userId, role, jobIds: [], createdAt: iso(DAY) });
-const job = (id, employerId, status) => ({ id, title: `Job ${id}`, company: 'Self Co', employerId, location: 'Pune', mode: 'On-site', type: 'Full-time', category: 'Retail', experience: '', posted: ymd(DAY), skills: [], description: 'A good job with clear duties for the right person.', responsibilities: [], status, closesOn: null, sample: false, createdBy: 'employer', createdByUser: 'u-sam' });
+const job = (id, employerId, status) => ({ id, title: `Job ${id}`, company: 'Self Co', employerId, location: 'Pune', mode: 'On-site', type: 'Full-time', category: 'Retail', experience: '', posted: ymd(DAY), skills: [], description: 'A good job with clear duties for the right person.', responsibilities: ['Serve customers at the counter'], pay: null, payNote: 'Fixed monthly salary, discussed at interview', status, closesOn: null, sample: false, createdBy: 'employer', createdByUser: 'u-sam' });
 const placementInvoice = {
   number: 'INV/2026-27/0900', date: ymd(5 * DAY), dueDate: ymd(-10 * DAY), gstPercent: 18, taxType: 'inter', subtotal: 50000, gst: 9000, taxLines: [{ label: 'IGST @ 18%', amount: 9000 }], total: 59000,
   seller: { name: 'Hireriv', address: 'Pune' }, buyer: { name: 'A Co' }, item: 'Recruitment fee', sac: '998512', status: 'Unpaid', payments: [], creditNotes: [],
@@ -284,7 +284,8 @@ test('checkout: an order from the server, unverified or failed payments change n
   assert.equal(srv.records('billing-invoices').length, 1);
   assert.equal(srv.records('payment-transactions').filter((t) => t.status === 'paid').length, 1);
   // The job that was blocked can now go for review.
-  assert.equal((await call('/api/jobs/js4/publish', 'POST', {}, p.sam)).status, 200);
+  const sent = await call('/api/jobs/js4/publish', 'POST', {}, p.sam);
+  assert.equal(sent.status, 200, JSON.stringify(sent.errors));
 
   // Invoices: the company's own, never another's.
   const list = await call('/api/billing/invoices', 'GET', undefined, p.sam);

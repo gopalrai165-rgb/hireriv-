@@ -93,6 +93,14 @@ document.querySelectorAll('form.js-form').forEach((form) => {
       if (data.ok) {
         form.reset();
         toast(data.message);
+        // A report's reference and private tracking link stay on the page.
+        const receipt = form.parentElement.querySelector('[data-receipt]');
+        if (receipt && data.reference && data.trackUrl) {
+          receipt.querySelector('[data-ref]').textContent = data.reference;
+          receipt.querySelector('a[data-track]').href = data.trackUrl;
+          receipt.hidden = false;
+          receipt.focus();
+        }
       } else {
         toast(data.errors.join(', '), true);
       }

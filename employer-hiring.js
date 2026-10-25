@@ -13,12 +13,13 @@ const { can } = require('./employer-team');
 const ats = require('./ats');
 const { RECOMMENDATIONS } = require('./interviews');
 const { SHIFTS } = require('./candidate-profile');
+const { workOf } = require('./content');
 
 // A company can have this many jobs live, paused or waiting for review.
 const MAX_ACTIVE_JOBS = 50;
 // Until the company is verified, at most this many can wait for review.
 const MAX_WAITING_UNVERIFIED = 5;
-const EMPLOYER_JOB_FIELDS = ['title', 'location', 'mode', 'type', 'category', 'work', 'experience', 'salaryMin', 'salaryMax', 'salaryPeriod', 'payNote', 'education', 'schedule', 'shift', 'hours', 'openings', 'address', 'walkIn', 'eligibility', 'mustHave', 'physical', 'immediate', 'skills', 'description', 'responsibilities', 'qualifications', 'benefits', 'closesOn', 'resume'];
+const EMPLOYER_JOB_FIELDS = ['title', 'location', 'mode', 'type', 'category', 'work', 'experience', 'salaryMin', 'salaryMax', 'salaryPeriod', 'payNote', 'education', 'schedule', 'shift', 'hours', 'openings', 'address', 'walkIn', 'eligibility', 'mustHave', 'physical', 'immediate', 'skills', 'description', 'responsibilities', 'qualifications', 'benefits', 'closesOn', 'resume', 'overtime', 'workerCosts'];
 const STATUS_LABELS = { draft: 'Draft', pending: 'Waiting for review', open: 'Live', paused: 'Paused', closed: 'Closed', rejected: 'Needs changes' };
 const ACTIVE = ['open', 'paused', 'pending'];
 const selfManaged = (job) => Boolean(job) && job.createdBy === 'employer';
@@ -49,6 +50,7 @@ function register(app, deps) {
     mustHave: (j.mustHave || []).join('\n'), physical: j.physical || '', immediate: j.immediate ? '1' : '',
     skills: (j.skills || []).join(', '), description: j.description, responsibilities: (j.responsibilities || []).join('\n'),
     qualifications: (j.qualifications || []).join('\n'), benefits: (j.benefits || []).join('\n'), closesOn: j.closesOn || '', resume: j.resume || '',
+    overtime: j.overtime || '', workerCosts: j.workerCosts || '',
   });
   // The employer's input (a form, or JSON where lists may be arrays and pay an
   // object) on top of the job as it is, with the company and owner fixed.
@@ -88,10 +90,12 @@ function register(app, deps) {
     const status = ACTIVE.includes(job.status) ? 'pending' : job.status === 'closed' ? 'closed' : 'draft';
     if (lockedByModeration(job)) return { errors: [LOCKED_MESSAGE] };
     if (status === 'pending' && job.status !== 'pending') {
-      const problem = submitProblem(req, job);
+      const problem = submitProblem(req, { ...job, ...next });
       if (problem) return { errors: [problem] };
     }
+    const before = { ...job, pay: job.pay ? { ...job.pay } : null };
     Object.assign(job, next, { status, updatedAt: now() });
+    if (hooks.changed && status === 'pending') hooks.changed(before, job);
     delete job.closedReason;
     if (status === 'pending') {
       job.submittedAt = job.updatedAt;
@@ -99,14 +103,19 @@ function register(app, deps) {
       events.jobSubmitted(job);
     }
     saveJobs();
+    if (status === 'pending' && hooks.submitted) hooks.submitted(job);
     team.audit(req.employer.id, req.employerUser, 'job-updated', `${job.title} (${job.id})`);
     return { job, errors: [] };
   }
   // Before a job goes to the team: the person's mobile is verified (for
-  // companies that signed up themselves), and the company is within its limits.
+  // companies that signed up themselves), the company is within its limits,
+  // and the job says what candidates need to know.
   function submitProblem(req, job) {
     const emp = req.employer;
     if (emp.selfSignup && !req.employerUser.phoneVerifiedAt) return 'verify your mobile number in Settings before sending jobs for review';
+    // Set by trust.js: a moderator's hold on new postings, or a burst of them.
+    const held = hooks.postingProblem ? hooks.postingProblem(emp, job) : '';
+    if (held) return held;
     const mine = getJobs().filter((j) => j.employerId === emp.id && j.id !== job.id);
     // The plan's job limit (subscriptions.js), never more than MAX_ACTIVE_JOBS.
     const allowed = hooks.jobLimit ? Math.min(hooks.jobLimit(emp), MAX_ACTIVE_JOBS) : MAX_ACTIVE_JOBS;
@@ -115,7 +124,20 @@ function register(app, deps) {
     }
     const most = waitingLimit();
     if (!clients.isApproved(emp) && mine.filter((j) => j.status === 'pending').length >= most) return most ? `until your company is verified, up to ${most} job${most === 1 ? '' : 's'} can wait for review` : 'jobs can be sent for review once your company is verified';
+    // Last, what this job itself is missing (account-wide blocks come first).
+    const missing = qualityGaps(job);
+    if (missing.length) return `before sending this job for review, add ${missing.length > 1 ? `${missing.slice(0, -1).join(', ')} and ${missing[missing.length - 1]}` : missing[0]}`;
     return '';
+  }
+  // What a candidate needs to judge a job, checked before it goes for review:
+  // what the work is, the pay (or how it is decided), and for industrial,
+  // field and service work the hours or shift.
+  function qualityGaps(job) {
+    const missing = [];
+    if (!(job.responsibilities || []).length) missing.push('the main responsibilities (one per line)');
+    if (!job.pay && !String(job.payNote || '').trim()) missing.push('the pay, or how pay is decided (for example "Fixed monthly salary, discussed at interview")');
+    if (workOf(job) === 'field' && !job.hours && !job.shift && !job.schedule) missing.push('the working hours or shift');
+    return missing;
   }
   function submitJob(req, job) {
     if (job.status === 'pending') return { job, errors: [] };
@@ -135,6 +157,7 @@ function register(app, deps) {
     mailer.employerJobSubmitted(job, addressed(req.employer, req.employerUser), clients.isApproved(req.employer), reopening);
     events.jobSubmitted(job);
     team.audit(req.employer.id, req.employerUser, 'job-submitted', `${job.title} (${job.id})`);
+    if (hooks.submitted) hooks.submitted(job);
     return { job, errors: [] };
   }
   // Pause (hidden, back with one click), resume, and close.
@@ -416,7 +439,8 @@ function register(app, deps) {
     if (!job || job.status !== 'pending') return { status: 409, errors: ['this job is no longer waiting for review'] };
     const emp = clients.read().find((c) => c.id === job.employerId);
     if (emp && !clients.isApproved(emp)) return { status: 409, errors: [`verify ${emp.company} first, then this job`] };
-    Object.assign(job, { status: 'open', posted: todayIst(), approvedAt: now(), approvedBy: by.name });
+    // A listing paused for a check goes back live without changing its date.
+    Object.assign(job, { status: 'open', posted: job.reviewHold ? job.posted : todayIst(), approvedAt: now(), approvedBy: by.name });
     const alerted = sendJobAlerts(job);
     saveJobs();
     if (emp) {

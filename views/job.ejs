@@ -8,7 +8,8 @@
       <div>
         <div class="chips"><span class="tag tag-<%= job.mode.toLowerCase().replace(/[^a-z]+/g, '-') %>"><%= job.mode %></span><span class="chip"><%= job.type %></span><span class="chip"><%= job.category %></span></div>
         <h1><%= job.title %></h1>
-        <p class="lead"><%= job.company %><% if (verifiedEmployer) { %> <span class="verified" title="A client account checked by the <%= site.name %> team"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg>Verified employer</span><% } %></p>
+        <% const tl = typeof trustLabels !== 'undefined' ? trustLabels : null; const badge = tl && tl.company; %>
+        <p class="lead"><% if (tl && tl.profileUrl) { %><a href="<%= tl.profileUrl %>"><%= job.company %></a><% } else { %><%= job.company %><% } %><% if (badge && badge.level === 'business') { %> <span class="verified" title="<%= badge.explain %>"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg><%= badge.label %></span><% } else if (!badge && verifiedEmployer) { %> <span class="verified" title="A client account checked by the <%= site.name %> team"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg>Verified employer</span><% } %></p>
       </div>
       <% if (live) { %><div class="job-actions"><button type="button" class="btn btn-outline btn-lg save-btn save-btn-lg" data-save-job="<%= job.id %>" aria-pressed="false"><svg class="i"><use href="#i-bookmark"/></svg><span class="save-label">Save job</span></button><a href="#apply" class="btn btn-primary btn-lg">Apply now</a></div><% } else { %><span class="pill st-rejected">No longer accepting applications</span><% } %>
     </div>
@@ -63,6 +64,8 @@
         <% if (job.shift) { %><div><dt>Shift</dt><dd><%= job.shift %></dd></div><% } %>
         <% if (job.hours) { %><div><dt>Working hours</dt><dd><%= job.hours %></dd></div><% } %>
         <% if (job.schedule) { %><div><dt>Work schedule</dt><dd><%= job.schedule %></dd></div><% } %>
+        <% if (job.overtime) { %><div><dt>Overtime</dt><dd><%= job.overtime %></dd></div><% } %>
+        <% if (job.workerCosts) { %><div><dt>Costs you pay</dt><dd><%= job.workerCosts %></dd></div><% } %>
         <div><dt>Apply by</dt><dd><%= job.closesOn ? formatDate(job.closesOn) : 'Open until filled' %></dd></div>
       </dl>
       <% const needs = (job.mustHave || []).length || job.immediate || job.physical; %>
@@ -96,6 +99,17 @@
       <h2>Why apply through Hireriv?</h2>
       <p>You'll work with a dedicated recruiter who shares honest feedback, helps you prepare for each interview round and negotiates on your behalf. It's completely free for candidates: <b>we never ask job seekers for money</b>.</p>
       <% } %>
+      <% if (tl && (tl.company || tl.listing)) { %>
+      <section class="trust-labels" aria-labelledby="checks-head">
+        <h2 id="checks-head">What we checked</h2>
+        <ul class="checks">
+          <% if (tl.company) { %><li><b><%= tl.company.label %>.</b> <%= tl.company.explain %></li><% } %>
+          <% if (tl.listing) { %><li><b><%= tl.listing.label %>.</b> <%= tl.listing.explain %></li><% } %>
+          <% if (tl.recruiter) { %><li><b><%= tl.recruiter.label %>.</b> <%= tl.recruiter.explain %></li><% } %>
+        </ul>
+        <p class="small muted"><%= tl.note %><% if (tl.profileUrl) { %> <a href="<%= tl.profileUrl %>">More about <%= job.company %></a>.<% } %></p>
+      </section>
+      <% } %>
       <details class="report-job" id="report">
         <summary>Report this job</summary>
         <p class="small muted">Does this listing look fake, ask for money, or have wrong details? Tell us and our team will check it within one working day.</p>
@@ -113,6 +127,8 @@
           </div>
           <button class="btn btn-outline btn-sm" type="submit">Send report</button>
         </form>
+        <div class="notice" data-receipt hidden tabindex="-1" role="status"><p>Your reference is <b data-ref></b>. <a data-track href="#">Follow your report</a> (keep this link private).</p></div>
+        <p class="small muted">If you have lost money or shared bank details, an OTP or a UPI PIN, report it at once on the National Cyber Crime Reporting Portal (<a href="https://cybercrime.gov.in" rel="noopener noreferrer" target="_blank">cybercrime.gov.in</a>) or call the helpline <a href="tel:1930">1930</a>, and tell your bank.</p>
       </details>
     </article>
     <aside class="form-card sticky" id="apply">

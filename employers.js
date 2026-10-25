@@ -337,14 +337,17 @@ function register(app, deps) {
     const list = read();
     const emp = list.find((e) => e.id === empId && e.selfSignup);
     if (!emp) return { status: 404, errors: ['company not found'] };
-    if (emp.approvedAt) return { status: 409, errors: ['this company is already verified'] };
+    if (emp.approvedAt && !emp.recheck) return { status: 409, errors: ['this company is already verified'] };
     if (!emp.active) return { status: 409, errors: ['this company is closed or suspended'] };
-    Object.assign(emp, { approvedAt: now(), approvedBy: by.name });
+    // A verified company whose details changed: the new details are confirmed.
+    const recheck = Boolean(emp.recheck);
+    if (recheck) { emp.recheckHistory = [...(emp.recheckHistory || []), { ...emp.recheck, confirmedAt: now(), confirmedBy: by.name }].slice(-20); delete emp.recheck; } else Object.assign(emp, { approvedAt: now(), approvedBy: by.name });
+    emp.checkedAt = now();
     delete emp.infoRequestedAt;
     write(list);
     const record = closeVerification(emp, 'verified', by);
-    team.audit(emp.id, null, 'company-verified', `by ${by.name}`);
-    for (const owner of ownersOf(emp)) mailer.employerApproved(owner);
+    team.audit(emp.id, null, recheck ? 'company-details-confirmed' : 'company-verified', `by ${by.name}`);
+    if (!recheck) for (const owner of ownersOf(emp)) mailer.employerApproved(owner);
     return { status: 200, employer: emp, record };
   }
   function declineCompany(empId, by, reason) {
@@ -363,7 +366,7 @@ function register(app, deps) {
   // answers by sending its details again from its Company profile.
   function requestCompanyInfo(empId, by, note) {
     const list = read();
-    const emp = list.find((e) => e.id === empId && e.selfSignup && !e.approvedAt && e.active);
+    const emp = list.find((e) => e.id === empId && e.selfSignup && (!e.approvedAt || e.recheck) && e.active);
     if (!emp) return { status: 404, errors: ['company not found or already decided'] };
     const checks = readSubmissions('employer-verifications');
     let record = checks.find((v) => v.employerId === emp.id && OPEN_CHECKS.includes(v.status));
@@ -377,6 +380,18 @@ function register(app, deps) {
     team.audit(emp.id, null, 'verification-info-requested', note);
     for (const owner of ownersOf(emp)) mailer.employerInfoRequested(owner, note);
     return { status: 200, employer: emp, record };
+  }
+  // Trust & safety: new job postings held (the company can still sign in,
+  // reply to candidates and keep its live jobs), or the hold lifted.
+  function setPostingHold(empId, hold, by) {
+    const list = read();
+    const emp = list.find((e) => e.id === empId);
+    if (!emp) return null;
+    if (hold) emp.postingHold = hold;
+    else if (emp.postingHold) { emp.postingHoldHistory = [...(emp.postingHoldHistory || []), { ...emp.postingHold, liftedAt: now(), liftedBy: by ? by.name : '' }].slice(-20); delete emp.postingHold; }
+    write(list);
+    team.audit(emp.id, null, hold ? 'postings-held' : 'postings-released', hold ? hold.reason : `by ${by ? by.name : 'the team'}`);
+    return emp;
   }
   // Trust & safety: a suspension (reversible) or a closure; both sign everyone out.
   function restrictCompany(empId, fields) {
@@ -621,7 +636,7 @@ function register(app, deps) {
   const companyPage = (req, res, locals = {}, status = 200) => page(res, 'employer-company', {
     title: `${req.employer.company} · Company profile`, tab: 'company', industries: INDUSTRIES, sizes: COMPANY_SIZES, ...ctx(),
     verification: verificationOf(req.employer), checks: readSubmissions('employer-verifications').filter((v) => v.employerId === req.employer.id).slice(0, 10),
-    values: req.employer, msg: String(req.query.msg || ''), ...locals,
+    values: req.employer, msg: String(req.query.msg || ''), docTypes: require('./company-trust').DOC_TYPES, ...locals,
   }, status);
   app.get('/employer/company', requireEmployer, (req, res) => companyPage(req, res));
 
@@ -637,7 +652,16 @@ function register(app, deps) {
     write(list);
     if (changed.length) team.audit(emp.id, req.employerUser, 'company-updated', changed.join(', '));
     const identity = changed.filter((k) => ['company', 'gstin', 'cin', 'udyam'].includes(k));
-    if (identity.length && verificationOf(emp) === 'verified' && emp.selfSignup) mailer.employerDetailsChanged(emp, req.employerUser, identity, `${baseUrl}/admin?tab=clients`);
+    if (identity.length && verificationOf(emp) === 'verified' && emp.selfSignup) {
+      // The company stays verified while the team checks the new details;
+      // its public label says they are being checked again.
+      emp.identityHistory = [...(emp.identityHistory || []), { at: now(), by: req.employerUser.name, fields: identity }].slice(-20);
+      emp.recheck = { at: now(), by: req.employerUser.name, fields: identity };
+      write(list);
+      const checks = readSubmissions('employer-verifications');
+      if (!checks.some((v) => v.employerId === emp.id && OPEN_CHECKS.includes(v.status))) saveSubmission('employer-verifications', { employerId: emp.id, status: 'pending', kind: 'recheck', submittedBy: req.employerUser.name, reason: `Changed after verification: ${identity.join(', ')}`, details: verificationDetails(emp) });
+      mailer.employerDetailsChanged(emp, req.employerUser, identity, `${baseUrl}/admin/verifications`);
+    }
     return { employer: emp, errors: [] };
   }
   app.post('/employer/company', requireEmployer, allow('company.edit'), limit('employer-company', 20), sameOrigin, (req, res) => {
@@ -647,24 +671,8 @@ function register(app, deps) {
     if (r.errors.length) return companyPage(req, res, { values: { ...req.employer, ...input }, errors: r.errors }, 400);
     res.redirect('/employer/company?msg=' + encodeURIComponent('Company profile saved.'));
   });
-  // Sends the current details for the team to check (once at a time).
-  app.post('/employer/company/verify', requireEmployer, allow('company.verify'), limit('employer-company', 20), sameOrigin, (req, res) => {
-    const emp = req.employer;
-    if (verificationOf(emp) !== 'pending') return res.redirect('/employer/company?msg=' + encodeURIComponent('Your company is already verified.'));
-    if (!emp.gstin && !emp.cin && !emp.udyam && !emp.website) return res.redirect('/employer/company?msg=' + encodeURIComponent('Add a GSTIN, CIN, Udyam number or website first, so our team can check the company.'));
-    const list = readSubmissions('employer-verifications');
-    const open = list.find((v) => v.employerId === emp.id && OPEN_CHECKS.includes(v.status));
-    const reply = String(req.body.reply || '').trim().slice(0, 1000);
-    if (open) {
-      // An answer to our question puts the check back in the queue.
-      Object.assign(open, { status: 'pending', details: verificationDetails(emp), resubmittedAt: now(), submittedBy: req.employerUser.name, ...(reply ? { reply } : {}) });
-      writeSubmissions('employer-verifications', list);
-    } else saveSubmission('employer-verifications', { employerId: emp.id, status: 'pending', submittedBy: req.employerUser.name, details: verificationDetails(emp), ...(reply ? { reply } : {}) });
-    if (emp.infoRequestedAt) { const all = read(); const e = all.find((x) => x.id === emp.id); delete e.infoRequestedAt; write(all); }
-    team.audit(emp.id, req.employerUser, 'verification-requested');
-    mailer.employerVerificationRequested(emp, req.employerUser, `${baseUrl}/admin?tab=clients`);
-    res.redirect('/employer/company?msg=' + encodeURIComponent('Sent to our team. We usually check companies within one working day.'));
-  });
+  // Sending details for checking (with the representative and documents) is
+  // in company-trust.js: POST /employer/company/verify and the API.
 
   // ---------- team ----------
   const teamPage = (req, res, locals = {}, status = 200) => {
@@ -941,7 +949,7 @@ function register(app, deps) {
     return { status: 200, name: a.name, feedback: a.shared.feedback };
   }
 
-  const verification = { verifyCompany, declineCompany, requestCompanyInfo, restrictCompany, reinstateCompany, reopenVerification, OPEN_CHECKS };
+  const verification = { verifyCompany, declineCompany, requestCompanyInfo, restrictCompany, reinstateCompany, reopenVerification, setPostingHold, verificationDetails, OPEN_CHECKS };
   return { verification, hooks, read, write, team, context, currentEmployer, requireEmployer, requireEmployerApi, allow, forbid, shortlistFor, shortlistFeedback, clientView, createClient, DECISIONS, isApproved, verificationOf, addressed, membersWith: (employerId, action, job) => team.membersOf(employerId).filter((m) => can(m, action, job)) };
 }
 

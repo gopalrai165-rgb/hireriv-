@@ -1,0 +1,61 @@
+<%- include('partials/head') %>
+
+<section class="page-hero page-hero-sm">
+  <div class="container">
+    <a href="/jobs" class="back-link">← All jobs</a>
+    <h1><%= company.name %></h1>
+    <p class="lead">
+      <%= [company.industry, [company.city, company.state].filter(Boolean).join(', ')].filter(Boolean).join(' · ') %>
+      <% if (badge && badge.level === 'business') { %> <span class="verified"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg><%= badge.label %></span><% } %>
+    </p>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container job-layout">
+    <article class="job-body">
+      <% if (company.about) { %><h2>About the company</h2><p class="prewrap"><%= company.about %></p><% } %>
+      <dl class="job-facts">
+        <% if (company.size) { %><div><dt>Company size</dt><dd><%= company.size %> people</dd></div><% } %>
+        <% if (company.website) { %><div><dt>Website</dt><dd><a href="<%= company.website %>" rel="nofollow noopener noreferrer ugc" target="_blank"><%= company.website.replace(/^https:\/\//, '') %></a></dd></div><% } %>
+      </dl>
+
+      <% if (badge) { %>
+      <section class="trust-labels" aria-labelledby="checked-head">
+        <h2 id="checked-head">What we checked</h2>
+        <p><b><%= badge.label %>.</b> <%= badge.explain %></p>
+        <p class="small muted"><%= badge.note %></p>
+      </section>
+      <% } %>
+
+      <h2>Open jobs (<%= jobs.length %>)</h2>
+      <div class="jobs-grid">
+        <% jobs.forEach(function (job) { %><%- include('partials/job-card', { job: job }) %><% }) %>
+      </div>
+
+      <details class="report-job" id="report">
+        <summary>Report this company</summary>
+        <p class="small muted">Is this company asking for money, pretending to be someone else, or behaving badly? Tell us and our team will look into it, usually within one working day.</p>
+        <form class="form js-form" action="/api/companies/<%= company.id %>/reports" method="post" enctype="multipart/form-data">
+          <%- include('partials/honeypot') %>
+          <div class="form-grid">
+            <label class="span-2">What's wrong?*
+              <select name="reason" required>
+                <option value="">Choose a reason…</option>
+                <% reportReasons.forEach(function (r) { %><option><%= r %></option><% }) %>
+              </select>
+            </label>
+            <label class="span-2">Details <span class="muted small">(needed for "Pretends to be another company" and "Something else")</span><textarea name="details" rows="3" maxlength="1000"></textarea></label>
+            <label class="span-2">Screenshot or document <span class="muted small">(optional; PDF, JPG or PNG, up to 5 MB)</span><input type="file" name="evidence" accept=".pdf,.jpg,.jpeg,.png"></label>
+            <label class="span-2">Your email <span class="muted small">(optional, if you'd like us to be able to reply)</span><input type="email" name="email" autocomplete="email"></label>
+          </div>
+          <button class="btn btn-outline btn-sm" type="submit">Send report</button>
+        </form>
+        <div class="notice" data-receipt hidden tabindex="-1" role="status"><p>Your reference is <b data-ref></b>. <a data-track href="#">Follow your report</a> (keep this link private).</p></div>
+        <p class="small muted"><%= help %></p>
+      </details>
+    </article>
+  </div>
+</section>
+
+<%- include('partials/foot') %>

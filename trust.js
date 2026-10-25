@@ -22,6 +22,7 @@ const roles = require('./agency-roles');
 const { paginate } = require('./paginate');
 const { DOCUMENT_TYPES } = require('./uploads');
 const { cleanMessage } = require('./ops-monitor');
+const risk = require('./risk');
 
 const DAY = 86400000;
 const iso = (ms = Date.now()) => new Date(ms).toISOString();
@@ -48,6 +49,7 @@ const CATEGORIES = {
   discrimination: 'Discriminatory or offensive',
   stale: 'Already filled or closed',
   spam: 'Spam or duplicate listing',
+  'suspicious-links': 'Links to suspicious sites, apps or chat groups',
   other: 'Something else',
 };
 const HIGH_RISK = ['scam', 'payment-request', 'personal-data', 'impersonation', 'harassment'];
@@ -60,8 +62,14 @@ const REASON_CATEGORY = {
   'Wrong or misleading details': 'misleading-terms',
   'Already filled or closed': 'stale',
   'Discriminatory or offensive': 'discrimination',
+  'Has suspicious links or apps': 'suspicious-links',
   'Something else': 'other',
 };
+// What someone who reported sees on the tracking page: never the reviewer,
+// the escalation or the evidence, only where the report has got to.
+const PUBLIC_STATUS = { open: 'New', under_review: 'Under review', awaiting_information: 'Action required', resolved: 'Resolved', dismissed: 'Resolved' };
+// Shown wherever someone reports a job or a company.
+const CYBERCRIME_HELP = 'If you have lost money or shared bank details, an OTP or a UPI PIN, report it at once on the National Cyber Crime Reporting Portal (cybercrime.gov.in) or call the helpline 1930, and tell your bank.';
 const ENTITY_TYPES = ['job', 'employer', 'candidate'];
 const ENTITY_LABEL = { job: 'Job listing', employer: 'Employer', candidate: 'Candidate' };
 const STATUSES = ['open', 'under_review', 'awaiting_information', 'resolved', 'dismissed'];
@@ -76,10 +84,11 @@ const MOVES = {
   dismissed: ['under_review'],
 };
 const PRIORITIES = ['high', 'normal', 'low'];
-const LEVELS = { low: 1, medium: 2, high: 3 };
+const LEVELS = { low: 1, medium: 2, high: 3, critical: 4 };
 const APPEAL_DAYS = 30;
 const RETENTION_MONTHS = 24;
-const POLICY_DEFAULTS = { unverifiedPendingLimit: 5, flagLevel: 'medium', urgentReports: 3 };
+const POLICY_DEFAULTS = { unverifiedPendingLimit: 5, flagLevel: 'medium', urgentReports: 3, postingBurst: 10 };
+const RECEIPTS = 'report-receipts';
 
 // What a reviewer may do on a case. `perm` is checked on the server;
 // `strong` actions need two-step sign-in; `entity` limits where it applies.
@@ -96,6 +105,8 @@ const CASE_ACTIONS = {
   'reinstate-employer': { label: 'Lift the company suspension', perm: 'accounts.restrict', entity: ['job', 'employer'], strong: true },
   'terminate-employer': { label: 'Close the company account (needs a second person)', perm: 'accounts.restrict', entity: ['job', 'employer'], strong: true },
   'approve-pending': { label: 'Approve the waiting account closure', perm: 'accounts.restrict', strong: true },
+  'hold-postings': { label: 'Hold new job postings by the company (the company can appeal)', perm: 'jobs.moderate', entity: ['job', 'employer'], strong: true },
+  'lift-postings': { label: 'Lift the hold on new job postings', perm: 'jobs.moderate', entity: ['job', 'employer'], strong: true },
   'reject-pending': { label: 'Reject the waiting account closure', perm: 'accounts.restrict' },
   resolve: { label: 'Resolve the case', perm: 'cases.view' },
   dismiss: { label: 'Dismiss the case (no breach found)', perm: 'cases.view' },
@@ -202,8 +213,8 @@ function register(app, deps) {
   function setPolicy(user, input) {
     const errors = [];
     const n = (k, lo, hi) => { const v = Number.parseInt(String(input[k] ?? ''), 10); if (!Number.isInteger(v) || v < lo || v > hi) errors.push(`${k} must be a whole number from ${lo} to ${hi}`); return v; };
-    const next = { unverifiedPendingLimit: n('unverifiedPendingLimit', 0, 50), urgentReports: n('urgentReports', 2, 20), flagLevel: String(input.flagLevel || '') };
-    if (!LEVELS[next.flagLevel]) errors.push('flagLevel must be low, medium or high');
+    const next = { unverifiedPendingLimit: n('unverifiedPendingLimit', 0, 50), urgentReports: n('urgentReports', 2, 20), flagLevel: String(input.flagLevel || ''), postingBurst: input.postingBurst === undefined ? policy().postingBurst : n('postingBurst', 3, 100) };
+    if (!LEVELS[next.flagLevel]) errors.push('flagLevel must be low, medium, high or critical');
     const reason = clip(input.reason, 500);
     if (reason.length < 5) errors.push('give a reason for the change');
     if (errors.length) return { status: 400, errors };
@@ -247,7 +258,7 @@ function register(app, deps) {
     const pol = policy();
     if (c.escalated) return 'high';
     if (c.reports.some((r) => HIGH_RISK.includes(r.category)) || HIGH_RISK.includes(c.category)) return 'high';
-    if (c.flags.some((f) => f.severity === 'high')) return 'high';
+    if (c.flags.some((f) => f.severity === 'high' || f.severity === 'critical')) return 'high';
     if (new Set(c.reports.map((r) => r.reporterKey || r.id)).size >= pol.urgentReports) return 'high';
     if (c.reports.length && c.reports.every((r) => r.category === 'stale')) return 'low';
     return c.priorityOverride || 'normal';
@@ -302,14 +313,20 @@ function register(app, deps) {
   // gets the same reply, so the form says nothing about who has an account.
   function entityFor(type, id, reporter) {
     const jobs = getJobs();
-    if (type === 'job' || type === 'employer') {
-      const job = jobs.find((j) => j.id === id && !j.sample && j.status !== 'draft');
-      if (!job) return null;
+    // A job id: the listing, or (type employer) the company that posted it.
+    const job = (type === 'job' || type === 'employer') && jobs.find((j) => j.id === id && !j.sample && j.status !== 'draft');
+    if (type === 'job' && !job) return null;
+    if (job) {
       if (type === 'employer' && job.employerId) {
         const emp = clients.read().find((e) => e.id === job.employerId);
         if (emp) return { type: 'employer', id: emp.id, label: emp.company, employerId: emp.id, jobId: job.id };
       }
       return { type: 'job', id: job.id, label: `${job.title} · ${job.company}`, employerId: job.employerId || '' };
+    }
+    // A company by its own id, when its profile is public (company-trust.js).
+    if (type === 'employer') {
+      const emp = clients.read().find((e) => e.id === id && e.active && !e.terminatedAt);
+      if (emp && jobs.some((j) => j.employerId === emp.id && j.status === 'open' && !j.sample)) return { type: 'employer', id: emp.id, label: emp.company, employerId: emp.id };
     }
     if (type === 'candidate') {
       if (reporter.type !== 'employer') return null;
@@ -321,7 +338,34 @@ function register(app, deps) {
     }
     return null;
   }
-  // { status, errors? }. Valid shapes always answer the same way.
+  // A reference and a private tracking link for every report of a valid
+  // shape, whether or not it led anywhere, so the reply never tells the
+  // person anything about accounts or listings they could not see.
+  function issueReceipt(category, caseId, reportId) {
+    const token = crypto.randomBytes(24).toString('hex');
+    const reference = `R-${crypto.randomBytes(5).toString('hex').toUpperCase()}`;
+    saveSubmission(RECEIPTS, { reference, tokenHash: sha256(token), category, caseId: caseId || '', reportId: reportId || '' });
+    return { reference, trackUrl: `${baseUrl}/reports/track/${token}`, help: CYBERCRIME_HELP };
+  }
+  const receiptByToken = (token) => (/^[a-f0-9]{48}$/.test(token) ? db.all(RECEIPTS).find((r) => r.tokenHash === sha256(token)) || null : null);
+  // Where a report has got to, in words for the person who sent it.
+  function trackingOf(receipt) {
+    const c = receipt.caseId ? caseById(receipt.caseId) : null;
+    const steps = [{ at: receipt.createdAt, label: 'Report received' }];
+    let status = 'New';
+    if (!c) {
+      // Nothing to follow (a duplicate, or something we could not match): closed after a week.
+      if (Date.parse(receipt.createdAt) < Date.now() - 7 * DAY) { status = 'Resolved'; steps.push({ at: iso(Date.parse(receipt.createdAt) + 7 * DAY), label: 'Closed' }); }
+    } else {
+      status = PUBLIC_STATUS[c.status] || 'Under review';
+      if (status === 'New' && c.firstResponseAt) status = 'Under review';
+      if (c.firstResponseAt) steps.push({ at: c.firstResponseAt, label: 'Our team started looking into it' });
+      if (c.status === 'awaiting_information') steps.push({ at: c.updatedAt, label: 'We asked for more information by email' });
+      if (c.resolvedAt && CLOSED.includes(c.status)) steps.push({ at: c.resolvedAt, label: c.status === 'dismissed' ? 'Closed: we did not find a breach of our rules' : 'Closed: we took the action our rules call for' });
+    }
+    return { reference: receipt.reference, category: CATEGORIES[receipt.category] || receipt.category, status, steps };
+  }
+  // { status, errors?, receipt? }. Valid shapes always answer the same way.
   function submitReport(req, input, file) {
     const drop = () => file && fs.unlink(file.path, () => {});
     const entityType = String(input.entityType || '');
@@ -338,16 +382,17 @@ function register(app, deps) {
     if (['impersonation', 'harassment', 'other'].includes(category) && details.length < 10) errors.push('please describe what happened');
     if (errors.length) { drop(); return { status: 400, errors }; }
     // Link-stuffed text is treated as spam: same reply, nothing kept.
-    if (urlCount(details) > 3) { drop(); return { status: 202 }; }
+    if (urlCount(details) > 3) { drop(); return { status: 202, receipt: issueReceipt(category) }; }
     const reporter = reporterOf(req, email);
     const entity = entityFor(entityType, entityId, reporter);
-    if (!entity) { drop(); return { status: 202 }; }
+    if (!entity) { drop(); return { status: 202, receipt: issueReceipt(category) }; }
     const report = {
       id: crypto.randomUUID(), at: iso(), category, details, reporterType: reporter.type, reporterKey: reporter.key,
       ...(reporter.employerId ? { reporterEmployerId: reporter.employerId } : {}), email: email || reporter.email || '', ...(input.jobReportId ? { jobReportId: input.jobReportId } : {}), ...(entity.jobId ? { jobId: entity.jobId } : {}),
     };
     const ev = file ? { id: crypto.randomUUID(), file: path.basename(file.filename), originalName: clip(file.originalname, 120), size: file.size, sha256: sha256(vault.readSync(file.path)), by: `Reporter (${reporter.type})`, at: iso(), fromReport: report.id } : null;
     const existing = openCaseFor(entity.type, entity.id);
+    let caseId = existing ? existing.id : '';
     if (existing) {
       changeCase(existing.id, null, (c) => {
         // The same person reporting again adds nothing new to the count.
@@ -360,41 +405,122 @@ function register(app, deps) {
       });
     } else {
       const c = openCase({ source: 'report', entity, category, report, text: `Reported by a ${reporter.type}: ${CATEGORIES[category]}` });
+      caseId = c.id;
       if (ev) changeCase(c.id, null, (k) => { k.evidence.push(ev); });
     }
-    return { status: 202 };
+    return { status: 202, receipt: issueReceipt(category, caseId, report.id) };
   }
   // The job page's existing form (server.js keeps its email and inbox).
   function reportJob(req, job, data, jobReportId) {
     return submitReport(req, { entityType: 'job', entityId: job.id, category: REASON_CATEGORY[data.reason] || 'other', details: data.details || (data.reason === 'Something else' ? 'Something else (no details given)' : ''), email: data.email, jobReportId });
   }
 
-  // ---------- scanning listings ----------
+  // ---------- scanning listings and companies (risk.js) ----------
+  // Every listing and company gets an explainable assessment. What is done
+  // automatically is limited to opening or escalating a case, raising its
+  // priority, pausing a live listing that copies another company's text until
+  // a moderator checks it, and holding a burst of new postings for review.
+  const assessments = risk.store(db);
+  const CATEGORY_OF = [['payment-request', 'payment-request'], ['personal-data', 'personal-data'], ['impersonation', 'impersonation'], ['copied', 'impersonation'], ['chat-link', 'suspicious-links'], ['short-link', 'suspicious-links'], ['ip-link', 'suspicious-links'], ['changed-pay', 'misleading-terms'], ['changed-location', 'misleading-terms'], ['changed-employer', 'impersonation']];
+  const categoryOf = (flags) => (CATEGORY_OF.find(([code]) => flags.some((f) => f.code === code)) || [null, 'scam'])[1];
+  const toFlags = (rules) => rules.map((r) => ({ code: r.code, severity: r.severity, label: r.label, detail: r.evidence }));
+  // A live listing that looks like impersonation waits for a moderator.
+  function holdForReview(j, a) {
+    if (j.status !== 'open' || j.reviewHold || (j.moderation && j.moderation.locked)) return false;
+    const rule = a.rules.find((r) => r.action === 'review-hold');
+    j.reviewHold = { at: iso(), reason: rule ? rule.label : 'Automated checks', assessmentId: a.id, prevStatus: j.status };
+    Object.assign(j, { status: 'pending', submittedAt: iso(), updatedAt: iso() });
+    assessments.noteAction(a, 'review-hold', { detail: j.id });
+    record(null, 'job-review-hold', { entityType: 'job', entityId: j.id, reason: 'Automated checks (for review, not proof)', detail: `${j.title} · ${j.company}: ${j.reviewHold.reason}` });
+    if (j.employerId) tellOwners(j.employerId, { subject: `We are checking "${j.title}" before it shows again`, heading: 'A listing is waiting for a quick check', lines: [`Our automated checks asked a moderator to look at "${j.title}" (${j.id}) before it shows to candidates again. This is a routine check, not a finding against your company, and it usually takes less than one working day.`, 'You do not need to do anything. If the moderator needs something, we will email you.'] });
+    return true;
+  }
   function scan() {
     const jobs = getJobs();
     const live = jobs.filter((j) => ['open', 'pending', 'paused'].includes(j.status) && !j.sample);
-    const others = live.map((j) => ({ id: j.id, employerId: j.employerId || '', company: j.company, posted: j.posted || '', fp: fingerprint(j) }));
+    const others = live.map((j) => ({ id: j.id, employerId: j.employerId || '', company: j.company, posted: j.posted || '', fp: fingerprint(j), shingles: risk.shingles(j) }));
+    const emps = new Map(clients.read().map((e) => [e.id, e]));
     const pol = policy();
     let changed = false;
     let opened = 0;
     for (const j of live) {
-      const flags = flagsFor(j, others);
+      const rules = risk.jobRules(j, { flags: flagsFor(j, others), others, employer: emps.get(j.employerId) || null });
+      const flags = toFlags(rules);
       const fp = sha256(`${textOf(j)}|${flags.map((f) => `${f.code}:${f.detail}`).join(',')}`);
       if (!j.trustScan || j.trustScan.fp !== fp) {
-        j.trustScan = { ...(j.trustScan || {}), fp, at: iso(), flags, level: flags.length ? levelOf(flags) : '' };
+        const { assessment } = assessments.save('job', j.id, { employerId: j.employerId || '', rules });
+        j.trustScan = { ...(j.trustScan || {}), fp, at: iso(), flags, level: flags.length ? levelOf(flags) : '', assessmentId: assessment.id };
         changed = true;
       }
       const s = j.trustScan;
       if (!s.flags.length || s.clearedFp === fp || s.caseFp === fp || LEVELS[s.level] < LEVELS[pol.flagLevel]) continue;
+      const a = assessments.latest('job', j.id);
+      if (s.level === 'critical' && a && holdForReview(j, a)) changed = true;
       const entity = { type: 'job', id: j.id, label: `${j.title} · ${j.company}`, employerId: j.employerId || '' };
       const existing = openCaseFor('job', j.id);
-      if (existing) changeCase(existing.id, null, (c) => { c.flags = s.flags; note(c, null, 'flagged', `Automated checks: ${s.flags.map((f) => f.label).join('; ')}`); });
-      else { openCase({ source: 'automated', entity, category: s.flags.some((f) => ['payment-request', 'personal-data'].includes(f.code)) ? s.flags.find((f) => ['payment-request', 'personal-data'].includes(f.code)).code : s.flags.some((f) => f.code === 'copied') ? 'impersonation' : 'scam', flags: s.flags, text: `Automated checks (for review, not proof): ${s.flags.map((f) => f.label).join('; ')}` }); opened++; }
+      const text = `Automated checks (for review, not proof): ${s.flags.map((f) => f.label).join('; ')}`;
+      if (existing) changeCase(existing.id, null, (c) => { c.flags = s.flags; note(c, null, 'flagged', text); });
+      else { openCase({ source: 'automated', entity, category: categoryOf(s.flags), flags: s.flags, text }); opened++; }
+      if (a) assessments.noteAction(a, existing ? 'urgent-review' : 'urgent-review', { detail: existing ? existing.number : 'case opened' });
       s.caseFp = fp;
       changed = true;
     }
     if (changed) saveJobs();
+    for (const emp of emps.values()) if (emp.active && !emp.terminatedAt) opened += assessEmployer(emp, jobs, pol);
     return { scanned: live.length, opened };
+  }
+  // The company as a whole: bursts of postings, independent reports, decisions
+  // that stood, identity changes after verification and risky listings.
+  function assessEmployer(emp, jobs, pol) {
+    const mine = jobs.filter((j) => j.employerId === emp.id && !j.sample);
+    const dayAgo = iso(Date.now() - DAY);
+    const openCases = cases().filter((c) => (c.entityId === emp.id || c.employerId === emp.id) && !CLOSED.includes(c.status));
+    const reporters = new Set(openCases.flatMap((c) => c.reports.map((r) => r.reporterKey || r.id))).size;
+    const since180 = iso(Date.now() - 180 * DAY);
+    const upheld = appeals().filter((a) => a.employerId === emp.id && ['job-restricted', 'job-removed'].includes(a.kind) && a.decidedAt >= since180 && a.status !== 'overturned').length;
+    const rules = risk.employerRules(emp, {
+      policy: pol, reporters, upheldViolations: upheld,
+      recentSubmissions: mine.filter((j) => j.status === 'pending' && j.submittedAt && j.submittedAt >= dayAgo).length,
+      identityChanged: emp.recheck ? `${(emp.recheck.fields || []).join(', ')} on ${String(emp.recheck.at).slice(0, 10)}` : '',
+      highRiskJobs: mine.filter((j) => ['open', 'pending', 'paused'].includes(j.status) && j.trustScan && ['high', 'critical'].includes(j.trustScan.level) && j.trustScan.clearedFp !== j.trustScan.fp).length,
+    });
+    if (!rules.length && !assessments.latest('employer', emp.id)) return 0;
+    const { assessment: a, changed } = assessments.save('employer', emp.id, { employerId: emp.id, rules, context: risk.employerContext(emp) });
+    if (!changed || !rules.length) return 0;
+    for (const r of rules.filter((x) => ['posting-limit', 'reverification', 'restrict-capabilities'].includes(x.action))) assessments.noteAction(a, r.action, { detail: r.code === 'restrict-capabilities' ? 'recommended to a moderator' : '' });
+    if (risk.SEVERITY[a.level] < risk.SEVERITY.high) return 0;
+    const flags = toFlags(rules);
+    const escalate = rules.some((r) => r.action === 'escalate');
+    const text = `Automated checks on the company (for review, not proof): ${rules.map((r) => `${r.label} (${r.evidence})`).join('; ')}`;
+    const existing = openCaseFor('employer', emp.id);
+    if (existing) changeCase(existing.id, null, (c) => { c.flags = flags; note(c, null, 'flagged', text); if (escalate && !c.escalated) { c.escalated = true; c.escalatedAt = iso(); } });
+    else {
+      const c = openCase({ source: 'automated', entity: { type: 'employer', id: emp.id, label: emp.company, employerId: emp.id }, category: 'other', flags, text });
+      if (escalate) changeCase(c.id, null, (k) => { k.escalated = true; k.escalatedAt = iso(); note(k, null, 'escalate', 'Escalated automatically: reported by several different people'); });
+    }
+    if (escalate) assessments.noteAction(a, 'escalate');
+    return existing ? 0 : 1;
+  }
+  // Before an employer's job goes for review: holds a burst of new postings,
+  // and a hold a moderator placed on the company.
+  function postingProblem(emp, job) {
+    if (emp.postingHold) return 'sending new jobs for review is on hold while our team looks into a concern about your account (we emailed your company owners how to appeal)';
+    const burst = policy().postingBurst;
+    const dayAgo = iso(Date.now() - DAY);
+    const recent = getJobs().filter((j) => j.employerId === emp.id && j.id !== job.id && j.status === 'pending' && j.submittedAt && j.submittedAt >= dayAgo).length;
+    if (recent >= burst) return `you have sent ${recent} jobs for review in the last 24 hours; more can be sent once our team has checked these`;
+    return '';
+  }
+  if (hiring.hooks) {
+    hiring.hooks.postingProblem = postingProblem;
+    // Pay, place or company changed on a live listing: kept for the checks.
+    hiring.hooks.changed = (before, job) => {
+      const emp = job.employerId ? clients.read().find((e) => e.id === job.employerId) : null;
+      const found = before.status === 'open' || before.approvedAt ? risk.changesOf(before, job, emp) : [];
+      if (found.length) job.changeSignals = [...(job.changeSignals || []), ...found].slice(-6);
+    };
+    // Each job sent for review is checked straight away.
+    hiring.hooks.submitted = () => { try { scan(); } catch (e) { console.error('Trust scan failed:', e.message); } };
   }
   // Confirmed sign-ups without an open check (older data) get one in the queue.
   function syncChecks() {
@@ -534,12 +660,28 @@ function register(app, deps) {
     if (r.errors) return r;
     if (['approve', 'request-correction', 'clear'].includes(decision)) record(user, `job-${decision}`, { entityType: 'job', entityId: job.id, caseId, reason, detail: `${job.title} · ${job.company}` });
     noteOpenCases('job', job.id, user, `Listing decision: ${MODERATION_DECISIONS[decision]}${reason ? ` (${reason})` : ''}`);
+    afterListingDecision(user, job, decision, reason);
     return { status: 200, job };
+  }
+  // A moderator's decision is also the verdict on the automated signals:
+  // cleared or approved means they were a false positive, acted on means confirmed.
+  function afterListingDecision(user, job, decision, reason) {
+    const a = assessments.latest('job', job.id);
+    if (a && a.rules.length && !a.review) {
+      const verdict = ['clear', 'approve'].includes(decision) ? 'false-positive' : ['restrict', 'remove', 'request-correction'].includes(decision) ? 'confirmed' : '';
+      if (verdict) assessments.review(a, { by: user.name, verdict, note: `${MODERATION_DECISIONS[decision]}${reason ? `: ${reason}` : ''}` });
+    }
+    if (['approve', 'clear'].includes(decision)) {
+      if (job.reviewHold) { job.reviewHoldHistory = [...(job.reviewHoldHistory || []), { ...job.reviewHold, releasedAt: iso(), releasedBy: user.name }].slice(-10); delete job.reviewHold; }
+      if (job.changeSignals) delete job.changeSignals;
+      saveJobs();
+    }
   }
   // The admin Jobs tab's approve and send-back buttons.
   if (hiring.hooks) hiring.hooks.decided = (user, decision, job, reason) => {
     record(user, `job-${decision}`, { entityType: 'job', entityId: job.id, reason, detail: `${job.title} · ${job.company}` });
     noteOpenCases('job', job.id, user, `Listing decision: ${MODERATION_DECISIONS[decision]}${reason ? ` (${reason})` : ''}`);
+    afterListingDecision(user, job, decision, reason);
   };
 
   // ---------- verification ----------
@@ -559,12 +701,23 @@ function register(app, deps) {
         if (!e.website) signals.push('No website');
         const n = caseCount(v.employerId);
         if (n) signals.push(`${n} open case${n === 1 ? '' : 's'}`);
-        return { check: v, employer: e, signals, waitingSince: v.resubmittedAt || v.signedUpAt || v.createdAt };
+        if (v.kind === 'recheck') signals.push('Verified company whose name or registration numbers changed');
+        const rep = v.representative;
+        const site = String(e.website || '').replace(/^https?:\/\//i, '').split(/[/?#:]/)[0].replace(/^www\./, '').toLowerCase();
+        if (rep && rep.email && site) signals.push(rep.email.toLowerCase().endsWith(`@${site}`) ? "Representative's work email is on the company's website domain" : "Representative's email is not on the company's website domain");
+        if (v.escalated) signals.push(`Escalated by ${v.escalated.by}`);
+        const a = assessments.latest('employer', v.employerId);
+        return { check: v, employer: e, signals, risk: a && a.rules.length ? { level: a.level, rules: a.rules.map((r) => r.label) } : null, waitingSince: v.resubmittedAt || v.signedUpAt || v.createdAt };
       })
       .filter((r) => !text || normal(`${r.employer.company} ${r.employer.email} ${r.employer.gstin}`).includes(text))
       .sort((a, b) => String(a.waitingSince).localeCompare(String(b.waitingSince)));
   }
-  const VERIFY_DECISIONS = { verify: 'Verify', decline: 'Decline (closes the sign-up)', 'request-info': 'Ask for more information' };
+  const VERIFY_DECISIONS = { verify: 'Verify', decline: 'Decline (closes the sign-up)', 'request-info': 'Ask for more information', escalate: 'Escalate to a Trust & Safety Manager' };
+  // Each decision on a check is added to its review history; nothing is overwritten.
+  function addReview(checkId, entry) {
+    const cur = db.where(CHECKS, 'id', checkId)[0];
+    if (cur) db.update(CHECKS, { ...cur, reviews: [...(cur.reviews || []), { at: iso(), ...entry }] });
+  }
   function decideVerification(user, checkId, input) {
     if (!can(user, 'verify.review')) return { status: 403, errors: ['your role does not allow that'] };
     const check = readSubmissions(CHECKS).find((v) => v.id === checkId);
@@ -574,8 +727,23 @@ function register(app, deps) {
     if (!VERIFY_DECISIONS[decision]) return { status: 400, errors: [`decision must be one of: ${Object.keys(VERIFY_DECISIONS).join(', ')}`] };
     if (!verification.OPEN_CHECKS.includes(check.status)) return { status: 409, errors: [`this check was already decided (${check.status})`] };
     if (input.expectedStatus && input.expectedStatus !== check.status) return { status: 409, errors: ['this check changed since you opened it: reload and look again'] };
-    if (decision !== 'verify' && reason.length < 5) return { status: 400, errors: [decision === 'decline' ? 'give the reason (the company sees it)' : 'say what the company needs to send'] };
+    if (decision !== 'verify' && reason.length < 5) return { status: 400, errors: [decision === 'decline' ? 'give the reason (the company sees it)' : decision === 'escalate' ? 'say why it needs a manager' : 'say what the company needs to send'] };
+    if (decision === 'decline' && check.kind === 'recheck') return { status: 400, errors: ['this company is already verified: escalate it, and a manager can suspend it from the case if needed'] };
     let r;
+    if (decision === 'escalate') {
+      const emp = clients.read().find((e) => e.id === check.employerId);
+      if (!emp) return { status: 404, errors: ['company not found'] };
+      if (check.escalated) return { status: 409, errors: ['this check is already escalated'] };
+      const existing = openCaseFor('employer', emp.id);
+      const c = existing || openCase({ source: 'verification', entity: { type: 'employer', id: emp.id, label: emp.company, employerId: emp.id }, category: 'other', by: user, text: `Verification escalated: ${reason}` });
+      changeCase(c.id, null, (k) => { k.escalated = true; k.escalatedAt = iso(); note(k, user, 'escalate', `Verification check: ${reason}`); });
+      tell(`trust-escalate:${c.id}:verification`, managers().filter((u) => u.id !== user.id), `Escalated verification: ${emp.company}`, `${user.name}: ${reason}`, `/admin/cases/${c.id}`);
+      const cur = db.where(CHECKS, 'id', check.id)[0];
+      db.update(CHECKS, { ...cur, escalated: { by: user.name, byId: user.id, at: iso(), reason, caseId: c.id } });
+      addReview(check.id, { decision, by: user.name, byId: user.id, reason, caseId: c.id });
+      record(user, 'verification-escalated', { entityType: 'employer', entityId: emp.id, caseId: c.id, reason, detail: emp.company });
+      return { status: 200, employer: emp, check: readSubmissions(CHECKS).find((v) => v.id === checkId) };
+    }
     if (decision === 'verify') r = verification.verifyCompany(check.employerId, user);
     else if (decision === 'request-info') r = verification.requestCompanyInfo(check.employerId, user, reason);
     else {
@@ -583,7 +751,8 @@ function register(app, deps) {
       if (!r.errors) afterDecline(user, r.employer, reason, r.owners);
     }
     if (r.errors) return r;
-    if (decision !== 'decline') record(user, `verification-${decision === 'verify' ? 'verified' : 'info-requested'}`, { entityType: 'employer', entityId: check.employerId, reason, detail: r.employer.company });
+    addReview(check.id, { decision, by: user.name, byId: user.id, reason });
+    if (decision !== 'decline') record(user, `verification-${decision === 'verify' ? (check.kind === 'recheck' ? 'reconfirmed' : 'verified') : 'info-requested'}`, { entityType: 'employer', entityId: check.employerId, reason, detail: r.employer.company });
     noteOpenCases('employer', check.employerId, user, `Verification: ${VERIFY_DECISIONS[decision]}${reason ? ` (${reason})` : ''}`);
     return { status: 200, employer: r.employer, check: readSubmissions(CHECKS).find((v) => v.id === checkId) };
   }
@@ -657,6 +826,21 @@ function register(app, deps) {
         tellOwners(target.id, { subject: `${target.company}'s ${site.name} account is closed`, heading: 'Your company account is closed', lines: [`We have closed ${target.company}'s employer account because it broke our rules.`, `Reason: ${c0.pending.reason}`], appealUrl });
         record(user, 'employer-closed', { entityType: 'employer', entityId: target.id, caseId: c0.id, reason: c0.pending.reason, detail: `asked by ${c0.pending.byName}, approved by ${user.name}: ${reason}` });
       } else record(user, 'closure-rejected', { entityType: 'employer', entityId: c0.pending.employerId, caseId: c0.id, reason, detail: `asked by ${c0.pending.byName}` });
+    } else if (action === 'hold-postings') {
+      if (emp.postingHold) return { status: 409, errors: ['new postings by this company are already on hold'] };
+      if (emp.terminatedAt) return { status: 409, errors: ['this company account is closed'] };
+      verification.setPostingHold(emp.id, { at: iso(), by: user.name, byId: user.id, reason, caseId: c0.id });
+      const appealUrl = issueAppeal({ kind: 'employer-postings-held', entityType: 'employer', entityId: emp.id, employerId: emp.id, caseId: c0.id, by: user, reason, label: emp.company });
+      tellOwners(emp.id, { subject: `New job postings by ${emp.company} are on hold`, heading: 'New job postings are on hold', lines: [`While we look into a concern, ${emp.company} cannot send new jobs for review. Jobs already live stay as they are, and you can still reply to candidates.`, `Reason: ${reason}`], appealUrl });
+      record(user, 'employer-postings-held', { entityType: 'employer', entityId: emp.id, caseId: c0.id, reason, detail: emp.company });
+      const a = assessments.latest('employer', emp.id);
+      if (a) assessments.noteAction(a, 'restrict-capabilities', { by: user.name, detail: 'new postings held' });
+    } else if (action === 'lift-postings') {
+      if (!emp.postingHold) return { status: 409, errors: ['new postings by this company are not on hold'] };
+      verification.setPostingHold(emp.id, null, user);
+      closeAppeals('employer', emp.id, 'Posting hold lifted');
+      tellOwners(emp.id, { subject: `${emp.company} can send new jobs again`, heading: 'New job postings are open again', lines: [`We have lifted the hold on new job postings for ${emp.company}.`] });
+      record(user, 'employer-postings-released', { entityType: 'employer', entityId: emp.id, caseId: c0.id, reason, detail: emp.company });
     } else if (action === 'request-information') {
       const emails = [...new Set(c0.reports.map((r) => r.email).filter(Boolean))];
       if (!emails.length) return { status: 409, errors: ['nobody who reported this left an email address'] };
@@ -690,7 +874,7 @@ function register(app, deps) {
       const text = action === 'dismiss' ? 'We looked into it carefully and did not find a breach of our rules.' : 'We looked into it and took the action our rules call for.';
       for (const e of new Set(c.reports.map((x) => x.email).filter(Boolean))) mailer.trustReporterUpdate(e, { number: c.number, kind: 'outcome', text });
     }
-    if (!['note'].includes(action) && !action.endsWith('-job') && !['request-correction', 'clear-flags', 'suspend-employer', 'reinstate-employer', 'terminate-employer', 'approve-pending', 'reject-pending'].includes(action)) record(user, `case-${action}`, { entityType: c.entityType, entityId: c.entityId, caseId: c.id, reason });
+    if (!['note'].includes(action) && !action.endsWith('-job') && !['request-correction', 'clear-flags', 'suspend-employer', 'reinstate-employer', 'terminate-employer', 'approve-pending', 'reject-pending', 'hold-postings', 'lift-postings'].includes(action)) record(user, `case-${action}`, { entityType: c.entityType, entityId: c.entityId, caseId: c.id, reason });
     return { status: 200, case: c };
   }
   // Status, assignment or priority, under the case's version.
@@ -813,7 +997,7 @@ function register(app, deps) {
 
   // ---------- appeals: the company's side and the decision ----------
   const appealByToken = (token) => (/^[a-f0-9]{48}$/.test(token) ? appeals().find((a) => a.tokenHash === sha256(token)) || null : null);
-  const APPEAL_KIND = { 'job-restricted': 'Listing unpublished', 'job-removed': 'Listing removed', 'employer-suspended': 'Company account suspended', 'employer-closed': 'Company account closed', 'verification-declined': 'Company sign-up declined' };
+  const APPEAL_KIND = { 'job-restricted': 'Listing unpublished', 'job-removed': 'Listing removed', 'employer-suspended': 'Company account suspended', 'employer-closed': 'Company account closed', 'verification-declined': 'Company sign-up declined', 'employer-postings-held': 'New job postings on hold' };
   function submitAppeal(token, statement) {
     return db.transaction(() => {
       const a = appealByToken(token);
@@ -861,6 +1045,7 @@ function register(app, deps) {
         // A suspension appeal can't reopen an account that was closed since.
         if (emp && (a.kind === 'employer-closed' ? emp.terminatedAt : emp.suspension && !emp.terminatedAt)) { verification.reinstateCompany(emp.id, user); releaseCompanyJobs(user, emp.id, `Appeal overturned: ${reason}`); }
       } else if (a.kind === 'verification-declined') verification.reopenVerification(a.entityId, user);
+      else if (a.kind === 'employer-postings-held') verification.setPostingHold(a.entityId, null, user);
     }
     tellOwners(a.employerId, {
       subject: `Your appeal: ${APPEAL_KIND[a.kind] || 'our decision'}`, heading: outcome === 'overturned' ? 'We changed our decision' : 'Our decision stands',
@@ -923,6 +1108,24 @@ function register(app, deps) {
       },
       appeals: { waiting: ap.filter((a) => a.status === 'pending').length, decided90d: decidedAppeals.length, overturned90d: decidedAppeals.filter((a) => a.status === 'overturned').length, overturnPercent: decidedAppeals.length ? Math.round((decidedAppeals.filter((a) => a.status === 'overturned').length / decidedAppeals.length) * 100) : null },
       workload: Object.entries(workload).map(([name, n]) => ({ name, open: n })).sort((a, b) => b.open - a.open),
+      risk: riskOverview(since),
+    };
+  }
+  // Suspicious activity, holds, repeat violators and how often the automated
+  // signals were wrong (a moderator cleared them).
+  function riskOverview(since) {
+    const list = assessments.all();
+    const current = list.filter((a) => !a.supersededAt);
+    const recent = list.filter((a) => a.assessedAt >= since(30) && risk.SEVERITY[a.level] >= risk.SEVERITY.high);
+    const reviewed = list.filter((a) => a.review && a.review.at >= since(90));
+    const falsePositives = reviewed.filter((a) => a.review.verdict === 'false-positive').length;
+    return {
+      suspicious30d: new Set(recent.map((a) => `${a.entityType}:${a.entityId}`)).size,
+      byLevel: Object.fromEntries(risk.LEVELS.map((l) => [l, current.filter((a) => a.rules.length && a.level === l).length])),
+      jobsOnHold: getJobs().filter((j) => j.reviewHold).length,
+      postingHolds: clients.read().filter((e) => e.postingHold).length,
+      repeatViolators: current.filter((a) => a.entityType === 'employer' && a.rules.some((r) => r.code === 'repeat-violations')).length,
+      reviewed90d: reviewed.length, falsePositives90d: falsePositives, falsePositivePercent: reviewed.length ? Math.round((falsePositives / reviewed.length) * 100) : null,
     };
   }
   function health() {
@@ -964,6 +1167,10 @@ function register(app, deps) {
       n++;
     }
     for (const a of appeals().filter((x) => x.statement && (x.review ? x.review.at : x.expiresAt) < cutoff)) db.update(APPEALS, { ...a, statement: '', purgedAt: iso() });
+    // Report receipts (references and tracking links) and old assessments.
+    const oldReceipts = db.all(RECEIPTS).filter((r) => r.createdAt < cutoff);
+    if (oldReceipts.length) db.remove(RECEIPTS, oldReceipts.map((r) => r.id));
+    assessments.prune(cutoff);
     return n;
   }
   const pruneJob = ops ? ops.track('trust-retention', prune, DAY) : prune;
@@ -979,7 +1186,7 @@ function register(app, deps) {
     res.set('Cache-Control', 'no-store');
     res.status(status).render('admin-trust', {
       page: 'admin', noindex: true, admin: req.admin, errors: [], msg: clip(req.query.msg, 300), roleLabel: (roles.ROLE_INFO[req.admin.role] || {}).label || req.admin.role,
-      can: (a) => can(req.admin, a), CATEGORIES, STATUS_LABEL, ENTITY_LABEL, CASE_ACTIONS, MODERATION_DECISIONS, VERIFY_DECISIONS, APPEAL_KIND, PRIORITIES, STATUSES, MOVES, CLOSED, strong: strongOk(req.admin), ...locals,
+      can: (a) => can(req.admin, a), CATEGORIES, STATUS_LABEL, ENTITY_LABEL, CASE_ACTIONS, MODERATION_DECISIONS, VERIFY_DECISIONS, APPEAL_KIND, PRIORITIES, STATUSES, MOVES, CLOSED, strong: strongOk(req.admin), RISK_ACTIONS: risk.ACTIONS, docLinks: {}, assessment: null, assessmentHistory: [], ...locals,
     });
   };
   const back = (res, url, msg) => res.redirect(303, `${url}${url.includes('?') ? '&' : '?'}msg=${encodeURIComponent(msg)}`);
@@ -989,11 +1196,37 @@ function register(app, deps) {
 
   app.get('/admin/verifications', adminAuth, gate('verify.review'), (req, res) => {
     const { rows, pager } = pageOf(verificationQueue(req.query), req, '/admin/verifications');
-    view(req, res, { title: 'Employer verification', section: 'verifications', rows, pager, q: req.query, pol: policy() });
+    // Signed, short-lived links to documents; each opening is logged.
+    const docLinks = Object.fromEntries(rows.flatMap((r) => (r.check.documents || []).filter((d) => !d.purgedAt).map((d) => [d.id, downloadLinks.signed(`/admin/verifications/${r.check.id}/documents/${d.id}`)])));
+    view(req, res, { title: 'Employer verification', section: 'verifications', rows, pager, q: req.query, pol: policy(), docLinks });
   });
   app.post('/admin/verifications/:id/decision', adminAuth, gate('verify.review'), sameOrigin, (req, res) => {
     const r = decideVerification(req.admin, req.params.id, req.body);
     back(res, '/admin/verifications', r.errors ? `Not saved: ${r.errors.join('; ')}` : `${r.employer.company}: ${VERIFY_DECISIONS[req.body.decision]} · recorded`);
+  });
+
+  app.get('/admin/verifications/:id/documents/:docId', adminAuth, gate('verify.review'), (req, res, next) => {
+    const check = readSubmissions(CHECKS).find((v) => v.id === req.params.id);
+    const doc = check && (check.documents || []).find((d) => d.id === req.params.docId && !d.purgedAt);
+    if (!doc) return next();
+    if (!downloadLinks.valid(req)) return linkExpired(res, '/admin/verifications');
+    const file = path.join(uploadsDir, 'verification-documents', path.basename(doc.file));
+    if (!fs.existsSync(file)) return next();
+    record(req.admin, 'verification-document-viewed', { entityType: 'employer', entityId: check.employerId, detail: `${doc.typeLabel || doc.type} (${doc.sha256.slice(0, 12)})` });
+    vault.send(res, file, `verification-${doc.type}${path.extname(doc.file)}`, 'Verification document');
+  });
+  // A reviewer's verdict on automated signals: confirmed, or a false positive.
+  app.post('/admin/risk/:id/review', adminAuth, gate('cases.view'), sameOrigin, (req, res) => {
+    const a = assessments.all().find((x) => x.id === req.params.id);
+    const backTo = String(req.body.back || '').startsWith('/admin/') && !String(req.body.back).startsWith('//') ? String(req.body.back) : '/admin/reports';
+    if (!a) return back(res, backTo, 'Not saved: assessment not found');
+    if (!can(req.admin, a.entityType === 'job' ? 'jobs.moderate' : 'cases.manage')) return back(res, backTo, 'Not saved: your role does not allow that');
+    const verdict = ['confirmed', 'false-positive'].includes(req.body.verdict) ? req.body.verdict : '';
+    const reason = clip(req.body.note, 300);
+    if (!verdict || reason.length < 5) return back(res, backTo, 'Not saved: choose a verdict and say why');
+    assessments.review(a, { by: req.admin.name, verdict, note: reason });
+    record(req.admin, 'risk-reviewed', { entityType: a.entityType, entityId: a.entityId, reason, detail: `${verdict} (${a.level})` });
+    back(res, backTo, 'Verdict recorded');
   });
 
   app.get('/admin/job-moderation', adminAuth, gate('jobs.review'), (req, res) => {
@@ -1004,7 +1237,7 @@ function register(app, deps) {
     const job = getJobs().find((j) => j.id === req.params.id && !j.sample);
     if (!job) return next();
     const related = cases().filter((c) => c.entityType === 'job' && c.entityId === job.id).filter((c) => seesCase(req.admin, c));
-    view(req, res, { title: `Review: ${job.title}`, section: 'moderation-job', job, related, emp: job.employerId ? clients.read().find((e) => e.id === job.employerId) || null : null, jobPath });
+    view(req, res, { title: `Review: ${job.title}`, section: 'moderation-job', job, related, emp: job.employerId ? clients.read().find((e) => e.id === job.employerId) || null : null, jobPath, assessment: assessments.latest('job', job.id), assessmentHistory: assessments.historyOf('job', job.id).slice(0, 10) });
   });
   app.post('/admin/job-moderation/:id/decision', adminAuth, gate('jobs.review'), sameOrigin, (req, res) => {
     const r = decideJob(req.admin, req.params.id, req.body);
@@ -1022,7 +1255,8 @@ function register(app, deps) {
     const emp = employerOfCase(c) ? clients.read().find((e) => e.id === employerOfCase(c)) || null : null;
     const evidenceLinks = Object.fromEntries(c.evidence.filter((e) => !e.purgedAt).map((e) => [e.id, downloadLinks.signed(`/admin/cases/${c.id}/evidence/${e.id}`)]));
     const caseAppeals = appeals().filter((a) => a.caseId === c.id).map(appealJson);
-    view(req, res, { title: `Case ${c.number}`, section: 'case', c, job, emp, evidenceLinks, caseAppeals, people: can(req.admin, 'cases.manage') ? reviewers() : [] });
+    const assessment = assessments.latest(c.entityType, c.entityId);
+    view(req, res, { title: `Case ${c.number}`, section: 'case', c, job, emp, evidenceLinks, caseAppeals, people: can(req.admin, 'cases.manage') ? reviewers() : [], assessment, assessmentHistory: assessments.historyOf(c.entityType, c.entityId).slice(0, 10), employerRisk: emp && c.entityType === 'job' ? assessments.latest('employer', emp.id) : null });
   });
   app.post('/admin/cases/:id', adminAuth, gate('cases.view'), sameOrigin, (req, res) => {
     const input = { version: req.body.version, reason: req.body.reason };
@@ -1105,6 +1339,31 @@ function register(app, deps) {
   app.post('/api/admin/appeals/:id/decision', teamApi('appeals.decide'), apiLimit, sameOrigin, (req, res) => out(res, decideAppeal(req.admin, req.params.id, req.body || {}), (r) => ({ appeal: appealJson(r.appeal) })));
   app.get('/api/admin/audit-logs', teamApi('audit.platform'), apiLimit, (req, res) => { const p = pageJson(auditLog(req.query), req, 100); res.json({ ok: true, entries: p.rows, page: p.page, pages: p.pages, total: p.total, chain: verifyChain() }); });
   app.get('/api/admin/system-health', teamApi('ops.health'), apiLimit, (req, res) => res.json({ ok: true, health: health() }));
+  // One queue across cases, flagged or held listings and company checks,
+  // limited to what the person's role handles; most urgent first.
+  function trustQueue(user) {
+    const levelOfEntity = (type, id) => { const a = assessments.latest(type, id); return a && a.rules.length ? a.level : null; };
+    const items = searchCases(user, {}).map((c) => ({ kind: 'case', id: c.id, number: c.number, label: c.entityLabel, entityType: c.entityType, entityId: c.entityId, category: c.category, priority: c.priority, status: c.status, riskLevel: levelOfEntity(c.entityType, c.entityId), escalated: Boolean(c.escalated), since: c.createdAt, link: `/admin/cases/${c.id}` }));
+    if (can(user, 'jobs.review')) {
+      const withCase = new Set(items.map((i) => `${i.entityType}:${i.entityId}`));
+      for (const r of moderationQueue({}).filter((x) => !withCase.has(`job:${x.job.id}`))) items.push({ kind: 'listing', id: r.job.id, label: `${r.job.title} · ${r.job.company}`, entityType: 'job', entityId: r.job.id, priority: r.job.reviewHold || r.level === 'critical' ? 'high' : 'normal', status: r.job.status, kinds: r.kinds, onHold: Boolean(r.job.reviewHold), riskLevel: levelOfEntity('job', r.job.id), since: r.since, link: `/admin/job-moderation/${r.job.id}` });
+    }
+    if (can(user, 'verify.review')) for (const r of verificationQueue({})) items.push({ kind: 'verification', id: r.check.id, label: r.employer.company || '', entityType: 'employer', entityId: r.check.employerId, priority: r.check.escalated || (r.risk && risk.SEVERITY[r.risk.level] >= 3) ? 'high' : 'normal', status: r.check.status, recheck: r.check.kind === 'recheck', riskLevel: r.risk ? r.risk.level : null, since: r.waitingSince, link: '/admin/verifications' });
+    const rank = (i) => PRIORITIES.indexOf(i.priority) * 10 - (risk.SEVERITY[i.riskLevel] || 0);
+    return items.sort((a, b) => rank(a) - rank(b) || String(a.since).localeCompare(String(b.since)));
+  }
+  app.get('/api/admin/trust/queue', teamApi('cases.view'), apiLimit, (req, res) => { const p = pageJson(trustQueue(req.admin), req); res.json({ ok: true, items: p.rows, page: p.page, pages: p.pages, total: p.total }); });
+  app.patch('/api/admin/trust/cases/:id', teamApi('cases.view'), apiLimit, sameOrigin, (req, res) => out(res, patchCase(req.admin, req.params.id, req.body || {}), (r) => ({ case: caseDetail(r.case) })));
+  app.post('/api/admin/verification/:id/decision', teamApi('verify.review'), apiLimit, sameOrigin, (req, res) => out(res, decideVerification(req.admin, req.params.id, req.body || {}), (r) => ({ verification: { id: r.check.id, status: r.check.status, escalated: r.check.escalated ? { by: r.check.escalated.by, at: r.check.escalated.at, caseId: r.check.escalated.caseId } : null, reviews: (r.check.reviews || []).map((x) => ({ decision: x.decision, by: x.by, at: x.at, reason: x.reason })) } })));
+  // The assessment behind a listing or company: rules, evidence, actions and history.
+  app.get('/api/admin/risk/:type/:id', teamApi('cases.view'), apiLimit, (req, res) => {
+    const type = req.params.type === 'jobs' ? 'job' : req.params.type === 'employers' ? 'employer' : '';
+    if (!type || !can(req.admin, type === 'job' ? 'jobs.review' : 'verify.review')) return res.status(404).json({ ok: false, errors: ['not found'] });
+    const history = assessments.historyOf(type, req.params.id);
+    if (!history.length) return res.status(404).json({ ok: false, errors: ['no assessment yet'] });
+    const shape = (a) => ({ id: a.id, level: a.level, rules: a.rules, context: a.context || [], actions: a.actions, review: a.review || null, assessedAt: a.assessedAt, supersededAt: a.supersededAt || null });
+    res.json({ ok: true, note: 'A review aid for a person, not proof of fraud.', current: shape(history.find((a) => !a.supersededAt) || history[0]), history: history.map(shape) });
+  });
 
   // ---------- public: reports and appeals ----------
   const reportLimit = limit('reports', 5);
@@ -1121,6 +1380,35 @@ function register(app, deps) {
       res.status(202).json({ ok: true, message: thanks });
     } catch (err) { next(err); }
   });
+  // Reports on a listing or a company, with a reference and a tracking link.
+  const reportReply = async (req, res, entityType, next) => {
+    try {
+      const thanks = 'Thanks for telling us. Our team will look into it, usually within one working day.';
+      if (isBot(req.body)) { if (req.file) fs.unlink(req.file.path, () => {}); return res.status(202).json({ ok: true, message: thanks, help: CYBERCRIME_HELP }); }
+      if (req.file) {
+        const bad = await vetDocument(req.file);
+        if (bad) return res.status(400).json({ ok: false, errors: [bad] });
+      }
+      const body = req.body || {};
+      const category = body.category || REASON_CATEGORY[body.reason] || '';
+      const r = submitReport(req, { ...body, category, entityType, entityId: req.params.id }, req.file || null);
+      if (r.errors) return res.status(r.status).json({ ok: false, errors: r.errors });
+      // A job report also lands in the team's inbox, as from the job page.
+      if (entityType === 'job') {
+        const job = getJobs().find((j) => j.id === req.params.id && !j.sample && j.status !== 'draft');
+        if (job) mailer.jobReported(saveSubmission('job-reports', { jobId: job.id, jobTitle: job.title, company: job.company, reason: Object.keys(REASON_CATEGORY).find((k) => REASON_CATEGORY[k] === category) || CATEGORIES[category], details: clip(body.details, 1000), email: clip(body.email, 160).toLowerCase(), reference: r.receipt.reference }));
+      }
+      res.status(202).json({ ok: true, message: `${thanks} Your reference is ${r.receipt.reference}; you can follow it with the private link below.`, reference: r.receipt.reference, trackUrl: r.receipt.trackUrl, help: CYBERCRIME_HELP });
+    } catch (err) { next(err); }
+  };
+  app.post('/api/jobs/:id/reports', reportLimit, sameOrigin, takeEvidence, (req, res, next) => reportReply(req, res, 'job', next));
+  app.post('/api/companies/:id/reports', reportLimit, sameOrigin, takeEvidence, (req, res, next) => reportReply(req, res, 'employer', next));
+  app.get('/reports/track/:token', limit('report-track', 30), (req, res) => {
+    const receipt = receiptByToken(req.params.token);
+    res.set('Cache-Control', 'no-store');
+    res.status(receipt ? 200 : 404).render('report-track', { title: 'Your report', page: '', noindex: true, t: receipt ? trackingOf(receipt) : null, help: CYBERCRIME_HELP });
+  });
+
   const appealPage = (res, locals, status = 200) => { res.set('Cache-Control', 'no-store'); res.status(status).render('appeal', { title: 'Appeal a decision', page: '', noindex: true, errors: [], done: false, expired: false, APPEAL_KIND, ...locals }); };
   app.get('/appeal/:token', limit('appeal-view', 30), (req, res) => {
     const a = appealByToken(req.params.token);
@@ -1140,7 +1428,7 @@ function register(app, deps) {
   setInterval(() => { try { scanJob(); } catch (e) { console.error('Trust scan failed:', e.message); } }, Number(process.env.TRUST_SCAN_MS) || 10 * 60 * 1000).unref();
   setInterval(() => { try { pruneJob(); } catch (e) { console.error('Trust retention failed:', e.message); } }, DAY).unref();
 
-  return { reportJob, submitReport, scan: scanJob, prune, verifyChain, record, policy, flagsFor, health, overview, REASON_CATEGORY };
+  return { reportJob, submitReport, scan: scanJob, prune, verifyChain, record, policy, flagsFor, health, overview, assessments, REASON_CATEGORY, CYBERCRIME_HELP };
 }
 
-module.exports = { register, flagsFor, fingerprint, CATEGORIES, REASON_CATEGORY, CASE_ACTIONS, STATUSES, POLICY_DEFAULTS };
+module.exports = { register, flagsFor, fingerprint, CATEGORIES, REASON_CATEGORY, CASE_ACTIONS, STATUSES, POLICY_DEFAULTS, CYBERCRIME_HELP, PUBLIC_STATUS };

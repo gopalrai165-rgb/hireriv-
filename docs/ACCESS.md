@@ -15,7 +15,25 @@ Every route the app serves, and who may use it. **This table is checked by `test
 
 Every state-changing team, candidate and client form also passes `sameOrigin` (cross-site posts are refused).
 
-Total: 658 routes.
+Total: 670 routes.
+
+## Employer verification, fraud reports and risk: company checks with documents, public company pages, report tracking, the trust queue and risk assessments
+
+| Method | Path | Policy | Notes |
+| --- | --- | --- | --- |
+| POST | `/employer/company/verify` | employer | Company owners (company.verify) of the signed-in company only; representative optional and validated; up to 3 business documents per request, checked and encrypted |
+| POST | `/api/companies/:id/verification` | employer | Company owners (company.verify); the company in the address must be the session’s own (404 otherwise); documents checked and encrypted; contact details not sent back |
+| GET | `/api/companies/:id/verification` | employer | Members of the signed-in company only (404 for any other id); status, label and their own checks without reviewers’ notes |
+| GET | `/companies/:id` | public | Anyone; only active companies with live jobs (404 otherwise); company name, place, website and what was checked, never contact details |
+| GET | `/admin/verifications/:id/documents/:docId` | team | verify.review (Admins, Recruitment and Account Managers, Verification Reviewers, Trust & Safety Managers); signed link valid 15 minutes; every opening in the hash-chained audit history; sent as an attachment, no-store |
+| POST | `/admin/risk/:id/review` | team | cases.view, plus jobs.moderate for listings or cases.manage for companies; verdict and reason recorded and audited |
+| GET | `/api/admin/trust/queue` | team | cases.view; cases the person may see, plus listings (jobs.review) and company checks (verify.review); no-store |
+| PATCH | `/api/admin/trust/cases/:id` | team | As PATCH /api/admin/cases/:id: the case version is required; assignment and priority for managers only |
+| POST | `/api/admin/verification/:id/decision` | team | verify.review; verify, ask for information, decline (not for a company already verified) or escalate with a reason; each decision added to the review history and audited |
+| GET | `/api/admin/risk/:type/:id` | team | cases.view, plus jobs.review for listings or verify.review for companies (404 otherwise); rules, evidence, actions and history; a review aid, not proof |
+| POST | `/api/jobs/:id/reports` | public | Anyone; 5 per window per address; same 202 reply with a reference and a private tracking link whether or not the listing exists; optional evidence checked and encrypted |
+| POST | `/api/companies/:id/reports` | public | Anyone; 5 per window per address; same 202 reply with a reference and a private tracking link whether or not the company has a public page |
+| GET | `/reports/track/:token` | link | Whoever holds the tracking link (only its hash is stored); shows New, Under review, Action required or Resolved, never the reviewer or the action taken; no-store; 30 per window |
 
 ## Plans, payments and billing: public prices, the employer billing page and API, the payment provider webhook, and the team billing desk with refunds
 
@@ -547,7 +565,6 @@ Total: 658 routes.
 | POST | `/employer/requirements` | employer | Owners and hiring managers |
 | GET | `/employer/company` | employer | Every member can see it |
 | POST | `/employer/company` | employer | Company owners only |
-| POST | `/employer/company/verify` | employer | Company owners only |
 | GET | `/employer/team` | employer | Every member; the activity log for owners only |
 | POST | `/employer/team` | employer | Company owners only; up to 50 members |
 | POST | `/employer/team/:id` | employer | Company owners only; the last owner stays an owner |

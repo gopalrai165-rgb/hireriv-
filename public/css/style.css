@@ -1540,3 +1540,11 @@ form.inline { display: inline; }
 .inline-details summary { list-style: none; cursor: pointer; }
 .inline-details summary::-webkit-details-marker { display: none; }
 .inline-details[open] form { margin-top: 10px; }
+
+/* What we checked (Step 64): plain labels, never a guarantee */
+.trust-labels { margin: 24px 0; padding: 16px 18px; border: 1px solid #d6e4f5; border-radius: 12px; background: #f6f9fe; }
+.trust-labels h2 { margin-top: 0; font-size: 1.1rem; }
+.trust-labels .checks { margin-bottom: 8px; }
+[data-receipt] { margin-top: 12px; }
+[data-receipt]:focus { outline: 3px solid #1d5fd6; outline-offset: 2px; }
+.risk-panel table td { vertical-align: top; }

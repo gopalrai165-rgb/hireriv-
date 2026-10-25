@@ -295,7 +295,7 @@ test('moderating an employer job: approve, restrict with history and appeal, som
   assert.equal((await post(`/admin/clients/${id.acme}/approve`, {}, p.rita)).status, 403, 'recruiters no longer verify companies');
   await post(`/admin/clients/${id.acme}/approve`, {}, p.admin);
   assert.ok(rec('trust-audit', (e) => e.action === 'verification-verified' && e.entityId === id.acme));
-  await post('/employer/jobs', { title: 'Packing Supervisor', category: 'Warehouse & Packing', location: 'Pune', mode: 'On-site', type: 'Full-time', salaryMin: '22000', salaryMax: '28000', salaryPeriod: 'month', description: 'Lead a packing team of 20 people on the day shift.', action: 'publish' }, p.acme);
+  await post('/employer/jobs', { title: 'Packing Supervisor', category: 'Warehouse & Packing', location: 'Pune', mode: 'On-site', type: 'Full-time', salaryMin: '22000', salaryMax: '28000', salaryPeriod: 'month', shift: 'Day', description: 'Lead a packing team of 20 people on the day shift.', responsibilities: 'Plan the packing line\nCheck quality', action: 'publish' }, p.acme);
   const job = rec('jobs', (j) => j.title === 'Packing Supervisor');
   id.acmeJob = job.id;
   assert.equal(job.status, 'pending');

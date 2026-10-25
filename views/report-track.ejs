@@ -1,0 +1,26 @@
+<%- include('partials/head') %>
+
+<section class="section">
+  <div class="container narrow">
+    <h1>Your report</h1>
+    <% if (!t) { %>
+      <p class="lead">This tracking link is not valid. Use the link you were given when you sent the report.</p>
+    <% } else { %>
+      <div class="form-card">
+        <p><b>Reference:</b> <%= t.reference %></p>
+        <p><b>What you reported:</b> <%= t.category %></p>
+        <p><b>Status:</b> <span class="pill <%= t.status === 'Resolved' ? 'st-hired' : t.status === 'Action required' ? 'st-rejected' : 'st-screening' %>"><%= t.status %></span></p>
+        <% if (t.status === 'Action required') { %><p class="notice" role="status">We emailed you a question. Please reply to that email so we can finish looking into it.</p><% } %>
+        <h2>What has happened</h2>
+        <ol class="plain-list">
+          <% t.steps.forEach(function (s) { %><li><%= new Date(s.at).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'medium' }) %>: <%= s.label %></li><% }) %>
+        </ol>
+        <p class="muted small">To protect everyone involved, we do not share who reviewed the report or what action was taken against an account.</p>
+      </div>
+    <% } %>
+    <p class="notice"><%= help %></p>
+    <p class="muted small">Keep this link private: anyone with it can see this page. Need help? <a href="/contact">Contact us</a>.</p>
+  </div>
+</section>
+
+<%- include('partials/foot') %>

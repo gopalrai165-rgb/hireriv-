@@ -194,7 +194,7 @@ test('interviews: booking emails the candidate and shows in the portal', async (
 });
 
 test('jobs: managers post and edit their own, recruiters can\'t edit, pause hides a job', async () => {
-  const created = await json('/api/employers/jobs', 'POST', { title: 'Site Engineer', category: 'Technology', location: 'Bengaluru', description: 'Run the site.', openings: 3, shift: 'Day', address: 'Plot 4, Whitefield', walkIn: true }, people.max);
+  const created = await json('/api/employers/jobs', 'POST', { title: 'Site Engineer', category: 'Technology', location: 'Bengaluru', description: 'Run the site.', responsibilities: ['Run daily site checks'], payNote: 'Fixed monthly salary, discussed at interview', openings: 3, shift: 'Day', address: 'Plot 4, Whitefield', walkIn: true }, people.max);
   assert.equal(created.status, 201);
   const j = (await created.json()).job;
   assert.deepEqual([j.openings, j.shift, j.workplaceAddress, j.walkIn], [3, 'Day', 'Plot 4, Whitefield', true]);

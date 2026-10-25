@@ -11,13 +11,32 @@
           <span class="pill <%= verification === 'verified' ? 'st-hired' : 'st-screening' %>"><%= verification === 'verified' ? 'Verified by ' + site.name : 'Being checked' %></span>
         </div>
         <% if (verification === 'verified') { %>
-          <p class="muted small">Your jobs show a verified employer badge. Changing the company name or registration numbers is reviewed again by our team.</p>
+          <p class="muted small">Your jobs show a verified employer badge. Changing the company name or registration numbers is reviewed again by our team<% if (values.recheck) { %>, and that check is under way now: your badge says your new details are being checked<% } %>.</p>
         <% } else { %>
           <p class="muted small">Our team checks every company before its jobs go live, usually within one working day. A GSTIN, CIN or Udyam number and a company website make this quicker. We never ask for Aadhaar or bank details to verify a company.</p>
           <% const asked = checks.find(function (c) { return c.status === 'info-requested'; }); %>
           <% if (asked) { %><div class="notice" role="status"><p><b>Our team needs more information:</b> <%= asked.note %></p><p class="small">Update the details below if needed, then answer here.</p></div><% } %>
-          <% if (can('company.verify')) { %><form class="form" method="post" action="/employer/company/verify">
+          <% if (can('company.verify')) { %><form class="form" method="post" action="/employer/company/verify" enctype="multipart/form-data">
             <% if (asked) { %><label>Your answer<textarea name="reply" rows="3" maxlength="1000" required></textarea></label><% } %>
+            <fieldset>
+              <legend>Authorised representative <span class="muted small">(optional; speeds up the check. Our team may call this person.)</span></legend>
+              <div class="form-grid">
+                <label>Full name<input name="repName" maxlength="120" autocomplete="name"></label>
+                <label>Designation<input name="repDesignation" maxlength="80" placeholder="e.g. HR Manager, Director"></label>
+                <label>Work email<input type="email" name="repEmail" maxlength="160" autocomplete="email"></label>
+                <label>Mobile<input type="tel" name="repPhone" maxlength="16" inputmode="tel" autocomplete="tel"></label>
+              </div>
+            </fieldset>
+            <fieldset>
+              <legend>Business documents <span class="muted small">(optional; PDF, JPG or PNG, up to 5 MB each)</span></legend>
+              <p class="muted small">Business documents only, such as a GST or Udyam certificate. <b>Do not upload Aadhaar, PAN cards, bank statements or other personal documents.</b> Documents are encrypted, seen only by our verification team, and deleted a year after the check.</p>
+              <% [1, 2].forEach(function (n) { %>
+              <div class="form-grid">
+                <label>Document <%= n %><select name="docType"><option value="">Choose what it is…</option><% Object.keys(docTypes).forEach(function (k) { %><option value="<%= k %>"><%= docTypes[k] %></option><% }) %></select></label>
+                <label>File<input type="file" name="documents" accept=".pdf,.jpg,.jpeg,.png"></label>
+              </div>
+              <% }) %>
+            </fieldset>
             <button class="btn btn-primary btn-sm" type="submit"><%= asked ? 'Send answer and details' : 'Send details for checking' %></button></form><% } %>
         <% } %>
         <% if (checks.length) { %>

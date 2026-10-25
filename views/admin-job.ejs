@@ -64,6 +64,8 @@
         <label>Work schedule <span class="muted small">(optional)</span><input name="schedule" maxlength="200" value="<%= job.schedule || '' %>" placeholder="e.g. Day shift, Mon–Sat, 9 am – 6 pm"></label>
         <label>Shift<select name="shift"><option value="">Not specified</option><% ['Day', 'Night', 'Rotational', 'Flexible'].forEach(function (sh) { %><option<%= job.shift === sh ? ' selected' : '' %>><%= sh %></option><% }) %></select></label>
         <label>Working hours <span class="muted small">(optional)</span><input name="hours" maxlength="120" value="<%= job.hours || '' %>"></label>
+        <label class="span-2">Overtime <span class="muted small">(optional; when it happens and how it is paid, e.g. "Up to 2 hours a day, paid at double the hourly rate")</span><input name="overtime" maxlength="200" value="<%= job.overtime || '' %>"></label>
+        <label class="span-2">Costs the worker pays <span class="muted small">(optional; e.g. "None", "Uniform deposit ₹500, returned when you leave", "Room ₹1,500 a month if you use the hostel")</span><input name="workerCosts" maxlength="300" value="<%= job.workerCosts || '' %>"></label>
         <label>Openings <span class="muted small">(optional)</span><input name="openings" inputmode="numeric" maxlength="4" value="<%= job.openings || '' %>"></label>
         <label class="span-2">Workplace address <span class="muted small">(optional)</span><input name="address" maxlength="300" value="<%= job.address || '' %>"></label>
         <label class="span-2 check-row"><input type="checkbox" name="walkIn" value="1"<%= job.walkIn ? ' checked' : '' %>> <span>Walk-in interviews at this address</span></label>

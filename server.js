@@ -41,7 +41,7 @@ const trust = require('./trust');
 // Request and error counts and background-job runs for the operations view.
 const ops = require('./ops-monitor').create();
 // Set once trust & safety is registered; job reports become cases.
-const trustHooks = { reportJob: () => null };
+const trustHooks = { reportJob: () => null, labelsFor: () => null };
 // Set once the CRM is registered; website inquiries and sign-ups become leads.
 const leadCapture = { capture: () => null };
 const { can: employerCan } = require('./employer-team');
@@ -842,6 +842,7 @@ app.get('/jobs/:id', (req, res, next) => {
     msg: account ? String(req.query.msg || '').slice(0, 200) : '',
     live: isLive(job),
     verifiedEmployer: verified,
+    trustLabels: trustHooks.labelsFor(job),
     stateName: search.stateOf(job.location),
     reportReasons: REPORT_REASONS,
     quick: !resumeNeeded(job),
@@ -1220,7 +1221,7 @@ app.get('/api/jobs/:id', limit('job-search', 120, 60 * 1000), (req, res) => {
 // Anyone can flag a listing that looks fake, asks for money or is misleading.
 // The team gets an email and sees it under Inbox → Reported jobs.
 // Each report also opens (or adds to) a trust & safety case (trust.js).
-const REPORT_REASONS = ['Looks fake or like a scam', 'Asks candidates to pay money', 'Asks for Aadhaar, bank details or an OTP', 'Pretends to be another company', 'Wrong or misleading details', 'Already filled or closed', 'Discriminatory or offensive', 'Something else'];
+const REPORT_REASONS = ['Looks fake or like a scam', 'Asks candidates to pay money', 'Asks for Aadhaar, bank details or an OTP', 'Pretends to be another company', 'Wrong or misleading details', 'Already filled or closed', 'Discriminatory or offensive', 'Has suspicious links or apps', 'Something else'];
 app.post('/api/jobs/:id/report', limit('job-report', 5), (req, res, next) => {
   const job = jobs.find((j) => j.id === req.params.id);
   if (!job) return next();
@@ -1229,12 +1230,15 @@ app.post('/api/jobs/:id/report', limit('job-report', 5), (req, res, next) => {
   const data = clean(req.body, ['reason', 'details', 'email']);
   const errors = validate(data, ['reason']);
   if (data.reason && !REPORT_REASONS.includes(data.reason)) errors.push('reason is invalid');
-  if (!errors.length) {
-    const saved = saveSubmission('job-reports', { jobId: job.id, jobTitle: job.title, company: job.company, reason: data.reason, details: data.details.slice(0, 1000), email: data.email.toLowerCase() });
-    mailer.jobReported(saved);
-    trustHooks.reportJob(req, job, { ...data, details: data.details.slice(0, 1000) }, saved.id);
-  }
-  respond(req, res, errors, thanks);
+  if (errors.length) return respond(req, res, errors, thanks);
+  const saved = saveSubmission('job-reports', { jobId: job.id, jobTitle: job.title, company: job.company, reason: data.reason, details: data.details.slice(0, 1000), email: data.email.toLowerCase() });
+  mailer.jobReported(saved);
+  // A reference and a private link to follow the report (trust.js).
+  const r = trustHooks.reportJob(req, job, { ...data, details: data.details.slice(0, 1000) }, saved.id);
+  const receipt = r && r.receipt;
+  if (!receipt) return respond(req, res, [], thanks);
+  if ((req.get('Accept') || '').includes('application/json')) return res.json({ ok: true, message: thanks, reference: receipt.reference, trackUrl: receipt.trackUrl, help: receipt.help });
+  res.render('thanks', { title: 'Thank you', page: '', ok: true, message: `${thanks} Your reference is ${receipt.reference}. Follow it at ${receipt.trackUrl} (keep this link private). ${receipt.help}`, noindex: true });
 });
 
 // ---------- job alerts (double opt-in) ----------
@@ -1496,6 +1500,13 @@ const trustDesk = trust.register(app, {
   candidateEmail: (req) => candidateAccounts.currentEmail(req), ops, backups,
 });
 trustHooks.reportJob = trustDesk.reportJob;
+// Company verification with the representative and documents, public
+// company pages and the labels candidates see (company-trust.js).
+const companyTrust = require('./company-trust').register(app, {
+  db, clients, getJobs: () => jobs, jobPath, readSubmissions, writeSubmissions, saveSubmission, sameOrigin, limit, isBot, mailer, site, baseUrl: BASE_URL,
+  uploadsDir: UPLOADS_DIR, vetDocument: resumeCheck.vetDocument, trust: trustDesk, isLive,
+});
+trustHooks.labelsFor = companyTrust.labelsFor;
 
 // Security alerts, incidents, data requests and retention (security.js,
 // privacy.js), on the trust & safety pages.
@@ -1780,7 +1791,7 @@ function buildDashboard(applications, user) {
 
 // ----- jobs -----
 function parseJob(body) {
-  const data = clean(body, ['title', 'company', 'location', 'mode', 'type', 'category', 'experience', 'salary', 'payNote', 'education', 'schedule', 'shift', 'hours', 'openings', 'address', 'eligibility', 'mustHave', 'physical', 'skills', 'description', 'responsibilities', 'qualifications', 'benefits', 'status']);
+  const data = clean(body, ['title', 'company', 'location', 'mode', 'type', 'category', 'experience', 'salary', 'payNote', 'education', 'schedule', 'shift', 'hours', 'openings', 'address', 'eligibility', 'mustHave', 'physical', 'skills', 'description', 'responsibilities', 'qualifications', 'benefits', 'status', 'overtime', 'workerCosts']);
   const errors = [];
   for (const f of ['title', 'company', 'location', 'category', 'description']) if (!data[f]) errors.push(`${f} is required`);
   if (data.category && !jobCategories().includes(data.category)) errors.push('pick a category from the list (add new ones in Settings)');
@@ -1819,6 +1830,10 @@ function parseJob(body) {
     schedule: data.schedule.slice(0, 200),
     shift: data.shift,
     hours: data.hours.slice(0, 120),
+    // Overtime (when and how it is paid) and anything the worker pays for
+    // (uniform, tools, food, a room), stated up front.
+    overtime: data.overtime.slice(0, 200),
+    workerCosts: data.workerCosts.slice(0, 300),
     openings: data.openings ? Number(data.openings) : null,
     address: data.address.slice(0, 300),
     walkIn,

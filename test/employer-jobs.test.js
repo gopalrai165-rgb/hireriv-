@@ -30,7 +30,7 @@ const GSTIN = '27AAPFU0939F1ZV';
 const signup = { company: 'Acme Foods Pvt Ltd', industry: 'Hospitality & Food', size: '51-200', name: 'Meera Shah', email: 'meera@acmefoods.in', phone: '9822000111', gstin: GSTIN, password: 'long enough phrase', confirm: 'long enough phrase', agree: '1' };
 const jobForm = {
   title: 'Packing Supervisor', category: 'Warehouse & Packing', location: 'Pune', mode: 'On-site', type: 'Full-time', experience: '2-4 years',
-  salaryMin: '22000', salaryMax: '28000', salaryPeriod: 'month', description: 'Lead a packing team of 20.', responsibilities: 'Plan shifts\nCheck quality', skills: 'Packing, Team leadership',
+  salaryMin: '22000', salaryMax: '28000', salaryPeriod: 'month', shift: 'Day', hours: '9 am – 6 pm', description: 'Lead a packing team of 20.', responsibilities: 'Plan shifts\nCheck quality', skills: 'Packing, Team leadership',
 };
 let meera;
 

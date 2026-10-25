@@ -574,6 +574,53 @@ Suggested order: 2 → 1 → 3 → 4, which makes Hireriv usable for skilled and
 
   Existing tests were updated where exports and backups now ask for the password, and where sign-up no longer makes a profile visible to recruiters.
 
+## Step 64: employer verification, fraud prevention and job quality intelligence
+
+- **Audit first.** Already there from Step 59:
+  - the verification queue (verify, decline, ask for more) and the appeal of a declined sign-up
+  - job moderation with automated flags (fee requests, personal data, scam promises, chat and shortener links, exact copies)
+  - complaint cases with evidence and versions, appeals decided by someone else, the hash-chained audit history, the policy and the overview
+  - "Report this job" and `POST /api/reports` with the same reply for every valid shape
+
+  Gaps found:
+  - no representative or documents for verification, no verification levels, and no re-check after identity changes
+  - automated flags without a stored, explainable assessment, and no near-duplicate detection
+  - no checks on what a job must say before review, and no record of big changes after publication
+  - no posting-rate limit, and no restriction short of suspension
+  - no report reference or tracking, no company reports or public company page
+  - no false-positive measure, and no single queue
+- **Reused, not duplicated.**
+  - Cases, priorities, escalation, appeals, the audit chain, the policy, the queues, evidence handling and roles all stay in `trust.js`. The risk engine feeds them, and the new case actions use the same appeal flow.
+  - Company decisions stay in `employers.js`: re-checks reuse `verifyCompany` and `requestCompanyInfo`, and the posting hold sits next to `restrictCompany`.
+  - The job review and limits stay in `employer-hiring.js`. Quality gaps and posting holds are part of the existing submit check.
+  - Documents use the Step 62 vault, the upload checks and the signed download links.
+- **Changed behaviour:**
+  - An employer job needs responsibilities, the pay or a pay policy, and (for industrial, field and service work) hours or a shift before it can be sent for review.
+  - A live listing that copies another company's text is paused for a moderator, and the company is told it is a routine check.
+  - More than 10 jobs sent for review in 24 hours (policy) makes new ones wait.
+  - The company verification form moved to `company-trust.js` and accepts documents.
+  - Job reports now come back with a reference.
+- **Not done here.**
+  - No automatic lookup of GSTIN, CIN or Udyam numbers with government services (reviewers check them by hand).
+  - No check that the representative's mobile is theirs (reviewers may call).
+  - Rules are not tuned on real data yet.
+  - Legal review in docs/TRUST.md section 9.
+- **Adapted from the brief.**
+  - Express, EJS and SQLite collections instead of React and PostgreSQL tables: `risk-assessments`, `report-receipts`, and checks in `employer-verifications`.
+  - Reviews are an append-only list on each check rather than a separate table.
+  - The brief's restriction of an employer's capabilities is the posting hold. Suspension and closure already existed.
+- **Tests.** `test/fraud.test.js` has 10 tests, covering:
+  - the rules (no automatic suspension, weak signals not counted, short texts, off-site applying, changes after publication)
+  - a near-copy paused and approved, with the verdict counted as a false positive
+  - quality checks and the new fields
+  - verification with a representative and documents, other companies refused, logged document links, escalation and the review history
+  - re-checks after a rename
+  - change signals and posting bursts
+  - job and company reports with references and tracking, giving the same reply either way
+  - the posting hold, appealed and lifted by someone else
+  - the queue limited by role and versioned case updates
+  - no collar words in the new files
+
 ## Step 63: payments, subscriptions and billing
 
 - **Audit first.** Already there:

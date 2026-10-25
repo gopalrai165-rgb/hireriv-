@@ -1,0 +1,35 @@
+<%# The explainable risk assessment of a listing or company (risk.js): the rules that fired, what each one saw, what was done, and a reviewer's verdict. %>
+<section class="dash-card dash-wide risk-panel" aria-labelledby="risk-<%= a ? a.id : 'none' %>">
+  <h2 id="risk-<%= a ? a.id : 'none' %>"><%= title %></h2>
+  <% if (!a || !a.rules.length) { %>
+    <p class="muted small">No risk signals. A low level is not a clean bill of health; reports and your own judgement still count.</p>
+  <% } else { %>
+    <p><span class="pill <%= ['high', 'critical'].includes(a.level) ? 'st-rejected' : a.level === 'medium' ? 'st-screening' : '' %>">Level: <%= a.level %></span> <span class="muted small">assessed <%= when(a.assessedAt) %>. A review aid, not proof of fraud: decide from the listing, the reports and the company's answers.</span></p>
+    <div class="table-wrap"><table>
+      <thead><tr><th scope="col">Signal</th><th scope="col">Weight</th><th scope="col">What it saw</th><th scope="col">Follows on</th></tr></thead>
+      <tbody><% a.rules.forEach(function (r) { %><tr><td><%= r.label %></td><td><%= r.severity %></td><td class="small"><%= r.evidence || '–' %></td><td class="small"><%= r.action ? (RISK_ACTIONS[r.action] || r.action) : '–' %></td></tr><% }) %></tbody>
+    </table></div>
+    <% if ((a.context || []).length) { %><p class="muted small">Context only, not counted: <%= a.context.join(' · ') %></p><% } %>
+    <% if (a.actions.length) { %><h3>What was done</h3><ul class="plain-list small"><% a.actions.forEach(function (x) { %><li><%= x.label %> · <%= x.by %> · <%= when(x.at) %><%= x.detail ? ' (' + x.detail + ')' : '' %></li><% }) %></ul><% } %>
+    <% if (a.review) { %>
+      <p class="small">Verdict: <b><%= a.review.verdict === 'false-positive' ? 'false positive' : 'signals confirmed' %></b> by <%= a.review.by %>, <%= when(a.review.at) %><%= a.review.note ? ': ' + a.review.note : '' %></p>
+    <% } else if (canReview) { %>
+      <form class="form" method="post" action="/admin/risk/<%= a.id %>/review">
+        <input type="hidden" name="back" value="<%= back %>">
+        <div class="form-grid">
+          <label>Your verdict on these signals
+            <select name="verdict" required><option value="">Choose…</option><option value="confirmed">Signals confirmed</option><option value="false-positive">False positive</option></select>
+          </label>
+          <label class="span-2">Why <span class="muted small">(kept with the assessment; feeds the false-positive rate)</span><input name="note" maxlength="300" required></label>
+        </div>
+        <button class="btn btn-outline btn-sm" type="submit">Record verdict</button>
+      </form>
+    <% } %>
+  <% } %>
+  <% const older = (history || []).filter(function (h) { return a && h.id !== a.id; }); %>
+  <% if (older.length) { %>
+    <details><summary class="small">Earlier assessments (<%= older.length %>)</summary>
+      <ul class="plain-list small"><% older.forEach(function (h) { %><li><%= when(h.assessedAt) %> · <%= h.level %> · <%= h.rules.map(function (r) { return r.label; }).join('; ') || 'no signals' %><%= h.review ? ' · ' + h.review.verdict : '' %></li><% }) %></ul>
+    </details>
+  <% } %>
+</section>
