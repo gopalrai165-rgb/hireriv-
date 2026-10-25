@@ -435,3 +435,69 @@ Suggested order: 2 → 1 → 3 → 4, which makes Hireriv usable for skilled and
   - one application per job
   - Find Jobs on a phone, every table in a scrolling box, and `Save-Data`
   - app counts, and permission never requested on page load
+
+## Step 61: recruitment analytics, business intelligence and performance dashboards
+
+- **Audit first.** Already there:
+  - the admin Reports tab (`reports.js`): applications, placements, time to hire, first response, conversion, source of hire, recruiters, categories and clients for a period; billed and collected for Admins; CSV per section
+  - agency recruitment reports (`agency.js`): requisitions, fill rate, staffing, workload and billing by client
+  - employer hiring metrics (`ats.js` `metrics`, `/api/ats/analytics`): funnel, time to hire and fill, per-job numbers and workload
+  - the client portal reports, the CRM sales reports, and the cookie-free website counts
+  - the trust & safety overview and system health
+
+  Missing:
+  - one set of definitions: the same name meant slightly different things in different places
+  - role-specific dashboards for recruiters and Admins
+  - filters by kind of work, recruitment type, location, industry, employer, recruiter and status
+  - custom date ranges with India-date boundaries
+  - a validated analytics API with the brief's endpoints
+  - an employer view by category, location and type
+  - recorded financial views and exports
+- **Reused, not duplicated.**
+  - `analytics.js` reads the same records as everything else: applications and their stage history, interviews and offers; placements and invoices from `placements.js` (with its `accountOf` balance rule); requisitions from `agency.js`; job-page views from `site-analytics.js`; the backlog from `trust.js`; background jobs from `ops-monitor.js`.
+  - Roles and permissions come from `agency-roles.js`, with the new `analytics.view` and `analytics.platform`, and employer roles from `employer-team.js`, which already had `analytics.view`.
+  - The CSV writer and its formula-injection guard are the existing `sendCsv`, and the charts use the existing column chart.
+  - The older reports stay where they are, with links to the new dashboards.
+- **Definitions.** Every KPI is returned with its definition, period rule and timezone, and shown under "How it's counted":
+  - Dates are India dates (Asia/Kolkata), and ranges include both ends.
+  - Ratios use the same applications on both sides, applications received in the range, so they never mix different groups.
+  - Time to hire is from applying to the first move to Hired, or to the placement record if that is earlier. Time to fill is from a job going live to its first hire.
+  - Offers count once per application; an offer counts as accepted if the candidate accepted it or the application ended in a hire.
+  - Application conversion is shown only where job-page views are counted: the whole site, or one kind of work.
+- **No duplicate counting.** Stages are counted per application from its furthest stage, never per history entry. Re-entering a stage counts once. A correction that moves an application back cancels the stages it skipped back over.
+- **Deleted, withdrawn, refunded and corrected records.**
+  - Deleted records are gone from the sources, so from every number.
+  - Withdrawn applications count as received, never as active.
+  - Refunds reduce what was collected on their own date, and credit notes reduce what was invoiced on theirs.
+  - Cancelled invoices count nowhere.
+  - Duplicates, profiles without a job and sample jobs are left out.
+  - Replacements under a guarantee are shown apart from placements.
+- **Isolation.**
+  - The scope comes from the session only.
+  - Employers see only their company. Below owner and viewer they see only the jobs they work on, and an id of another company or person gets a 404.
+  - Team recruiters see their own work. Other recruiters' ids get a 403 unless the role has `workload.view`.
+  - Money needs `money.view`, or company ownership for the company's own invoices.
+  - Sales and trust & safety roles have no access, and Finance Managers can open the dashboard among their limited pages.
+- **Validation and limits.**
+  - Unknown filter names, repeated values, impossible dates, ranges over 3 years, future end dates and page sizes over 100 get a 400.
+  - Queries are computed in memory from records read by the app, with no SQL built from input.
+  - Rate limits: 120 API calls a minute, and 30 exports per 10 minutes.
+- **Audit.** Viewing revenue (API or dashboard) and every export are recorded, with the filters, in the team activity log or the company's audit log.
+- **Performance.** A three-year range over more than 3,000 applications is answered well within the test's 3-second limit. Each answer reports how long it took (`tookMs`).
+- **Adapted from the brief.**
+  - Express and EJS with the existing record store instead of React and PostgreSQL views.
+  - Industry is the job's category.
+  - "Hiring requests" for employers are their requisitions to Hireriv.
+- **Not done here.**
+  - Scheduled email reports.
+  - Comparison with the previous period.
+  - Caching for much larger data sets; the numbers are recalculated on each request.
+- **Tests.** `test/analytics.test.js` has 8 tests, covering:
+  - filter validation
+  - totals that reconcile with seeded records: the funnel with a duplicate stage entry and a corrected offer, offers, time to hire, placements and replacements, and revenue with refunds, credit notes and cancelled invoices
+  - India midnight boundaries
+  - what each role sees and the pages
+  - employer isolation, including ids from another company
+  - filters by kind of work, recruitment type, status, employer and location
+  - CSV exports that follow the filters and are recorded
+  - large and empty data

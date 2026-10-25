@@ -15,7 +15,22 @@ Every route the app serves, and who may use it. **This table is checked by `test
 
 Every state-changing team, candidate and client form also passes `sameOrigin` (cross-site posts are refused).
 
-Total: 578 routes.
+Total: 588 routes.
+
+## Analytics: dashboards and reports for the team and for employers, each seeing only what their role and company allow
+
+| Method | Path | Policy | Notes |
+| --- | --- | --- | --- |
+| GET | `/api/analytics/overview` | account | KPIs with definitions, activity, upcoming interviews; platform figures for Admins, per-vacancy numbers for employers. Signed in as a team member whose role includes analytics (two-step sign-in where required) or an employer person (not a site supervisor). Team recruiters see their own work, Admins and Recruitment Managers see everyone. Employers see only their company (managers and recruiters only their jobs); an id of another company or person is "not found". Filters validated (400 on anything unknown); 120 a minute |
+| GET | `/api/analytics/recruitment-funnel` | account | Applications received in the range and how far they got, each counted once per stage. Signed in as a team member whose role includes analytics (two-step sign-in where required) or an employer person (not a site supervisor). Team recruiters see their own work, Admins and Recruitment Managers see everyone. Employers see only their company (managers and recruiters only their jobs); an id of another company or person is "not found". Filters validated (400 on anything unknown); 120 a minute |
+| GET | `/api/analytics/time-to-hire` | account | Time to hire and to fill, with the jobs behind them. Signed in as a team member whose role includes analytics (two-step sign-in where required) or an employer person (not a site supervisor). Team recruiters see their own work, Admins and Recruitment Managers see everyone. Employers see only their company (managers and recruiters only their jobs); an id of another company or person is "not found". Filters validated (400 on anything unknown); 120 a minute |
+| GET | `/api/analytics/recruiter-performance` | account | Per recruiter or company member: screening, interviews, offers, placements, overdue follow-ups. Signed in as a team member whose role includes analytics (two-step sign-in where required) or an employer person (not a site supervisor). Team recruiters see their own work, Admins and Recruitment Managers see everyone. Employers see only their company (managers and recruiters only their jobs); an id of another company or person is "not found". Filters validated (400 on anything unknown); 120 a minute |
+| GET | `/api/analytics/placements` | account | Placements by type, kind of work and status. Signed in as a team member whose role includes analytics (two-step sign-in where required) or an employer person (not a site supervisor). Team recruiters see their own work, Admins and Recruitment Managers see everyone. Employers see only their company (managers and recruiters only their jobs); an id of another company or person is "not found". Filters validated (400 on anything unknown); 120 a minute |
+| GET | `/api/analytics/revenue` | account | Invoiced, collected, outstanding and overdue from billing only; needs money.view (company owners: their own invoices). Every view is recorded. Signed in as a team member whose role includes analytics (two-step sign-in where required) or an employer person (not a site supervisor). Team recruiters see their own work, Admins and Recruitment Managers see everyone. Employers see only their company (managers and recruiters only their jobs); an id of another company or person is "not found". Filters validated (400 on anything unknown); 120 a minute |
+| GET | `/api/analytics/reports/:reportId/export` | account | CSV of a report with the same filters and permissions; revenue needs money.view; every export is recorded in the team or company audit log; 30 per 10 minutes |
+| GET | `/admin/analytics` | team | The analytics dashboard for the team (analytics.view): what each role sees as in the API; Finance Managers can open it |
+| GET | `/employer/analytics` | employer | The analytics dashboard for the company (not site supervisors) |
+| GET | `/analytics` | public | Short link to /admin/analytics |
 
 ## Trust & safety and platform operations: verification, moderation, complaint cases, appeals, audit history, system health; public reports and appeal links
 

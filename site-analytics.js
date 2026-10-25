@@ -70,6 +70,12 @@ function create({ db, now = () => new Date() }) {
     pending.clear();
     return n;
   }
+  // How many times an event was counted between two India dates (both
+  // included), for one label or all of them.
+  function countFor(event, from, to, label = null) {
+    flush();
+    return db.all(COLLECTION).filter((r) => r.event === event && r.day >= from && r.day <= to && (label === null || r.label === cleanLabel(label))).reduce((n, r) => n + r.count, 0);
+  }
   // Totals for a period: per event, per label, per day, and the conversion rates.
   function report({ from, to } = {}) {
     flush();
@@ -99,7 +105,7 @@ function create({ db, now = () => new Date() }) {
       days,
     };
   }
-  return { track, flush, report, countable, EVENTS, CLIENT_EVENTS };
+  return { track, flush, report, countFor, countable, EVENTS, CLIENT_EVENTS };
 }
 
 module.exports = { create, EVENTS, CLIENT_EVENTS, BOT_RE };

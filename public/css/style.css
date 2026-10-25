@@ -1502,3 +1502,25 @@ form.inline { display: inline; }
   .more-filters-apply { display: inline-flex; flex: 1 1 100%; justify-content: center; }
   .app-bar { left: 8px; right: 8px; }
 }
+
+/* Analytics dashboards (analytics.js) */
+.analytics-filters { display: flex; flex-wrap: wrap; gap: 10px 12px; align-items: flex-end; margin-bottom: 10px; }
+.analytics-filters label { flex: 1 1 170px; display: flex; flex-direction: column; gap: 4px; font-size: .82rem; font-weight: 600; color: var(--muted); }
+.analytics-filters .filter-actions { display: flex; gap: 8px; flex: 1 1 100%; }
+.analytics-kpis .kpi:hover { border-color: var(--line); box-shadow: none; }
+.kpi-def { margin-top: 6px; font-size: .78rem; }
+.kpi-def summary { cursor: pointer; color: var(--primary); font-weight: 600; }
+.kpi-def p { margin: 6px 0 0; color: var(--text); }
+.hbars { list-style: none; margin: 12px 0; padding: 0; display: grid; gap: 8px; }
+.hbars li { display: grid; grid-template-columns: minmax(90px, 140px) 1fr minmax(120px, auto); gap: 10px; align-items: center; font-size: .9rem; }
+.hbar { display: block; height: 14px; background: var(--primary-50); border-radius: 4px; overflow: hidden; }
+.hbar > span { display: block; height: 100%; background: var(--primary); border-radius: 0 4px 4px 0; }
+.analytics-split { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr)); gap: 12px; }
+.analytics-split caption { text-align: left; padding: 8px 12px 0; color: var(--muted); }
+.definitions dt { font-weight: 700; margin-top: 10px; }
+.definitions dd { margin: 2px 0 0; color: var(--text); font-size: .9rem; }
+.inline-h { display: inline; font-size: 1.1rem; }
+#definitions > summary { cursor: pointer; }
+@media (max-width: 640px) {
+  .hbars li { grid-template-columns: 1fr; gap: 4px; }
+}

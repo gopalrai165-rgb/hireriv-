@@ -50,6 +50,11 @@ const PERMS = {
   'money.view': ['Admin', 'Account Manager', 'Finance Manager'],
   'reports.view': ['Admin', 'Recruitment Manager', 'Account Manager', 'Staffing Manager', 'Finance Manager'],
   'workload.view': ['Admin', 'Recruitment Manager'],
+  // The analytics dashboards (analytics.js): recruiters see their own work,
+  // Admins and Recruitment Managers everyone's; money needs money.view.
+  'analytics.view': ['Admin', 'Recruitment Manager', 'Recruiter', 'Account Manager', 'Staffing Manager', 'Finance Manager'],
+  // Platform-wide figures: registrations, verification, failed background jobs and the moderation backlog.
+  'analytics.platform': ['Admin'],
   'audit.view': ['Admin', 'Recruitment Manager', 'Finance Manager'],
   // Hireriv's own sales CRM (crm.js). Representatives see the leads and
   // opportunities they own; managers see all of them.
@@ -91,7 +96,7 @@ const canBill = (user) => can(user, 'invoices.issue');
 // rest of the back office stay closed to them.
 const FINANCE_PAGES = [
   /^\/admin\/?$/, /^\/admin\/(login|logout|security)(\/|$)/, /^\/admin\/placements\/[^/]+\/(invoice|bill|payments|refunds|remind|credit-notes)(\/|$)/,
-  /^\/admin\/invoice-drafts(\/|$)/, /^\/admin\/workforce\/(payroll|payroll\.csv)$/, /^\/admin\/crm\/reports\/?$/, /^\/admin\/clients\/[^/]+$/, /^\/admin\/recruitment-reports\/?$/, /^\/admin\/staffing\/?$/, /^\/admin\/agency-audit\/?$/,
+  /^\/admin\/invoice-drafts(\/|$)/, /^\/admin\/workforce\/(payroll|payroll\.csv)$/, /^\/admin\/crm\/reports\/?$/, /^\/admin\/clients\/[^/]+$/, /^\/admin\/recruitment-reports\/?$/, /^\/admin\/analytics\/?$/, /^\/admin\/staffing\/?$/, /^\/admin\/agency-audit\/?$/,
 ];
 const FINANCE_TABS = ['placements', 'clients', 'reports'];
 // Sales roles work in the CRM only: no candidates, jobs or billing pages.

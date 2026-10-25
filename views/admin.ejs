@@ -7,6 +7,7 @@
       <% if (agencyCan('requisitions.view')) { %><a class="small" href="/admin/workspace">Agency &amp; staffing</a><% } else if (agencyCan('invoices.draft')) { %><a class="small" href="/admin/invoice-drafts">Invoice drafts</a><% } %>
       <%- include('partials/notification-bell', { as: 'team', bellQuery: '?as=team', bellClass: 'small' }) %>
       <% if (isAdmin) { %><a class="small" href="/admin/notifications">Email delivery</a><% } %>
+      <% if (agencyCan('analytics.view')) { %><a class="small" href="/admin/analytics">Analytics</a><% } %>
       <% if (agencyCan('trust.overview')) { %><a class="small" href="/admin/overview">Trust &amp; safety</a><% } %>
       <a class="small" href="/admin/security">Sign-in security</a>
       <form method="post" action="/admin/logout"><button class="link-btn small" type="submit">Sign out</button></form>

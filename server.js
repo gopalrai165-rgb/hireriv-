@@ -51,6 +51,7 @@ const notifyEvents = require('./notify-events');
 const notificationCenter = require('./notification-center');
 const pushModule = require('./push');
 const pwa = require('./pwa');
+const analytics = require('./analytics');
 
 const PORT = process.env.PORT || 3004;
 const ADMIN_USER = process.env.ADMIN_USER || 'admin';
@@ -1452,6 +1453,13 @@ const trustDesk = trust.register(app, {
   candidateEmail: (req) => candidateAccounts.currentEmail(req), ops, backups,
 });
 trustHooks.reportJob = trustDesk.reportJob;
+
+// Recruitment analytics: dashboards for the team and for each employer, the
+// /api/analytics/* reports and their CSV exports (analytics.js).
+analytics.register(app, {
+  readSubmissions, getJobs: () => jobs, billing, team, clients, agency: agencyDesk, appOwner, siteAnalytics, trust: trustDesk, ops,
+  limit, adminAuth, requireEmployer: clients.requireEmployer, sendCsv,
+});
 
 // Website conversion counts for the team (Admins, recruitment and sales managers).
 app.get('/admin/site-analytics', adminAuth, (req, res) => {

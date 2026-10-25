@@ -1,0 +1,243 @@
+<%- include('partials/head') %>
+<%
+  const ov = reports.overview;
+  const inrP = function (p) { return p === null || p === undefined ? '–' : (p / 100).toLocaleString('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }); };
+  const val = function (k) {
+    if (k.value === null || k.value === undefined) return '–';
+    if (k.unit === 'paise') return inrP(k.value);
+    if (k.unit === '%') return k.value + '%';
+    if (k.unit === 'days') return k.value + (k.value === 1 ? ' day' : ' days');
+    return Number(k.value).toLocaleString('en-IN');
+  };
+  const fmtDay = function (k) { return new Date(k + 'T00:00:00Z').toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' }); };
+  const short = function (k, unit) { return unit === 'month' ? new Date(k + '-01T00:00:00Z').toLocaleDateString('en-IN', { month: 'short', timeZone: 'UTC' }) : new Date(k + 'T00:00:00Z').toLocaleDateString('en-IN', { day: 'numeric', month: 'short', timeZone: 'UTC' }); };
+  const full = function (k, unit) { return unit === 'month' ? new Date(k + '-01T00:00:00Z').toLocaleDateString('en-IN', { month: 'long', year: 'numeric', timeZone: 'UTC' }) : unit === 'week' ? 'Week from ' + fmtDay(k) : fmtDay(k); };
+  const bucketNoun = { day: 'per day', week: 'per week', month: 'per month' };
+  const points = function (s, field) { return s.rows.map(function (r) { return { label: short(r.key, s.unit), full: full(r.key, s.unit), value: r[field] }; }); };
+  const exportHref = function (id) { return '/api/analytics/reports/' + id + '/export' + (exportQuery ? '?' + exportQuery : ''); };
+  const isTeam = scope.as === 'team';
+%>
+<section class="section admin<%= isTeam ? '' : ' portal' %>">
+  <div class="container">
+    <% if (isTeam) { %>
+      <div class="admin-userbar">
+        <span>Signed in as <b><%= admin.name %></b></span>
+        <a class="small" href="/admin">Back to admin</a>
+        <form method="post" action="/admin/logout"><button class="link-btn small" type="submit">Sign out</button></form>
+      </div>
+      <div class="admin-head"><div><span class="eyebrow">Analytics</span><h1><%= scope.platform ? 'Platform and recruitment analytics' : scope.allRecruiters ? 'Recruitment analytics' : scope.role === 'Finance Manager' ? 'Placements and revenue' : 'Your recruitment numbers' %></h1></div></div>
+      <% if (errors.length) { %><div class="notice notice-err" role="alert"><p>These filters could not be used, so the last 30 days are shown:</p><ul><% errors.forEach(function (e) { %><li><%= e %></li><% }) %></ul></div><% } %>
+    <% } else { %>
+      <%- include('partials/employer-nav', { heading: 'Analytics', errors: errors.length ? ['These filters could not be used, so the last 30 days are shown: ' + errors.join('; ')] : [] }) %>
+    <% } %>
+
+    <form class="form filters analytics-filters" method="get" action="<%= base %>" aria-label="Filters">
+      <label>Period
+        <select name="period">
+          <% Object.keys(PERIODS).forEach(function (k) { %><option value="<%= k %>"<%= f.period === k ? ' selected' : '' %>><%= PERIODS[k] %></option><% }) %>
+        </select>
+      </label>
+      <label>From <input type="date" name="from" value="<%= f.period === 'custom' ? f.from : '' %>"></label>
+      <label>To <input type="date" name="to" value="<%= f.period === 'custom' ? f.to : '' %>"></label>
+      <label>Kind of work
+        <select name="work"><option value="">All kinds of work</option><% WORK_KINDS.forEach(function (w) { %><option value="<%= w.key %>"<%= f.work === w.key ? ' selected' : '' %>><%= w.label %></option><% }) %></select>
+      </label>
+      <label>Recruitment type
+        <select name="hiringType"><option value="">Permanent, temporary and contract</option><% Object.keys(HIRING_TYPES).forEach(function (k) { %><option value="<%= k %>"<%= f.hiringType === k ? ' selected' : '' %>><%= HIRING_TYPES[k] %></option><% }) %></select>
+      </label>
+      <% if (options.locations.length) { %><label>Location
+        <select name="location"><option value="">All locations</option><% options.locations.forEach(function (l) { %><option<%= f.location === l ? ' selected' : '' %>><%= l %></option><% }) %></select>
+      </label><% } %>
+      <% if (options.industries.length) { %><label>Industry
+        <select name="industry"><option value="">All industries</option><% options.industries.forEach(function (l) { %><option<%= f.industry === l ? ' selected' : '' %>><%= l %></option><% }) %></select>
+      </label><% } %>
+      <% if (options.employers.length) { %><label>Employer
+        <select name="employer"><option value="">All employers</option><% options.employers.forEach(function (e) { %><option value="<%= e.id %>"<%= f.employer === e.id ? ' selected' : '' %>><%= e.name %></option><% }) %></select>
+      </label><% } %>
+      <% if (options.recruiters.length) { %><label>Recruiter
+        <select name="recruiter"><option value="">Everyone</option><% options.recruiters.forEach(function (r) { %><option value="<%= r.id %>"<%= f.recruiter === r.id ? ' selected' : '' %>><%= r.name %></option><% }) %></select>
+      </label><% } %>
+      <label>Job status
+        <select name="jobStatus"><option value="">Any job status</option><% JOB_STATUSES.forEach(function (s) { %><option value="<%= s %>"<%= f.jobStatus === s ? ' selected' : '' %>><%= s.charAt(0).toUpperCase() + s.slice(1) %></option><% }) %></select>
+      </label>
+      <label>Application status
+        <select name="applicationStatus"><option value="">Any stage</option><% APP_STATUSES.forEach(function (s) { %><option<%= f.applicationStatus === s ? ' selected' : '' %>><%= s %></option><% }) %></select>
+      </label>
+      <label>Placement status
+        <select name="placementStatus"><option value="">Any placement status</option><% placementStatuses.forEach(function (s) { %><option<%= f.placementStatus === s ? ' selected' : '' %>><%= s %></option><% }) %></select>
+      </label>
+      <% if (scope.money) { %><label>Revenue status
+        <select name="revenueStatus"><option value="">All invoices</option><% Object.keys(REVENUE_STATUSES).forEach(function (k) { %><option value="<%= k %>"<%= f.revenueStatus === k ? ' selected' : '' %>><%= REVENUE_STATUSES[k] %></option><% }) %></select>
+      </label><% } %>
+      <div class="filter-actions"><button class="btn btn-primary" type="submit">Apply</button> <a class="btn btn-outline" href="<%= base %>">Reset</a></div>
+    </form>
+    <p class="muted small">Showing <b><%= f.label %></b>: <%= fmtDay(f.from) %> to <%= fmtDay(f.to) %>, by India date (Asia/Kolkata). <%= isTeam ? (scope.allRecruiters ? 'Everyone on the team.' : 'Your own applications, interviews and placements.') : 'Only your company' + (['owner', 'viewer'].includes(scope.member.role) ? '.' : ', and only the jobs you work on.') %></p>
+
+    <h2 class="sr-only">Key numbers</h2>
+    <div class="kpis analytics-kpis">
+      <% ov.kpis.forEach(function (k) { %>
+        <div class="kpi">
+          <span class="kpi-label"><%= k.label %></span>
+          <span class="kpi-value"><%= val(k) %></span>
+          <span class="kpi-note"><% if (k.numerator !== undefined && k.denominator) { %><%= k.numerator.toLocaleString('en-IN') %> of <%= k.denominator.toLocaleString('en-IN') %><% } else if (k.id === 'timeToHire' || k.id === 'timeToFill') { %><%= k.denominator ? 'median of ' + k.denominator : 'none in this range' %><% } else if (k.id === 'outstandingInvoices') { %><%= k.count %> open<%= k.overdueCount ? ', ' + inrP(k.overduePaise) + ' overdue (' + k.overdueCount + ')' : '' %><% } %><%= k.note ? k.note : '' %></span>
+          <details class="kpi-def"><summary>How it's counted</summary><p><%= k.definition.formula %>. <%= k.definition.excludes %>.</p></details>
+        </div>
+      <% }) %>
+    </div>
+
+    <% if (ov.platform) { const pl = ov.platform; %>
+      <section class="dash-card" id="platform">
+        <div class="dash-head"><h2>Platform</h2></div>
+        <div class="kpis">
+          <div class="kpi"><span class="kpi-label">Job seekers signed up</span><span class="kpi-value"><%= pl.candidatesRegistered %></span><span class="kpi-note"><%= pl.candidatesTotal %> accounts in all</span></div>
+          <div class="kpi"><span class="kpi-label">Employers signed up</span><span class="kpi-value"><%= pl.employersRegistered %></span><span class="kpi-note"><%= pl.employers.total %> in all</span></div>
+          <div class="kpi"><span class="kpi-label">Employers verified</span><span class="kpi-value"><%= pl.employers.verified %></span><span class="kpi-note"><%= pl.employers.pending %> waiting, <%= pl.employers.declined %> declined</span></div>
+          <div class="kpi"><span class="kpi-label">Active jobs</span><span class="kpi-value"><%= pl.activeJobs %></span><span class="kpi-note">open now</span></div>
+          <% if (pl.moderationBacklog) { const mb = pl.moderationBacklog; %>
+            <a class="kpi" href="/admin/overview"><span class="kpi-label">Moderation backlog</span><span class="kpi-value"><%= mb.verificationsWaiting + mb.listingsWaiting + mb.listingsFlagged + mb.listingsReported + mb.casesOpen + mb.appealsWaiting %></span><span class="kpi-note"><%= mb.verificationsWaiting %> companies, <%= mb.listingsWaiting + mb.listingsFlagged + mb.listingsReported %> listings, <%= mb.casesOpen %> cases, <%= mb.appealsWaiting %> appeals</span></a>
+          <% } %>
+          <a class="kpi" href="/admin/system-health"><span class="kpi-label">Background jobs failing</span><span class="kpi-value"><%= pl.failedBackgroundJobs.length %></span><span class="kpi-note"><%= pl.failedBackgroundJobs.length ? pl.failedBackgroundJobs.map(function (j) { return j.name; }).join(', ') : 'all running' %></span></a>
+        </div>
+        <h3>Platform activity <%= bucketNoun[pl.activity.unit] %></h3>
+        <%- include('partials/report-colchart', { items: points(pl.activity, 'applications'), fmt: function (v) { return String(v); }, noun: 'applications', span: bucketNoun[pl.activity.unit] + ' in this range', unitLabel: pl.activity.unit === 'month' ? 'Month' : pl.activity.unit === 'week' ? 'Week' : 'Day', empty: 'No applications in this range.' }) %>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Sign-ups in this range</th><th class="num">Count</th></tr></thead>
+          <tbody>
+            <tr><td>Job seekers</td><td class="num"><%= pl.activity.rows.reduce(function (n, r) { return n + r.candidateSignUps; }, 0) %></td></tr>
+            <tr><td>Employers</td><td class="num"><%= pl.activity.rows.reduce(function (n, r) { return n + r.employerSignUps; }, 0) %></td></tr>
+          </tbody>
+        </table></div>
+      </section>
+    <% } %>
+
+    <section class="dash-card" id="activity">
+      <div class="dash-head"><h2>Applications <%= bucketNoun[ov.activity.unit] %></h2><a class="small" href="<%= exportHref('overview') %>">Download the key numbers (CSV)</a></div>
+      <%- include('partials/report-colchart', { items: points(ov.activity, 'applications'), fmt: function (v) { return String(v); }, noun: 'applications', span: bucketNoun[ov.activity.unit] + ' in this range', unitLabel: ov.activity.unit === 'month' ? 'Month' : ov.activity.unit === 'week' ? 'Week' : 'Day', empty: 'No applications in this range.' }) %>
+      <h3>Placements <%= bucketNoun[ov.activity.unit] %></h3>
+      <%- include('partials/report-colchart', { items: points(ov.activity, 'placements'), fmt: function (v) { return String(v); }, noun: 'placements', span: bucketNoun[ov.activity.unit] + ' in this range', unitLabel: ov.activity.unit === 'month' ? 'Month' : ov.activity.unit === 'week' ? 'Week' : 'Day', empty: 'No placements in this range.' }) %>
+    </section>
+
+    <section class="dash-card" id="funnel">
+      <div class="dash-head"><h2>Recruitment funnel</h2><a class="small" href="<%= exportHref('recruitment-funnel') %>">Download (CSV)</a></div>
+      <p class="muted small">How far the <%= reports.funnel.cohort.applications %> application<%= reports.funnel.cohort.applications === 1 ? '' : 's' %> received in this range got. Each application counts once per stage.</p>
+      <% if (!reports.funnel.cohort.applications) { %>
+        <p class="muted dash-empty">No applications in this range.</p>
+      <% } else { %>
+        <ol class="hbars" aria-label="Recruitment funnel">
+          <% reports.funnel.stages.forEach(function (s) { %>
+            <li><span class="hbar-label"><%= s.label %></span><span class="hbar" aria-hidden="true"><span style="width: <%= Math.max(s.percentOfApplied || 0, s.count ? 1 : 0) %>%"></span></span><span class="hbar-value"><b><%= s.count %></b> (<%= s.percentOfApplied %>%)<% if (s.toNext !== null) { %><span class="muted small"> · <%= s.toNext %>% go on</span><% } %></span></li>
+          <% }) %>
+        </ol>
+        <p class="small">Still active: <b><%= reports.funnel.outcomes.active %></b> · rejected <%= reports.funnel.outcomes.rejected %> · on hold <%= reports.funnel.outcomes.onHold %> · withdrawn <%= reports.funnel.outcomes.withdrawn %></p>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Kind of work</th><th class="num">Applied</th><th class="num">Interviewed</th><th class="num">Hired</th></tr></thead>
+          <tbody><% reports.funnel.byWork.forEach(function (w) { %><tr><td><%= w.label %></td><td class="num"><%= w.applied %></td><td class="num"><%= w.interviewed %></td><td class="num"><%= w.hired %></td></tr><% }) %></tbody>
+        </table></div>
+      <% } %>
+    </section>
+
+    <section class="dash-card" id="time-to-hire">
+      <div class="dash-head"><h2>Time to hire and fill</h2><a class="small" href="<%= exportHref('time-to-hire') %>">Download (CSV)</a></div>
+      <% const tt = reports.timing; %>
+      <p>Median time to hire: <b><%= tt.timeToHire.medianDays === null ? '–' : tt.timeToHire.medianDays + ' days' %></b> (<%= tt.timeToHire.hires %> hire<%= tt.timeToHire.hires === 1 ? '' : 's' %>, average <%= tt.timeToHire.averageDays === null ? '–' : tt.timeToHire.averageDays %>) · median time to fill: <b><%= tt.timeToFill.medianDays === null ? '–' : tt.timeToFill.medianDays + ' days' %></b> (<%= tt.timeToFill.jobs %> job<%= tt.timeToFill.jobs === 1 ? '' : 's' %>)</p>
+      <% if (tt.timeToHire.hires) { const maxB = Math.max.apply(null, tt.timeToHire.bands.map(function (b) { return b.hires; })); %>
+        <ol class="hbars" aria-label="Hires by days to hire">
+          <% tt.timeToHire.bands.forEach(function (b) { %><li><span class="hbar-label"><%= b.label %></span><span class="hbar" aria-hidden="true"><span style="width: <%= maxB ? (b.hires / maxB) * 100 : 0 %>%"></span></span><span class="hbar-value"><b><%= b.hires %></b> hire<%= b.hires === 1 ? '' : 's' %></span></li><% }) %>
+        </ol>
+      <% } %>
+      <% if (tt.vacancies.rows.some(function (v) { return v.firstHireOn; })) { %>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Job</th><th>Live from</th><th>First hire</th><th class="num">Days to fill</th></tr></thead>
+          <tbody><% tt.vacancies.rows.filter(function (v) { return v.firstHireOn; }).forEach(function (v) { %><tr><td><%= v.title %></td><td><%= v.openedOn ? fmtDay(v.openedOn) : '–' %></td><td><%= fmtDay(v.firstHireOn) %></td><td class="num"><%= v.days === null ? '–' : v.days %></td></tr><% }) %></tbody>
+        </table></div>
+      <% } %>
+    </section>
+
+    <% if (ov.perVacancy) { %>
+      <section class="dash-card" id="vacancies">
+        <div class="dash-head"><h2>Applications per vacancy</h2><a class="small" href="<%= exportHref('vacancies') %>">Download (CSV)</a></div>
+        <% if (!ov.perVacancy.total) { %><p class="muted dash-empty">No jobs match these filters.</p><% } else { %>
+          <div class="table-wrap"><table>
+            <thead><tr><th>Job</th><th>Status</th><th class="num">Applications</th><th class="num">New in range</th><th class="num">Shortlisted</th><th class="num">Interviewed</th><th class="num">Offered</th><th class="num">Hired</th></tr></thead>
+            <tbody><% ov.perVacancy.rows.forEach(function (v) { %><tr><td><%= v.title %><br><span class="muted small"><%= v.location %></span></td><td><%= v.status %></td><td class="num"><%= v.applications %></td><td class="num"><%= v.newInRange %></td><td class="num"><%= v.shortlisted %></td><td class="num"><%= v.interviewed %></td><td class="num"><%= v.offered %></td><td class="num"><%= v.hired %></td></tr><% }) %></tbody>
+          </table></div>
+          <% if (ov.perVacancy.total > ov.perVacancy.rows.length) { %><p class="muted small">Showing <%= ov.perVacancy.rows.length %> of <%= ov.perVacancy.total %>; the download has them all.</p><% } %>
+        <% } %>
+      </section>
+      <section class="dash-card" id="activity-by">
+        <h2>Hiring requests and activity</h2>
+        <p>Hiring requests to <%= site.name %>: <b><%= ov.employer.hiringRequests.completed %></b> completed, <b><%= ov.employer.hiringRequests.pending %></b> pending<%= ov.employer.hiringRequests.cancelled ? ', ' + ov.employer.hiringRequests.cancelled + ' cancelled' : '' %>.</p>
+        <div class="analytics-split">
+          <% [['Category', ov.employer.byCategory], ['Location', ov.employer.byLocation], ['Job type', ov.employer.byType]].forEach(function (b) { %>
+            <div class="table-wrap"><table>
+              <caption class="small">Applications in this range by <%= b[0].toLowerCase() %></caption>
+              <thead><tr><th><%= b[0] %></th><th class="num">Applications</th></tr></thead>
+              <tbody><% if (!b[1].length) { %><tr><td colspan="2" class="muted">None</td></tr><% } %><% b[1].forEach(function (x) { %><tr><td><%= x.label %></td><td class="num"><%= x.count %></td></tr><% }) %></tbody>
+            </table></div>
+          <% }) %>
+        </div>
+      </section>
+    <% } %>
+
+    <section class="dash-card" id="recruiters">
+      <div class="dash-head"><h2><%= reports.recruiters.recruiters.total > 1 ? 'Recruiter performance' : 'Your work' %></h2><a class="small" href="<%= exportHref('recruiter-performance') %>">Download (CSV)</a></div>
+      <% if (!reports.recruiters.recruiters.total) { %><p class="muted dash-empty">No one to show for these filters.</p><% } else { %>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Person</th><% if (isTeam) { %><th class="num">Open vacancies</th><% } %><th class="num">Active candidates</th><th class="num">Screened</th><th class="num">Interviews</th><th class="num">Offers made</th><th class="num">Offers accepted</th><th class="num">Placements</th><th class="num">Median days to hire</th><th class="num">Overdue follow-ups</th><th class="num">Interviews next 7 days</th></tr></thead>
+          <tbody><% reports.recruiters.recruiters.rows.forEach(function (r) { %><tr><td><%= r.name %><br><span class="muted small"><%= r.role %></span></td><% if (isTeam) { %><td class="num"><%= r.vacancies %></td><% } %><td class="num"><%= r.activeCandidates %></td><td class="num"><%= r.screened %></td><td class="num"><%= r.interviews %></td><td class="num"><%= r.offersMade %></td><td class="num"><%= r.offersAccepted %></td><td class="num"><%= r.placements %></td><td class="num"><%= r.medianDaysToHire === null ? '–' : r.medianDaysToHire %></td><td class="num"><%= r.overdueFollowUps %></td><td class="num"><%= r.upcomingInterviews %></td></tr><% }) %></tbody>
+        </table></div>
+        <p class="muted small">Overdue follow-up: an active application still in New after <%= reports.recruiters.overdueAfterDays %> days. Screened, interviews, offers and placements count what happened in this range; active candidates and follow-ups are as of now.</p>
+      <% } %>
+    </section>
+
+    <% if (ov.upcomingInterviews.length) { %>
+      <section class="dash-card" id="upcoming">
+        <h2>Upcoming interviews (next 14 days)</h2>
+        <ul class="plain-list"><% ov.upcomingInterviews.forEach(function (iv) { %><li><b><%= formatIst(iv.at) %></b> · <%= iv.jobTitle %> · <%= iv.mode %></li><% }) %></ul>
+      </section>
+    <% } %>
+
+    <section class="dash-card" id="placements">
+      <% const pm = reports.placements; %>
+      <div class="dash-head"><h2>Placements</h2><a class="small" href="<%= exportHref('placements') %>">Download (CSV)</a></div>
+      <p><b><%= pm.count %></b> placement<%= pm.count === 1 ? '' : 's' %> recorded in this range<%= pm.replacements ? ', plus ' + pm.replacements + ' replacement' + (pm.replacements === 1 ? '' : 's') : '' %>.</p>
+      <div class="analytics-split">
+        <div class="table-wrap"><table><caption class="small">By recruitment type</caption><thead><tr><th>Type</th><th class="num">Placements</th></tr></thead><tbody><% pm.byType.forEach(function (x) { %><tr><td><%= x.label %></td><td class="num"><%= x.count %></td></tr><% }) %></tbody></table></div>
+        <div class="table-wrap"><table><caption class="small">By kind of work</caption><thead><tr><th>Kind of work</th><th class="num">Placements</th></tr></thead><tbody><% pm.byWork.forEach(function (x) { %><tr><td><%= x.label %></td><td class="num"><%= x.count %></td></tr><% }) %></tbody></table></div>
+        <div class="table-wrap"><table><caption class="small">By status now</caption><thead><tr><th>Status</th><th class="num">Placements</th></tr></thead><tbody><% pm.byStatus.forEach(function (x) { %><tr><td><%= x.label %></td><td class="num"><%= x.count %></td></tr><% }) %></tbody></table></div>
+      </div>
+    </section>
+
+    <% if (reports.revenue) { const rv = reports.revenue; %>
+      <section class="dash-card" id="revenue">
+        <div class="dash-head"><h2><%= isTeam ? 'Revenue' : 'Your invoices' %></h2><a class="small" href="<%= exportHref('revenue') %>">Download invoices (CSV)</a></div>
+        <p class="muted small">From billing records only: what was invoiced and paid, never estimates. Viewing and downloading this is recorded.</p>
+        <div class="kpis">
+          <div class="kpi"><span class="kpi-label">Collected</span><span class="kpi-value"><%= inrP(rv.collectedPaise) %></span><span class="kpi-note">payments with TDS, less <%= inrP(rv.refundedPaise) %> refunded</span></div>
+          <div class="kpi"><span class="kpi-label">Invoiced</span><span class="kpi-value"><%= inrP(rv.invoicedPaise) %></span><span class="kpi-note"><%= rv.invoicesIssued %> invoice<%= rv.invoicesIssued === 1 ? '' : 's' %>, less <%= inrP(rv.creditNotesPaise) %> credit notes</span></div>
+          <div class="kpi"><span class="kpi-label">Outstanding today</span><span class="kpi-value"><%= inrP(rv.outstandingPaise) %></span><span class="kpi-note"><%= rv.outstandingInvoices %> open</span></div>
+          <div class="kpi"><span class="kpi-label">Overdue today</span><span class="kpi-value"><%= inrP(rv.overduePaise) %></span><span class="kpi-note"><%= rv.overdueInvoices %> past due</span></div>
+        </div>
+        <h3>Collected <%= bucketNoun[rv.series.unit] %></h3>
+        <%- include('partials/report-colchart', { items: points(rv.series, 'collectedPaise').map(function (x) { return Object.assign(x, { value: Math.max(0, x.value) }); }), fmt: inrP, noun: 'collected', span: bucketNoun[rv.series.unit] + ' in this range', unitLabel: rv.series.unit === 'month' ? 'Month' : rv.series.unit === 'week' ? 'Week' : 'Day', empty: 'Nothing collected in this range.' }) %>
+        <% if (rv.invoices.total) { %>
+          <div class="table-wrap"><table>
+            <thead><tr><th>Invoice</th><th>Date</th><th>Due</th><% if (isTeam) { %><th>Client</th><% } %><th>Status</th><th class="num">Total</th><th class="num">Balance</th></tr></thead>
+            <tbody><% rv.invoices.rows.forEach(function (x) { %><tr><td><%= x.number %></td><td><%= fmtDay(x.date) %></td><td><%= x.dueDate ? fmtDay(x.dueDate) : '–' %></td><% if (isTeam) { %><td><%= x.company %></td><% } %><td><%= x.status %></td><td class="num"><%= inrP(x.totalPaise) %></td><td class="num"><%= inrP(x.balancePaise) %></td></tr><% }) %></tbody>
+          </table></div>
+          <% if (rv.invoices.total > rv.invoices.rows.length) { %><p class="muted small">Showing the newest <%= rv.invoices.rows.length %> of <%= rv.invoices.total %>; the download has them all.</p><% } %>
+        <% } else { %><p class="muted dash-empty">No invoices match these filters.</p><% } %>
+      </section>
+    <% } %>
+
+    <details class="dash-card" id="definitions">
+      <summary><h2 class="inline-h">How every number is counted</h2></summary>
+      <dl class="definitions">
+        <% Object.keys(DEFINITIONS).forEach(function (id) { const d = DEFINITIONS[id]; %><dt><%= d.label %></dt><dd><%= d.formula %>. <%= d.excludes %>. Dates: <%= d.period %> (<%= d.timezone %>).</dd><% }) %>
+        <dt>Deleted, withdrawn, refunded and corrected records</dt><dd>Deleted records are gone from every number. Withdrawn applications count as received, never as active. Refunds reduce what was collected on the day they were paid back; credit notes reduce what was invoiced on their date. A stage correction that moves an application back cancels the stages it skipped back over. Duplicates and sample jobs are never counted.</dd>
+      </dl>
+    </details>
+  </div>
+</section>
+
+<%- include('partials/foot') %>
