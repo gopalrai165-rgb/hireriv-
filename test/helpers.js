@@ -107,6 +107,11 @@ async function startServer(env = {}, seed = {}, { sampleJobs = false } = {}) {
       const res = await server.request('/employer/settings/phone/verify', { method: 'POST', form: { code }, cookie, headers });
       if (!/verified\./i.test(decodeURIComponent(res.headers.get('location') || ''))) throw new Error(`verifying failed: ${res.headers.get('location')}`);
     },
+    // Re-enters the password before a sensitive action (security.js); lasts 10 minutes.
+    async confirm(cookie, password = ADMIN_PASS, code = '') {
+      const res = await server.request('/admin/confirm', { method: 'POST', cookie, form: { password, code, next: '/admin' } });
+      if (res.status !== 303) throw new Error(`confirming failed: ${res.status}`);
+    },
     async adminLogin() {
       const res = await server.request('/admin/login', { method: 'POST', form: { login: 'admin', password: ADMIN_PASS, next: '/admin' } });
       if (res.status !== 302) throw new Error(`admin login failed: ${res.status}`);

@@ -18,7 +18,9 @@ const INVITE_HOURS = 72;
 const COOKIE = 'hr_admin';
 const OWNER_ID = 'owner';
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
-const MAX_ACTIVITY = 2000;
+// The activity log is kept by age (the retention policy, at least 180 days);
+// this cap only stops it growing without bound.
+const MAX_ACTIVITY = 50000;
 const CODE_COOKIE = 'hr_admin_code';
 const CODE_MINUTES = 5; // time allowed to type the code after a correct password
 const CODE_TRIES = 5; // wrong codes before the password has to be entered again
@@ -68,6 +70,9 @@ function create({ db, mailer, baseUrl, ownerUser, ownerPass, site = {}, resetOwn
   }
   const has2fa = (userId) => Boolean(securityOf(userId).twoFactor);
   const requires2fa = () => db.metaGet(REQUIRE_KEY) === '1';
+  // Who must use two-step sign-in: everyone when the team requires it, the
+  // trust & safety and operations roles always, and Admins on the live site.
+  const mustUse2fa = (user) => Boolean(user) && (requires2fa() || agencyRoles.STRONG_AUTH_ROLES.includes(user.role) || (user.role === 'Admin' && process.env.NODE_ENV === 'production'));
   const recoveryLeft = (t) => (t && t.recovery ? t.recovery.filter(Boolean).length : 0);
 
   // Checks an authenticator code or an unused recovery code and records its use.
@@ -93,12 +98,46 @@ function create({ db, mailer, baseUrl, ownerUser, ownerPass, site = {}, resetOwn
   }
 
   // ---------- activity log ----------
+  const logListeners = [];
   function log(user, action, detail = '') {
     const entry = { id: crypto.randomUUID(), at: new Date().toISOString(), userId: user ? user.id : '', userName: user ? user.name : 'System', action: String(action).slice(0, 300), detail: String(detail).slice(0, 200) };
     db.prepend('activity', entry);
-    // Keep the log bounded; the oldest entries fall off.
     if (db.count('activity') > MAX_ACTIVITY + 100) db.replaceAll('activity', db.all('activity').slice(0, MAX_ACTIVITY));
+    for (const fn of logListeners) {
+      try { fn(entry, user); } catch (e) { console.error('Activity listener:', e.message); }
+    }
   }
+  // fn(entry, user) after every activity entry (security.js watches privileged changes).
+  const onLog = (fn) => logListeners.push(fn);
+  // Entries older than `days` go (the retention policy). Returns how many.
+  function pruneActivity(days) {
+    const cutoff = new Date(Date.now() - days * 86400000).toISOString();
+    const list = db.all('activity');
+    const keep = list.filter((e) => (e.at || '') >= cutoff);
+    if (keep.length !== list.length) db.replaceAll('activity', keep);
+    return list.length - keep.length;
+  }
+
+  // Asks a signed-in person to prove it is still them before a sensitive
+  // action: their password, plus their authenticator or recovery code when
+  // they use two-step sign-in. Returns '' when both are right.
+  function confirmIdentity(user, password, code) {
+    const pw = String(password || '').slice(0, 200);
+    let ok;
+    if (user.id === OWNER_ID) ok = Boolean(ownerPass) && safeEq(sha(pw), sha(ownerPass));
+    else {
+      const u = read().find((x) => x.id === user.id);
+      ok = Boolean(u && u.active && u.passwordHash && checkPassword(pw, u.passwordHash));
+    }
+    if (!ok) return 'Your password is not right.';
+    if (has2fa(user.id) && !useSecondFactor(user.id, String(code || '').slice(0, 40))) return 'That code is not right.';
+    return '';
+  }
+  // A hash of the signed-in session's token (to tie a confirmation to it).
+  const sessionKey = (req) => {
+    const token = parseCookies(req.headers.cookie)[COOKIE];
+    return token ? sha(token) : '';
+  };
 
   // Way back in for an owner who lost their phone and their recovery codes.
   if (resetOwner2fa && securityOf(OWNER_ID).twoFactor) {
@@ -145,7 +184,7 @@ function create({ db, mailer, baseUrl, ownerUser, ownerPass, site = {}, resetOwn
     }
     // When the team requires two-step sign-in, people without it can only set it up.
     // So does every trust & safety and operations role, whatever the team setting.
-    if ((requires2fa() || agencyRoles.STRONG_AUTH_ROLES.includes(user.role)) && !has2fa(user.id) && !req.path.startsWith('/admin/security') && !req.path.startsWith('/admin/logout')) {
+    if (mustUse2fa(user) && !has2fa(user.id) && !req.path.startsWith('/admin/security') && !req.path.startsWith('/admin/logout')) {
       if (wantsHtml(req)) return res.redirect('/admin/security');
       return res.status(403).send('Your team requires two-step sign-in. Set it up at /admin/security first.');
     }
@@ -285,7 +324,7 @@ function create({ db, mailer, baseUrl, ownerUser, ownerPass, site = {}, resetOwn
       res.set('Cache-Control', 'no-store');
       page(res, 'admin-security', {
         title: 'Sign-in security', on: Boolean(s.twoFactor), enabledAt: s.twoFactor ? s.twoFactor.enabledAt : '', recoveryLeft: recoveryLeft(s.twoFactor),
-        required: requires2fa() || agencyRoles.STRONG_AUTH_ROLES.includes(req.admin.role), setup, codes: null, msg: String(req.query.msg || '').slice(0, 300), ...extra,
+        required: mustUse2fa(req.admin), setup, codes: null, msg: String(req.query.msg || '').slice(0, 300), ...extra,
       });
     }
     function issueRecovery(userId) {
@@ -330,7 +369,7 @@ function create({ db, mailer, baseUrl, ownerUser, ownerPass, site = {}, resetOwn
 
     app.post('/admin/security/off', adminAuth, sameOrigin, (req, res) => {
       if (!has2fa(req.admin.id)) return res.redirect(secUrl());
-      if (requires2fa() || agencyRoles.STRONG_AUTH_ROLES.includes(req.admin.role)) return res.redirect(secUrl('Your team or your role requires two-step sign-in, so it cannot be turned off. Ask an Admin to reset it if you changed phones.'));
+      if (mustUse2fa(req.admin)) return res.redirect(secUrl('Your team or your role requires two-step sign-in, so it cannot be turned off. Ask an Admin to reset it if you changed phones.'));
       if (!useSecondFactor(req.admin.id, String(req.body.code || '').slice(0, 40))) return res.redirect(secUrl("That code didn't work, so two-step sign-in is still on."));
       saveSecurity(req.admin.id, { twoFactor: null, twoFactorPending: null });
       notify(req.admin, 'Two-step sign-in was turned off', `Two-step sign-in was turned off for your ${site.name} team account, so only your password is needed to sign in. If this wasn't you, change your password and tell an Admin.`);
@@ -460,7 +499,7 @@ function create({ db, mailer, baseUrl, ownerUser, ownerPass, site = {}, resetOwn
   const members = () => list().filter((u) => u.active);
   const activity = ({ userId = '', limit = 200 } = {}) => db.all('activity').filter((a) => !userId || a.userId === userId).slice(0, limit);
 
-  return { adminAuth, requireAdmin, requireBilling, register, log, list, members, activity, byId, currentUser, has2fa, requires2fa, ROLES, OWNER_ID };
+  return { adminAuth, requireAdmin, requireBilling, register, log, onLog, pruneActivity, confirmIdentity, sessionKey, list, members, activity, byId, currentUser, has2fa, requires2fa, mustUse2fa, ROLES, OWNER_ID };
 }
 
 module.exports = { create, ROLES };

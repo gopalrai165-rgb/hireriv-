@@ -15,7 +15,9 @@ const NAME_RE = /^hireriv-\d{4}-\d{2}-\d{2}-\d{4}\.db$/;
 
 const stamp = (d) => d.toISOString().slice(0, 16).replace('T', '-').replace(':', '');
 
+// `keep` is a number of copies, or a function giving it (the retention policy).
 function create({ db, dir, log, keep = KEEP }) {
+  const keepCount = () => Math.max(1, Number(typeof keep === 'function' ? keep() : keep) || KEEP);
   const status = () => {
     try {
       return JSON.parse(db.metaGet('backup:last') || 'null');
@@ -52,7 +54,7 @@ function create({ db, dir, log, keep = KEEP }) {
       fs.mkdirSync(dir, { recursive: true });
       db.backupTo(file);
       if (!check(file)) throw new Error('integrity check failed');
-      for (const old of list().slice(keep)) fs.unlinkSync(path.join(dir, old.name));
+      for (const old of list().slice(keepCount())) fs.unlinkSync(path.join(dir, old.name));
       result = { ok: true, at: now.toISOString(), name, size: fs.statSync(file).size };
     } catch (err) {
       fs.rm(file, { force: true }, () => {});
@@ -90,7 +92,7 @@ function create({ db, dir, log, keep = KEEP }) {
   // Resolves a download request to a file in the backup folder, or null.
   const fileFor = (name) => (NAME_RE.test(name) && fs.existsSync(path.join(dir, name)) ? path.join(dir, name) : null);
 
-  return { run, runIfDue, start, status, list, warning, fileFor, dir, keep };
+  return { run, runIfDue, start, status, list, warning, fileFor, dir, get keep() { return keepCount(); } };
 }
 
 module.exports = { create, KEEP, NAME_RE };

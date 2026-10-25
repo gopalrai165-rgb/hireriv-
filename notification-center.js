@@ -43,7 +43,7 @@ const ESSENTIAL_TEXT = {
 };
 
 function register(app, deps) {
-  const { notify, push, team, clients, candidates, getJobs, sameOrigin, limit, readSubmissions, writeSubmissions, saveSubmission, jobCategories, jobLocations, adminAuth, requireAdmin, adminUrl, analytics } = deps;
+  const { notify, push, team, clients, candidates, getJobs, sameOrigin, limit, readSubmissions, writeSubmissions, saveSubmission, jobCategories, jobLocations, adminAuth, requireAdmin, adminUrl, analytics, privacy } = deps;
   const jobById = (id) => getJobs().find((j) => j.id === id) || null;
 
   // ---------- who is asking ----------
@@ -142,13 +142,10 @@ function register(app, deps) {
   };
   // Marketing emails are only asked of job seekers; for them the newsletter
   // list follows the same choice, so withdrawing is respected everywhere.
+  // privacy.js keeps the preference, the list and the consent record together.
   function setMarketing(v, on, how) {
     if (v.as !== 'candidate') return;
-    notify.setPrefs(v.rk, { marketing: on, how });
-    const list = readSubmissions('newsletter');
-    const mine = (s) => String(s.email || '').toLowerCase() === v.email.toLowerCase();
-    if (!on && list.some(mine)) writeSubmissions('newsletter', list.filter((s) => !mine(s)));
-    if (on && !list.some(mine)) saveSubmission('newsletter', { email: v.email, source: how });
+    privacy.setMarketing(v.email, on, how);
   }
   const devicesOf = (req) => push.list(req.viewer).map((s) => push.view(s, req));
   app.get('/notifications/settings', anyAccount, (req, res) => {

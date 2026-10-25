@@ -1,0 +1,32 @@
+<%- include('partials/head') %>
+
+<section class="section">
+  <div class="container narrow">
+    <span class="eyebrow">Privacy</span>
+    <h1><%= title %></h1>
+    <% if (typeof confirm !== 'undefined' && confirm) { %>
+      <p class="lead">Confirm that you sent request <b><%= confirm.number %></b>: “<%= TYPES[confirm.type] %>”.</p>
+      <form class="form" method="post" action="/privacy/requests/verify/<%= token %>">
+        <button class="btn btn-primary" type="submit">Yes, I sent it</button>
+      </form>
+      <p class="muted small">If you didn't, close this page and nothing happens.</p>
+    <% } else if (sent) { %>
+      <p class="lead">Thank you. If the details are right, we have sent a confirmation link to that email. Your request reaches our team once you confirm it, and we answer within 30 days.</p>
+    <% } else { %>
+      <p>You can ask to see the personal data we hold about you, to correct it, to delete it, or to withdraw a consent you gave, and you can complain about how it was handled. Job seekers can do most of this themselves after <a href="/account/login?next=/account/privacy">signing in</a>. We answer within 30 days. Some records, such as invoices, must be kept by law, and we will tell you if that applies.</p>
+      <% if (errors.length) { %><div class="notice notice-err" role="alert"><p>Please fix:</p><ul><% errors.forEach(function (e) { %><li><%= e %></li><% }) %></ul></div><% } %>
+      <form class="form form-grid" method="post" action="/privacy/requests">
+        <%- include('partials/honeypot') %>
+        <label>Your name<input name="name" maxlength="120" autocomplete="name" value="<%= values.name || '' %>"></label>
+        <label>Email your data is held under*<input type="email" name="email" required maxlength="160" autocomplete="email" value="<%= values.email || '' %>"></label>
+        <label>You are<select name="role"><% Object.keys(REQUESTER).forEach(function (k) { %><option value="<%= k %>"<%= values.role === k ? ' selected' : '' %>><%= REQUESTER[k] %></option><% }) %></select></label>
+        <label>What you need*<select name="type" required><option value="">Choose</option><% Object.keys(TYPES).forEach(function (k) { %><option value="<%= k %>"<%= values.type === k ? ' selected' : '' %>><%= TYPES[k] %></option><% }) %></select></label>
+        <label class="span-2">Details<textarea name="details" rows="4" maxlength="2000"><%= values.details || '' %></textarea></label>
+        <p class="span-2 muted small">We'll email a link to confirm it's you before anything happens. Don't send identity documents here.</p>
+        <button class="btn btn-primary" type="submit">Send the request</button>
+      </form>
+    <% } %>
+  </div>
+</section>
+
+<%- include('partials/foot') %>

@@ -213,8 +213,13 @@ test('saved jobs, interviews and settings pages', async () => {
   assert.match(settings, /Recent activity/);
   assert.match(settings, /Password reset by email link/);
 
-  // Hidden from the Talent pool once they switch it off.
+  // Registering doesn't put the profile in front of recruiters for other jobs:
+  // that is its own choice, recorded as consent.
   const admin = await srv.adminLogin();
+  assert.doesNotMatch(await (await srv.request('/admin?tab=talent', { cookie: admin })).text(), /kavya@example\.in/);
+  await post('/account/settings', { visibleToRecruiters: '1' }, kavya);
+  assert.equal(srv.records('consent-records').find((r) => r.subject === 'kavya@example.in' && r.purpose === 'recruiter-visibility').status, 'granted');
+  // Hidden from the Talent pool once they switch it off.
   assert.match(await (await srv.request('/admin?tab=talent', { cookie: admin })).text(), /kavya@example\.in/);
   await post('/account/settings', { whatsapp: '1' }, kavya);
   assert.deepEqual(candidate('kavya@example.in').privacy, { visibleToRecruiters: false, discoverable: false });

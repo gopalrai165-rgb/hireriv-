@@ -1524,3 +1524,6 @@ form.inline { display: inline; }
 @media (max-width: 640px) {
   .hbars li { grid-template-columns: 1fr; gap: 4px; }
 }
+
+/* Security & privacy pages (Step 62) */
+.narrow-card { max-width: 30rem; }

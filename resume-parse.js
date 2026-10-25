@@ -9,6 +9,7 @@ const path = require('path');
 const mammoth = require('mammoth');
 const { PDFParse } = require('pdf-parse');
 const { norm } = require('./match');
+const vault = require('./vault');
 
 const MAX_TEXT = 20000; // characters kept per resume
 const TIMEOUT_MS = 8000;
@@ -30,7 +31,7 @@ const withTimeout = (p) => Promise.race([p, new Promise((_, rej) => setTimeout((
 async function extractText(input, originalName) {
   const ext = path.extname(originalName || (typeof input === 'string' ? input : '')).toLowerCase();
   try {
-    const data = typeof input === 'string' ? await fs.promises.readFile(input) : input;
+    const data = typeof input === 'string' ? await vault.read(input) : input;
     let text = '';
     if (ext === '.pdf') {
       const parser = new PDFParse({ data: new Uint8Array(data) });

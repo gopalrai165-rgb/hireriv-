@@ -4,6 +4,7 @@
 // profile, team, personal settings with mobile verification, and the portal.
 const crypto = require('crypto');
 const path = require('path');
+const vault = require('./vault');
 const teamStore = require('./employer-team');
 const agencyRoles = require('./agency-roles');
 
@@ -909,7 +910,7 @@ function register(app, deps) {
     team.audit(req.employer.id, req.employerUser, 'resume-downloaded', `${a.name} (shortlist)`);
     const file = path.basename(a.resume);
     const safeName = `${String(a.name).replace(/[^a-z0-9]+/gi, '-')}-resume${path.extname(file)}`;
-    res.download(path.join(uploadsDir, file), safeName, (err) => err && !res.headersSent && res.status(404).end());
+    vault.send(res, path.join(uploadsDir, file), safeName, 'Resume');
   });
 
   app.post('/employer/candidates/:appId/feedback', requireEmployer, allow('shortlist.feedback'), limit('employer-feedback', 60), sameOrigin, (req, res, next) => {

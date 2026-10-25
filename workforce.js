@@ -18,6 +18,7 @@ const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const multer = require('multer');
+const vault = require('./vault');
 const roles = require('./agency-roles');
 const { DOCUMENT_TYPES } = require('./uploads');
 const { qtyFrom, timesQty } = require('./agency');
@@ -443,7 +444,7 @@ function register(app, deps) {
     if (expiresOn && expiresOn <= localDate(iso(), DEFAULT_ZONE)) { drop(); return { status: 400, errors: ['this document has already expired'] }; }
     const bad = await vetDocument(file);
     if (bad) return { status: 400, errors: [bad] };
-    const sha256 = crypto.createHash('sha256').update(fs.readFileSync(file.path)).digest('hex');
+    const sha256 = crypto.createHash('sha256').update(vault.readSync(file.path)).digest('hex');
     // A newer upload replaces the older one; the old file goes.
     for (const old of documents().filter((d) => d.workerId === w.id && d.taskKey === t.key && d.status !== 'Replaced')) {
       update('worker-documents', old.id, (d) => { d.status = 'Replaced'; d.history.push({ at: iso(), by: w.name, text: 'Replaced by a newer upload' }); });
@@ -470,8 +471,7 @@ function register(app, deps) {
     const file = path.join(docsDir, path.basename(d.file));
     if (!fs.existsSync(file)) return res.status(404).send('Not found');
     audit(act, 'document-viewed', 'worker-document', d.id, `${w.name}: ${d.label}`, d.employerId);
-    res.set({ 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff', 'Content-Security-Policy': "default-src 'none'" });
-    res.download(file, `${d.label.replace(/[^\w.-]+/g, '-').slice(0, 40)}${path.extname(d.file)}`);
+    vault.send(res, file, `${d.label.replace(/[^\w.-]+/g, '-').slice(0, 40)}${path.extname(d.file)}`, 'Worker document');
   }
 
   // ---------- shifts ----------

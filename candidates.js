@@ -8,6 +8,7 @@
 // pool like any CV. Pages live under /account; /candidate/* addresses lead there.
 const crypto = require('crypto');
 const fs = require('fs');
+const vault = require('./vault');
 const path = require('path');
 const { jobPath } = require('./content');
 const { hashPassword, checkPassword } = require('./employers');
@@ -76,7 +77,7 @@ function passwordProblem(pw, confirm) {
 function register(app, deps) {
   const { db, mailer, baseUrl, sameOrigin, limit, readSubmissions, writeSubmissions, uploadsDir, getJobs, interviewIcs, site, contractsFor } = deps;
   const { upload, saveApplication, isBot, isSample, isLive, resumeNeeded, skillMatch, saveSubmission, jobCategories, jobLocations, vetUpload, downloadLinks, linkExpired } = deps;
-  const { jobTypes, modes, stateOf, interviewResponded, events, notify, push, recommendFor } = deps;
+  const { jobTypes, modes, stateOf, interviewResponded, events, notify, push, recommendFor, privacy } = deps;
   const track = (event, label, req) => { if (deps.analytics) deps.analytics.track(event, label, req); };
   const secureCookie = /^https:/.test(baseUrl);
 
@@ -278,14 +279,20 @@ function register(app, deps) {
     if (!(body.agree === true || body.agree === '1' || body.agree === 'on' || body.agree === 'true')) errors.push('Please agree to the Privacy Policy and Terms of Use.');
     return { values, errors };
   }
-  async function createAccount(values, file, { next = '', whatsapp = false, req = null } = {}) {
+  async function createAccount(values, file, { next = '', whatsapp = false, considered = false, req = null, source = 'registration form' } = {}) {
     const { app: a, updated } = await saveApplication({ jobId: 'general', ...values, source: 'account' }, file, null, { registeredAt: nowIso() });
     const c = ensureCandidate(values.email);
-    // Consent is recorded for new accounts; an existing account keeps its settings.
+    // Consent is recorded for new accounts, one purpose at a time: agreeing to
+    // the terms doesn't make the profile visible for other jobs or sign anyone
+    // up for messages. An existing account keeps its settings.
     if (!c.consentAt) {
       c.consentAt = nowIso();
       c.comms.whatsapp = Boolean(whatsapp);
+      c.privacy.visibleToRecruiters = Boolean(considered);
       saveCandidate(c);
+      privacy.consent(c.email, 'account', true, source);
+      privacy.consent(c.email, 'recruiter-visibility', Boolean(considered), source);
+      privacy.consent(c.email, 'whatsapp', Boolean(whatsapp), source);
       activity(values.email, 'registered');
       track('candidate-registration', file ? 'With resume' : 'Without resume', req);
     }
@@ -311,7 +318,7 @@ function register(app, deps) {
       if (errors.length) { drop(); return registerPage(res, { values, errors, next }, 400); }
       vetUpload(req.file).then((bad) => {
         if (bad) return registerPage(res, { values, errors: [bad], next }, 400);
-        return createAccount(values, req.file, { next, whatsapp: req.body.whatsapp === '1', req }).then(() => registerPage(res, { done: true, title: 'Check your email' }));
+        return createAccount(values, req.file, { next, whatsapp: req.body.whatsapp === '1', considered: req.body.considered === '1', req }).then(() => registerPage(res, { done: true, title: 'Check your email' }));
       }).catch((e) => {
         console.error(e);
         drop();
@@ -616,7 +623,7 @@ function register(app, deps) {
     const r = c && c.resumes.find((x) => x.id === req.params.id);
     if (!r) return next();
     if (!downloadLinks.valid(req)) return linkExpired(res, '/account/profile');
-    res.download(path.join(uploadsDir, path.basename(r.file)), `my-resume${path.extname(r.file)}`, (err) => err && !res.headersSent && res.status(404).end());
+    vault.send(res, path.join(uploadsDir, path.basename(r.file)), `my-resume${path.extname(r.file)}`, 'Own resume');
   });
 
   // ---------- one-click apply ----------
@@ -734,11 +741,23 @@ function register(app, deps) {
   }
 
   // ---------- settings ----------
+  // News and career tips follow the marketing choice in notification settings.
+  const marketingOn = (email) => notify.prefsOf(notify.candidateRk(email)).marketing.email === true;
+  // Saves visibility and contact choices, recording each change as consent given or withdrawn.
+  function saveChoices(c, nextPrivacy, nextComms, source, marketing) {
+    const purposes = [['recruiter-visibility', nextPrivacy.visibleToRecruiters], ['employer-discovery', nextPrivacy.discoverable], ['whatsapp', nextComms.whatsapp], ['sms', nextComms.sms]];
+    const was = { 'recruiter-visibility': c.privacy.visibleToRecruiters, 'employer-discovery': c.privacy.discoverable, whatsapp: c.comms.whatsapp, sms: c.comms.sms };
+    c.privacy = { visibleToRecruiters: Boolean(nextPrivacy.visibleToRecruiters), discoverable: Boolean(nextPrivacy.discoverable) };
+    c.comms = { whatsapp: Boolean(nextComms.whatsapp), sms: Boolean(nextComms.sms), offers: Boolean(nextComms.offers) };
+    saveCandidate(c);
+    for (const [purpose, on] of purposes) if (Boolean(on) !== Boolean(was[purpose])) privacy.consent(c.email, purpose, Boolean(on), source);
+    if (typeof marketing === 'boolean') privacy.setMarketing(c.email, marketing, source);
+  }
   app.get('/account/settings', requireCandidate, (req, res) => {
     const email = req.candidateEmail;
     const log = readSubmissions('candidate-activity').filter((e) => e.email === email).slice(0, 20)
       .map((e) => ({ at: e.createdAt, label: ACTIVITY_LABELS[e.event] || e.event, detail: e.event === 'signed-in' ? e.detail : '' }));
-    page(res, 'account-settings', { title: 'Account settings', ...shell(email, 'settings'), log, msg: String(req.query.msg || ''), errors: [] });
+    page(res, 'account-settings', { title: 'Account settings', ...shell(email, 'settings'), log, marketingOn: marketingOn(email), msg: String(req.query.msg || ''), errors: [] });
   });
   app.post('/account/password', requireCandidate, limit('account-password', 10), sameOrigin, (req, res) => {
     const c = ensureCandidate(req.candidateEmail);
@@ -760,9 +779,7 @@ function register(app, deps) {
   app.post('/account/settings', requireCandidate, limit('account-settings', 20), sameOrigin, (req, res) => {
     const c = ensureCandidate(req.candidateEmail);
     const on = (k) => req.body[k] === '1';
-    c.privacy = { visibleToRecruiters: on('visibleToRecruiters'), discoverable: on('discoverable') };
-    c.comms = { whatsapp: on('whatsapp'), sms: on('sms'), offers: on('offers') };
-    saveCandidate(c);
+    saveChoices(c, { visibleToRecruiters: on('visibleToRecruiters'), discoverable: on('discoverable') }, { whatsapp: on('whatsapp'), sms: on('sms'), offers: on('offers') }, 'account settings', on('offers'));
     activity(c.email, 'settings-changed');
     back(res, 'Settings saved.', '/account/settings');
   });
@@ -829,6 +846,8 @@ function register(app, deps) {
       newsletter: subs('newsletter').map((s) => ({ since: s.createdAt })),
       notifications: notify.list({ rk: notify.candidateRk(email) }, { limit: 1000 }).items.map((n) => ({ at: n.createdAt, title: n.title, text: n.body, readAt: n.readAt })),
       notificationSettings: notify.prefsOf(notify.candidateRk(email)),
+      consents: { policyVersion: privacy.POLICY_VERSION, current: privacy.current(email), history: privacy.historyOf(email).map(({ subject, ...r }) => r) },
+      dataRequests: readSubmissions('data-requests').filter((r) => r.email === email && r.status !== 'awaiting-verification').map((r) => ({ number: r.number, type: r.type, status: r.status, createdAt: r.createdAt, closedAt: r.closedAt, resolution: r.resolution })),
       accountActivity: readSubmissions('candidate-activity').filter((e) => e.email === email).map((e) => ({ at: e.createdAt, event: ACTIVITY_LABELS[e.event] || e.event })),
     };
     res.set('Cache-Control', 'no-store').attachment(`my-data-${new Date().toISOString().slice(0, 10)}.json`).type('application/json').send(JSON.stringify(data, null, 2));
@@ -840,7 +859,7 @@ function register(app, deps) {
     if (!a || !a.resume) return next();
     if (!downloadLinks.valid(req)) return linkExpired(res, '/account');
     const file = path.basename(a.resume);
-    res.download(path.join(uploadsDir, file), `my-resume${path.extname(file)}`, (err) => err && !res.headersSent && res.status(404).end());
+    vault.send(res, path.join(uploadsDir, file), `my-resume${path.extname(file)}`, 'Own resume');
   });
 
   // Interview invite for the candidate's own calendar.
@@ -878,6 +897,7 @@ function register(app, deps) {
     failures.delete(email);
     notify.forget(notify.candidateRk(email));
     if (push) push.forget(notify.candidateRk(email));
+    privacy.erased(email);
   }
   app.post('/account/delete', requireCandidate, limit('account-delete', 5), sameOrigin, (req, res) => {
     if (String(req.body.confirm || '').trim().toUpperCase() !== 'DELETE') return back(res, 'Type DELETE to confirm deleting your data.', '/account/settings');
@@ -923,7 +943,7 @@ function register(app, deps) {
     if (isBot(body)) return reply();
     const { values, errors } = registerValues(body);
     if (errors.length) return jsonErrors(res, 400, errors);
-    createAccount(values, null, { whatsapp: body.whatsapp === true, req }).then(reply).catch((e) => {
+    createAccount(values, null, { whatsapp: body.whatsapp === true, considered: body.considered === true, req, source: 'registration API' }).then(reply).catch((e) => {
       console.error(e);
       jsonErrors(res, 500, 'Could not create your account. Please try again.');
     });
@@ -981,9 +1001,7 @@ function register(app, deps) {
     if (Object.keys(patch).length) updateProfile(req.candidateEmail, patch);
     if (p || m) {
       const c = ensureCandidate(req.candidateEmail);
-      if (p) c.privacy = { ...c.privacy, ...p };
-      if (m) c.comms = { ...c.comms, ...m };
-      saveCandidate(c);
+      saveChoices(c, p ? { ...c.privacy, ...p } : c.privacy, m ? { ...c.comms, ...m } : c.comms, 'profile API', m && typeof m.offers === 'boolean' ? m.offers : undefined);
       activity(req.candidateEmail, 'settings-changed');
     }
     res.json(profileJson(req.candidateEmail));
@@ -1047,7 +1065,7 @@ function register(app, deps) {
   const helpers = {
     requireCandidate, requireCandidateApi, candidateOf, ensureCandidate, profileFor, updateProfile, profileContext, shell, page, back, mine, savedOf, activity,
   };
-  return { requireCandidate, currentEmail, accountForJob, hiddenFromSearch, pruneAccounts, helpers };
+  return { requireCandidate, currentEmail, accountForJob, hiddenFromSearch, pruneAccounts, deleteEverything, helpers };
 }
 
 module.exports = { register, CANDIDATE_STAGE, safeNext };

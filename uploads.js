@@ -1,11 +1,12 @@
 // Resume safety: the file must really be a PDF, Word or old Word document (by
 // its first bytes, not just its name), it is scanned for malware when a ClamAV
-// daemon is configured, and resumes are downloaded only through signed links
-// that expire after a few minutes.
+// daemon is configured, files that pass are encrypted on disk (vault.js), and
+// resumes are downloaded only through signed links that expire after a few minutes.
 const crypto = require('crypto');
 const fs = require('fs');
 const net = require('net');
 const path = require('path');
+const vault = require('./vault');
 
 // The first bytes of each allowed type.
 const SIGNATURES = {
@@ -78,10 +79,21 @@ function create({ clamHost = process.env.CLAMAV_HOST, clamPort = Number(process.
         ? "That file doesn't look like a real PDF or Word document. Please upload your resume as a PDF, DOC or DOCX."
         : "That file doesn't look like a real PDF, JPG or PNG. Please upload a photo or scan of the document.";
     }
-    if (!clamHost) return '';
+    // A file that passed is encrypted on disk straight away (vault.js).
+    const keep = () => {
+      try {
+        vault.seal(file.path);
+        return '';
+      } catch (err) {
+        log.error(`Upload not encrypted: ${err.message}`);
+        drop();
+        return "We couldn't store your file safely just now. Please try again in a few minutes.";
+      }
+    };
+    if (!clamHost) return keep();
     try {
       const result = await clamScan(file.path, { host: clamHost, port: clamPort });
-      if (result.clean) return '';
+      if (result.clean) return keep();
       log.warn(`Blocked an infected upload (${result.threat})`);
       drop();
       return `Your file was blocked by our virus scanner. Please upload a clean copy of your ${what}.`;
@@ -98,8 +110,10 @@ function create({ clamHost = process.env.CLAMAV_HOST, clamPort = Number(process.
 
 // ---------- signed, expiring download links ----------
 const LINK_MINUTES = 15;
+// `secret` may be a function, so rotating it (an incident) cancels every link issued so far.
 function links(secret) {
-  const sign = (url, exp) => crypto.createHmac('sha256', secret).update(`${url}|${exp}`).digest('base64url');
+  const key = () => (typeof secret === 'function' ? secret() : secret);
+  const sign = (url, exp) => crypto.createHmac('sha256', key()).update(`${url}|${exp}`).digest('base64url');
   return {
     // Adds ?exp=…&sig=… to a download path (the page must be fresh to download).
     signed(url, minutes = LINK_MINUTES) {

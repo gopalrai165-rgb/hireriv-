@@ -51,7 +51,9 @@
             </div>
           </details>
           <div class="form-grid">
-            <label class="span-2 check-row"><input type="checkbox" name="agree" value="1" required> <span>I agree to the <a href="/terms">Terms of Use</a> and the <a href="/privacy">Privacy Policy</a>, and to be contacted by a <%= site.name %> recruiter about jobs that fit my profile.</span></label>
+            <p class="span-2 muted small">We use these details to keep your account, send each application to the employer you apply to, and tell you what happens next. Each choice below is separate and optional, and you can change it any time under Privacy &amp; data.</p>
+            <label class="span-2 check-row"><input type="checkbox" name="agree" value="1" required> <span>I agree to the <a href="/terms">Terms of Use</a> and have read the <a href="/privacy">Privacy Policy</a>.</span></label>
+            <label class="span-2 check-row"><input type="checkbox" name="considered" value="1"<%= values.considered === '1' ? ' checked' : '' %>> <span>Let <%= site.name %> recruiters consider me for other jobs that fit and contact me about them <span class="muted small">(optional)</span></span></label>
             <label class="span-2 check-row"><input type="checkbox" name="whatsapp" value="1"> <span>Also send me job matches on WhatsApp <span class="muted small">(optional, switch off any time in Settings)</span></span></label>
           </div>
           <button class="btn btn-primary btn-block" type="submit">Create account</button>

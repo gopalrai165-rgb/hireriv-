@@ -8,6 +8,7 @@
       <%- include('partials/notification-bell', { as: 'team', bellQuery: '?as=team', bellClass: 'small' }) %>
       <% if (isAdmin) { %><a class="small" href="/admin/notifications">Email delivery</a><% } %>
       <% if (agencyCan('analytics.view')) { %><a class="small" href="/admin/analytics">Analytics</a><% } %>
+      <% if (agencyCan('security.view')) { %><a class="small" href="/admin/security-events">Security &amp; privacy</a><% } else if (agencyCan('privacy.requests')) { %><a class="small" href="/admin/data-requests">Data requests</a><% } %>
       <% if (agencyCan('trust.overview')) { %><a class="small" href="/admin/overview">Trust &amp; safety</a><% } %>
       <a class="small" href="/admin/security">Sign-in security</a>
       <form method="post" action="/admin/logout"><button class="link-btn small" type="submit">Sign out</button></form>

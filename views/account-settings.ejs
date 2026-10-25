@@ -32,7 +32,7 @@
             <p class="small muted">We always email you about your applications and account.</p>
             <label class="check-row"><input type="checkbox" name="whatsapp" value="1"<%= c.comms.whatsapp ? ' checked' : '' %>> <span>Job matches and updates on WhatsApp</span></label>
             <label class="check-row"><input type="checkbox" name="sms" value="1"<%= c.comms.sms ? ' checked' : '' %>> <span>Interview reminders by SMS</span></label>
-            <label class="check-row"><input type="checkbox" name="offers" value="1"<%= c.comms.offers ? ' checked' : '' %>> <span>Career tips and news from <%= site.name %></span></label>
+            <label class="check-row"><input type="checkbox" name="offers" value="1"<%= (typeof marketingOn !== 'undefined' ? marketingOn : c.comms.offers) ? ' checked' : '' %>> <span>Career tips and news from <%= site.name %></span></label>
           </fieldset>
           <button class="btn btn-primary btn-sm" type="submit">Save settings</button>
         </form>

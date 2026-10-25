@@ -72,6 +72,9 @@ test('the server backs up on start, and Admins can back up now and download', as
   assert.match(decodeURIComponent(run.headers.get('location')), /Backup saved: hireriv-/);
 
   const name = fs.readdirSync(dir)[0];
+  // Downloading a copy asks for the password again first.
+  assert.equal((await srv.request(`/admin/backups/${name}`, { cookie: admin })).status, 303);
+  await srv.confirm(admin);
   const dl = await srv.request(`/admin/backups/${name}`, { cookie: admin });
   assert.equal(dl.status, 200);
   assert.equal(Buffer.from(await dl.arrayBuffer()).subarray(0, 15).toString(), 'SQLite format 3');

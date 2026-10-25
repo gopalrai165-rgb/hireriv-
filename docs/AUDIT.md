@@ -501,3 +501,75 @@ Suggested order: 2 → 1 → 3 → 4, which makes Hireriv usable for skilled and
   - filters by kind of work, recruitment type, status, employer and location
   - CSV exports that follow the filters and are recorded
   - large and empty data
+
+## Step 62: security, privacy, compliance and data governance
+
+- **Audit first.** Already there:
+  - scrypt password hashes
+  - hashed session tokens with expiry, sign-out and "sign out everywhere"
+  - email verification for job seekers, and email and mobile verification for employers
+  - two-step sign-in for the team (required for trust & safety roles, optional for Admins)
+  - role and company checks on every route (ACCESS.md, tested)
+  - rate limits and lock-outs on sign-in, reset and verification
+  - the current password needed to change a password
+  - uploads checked by their first bytes and virus-scanned when ClamAV is set, with random names, kept outside the public folder, and downloaded through 15-minute signed links
+  - employer resume downloads and worker document openings logged
+  - visibility switches for recruiters and employers
+  - a marketing consent with a time
+  - data download and account deletion
+  - retention for job-seeker data, messages, cases and notifications
+  - a hash-chained audit trail for trust & safety decisions
+  - verified daily backups
+
+  Gaps found:
+  - uploads stored unencrypted
+  - Admins not required to use two-step sign-in
+  - no fresh confirmation before bulk exports or backup downloads
+  - the sign-up consent bundled agreeing to the terms with being contacted by recruiters, and new profiles were visible to recruiters by default
+  - no consent records per purpose, nor the policy version
+  - two separate "career tips" switches that didn't agree
+  - no tracked data requests for people without an account, nor for corrections and grievances
+  - the team activity log kept by count (newest 2,000), not by age, so less than 180 days on a busy site
+  - no retention for backups, consent or requests beyond fixed defaults
+  - deleted accounts coming back with a restored backup
+  - no security log for failed sign-ins, refusals and team resume downloads
+  - no alerts
+  - no incident records or response plan
+  - the privacy policy said it was "written to meet" the DPDP Act
+- **Reused, not duplicated.**
+  - Sign-in, roles and two-step codes stay in `team.js` and `agency-roles.js`. The team module adds `mustUse2fa`, `confirmIdentity`, an activity listener and age-based pruning.
+  - Upload checks stay in `uploads.js`, which now seals files through `vault.js`. Every existing download route calls `vault.send` instead of `res.download`.
+  - Account deletion is the existing `deleteEverything`, used by data requests too.
+  - The marketing choice keeps using the notification preferences and the newsletter list, now through `privacy.setMarketing`, so the account settings and notification settings switches agree.
+  - Retention adds to `retention.js`, and the backup count comes from the policy.
+  - Privileged decisions go to the existing hash-chained trail (`trust.record`), and alerts go out through `notify.js` and the team security emails.
+  - The new pages reuse the trust & safety layout and navigation.
+- **Changed behaviour:**
+  - Admins need two-step sign-in when `NODE_ENV=production`.
+  - Personal-data CSV exports and backup downloads ask for the password again.
+  - New job-seeker accounts are not shown to recruiters for other jobs unless they tick the box. Their applications still reach the jobs they apply to.
+  - The activity log is kept for the security-log period instead of the newest 2,000 entries.
+- **Not done here.**
+  - No external penetration test or load test.
+  - No real ClamAV, key store or provider in testing.
+  - The alert counters are in memory.
+  - Employer accounts have no two-step sign-in yet: password plus verified mobile only.
+  - Bulk exports have no second-person approval; they need a fresh confirmation, a limit and logging.
+  - Legal review of the notice and consent texts, the Rules' commencement dates and CERT-In applicability is still to be done (docs/SECURITY.md section 7).
+  - The incident contacts still need filling in.
+- **Adapted from the brief.**
+  - Express, EJS and SQLite collections (`consent-records`, `data-requests`, `security-events`, `security-incidents`, `security-evidence`) instead of React and PostgreSQL tables.
+  - "Private object storage" is the private uploads folder plus application-level encryption and signed delivery. Moving to S3-compatible storage later only changes `vault.js` and the upload storage.
+- **Tests.** `test/security-privacy.test.js` has 10 tests, covering:
+  - sealing, tamper detection, key rotation and the sweep
+  - two-step sign-in for Admins in production, and identity confirmation
+  - encrypted resumes on disk and signed, logged downloads in a sandbox
+  - consent per purpose with versions, no implied consent at sign-up, and marketing with the newsletter
+  - data requests: identical replies, email confirmation, the 30-day due date, team handling, version conflicts and own requests only
+  - deletion for a request after confirmation, with anonymised consent evidence and the journal
+  - retention validation, confirmation and audit
+  - the security log: one alert per rule, refusals, exports, and no emails, tokens or passwords
+  - an incident through all seven steps, with evidence, notification decisions, confirmed containment, cancelled links and sessions, and an intact audit chain
+  - deletions applied again after a restore
+
+  Existing tests were updated where exports and backups now ask for the password, and where sign-up no longer makes a profile visible to recruiters.

@@ -5,13 +5,18 @@
   <div class="container narrow">
     <span class="eyebrow">Legal</span>
     <h1>Privacy Policy</h1>
-    <p class="muted">Last updated <%= formatDate(updated) %></p>
+    <p class="muted">Last updated <%= formatDate(updated) %> · version <%= policyVersion %></p>
   </div>
 </section>
 
 <section class="section">
   <article class="container narrow prose">
-    <p>This policy explains what personal data <%= site.name %> collects through this website, why we collect it, who we share it with and the choices you have. It is written to meet India's Digital Personal Data Protection Act, 2023 and the Information Technology Act, 2000.</p>
+    <p>This policy explains what personal data <%= site.name %> collects through this website, why we collect it, who we share it with and the choices you have. We built it around India's Digital Personal Data Protection Act, 2023, the Digital Personal Data Protection Rules, 2025 and the Information Technology Act, 2000, and we keep reviewing it as their provisions come into force.</p>
+    <h2>Why we ask, and your separate choices</h2>
+    <p>Each use of your data below is a separate choice. Agreeing to our terms when you create an account never means that you also agree to be found by employers, to be considered for other jobs or to get marketing. Every time you give or withdraw one of these, we record what you chose, the version of this policy you saw, where you did it and when, and you can see that record under <a href="/account/privacy">Privacy &amp; data</a>.</p>
+    <ul>
+      <% Object.keys(purposes).forEach(function (k) { %><li><b><%= purposes[k].label %>:</b> <%= purposes[k].text %></li><% }) %>
+    </ul>
 
     <h2>What we collect</h2>
     <ul>
@@ -68,14 +73,14 @@
       <li><b>See and update your data:</b> sign in to <a href="/account/login">your account</a> with the email you registered or applied with to view your applications, update your profile and resumes, manage your job alerts, choose whether our recruiters may find your profile for other jobs, and download a copy of your data.</li>
       <li><b>Withdraw or delete:</b> from your account you can withdraw an application, or delete your account and all your data (profile, applications, resumes, job alerts, saved jobs, account activity and newsletter) in one step.</li>
       <li><b>Unsubscribe:</b> every job alert and newsletter email has a one-click unsubscribe link, and in <a href="/notifications/settings">notification settings</a> you can turn off emails about application updates and new jobs. Emails about your interviews, offers and account security are part of the service you asked for, so they always go.</li>
-      <li><b>Anything else:</b> email us at <a href="mailto:<%= site.email %>"><%= site.email %></a> to access, correct or erase your data, or to nominate someone to act for you.</li>
+      <li><b>Requests:</b> <a href="/privacy/requests">send us a request</a> (or, signed in, from <a href="/account/privacy">Privacy &amp; data</a>) to get a copy of your data, correct or delete it, withdraw a consent, or complain. We confirm it's you, give it a number, and answer within 30 days. If we can't do what you ask (for example, invoices we must keep by law), we tell you why. You can also email <a href="mailto:<%= site.email %>"><%= site.email %></a>, including to nominate someone to act for you.</li>
     </ul>
 
     <h2>Cookies and browser storage</h2>
     <p>We use only the cookies needed to keep you signed in to your job-seeker account, the client portal or the team admin area. We do not use advertising or tracking cookies. Jobs you save are stored in your own browser, and also in your account when you're signed in to one, so they show on your other devices. You can clear them from the <a href="/saved">Saved jobs</a> page. The site loads fonts from Google Fonts, which receives your IP address when the page loads.</p>
 
     <h2>Security</h2>
-    <p>Passwords are stored as salted hashes, sign-in links are single-use and expire, and the admin area is restricted by role. No system is completely secure, so if we become aware of a breach that affects you, we will tell you and the Data Protection Board of India as the law requires.</p>
+    <p>Passwords are stored as salted hashes, and sign-in links are single-use and expire. The admin area is restricted by role and needs two-step sign-in for privileged staff. Resumes and documents are encrypted where they are stored and can be downloaded only through short-lived links, and each opening is logged. We watch for suspicious sign-ins, refused requests and unusual downloads, and we have a written plan for security incidents. No system is completely secure, so if we become aware of a breach that affects you, we will tell you, the Data Protection Board of India and CERT-In as the law requires.</p>
 
     <h2>Grievances and contact</h2>
     <p>For questions or complaints about your personal data, contact our Grievance Officer at <a href="mailto:<%= site.email %>"><%= site.email %></a> or <%= site.phone %>, or write to <%= site.address %>. We respond within 30 days. If you are not satisfied, you may approach the Data Protection Board of India.</p>

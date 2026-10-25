@@ -75,6 +75,8 @@ const TYPES = {
   'crm-lead': { category: 'jobs', optional: true, label: 'Sales leads: new, assigned to you, answers and conversions' },
   'crm-follow-up': { category: 'jobs', optional: true, label: 'Sales follow-ups due and overdue' },
   // trust & safety (trust.js)
+  'security-alert': { category: 'account', label: 'Security alerts: repeated failed sign-ins, refused requests, unusual downloads or exports, and privileged changes' },
+  'data-request': { category: 'account', label: 'Data requests from job seekers and others (access, correction, deletion, complaints)' },
   'trust-case': { category: 'jobs', optional: true, label: 'Trust & safety: urgent cases, escalations, assignments, closures to approve and appeals' },
 };
 

@@ -1,0 +1,331 @@
+<%- include('partials/head') %>
+<%
+  const when = function (d) { return d ? new Date(d).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'medium', timeStyle: 'short' }) : '–'; };
+  const day = function (d) { return d ? new Date(d).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'medium' }) : '–'; };
+  const tabOf = { security: 'security', incidents: 'incidents', incident: 'incidents', requests: 'requests', request: 'requests', retention: 'retention', confirm: '' };
+  const sevPill = function (s) { return s === 'critical' || s === 'high' ? 'st-rejected' : s === 'medium' ? 'st-screening' : ''; };
+%>
+<section class="section admin">
+  <div class="container">
+    <%- include('partials/trust-nav', { heading: title, tab: tabOf[section] }) %>
+
+    <% if (section === 'confirm') { %>
+      <div class="dash-card narrow-card">
+        <p><%= again ? 'For your security, confirm it’s you, then do that again.' : 'This needs you to confirm it’s you.' %> It stays confirmed for 10 minutes on this sign-in.</p>
+        <form class="form" method="post" action="/admin/confirm">
+          <input type="hidden" name="next" value="<%= next %>">
+          <label>Your password<input type="password" name="password" required autocomplete="current-password" maxlength="200"></label>
+          <% if (uses2fa) { %><label>Authenticator or recovery code<input name="code" required inputmode="numeric" autocomplete="one-time-code" maxlength="40"></label><% } %>
+          <button class="btn btn-primary" type="submit">Confirm</button>
+          <a class="btn btn-outline" href="/admin">Cancel</a>
+        </form>
+      </div>
+    <% } %>
+
+    <% if (section === 'security') { %>
+      <p class="muted small">Every failed or locked sign-in, refused request, sensitive document opened, bulk export, identity confirmation and privileged team change, with who, when, from which address and the outcome. Passwords, tokens, email addresses and file contents are never recorded. Alerts are signals for a person to look at; they never block anyone.</p>
+      <div class="dash-grid">
+        <section class="dash-card"><h2>Last 24 hours</h2>
+          <ul class="plain-list">
+            <li><b><%= s.alerts24h %></b> alerts</li>
+            <li><b><%= s.failedSignIns24h %></b> failed or locked sign-ins</li>
+            <li><b><%= s.refused24h %></b> refused requests</li>
+            <li><b><%= s.documents24h %></b> documents opened · <b><%= s.exports24h %></b> bulk exports</li>
+            <li><b><%= s.openIncidents %></b> open incidents <% if (can('incidents.view')) { %>· <a href="/admin/incidents">incidents</a><% } %></li>
+          </ul>
+        </section>
+        <section class="dash-card"><h2>Alert rules</h2>
+          <ul class="plain-list small">
+            <% Object.keys(RULES).forEach(function (k) { const r = RULES[k]; %><li><b><%= r.label %></b>: <%= r.windowMs ? r.threshold + ' or more in ' + Math.round(r.windowMs / 60000) + ' minutes' : 'every time' %></li><% }) %>
+          </ul>
+        </section>
+      </div>
+      <form class="form filter-bar" method="get" action="/admin/security-events">
+        <label>Type
+          <select name="type"><option value="">Everything</option><% Object.keys(EVENT_TYPES).forEach(function (k) { %><option value="<%= k %>"<%= q.type === k ? ' selected' : '' %>><%= EVENT_TYPES[k] %></option><% }) %></select>
+        </label>
+        <label>Search<input type="search" name="q" value="<%= q.q || '' %>" placeholder="Name, address or page"></label>
+        <button class="btn btn-outline btn-sm" type="submit">Show</button>
+      </form>
+      <% if (!rows.length) { %><div class="empty"><p>Nothing recorded<%= q.type || q.q ? ' that matches' : ' yet' %>.</p></div><% } else { %>
+        <div class="table-wrap"><table>
+          <caption class="sr-only">Security log, newest first</caption>
+          <thead><tr><th>When</th><th>What</th><th>Who</th><th>Address</th><th>Where</th><th>Outcome</th><th></th></tr></thead>
+          <tbody>
+            <% rows.forEach(function (e) { %>
+              <tr>
+                <td class="small"><%= when(e.at) %></td>
+                <td><% if (e.type === 'alert') { %><span class="pill <%= sevPill(e.severity) %>"><%= e.severity %></span> <b><%= e.rule %></b><br><span class="small"><%= e.detail %></span><% } else { %><%= EVENT_TYPES[e.type] || e.type %><%= e.target ? ': ' + e.target : '' %><% if (e.detail && e.type === 'privileged-change') { %><br><span class="small muted"><%= e.detail %></span><% } %><% } %></td>
+                <td class="small"><%= e.actorLabel %><%= e.role ? ' · ' + e.role : '' %></td>
+                <td class="small"><%= e.ip || '–' %></td>
+                <td class="small"><%= e.method %> <%= e.path %></td>
+                <td class="small"><%= e.outcome %></td>
+                <td><% if (e.type === 'alert' && can('incidents.manage')) { %><a class="small" href="/admin/incidents?alert=<%= e.id %>#new">Open an incident</a><% } %></td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table></div>
+      <% } %>
+      <%- include('partials/pager', { pager: pager, pagerLabel: 'Security log pages' }) %>
+    <% } %>
+
+    <% if (section === 'incidents') { %>
+      <p class="muted small">Suspected or confirmed security incidents, worked through the response plan: detect, contain, preserve evidence, investigate, notify where required, restore, and learn. The plan and contacts are in <code>docs/SECURITY.md</code>. Reportable incidents go to CERT-In within 6 hours of noticing them.</p>
+      <form class="form filter-bar" method="get" action="/admin/incidents">
+        <label>Show<select name="status"><option value="">All</option><option value="open"<%= q.status === 'open' ? ' selected' : '' %>>Open</option><option value="closed"<%= q.status === 'closed' ? ' selected' : '' %>>Closed</option></select></label>
+        <button class="btn btn-outline btn-sm" type="submit">Show</button>
+      </form>
+      <% if (!rows.length) { %><div class="empty"><p>No incidents recorded.</p></div><% } else { %>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Incident</th><th>Severity</th><th>Category</th><th>Status</th><th>Steps</th><th>Owner</th><th>Noticed</th></tr></thead>
+          <tbody>
+            <% rows.forEach(function (i) { %>
+              <tr>
+                <td><a href="/admin/incidents/<%= i.id %>"><%= i.number %></a>: <%= i.title %><% if (i.due.some(function (d) { return d.overdue; })) { %><br><span class="pill st-rejected">Notification overdue</span><% } %></td>
+                <td><span class="pill <%= sevPill(i.severity) %>"><%= SEVERITIES[i.severity] %></span></td>
+                <td class="small"><%= CATEGORIES[i.category] %></td>
+                <td><%= i.status %></td>
+                <td class="small"><%= i.progress %></td>
+                <td class="small"><%= i.ownerName %></td>
+                <td class="small"><%= when(i.detectedAt) %></td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table></div>
+      <% } %>
+      <%- include('partials/pager', { pager: pager, pagerLabel: 'Incident pages' }) %>
+      <% if (can('incidents.manage')) { %>
+        <section class="dash-card" id="new">
+          <h2>Record an incident</h2>
+          <% if (alert) { %><p class="notice">From the alert: <b><%= alert.rule %></b>, <%= alert.detail %> (<%= when(alert.at) %>)</p><% } %>
+          <form class="form form-grid" method="post" action="/admin/incidents">
+            <% if (alert) { %><input type="hidden" name="alertId" value="<%= alert.id %>"><% } %>
+            <label class="span-2">Short title<input name="title" required minlength="5" maxlength="160" value="<%= alert ? alert.rule : '' %>"></label>
+            <label>Severity<select name="severity" required><option value="">Choose</option><% Object.keys(SEVERITIES).forEach(function (k) { %><option value="<%= k %>"<%= alert && alert.severity === k ? ' selected' : '' %>><%= SEVERITIES[k] %></option><% }) %></select></label>
+            <label>Category<select name="category" required><option value="">Choose</option><% Object.keys(CATEGORIES).forEach(function (k) { %><option value="<%= k %>"><%= CATEGORIES[k] %></option><% }) %></select></label>
+            <label>Noticed at<input type="datetime-local" name="detectedAt"><span class="muted small">Leave empty for now</span></label>
+            <label class="check-row"><input type="checkbox" name="personalData" value="1"> <span>Personal data may be affected</span></label>
+            <label class="span-2">What happened<textarea name="summary" rows="3" maxlength="2000"><%= alert ? alert.detail : '' %></textarea></label>
+            <label class="span-2">What and who may be affected<textarea name="affected" rows="2" maxlength="1000"></textarea></label>
+            <button class="btn btn-primary" type="submit">Record the incident</button>
+          </form>
+        </section>
+      <% } %>
+    <% } %>
+
+    <% if (section === 'incident') { %>
+      <p><a href="/admin/incidents">← Incidents</a></p>
+      <div class="dash-grid">
+        <section class="dash-card dash-wide">
+          <div class="dash-head"><h2><%= i.number %>: <%= i.title %></h2><span class="pill <%= sevPill(i.severity) %>"><%= SEVERITIES[i.severity] %></span></div>
+          <p class="muted small"><%= CATEGORIES[i.category] %> · status <b><%= i.status %></b> · noticed <%= when(i.detectedAt) %> · reported by <%= i.reportedBy %> · owner <%= i.ownerName %><%= i.personalData ? ' · personal data may be affected' : '' %></p>
+          <% if (i.summary) { %><p class="prewrap"><%= i.summary %></p><% } %>
+          <% if (i.affected) { %><p class="prewrap"><b>Affected:</b> <%= i.affected %></p><% } %>
+          <% if (i.status === 'closed') { %><p class="notice"><b>Closed</b> <%= when(i.closedAt) %> by <%= i.closedBy %>. Root cause: <%= i.rootCause %>. Prevention: <%= i.lessons %></p><% } %>
+          <h3>Response steps</h3>
+          <ol class="plain-list">
+            <% STEPS.forEach(function (st) { const d = i.steps[st[0]]; %>
+              <li><%= d ? '✓' : '○' %> <b><%= st[1] %></b><% if (d) { %> <span class="muted small">— <%= d.by %>, <%= when(d.at) %>: <%= d.note %></span><% } %></li>
+            <% }) %>
+          </ol>
+          <h3>Who must be told</h3>
+          <div class="table-wrap"><table>
+            <thead><tr><th>Who</th><th>Decision</th><th>Deadline</th><th>Told</th></tr></thead>
+            <tbody>
+              <% i.due.forEach(function (d) { %>
+                <tr>
+                  <td><%= d.label %></td>
+                  <td><%= DECISIONS[d.decision] %></td>
+                  <td class="small"><%= d.by ? when(d.by) : 'Without undue delay' %><% if (d.overdue) { %> <span class="pill st-rejected">overdue</span><% } %></td>
+                  <td class="small"><% if (!d.sent.length) { %>–<% } else { d.sent.forEach(function (n) { %><%= when(n.at) %>: <%= n.ref %><br><% }) } %></td>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table></div>
+          <h3>Preserved evidence</h3>
+          <% if (!i.evidence.length) { %><p class="muted small">None yet. Preserve the security log before it is cleaned up by retention.</p><% } else { %>
+            <ul class="plain-list small"><% i.evidence.forEach(function (e) { %><li><%= when(e.at) %> by <%= e.by %>: <%= e.count %> log entries since <%= when(e.from) %> · sha256 <code><%= e.sha256.slice(0, 16) %>…</code></li><% }) %></ul>
+          <% } %>
+          <h3>History</h3>
+          <ul class="plain-list small">
+            <% i.actions.slice().reverse().forEach(function (a) { %><li><%= when(a.at) %> · <%= a.by %> · <b><%= a.kind %></b>: <span class="prewrap"><%= a.text %></span></li><% }) %>
+          </ul>
+        </section>
+
+        <% if (can('incidents.manage')) { %>
+          <section class="dash-card">
+            <h2>Work on it</h2>
+            <% if (i.status !== 'closed') { %>
+              <form class="form" method="post" action="/admin/incidents/<%= i.id %>/update">
+                <input type="hidden" name="version" value="<%= i.version %>"><input type="hidden" name="action" value="step">
+                <label>Step done<select name="step" required><% STEPS.filter(function (st) { return !i.steps[st[0]]; }).forEach(function (st) { %><option value="<%= st[0] %>"><%= st[1] %></option><% }) %></select></label>
+                <label>What was done<textarea name="note" rows="2" required maxlength="2000"></textarea></label>
+                <button class="btn btn-outline btn-sm" type="submit">Mark the step done</button>
+              </form>
+              <form class="form" method="post" action="/admin/incidents/<%= i.id %>/preserve">
+                <label>Preserve the security log from<select name="hours"><option value="24">24 hours before it was noticed</option><option value="72">3 days before</option><option value="168">7 days before</option><option value="720">30 days before</option></select></label>
+                <button class="btn btn-outline btn-sm" type="submit">Preserve evidence</button>
+              </form>
+              <form class="form" method="post" action="/admin/incidents/<%= i.id %>/update">
+                <input type="hidden" name="version" value="<%= i.version %>"><input type="hidden" name="action" value="decide">
+                <label>Must they be told?<select name="target"><% Object.keys(NOTIFY).forEach(function (k) { %><option value="<%= k %>"><%= NOTIFY[k].label %></option><% }) %></select></label>
+                <label>Decision<select name="decision"><% Object.keys(DECISIONS).forEach(function (k) { %><option value="<%= k %>"><%= DECISIONS[k] %></option><% }) %></select></label>
+                <label>Reason<input name="note" maxlength="2000"></label>
+                <button class="btn btn-outline btn-sm" type="submit">Record the decision</button>
+              </form>
+              <form class="form" method="post" action="/admin/incidents/<%= i.id %>/update">
+                <input type="hidden" name="version" value="<%= i.version %>"><input type="hidden" name="action" value="notification">
+                <label>Told<select name="target"><% Object.keys(NOTIFY).forEach(function (k) { %><option value="<%= k %>"><%= NOTIFY[k].label %></option><% }) %></select></label>
+                <label>When<input type="datetime-local" name="at"></label>
+                <label>How, and the reference<input name="note" required maxlength="2000"></label>
+                <button class="btn btn-outline btn-sm" type="submit">Record the notification</button>
+              </form>
+              <form class="form" method="post" action="/admin/incidents/<%= i.id %>/update">
+                <input type="hidden" name="version" value="<%= i.version %>"><input type="hidden" name="action" value="note">
+                <label>Note<textarea name="note" rows="2" required maxlength="2000"></textarea></label>
+                <button class="btn btn-outline btn-sm" type="submit">Add the note</button>
+              </form>
+              <form class="form" method="post" action="/admin/incidents/<%= i.id %>/update">
+                <input type="hidden" name="version" value="<%= i.version %>"><input type="hidden" name="action" value="severity">
+                <label>Severity<select name="severity"><% Object.keys(SEVERITIES).forEach(function (k) { %><option value="<%= k %>"<%= i.severity === k ? ' selected' : '' %>><%= SEVERITIES[k] %></option><% }) %></select></label>
+                <label>Reason<input name="note" required maxlength="2000"></label>
+                <button class="btn btn-outline btn-sm" type="submit">Change severity</button>
+              </form>
+              <form class="form" method="post" action="/admin/incidents/<%= i.id %>/update">
+                <input type="hidden" name="version" value="<%= i.version %>"><input type="hidden" name="action" value="assign">
+                <label>Owner<select name="ownerId"><% managers.forEach(function (u) { %><option value="<%= u.id %>"<%= String(u.id) === i.ownerId ? ' selected' : '' %>><%= u.name %></option><% }) %></select></label>
+                <button class="btn btn-outline btn-sm" type="submit">Assign</button>
+              </form>
+              <h3>Contain</h3>
+              <p class="muted small">Each action asks for your password again and is recorded on the incident and in the audit trail.</p>
+              <form class="form" method="post" action="/admin/incidents/<%= i.id %>/contain">
+                <label>Action<select name="action"><% Object.keys(CONTAIN).forEach(function (k) { %><option value="<%= k %>"><%= CONTAIN[k] %></option><% }) %></select></label>
+                <label>Email of the account <span class="muted small">(not needed to cancel download links)</span><input name="target" maxlength="160" autocomplete="off"></label>
+                <label>Reason<input name="note" required maxlength="1000"></label>
+                <button class="btn btn-outline btn-sm" type="submit">Do it</button>
+              </form>
+              <h3>Close</h3>
+              <form class="form" method="post" action="/admin/incidents/<%= i.id %>/update">
+                <input type="hidden" name="version" value="<%= i.version %>"><input type="hidden" name="action" value="close">
+                <label>Root cause<textarea name="rootCause" rows="2" required maxlength="2000"></textarea></label>
+                <label>Preventive measures<textarea name="lessons" rows="2" required maxlength="2000"></textarea></label>
+                <button class="btn btn-primary btn-sm" type="submit">Close the incident</button>
+              </form>
+            <% } else { %>
+              <form class="form" method="post" action="/admin/incidents/<%= i.id %>/update">
+                <input type="hidden" name="version" value="<%= i.version %>"><input type="hidden" name="action" value="reopen">
+                <label>Reason for reopening<input name="note" required maxlength="2000"></label>
+                <button class="btn btn-outline btn-sm" type="submit">Reopen</button>
+              </form>
+            <% } %>
+          </section>
+        <% } %>
+      </div>
+    <% } %>
+
+    <% if (section === 'requests') { %>
+      <p class="muted small">Requests to see, correct or delete personal data, to withdraw consent, and complaints about how data is handled. Job seekers send them signed in; anyone else confirms their email first. Each is answered within 30 days, and a refusal always gives the reasons. <b><%= counts.open %></b> open<%= counts.overdue ? ', ' + counts.overdue + ' overdue' : '' %>.</p>
+      <form class="form filter-bar" method="get" action="/admin/data-requests">
+        <label>Status<select name="status"><option value="">All confirmed</option><% Object.keys(STATUS).forEach(function (k) { %><option value="<%= k %>"<%= q.status === k ? ' selected' : '' %>><%= STATUS[k] %></option><% }) %></select></label>
+        <button class="btn btn-outline btn-sm" type="submit">Show</button>
+      </form>
+      <% if (!rows.length) { %><div class="empty"><p>No requests.</p></div><% } else { %>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Request</th><th>From</th><th>Status</th><th>Answer by</th><th>Handled by</th></tr></thead>
+          <tbody>
+            <% rows.forEach(function (r) { %>
+              <tr>
+                <td><a href="/admin/data-requests/<%= r.id %>"><%= r.number %></a>: <%= TYPES[r.type] %></td>
+                <td class="small"><%= REQUESTER[r.role] %> · <%= r.verifiedHow %></td>
+                <td><%= STATUS[r.status] %></td>
+                <td class="small"><%= day(r.dueAt) %><% if (r.overdue) { %> <span class="pill st-rejected">overdue</span><% } %></td>
+                <td class="small"><%= r.assigneeName || '–' %></td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table></div>
+      <% } %>
+      <%- include('partials/pager', { pager: pager, pagerLabel: 'Request pages' }) %>
+    <% } %>
+
+    <% if (section === 'request') { %>
+      <p><a href="/admin/data-requests">← Data requests</a></p>
+      <div class="dash-grid">
+        <section class="dash-card dash-wide">
+          <h2><%= r.number %>: <%= TYPES[r.type] %></h2>
+          <p class="muted small">From <%= r.name || 'no name given' %> (<%= REQUESTER[r.role] %>), <%= r.email %> · confirmed by <%= r.verifiedHow %> on <%= when(r.verifiedAt) %> · status <b><%= STATUS[r.status] %></b> · answer by <%= day(r.dueAt) %><%= r.overdue ? ' (overdue)' : '' %></p>
+          <% if (r.details) { %><p class="prewrap"><%= r.details %></p><% } %>
+          <% if (r.resolution) { %><p class="notice"><b><%= STATUS[r.status] %>:</b> <%= r.resolution %><%= r.retained ? ' · Kept: ' + r.retained : '' %></p><% } %>
+          <h3>What we hold under this email</h3>
+          <ul class="plain-list small">
+            <li>Job-seeker account: <b><%= held.account ? 'yes' : 'no' %></b> · applications: <b><%= held.applications %></b> · job alerts: <b><%= held.jobAlerts %></b> · newsletter: <b><%= held.newsletter ? 'yes' : 'no' %></b></li>
+            <li>Employer login: <b><%= held.employerUser ? 'yes' : 'no' %></b> · placement records: <b><%= held.placements %></b> (kept for tax) · consent records: <b><%= held.consentRecords %></b></li>
+            <li>Consents now: <% Object.keys(consents).forEach(function (k, n) { %><%= n ? ' · ' : '' %><%= k %> <b><%= consents[k].granted ? 'on' : 'off' %></b><% }) %></li>
+          </ul>
+          <h3>History</h3>
+          <ul class="plain-list small"><% r.history.slice().reverse().forEach(function (h) { %><li><%= when(h.at) %> · <%= h.by %> · <b><%= h.action %></b><%= h.note ? ': ' + h.note : '' %></li><% }) %></ul>
+        </section>
+        <section class="dash-card">
+          <h2>Handle it</h2>
+          <% if (OPEN.includes(r.status)) { %>
+            <form class="form" method="post" action="/admin/data-requests/<%= r.id %>">
+              <input type="hidden" name="version" value="<%= r.version %>">
+              <label>Action<select name="action">
+                <% if (r.status === 'received') { %><option value="start">Start work on it</option><% } %>
+                <option value="note">Add a note</option>
+                <option value="complete">Complete (the note goes to the requester)</option>
+                <option value="refuse">Refuse (the reasons go to the requester)</option>
+              </select></label>
+              <label>Note<textarea name="note" rows="3" maxlength="2000"></textarea></label>
+              <label>Kept, and why <span class="muted small">(when completing)</span><input name="retained" maxlength="1000"></label>
+              <button class="btn btn-outline btn-sm" type="submit">Save</button>
+            </form>
+            <form class="form" method="post" action="/admin/data-requests/<%= r.id %>">
+              <input type="hidden" name="version" value="<%= r.version %>"><input type="hidden" name="action" value="assign">
+              <label>Handled by<select name="assigneeId"><% handlers.forEach(function (u) { %><option value="<%= u.id %>"<%= String(u.id) === r.assigneeId ? ' selected' : '' %>><%= u.name %></option><% }) %></select></label>
+              <button class="btn btn-outline btn-sm" type="submit">Assign</button>
+            </form>
+            <% if (r.type === 'deletion' && can('privacy.erase') && (held.account || held.applications)) { %>
+              <h3>Delete the job-seeker data</h3>
+              <p class="muted small">Deletes the account, applications, resumes, job alerts, newsletter, saved jobs, notifications and sign-ins under this email, as “Delete my account” does, and completes the request. Placements and invoices stay for tax. Asks for your password again.</p>
+              <form class="form" method="post" action="/admin/data-requests/<%= r.id %>/erase">
+                <label>Note for the requester <span class="muted small">(optional)</span><input name="note" maxlength="500"></label>
+                <button class="btn btn-primary btn-sm" type="submit">Delete and complete</button>
+              </form>
+            <% } %>
+          <% } else { %>
+            <form class="form" method="post" action="/admin/data-requests/<%= r.id %>">
+              <input type="hidden" name="version" value="<%= r.version %>"><input type="hidden" name="action" value="note">
+              <label>Note<textarea name="note" rows="2" required maxlength="2000"></textarea></label>
+              <button class="btn btn-outline btn-sm" type="submit">Add a note</button>
+            </form>
+          <% } %>
+        </section>
+      </div>
+    <% } %>
+
+    <% if (section === 'retention') { %>
+      <p class="muted small">How long each kind of data is kept. The clean-up runs every day. Changing a period needs a reason and your password, and is recorded in the audit trail.</p>
+      <div class="table-wrap"><table>
+        <caption class="sr-only">Retention schedule</caption>
+        <thead><tr><th>Data</th><th>Kept for</th><th>Notes</th></tr></thead>
+        <tbody><% schedule.forEach(function (row) { %><tr><td><%= row[0] %></td><td><%= row[1] %></td><td class="small"><%= row[2] %></td></tr><% }) %></tbody>
+      </table></div>
+      <% if (candidateMonths) { %><p class="muted small">With the current setting, today’s clean-up would remove <%= preview.candidates %> job seekers (<%= preview.applications %> applications), <%= preview.messages %> messages and <%= preview.requests %> hiring requests.</p><% } %>
+      <% if (can('retention.manage')) { %>
+        <section class="dash-card">
+          <h2>Change the periods</h2>
+          <form class="form form-grid" method="post" action="/admin/retention">
+            <label>Job-seeker profiles, applications and resumes<select name="candidateMonths"><% CANDIDATE_PERIODS.forEach(function (m) { %><option value="<%= m %>"<%= candidateMonths === m ? ' selected' : '' %>><%= m ? m + ' months after the last activity' : 'Until the person deletes them' %></option><% }) %></select></label>
+            <% Object.keys(RETENTION).forEach(function (k) { const d = RETENTION[k]; %>
+              <label><%= d.label %> (<%= d.unit %>)<input type="number" name="<%= k %>" min="<%= d.min %>" max="<%= d.max %>" step="1" required value="<%= pol[k] %>"><span class="muted small"><%= d.min %>–<%= d.max %>. <%= d.note %></span></label>
+            <% }) %>
+            <label class="span-2">Reason for the change<input name="reason" required maxlength="500"></label>
+            <button class="btn btn-primary" type="submit">Save the policy</button>
+          </form>
+        </section>
+      <% } %>
+    <% } %>
+  </div>
+</section>
+<%- include('partials/foot') %>

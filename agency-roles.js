@@ -86,6 +86,15 @@ const PERMS = {
   'ops.health': ['Admin', 'Operations Admin'],
   'access.view': ['Admin', 'Auditor'],
   'trust.policy': ['Admin'],
+  // Security and privacy (security.js, privacy.js).
+  'security.view': ['Admin', 'Trust & Safety Manager', 'Operations Admin', 'Auditor'],
+  'incidents.view': ['Admin', 'Trust & Safety Manager', 'Operations Admin', 'Auditor'],
+  'incidents.manage': ['Admin', 'Trust & Safety Manager', 'Operations Admin'],
+  'privacy.requests': ['Admin', 'Trust & Safety Manager', 'Support Agent'],
+  // Deleting an account to complete a request.
+  'privacy.erase': ['Admin', 'Trust & Safety Manager'],
+  'retention.view': ['Admin', 'Trust & Safety Manager', 'Auditor'],
+  'retention.manage': ['Admin'],
 };
 
 const can = (user, action) => Boolean(user && user.active !== false && (PERMS[action] || []).includes(user.role));
@@ -95,15 +104,15 @@ const canBill = (user) => can(user, 'invoices.issue');
 // A Finance Manager works only on billing pages: candidates, jobs and the
 // rest of the back office stay closed to them.
 const FINANCE_PAGES = [
-  /^\/admin\/?$/, /^\/admin\/(login|logout|security)(\/|$)/, /^\/admin\/placements\/[^/]+\/(invoice|bill|payments|refunds|remind|credit-notes)(\/|$)/,
+  /^\/admin\/?$/, /^\/admin\/(login|logout|security|confirm)(\/|$)/, /^\/admin\/placements\/[^/]+\/(invoice|bill|payments|refunds|remind|credit-notes)(\/|$)/,
   /^\/admin\/invoice-drafts(\/|$)/, /^\/admin\/workforce\/(payroll|payroll\.csv)$/, /^\/admin\/crm\/reports\/?$/, /^\/admin\/clients\/[^/]+$/, /^\/admin\/recruitment-reports\/?$/, /^\/admin\/analytics\/?$/, /^\/admin\/staffing\/?$/, /^\/admin\/agency-audit\/?$/,
 ];
 const FINANCE_TABS = ['placements', 'clients', 'reports'];
 // Sales roles work in the CRM only: no candidates, jobs or billing pages.
 const SALES_ROLES = ['Sales Manager', 'Business Development'];
-const SALES_PAGES = [/^\/admin\/?$/, /^\/admin\/(login|logout|security)(\/|$)/, /^\/admin\/crm(\/|$)/, /^\/admin\/site-analytics\/?$/];
+const SALES_PAGES = [/^\/admin\/?$/, /^\/admin\/(login|logout|security|confirm)(\/|$)/, /^\/admin\/crm(\/|$)/, /^\/admin\/site-analytics\/?$/];
 const SALES_TABS = [];
-const TRUST_PAGES = [/^\/admin\/?$/, /^\/admin\/(login|logout|security)(\/|$)/, /^\/admin\/(overview|verifications|job-moderation|reports|cases|appeals|audit-logs|system-health|access-control)(\/|$)/];
+const TRUST_PAGES = [/^\/admin\/?$/, /^\/admin\/(login|logout|security|confirm)(\/|$)/, /^\/admin\/(overview|verifications|job-moderation|reports|cases|appeals|audit-logs|system-health|access-control|security-events|incidents|data-requests|retention)(\/|$)/, /^\/api\/admin\/(security-events|incidents|data-requests)(\/|$)/];
 // Roles that must use two-step sign-in before opening any of their pages.
 const STRONG_AUTH_ROLES = [...TRUST_ROLES];
 function pathAllowed(user, path) {

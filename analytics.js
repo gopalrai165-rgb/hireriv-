@@ -529,7 +529,7 @@ function register(app, deps) {
   // people need their role's analytics permission.
   function scopeOf(req, want = String(req.query.as || '')) {
     const user = team.currentUser(req);
-    const teamOk = user && !(team.requires2fa() && !team.has2fa(user.id));
+    const teamOk = user && !(team.mustUse2fa(user) && !team.has2fa(user.id));
     const c = clients.context(req);
     if (teamOk && want !== 'employer') {
       if (!roles.can(user, 'analytics.view')) return { error: 403 };

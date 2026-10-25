@@ -57,8 +57,14 @@ test('Recruiters: no Settings, Team or Activity tabs, no billing or activity exp
   }
   assert.doesNotMatch(await (await srv.request('/admin?tab=settings', { cookie: recruiter })).text(), /Homepage testimonials/);
   for (const type of ['placements', 'activity']) assert.equal((await srv.request(`/admin/export/${type}.csv`, { cookie: recruiter })).status, 403, type);
+  // Exports with personal data ask for the password again first.
+  const ask = await srv.request('/admin/export/applications.csv', { cookie: recruiter });
+  assert.equal(ask.status, 303);
+  assert.equal(ask.headers.get('location'), `/admin/confirm?next=${encodeURIComponent('/admin/export/applications.csv')}`);
+  await srv.request('/admin/confirm', { method: 'POST', cookie: recruiter, form: { password: 'rahul-long-password', next: '/admin/export/applications.csv' } });
   assert.equal((await srv.request('/admin/export/applications.csv', { cookie: recruiter })).status, 200);
   // Admins can.
+  await srv.request('/admin/confirm', { method: 'POST', cookie: admin, form: { password: 'test-owner-password', next: '/admin' } });
   assert.equal((await srv.request('/admin/export/activity.csv', { cookie: admin })).status, 200);
 });
 

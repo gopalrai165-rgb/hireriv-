@@ -8,6 +8,7 @@
 // Jobs the Hireriv team runs for a client stay with the team: the client sees
 // counts and the candidates the team shortlists, not every applicant.
 const path = require('path');
+const vault = require('./vault');
 const { can } = require('./employer-team');
 const ats = require('./ats');
 const { RECOMMENDATIONS } = require('./interviews');
@@ -283,7 +284,7 @@ function register(app, deps) {
     if (!downloadLinks.valid(req)) return linkExpired(res, `/employer/applicants/${a.id}`);
     team.audit(req.employer.id, req.employerUser, 'resume-downloaded', `${a.name} for ${req.job.title}`);
     const file = path.basename(a.resume);
-    res.download(path.join(uploadsDir, file), `${String(a.name).replace(/[^a-z0-9]+/gi, '-')}-resume${path.extname(file)}`, (err) => err && !res.headersSent && res.status(404).end());
+    vault.send(res, path.join(uploadsDir, file), `${String(a.name).replace(/[^a-z0-9]+/gi, '-')}-resume${path.extname(file)}`, 'Resume');
   });
 
   // Moves an application along the workflow; the change is kept in its

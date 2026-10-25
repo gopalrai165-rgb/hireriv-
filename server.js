@@ -9,6 +9,9 @@ const seo = require('./seo');
 const { skillMatch, buildPool, searchPool, phoneKey, candidateKey } = require('./match');
 const search = require('./search');
 const uploadSafety = require('./uploads');
+const vault = require('./vault');
+const privacyModule = require('./privacy');
+const securityModule = require('./security');
 const pgMirror = require('./pg');
 const { jobSlug, jobPath, findJobBySlug, parsePost, parseSettings, SOCIAL, DEFAULT_JOB_CATEGORIES, DEFAULT_JOB_LOCATIONS, SAMPLE_TESTIMONIALS, MAX_TESTIMONIALS, WORK_KINDS, WORK_KEYS, CATEGORY_WORK, workOf, workOfCategory, RESUME_OPTIONS, resumeNeeded, JOB_GROUPS, inGroup } = require('./content');
 const interviews = require('./interviews');
@@ -111,7 +114,24 @@ if (!db.metaGet('upgraded:application-unique-v1')) {
 const resumeCheck = uploadSafety.create();
 // Resume downloads go through signed links that expire after 15 minutes.
 if (!db.metaGet('secret:links')) db.metaSet('secret:links', crypto.randomBytes(32).toString('hex'));
-const downloadLinks = uploadSafety.links(db.metaGet('secret:links'));
+const downloadLinks = uploadSafety.links(() => db.metaGet('secret:links'));
+// Uploaded documents are encrypted at rest (vault.js). The key should come
+// from FILE_ENCRYPTION_KEY (kept outside the database and its backups); without
+// it a key is created once and kept in the database. Keys replaced in a
+// rotation go in FILE_ENCRYPTION_KEYS_OLD until the daily sweep has re-sealed every file.
+{
+  const old = String(process.env.FILE_ENCRYPTION_KEYS_OLD || '').split(',').map((k) => k.trim()).filter(Boolean);
+  const stored = db.metaGet('secret:files');
+  if (process.env.FILE_ENCRYPTION_KEY) vault.configure([process.env.FILE_ENCRYPTION_KEY, ...old, ...(stored ? [stored] : [])]);
+  else {
+    if (!stored) db.metaSet('secret:files', vault.newKey());
+    if (process.env.NODE_ENV === 'production') console.warn('FILE_ENCRYPTION_KEY is not set: uploaded files are encrypted with a key kept in the database. Set FILE_ENCRYPTION_KEY to keep the key apart from the data.');
+    vault.configure([db.metaGet('secret:files'), ...old]);
+  }
+}
+const sealUploads = ops.track('encrypt-uploads', () => vault.sweep(UPLOADS_DIR), 24 * 60 * 60 * 1000);
+setTimeout(sealUploads, Number(process.env.UPLOAD_SEAL_DELAY_MS) || 5000).unref();
+setInterval(sealUploads, 24 * 60 * 60 * 1000).unref();
 db.importOnce('posts', path.join(DATA_DIR, 'posts.json'));
 db.importOnce('site', path.join(DATA_DIR, 'site.json'));
 
@@ -279,6 +299,9 @@ const APP_STATUSES = require('./ats').STAGES;
 // ---------- submissions (one collection per form type, newest first) ----------
 const readSubmissions = (type) => db.all(type);
 const writeSubmissions = (type, list) => db.replaceAll(type, list);
+// Consent records, data requests and the retention policy (privacy.js). The
+// erasure journal sits next to the database file, outside it and its backups.
+const privacy = privacyModule.create({ db, notify, readSubmissions, writeSubmissions, saveSubmission, journalFile: path.join(path.dirname(DB_FILE), 'erasures.log') });
 
 // ---------- PostgreSQL copy of the jobs data (only with DATABASE_URL) ----------
 // Jobs, their places, categories and skills, applications and saved jobs are
@@ -385,6 +408,10 @@ const upload = multer({
 
 // ---------- app ----------
 const app = express();
+// Security log and alerts (security.js): failed sign-ins, refused requests,
+// document downloads and exports, privileged changes.
+const security = securityModule.create({ db, notify, mailer, getTeam: () => team });
+app.use(security.observe);
 // Unread notification counts for the header bells (notification-center.js).
 app.use((req, res, next) => center.locals(req, res, next));
 // Lets the header show "My account" and the page script keep saved jobs in the account.
@@ -893,7 +920,7 @@ app.get('/about', (req, res) => res.render('about', { title: 'About Us', page: '
 app.get('/contact', (req, res) => res.render('contact', { title: 'Contact Us', page: 'contact', metaDescription: `Contact ${site.name} by phone, WhatsApp or email: questions about jobs, applications, hiring or staffing.` }));
 // Bump LEGAL_UPDATED whenever the wording of either page changes.
 const LEGAL_UPDATED = '2026-10-25';
-app.get('/privacy', (req, res) => res.render('privacy', { title: 'Privacy Policy', page: 'legal', updated: LEGAL_UPDATED, metaDescription: `How ${site.name} collects, uses and protects the personal data of candidates, clients and visitors.` }));
+app.get('/privacy', (req, res) => res.render('privacy', { title: 'Privacy Policy', page: 'legal', updated: LEGAL_UPDATED, policyVersion: privacyModule.POLICY_VERSION, purposes: privacyModule.PURPOSES, metaDescription: `How ${site.name} collects, uses and protects the personal data of candidates, clients and visitors.` }));
 app.get('/job-posting-policy', (req, res) => res.render('job-posting-policy', { title: 'Job posting rules', page: 'legal', updated: LEGAL_UPDATED, metaDescription: `What employers may and may not post on ${site.name}: real vacancies, honest pay, no fees from candidates.` }));
 app.get('/terms', (req, res) => res.render('terms', { title: 'Terms of Use', page: 'legal', updated: LEGAL_UPDATED, metaDescription: `The terms for using the ${site.name} website as a job seeker or employer.` }));
 app.get('/blog', (req, res) => res.render('blog', { title: 'Career Resources', page: 'blog', posts: livePosts(), metaDescription: `Career and hiring advice from ${site.name}: resumes, interviews, salaries and building teams in India.` }));
@@ -1257,6 +1284,7 @@ app.get('/job-alerts/confirm/:token', (req, res) => {
   if (!sub.confirmed) {
     Object.assign(sub, { confirmed: true, confirmedAt: new Date().toISOString() });
     writeSubmissions('job-alerts', list);
+    privacy.consent(sub.email, 'job-alerts', true, 'job alert confirmation link', { ref: sub.id });
   }
   const what = [sub.category || 'all', 'jobs', sub.location ? `in ${sub.location}` : ''].filter(Boolean).join(' ');
   res.render('thanks', { title: 'Job alert switched on', page: '', ok: true, message: `You'll get an email whenever we post ${what}.`, noindex: true });
@@ -1272,6 +1300,7 @@ app.get('/job-alerts/unsubscribe/:token', (req, res) => {
 app.post('/job-alerts/unsubscribe/:token', (req, res) => {
   const { list, sub } = findAlert(req.params.token);
   // A saved search stays saved, with its emails off; an email-only alert goes.
+  if (sub) privacy.consent(sub.email, 'job-alerts', false, 'unsubscribe link', { ref: sub.id });
   if (sub && sub.filters) {
     Object.assign(sub, { alertEnabled: false, pending: [], updatedAt: new Date().toISOString() });
     writeSubmissions('job-alerts', list);
@@ -1287,6 +1316,7 @@ app.post('/api/newsletter', limit('newsletter', 5), (req, res) => {
   const errors = validate(data, ['email']);
   if (!errors.length && !readSubmissions('newsletter').some((s) => s.email.toLowerCase() === data.email.toLowerCase())) {
     saveSubmission('newsletter', data);
+    privacy.consent(data.email, 'marketing-email', true, 'newsletter form');
   }
   respond(req, res, errors, "You're subscribed! Expect hiring insights and new roles in your inbox.");
 });
@@ -1296,15 +1326,25 @@ app.post('/api/newsletter', limit('newsletter', 5), (req, res) => {
 // invited from the Team tab and signs in with their own email and password.
 const team = teamModule.create({ db, mailer, site, baseUrl: BASE_URL, ownerUser: ADMIN_USER, ownerPass: ADMIN_PASS, resetOwner2fa: process.env.RESET_OWNER_2FA === '1' });
 const { adminAuth, requireAdmin } = team;
+security.watchTeam(team);
 
 // Data retention (off unless switched on in Settings): runs at start and daily.
 const retention = retentionModule.create({ db, site, uploadsDir: UPLOADS_DIR, readSubmissions, writeSubmissions, log: team.log });
-const runRetention = ops.track('data-retention', () => retention.run(), 24 * 60 * 60 * 1000);
+// The retention policy (privacy.js) adds the security log, team activity,
+// consent records, data requests and closed incidents.
+let securityDesk = null;
+const runRetention = ops.track('data-retention', () => {
+  const done = retention.run();
+  const p = privacy.policy();
+  const more = { ...privacy.prune(p), securityLog: security.prune(p.securityLogDays), teamActivity: team.pruneActivity(p.securityLogDays), incidents: securityDesk ? securityDesk.prune(p.incidentYears) : 0 };
+  if (Object.values(more).some(Boolean)) team.log(null, 'Retention policy clean-up', Object.entries(more).filter(([, n]) => n).map(([k, n]) => `${k} ${n}`).join(', '));
+  return { ...done, ...more };
+}, 24 * 60 * 60 * 1000);
 runRetention();
 setInterval(runRetention, 24 * 60 * 60 * 1000).unref();
 
 // Daily database backups, kept next to the database unless BACKUP_DIR says otherwise.
-const backups = backupsModule.create({ db, dir: process.env.BACKUP_DIR ? path.resolve(process.env.BACKUP_DIR) : path.join(path.dirname(DB_FILE), 'backups'), log: team.log });
+const backups = backupsModule.create({ db, dir: process.env.BACKUP_DIR ? path.resolve(process.env.BACKUP_DIR) : path.join(path.dirname(DB_FILE), 'backups'), log: team.log, keep: () => privacy.policy().backupDays });
 backups.start();
 
 // Sign-in cookies ride along on cross-site form posts, so every admin write must
@@ -1389,7 +1429,7 @@ const candidateAccounts = candidates.register(app, {
   upload, saveApplication, isBot, isSample, isLive, resumeNeeded, skillMatch, saveSubmission, jobCategories, jobLocations,
   vetUpload: resumeCheck.vet, downloadLinks, linkExpired, jobTypes: JOB_TYPES, modes, stateOf: search.stateOf,
   interviewResponded: (...args) => atsDesk.interviewResponded(...args), events, notify,
-  recommendFor: (...args) => recommendations.recommend(...args), analytics: siteAnalytics, push,
+  recommendFor: (...args) => recommendations.recommend(...args), analytics: siteAnalytics, push, privacy,
 });
 
 // Recommended jobs with match explanations, saved searches with daily or
@@ -1454,6 +1494,36 @@ const trustDesk = trust.register(app, {
 });
 trustHooks.reportJob = trustDesk.reportJob;
 
+// Security alerts, incidents, data requests and retention (security.js,
+// privacy.js), on the trust & safety pages.
+const protectView = (req, res, locals, status = 200) => {
+  res.set('Cache-Control', 'no-store');
+  res.status(status).render('admin-protect', {
+    page: 'admin', noindex: true, admin: req.admin, errors: [], msg: String(req.query.msg || '').slice(0, 300), roleLabel: (agencyRoles.ROLE_INFO[req.admin.role] || {}).label || req.admin.role,
+    can: (a) => agencyRoles.can(req.admin, a), strong: team.has2fa(req.admin.id), ...locals,
+  });
+};
+securityDesk = securityModule.register(app, {
+  db, security, team, adminAuth, sameOrigin, limit, trust: trustDesk, view: protectView, readSubmissions,
+  rotateDownloadLinks: () => db.metaSet('secret:links', crypto.randomBytes(32).toString('hex')),
+});
+const { requireConfirmed } = securityDesk;
+privacyModule.register(app, {
+  db, privacy, mailer, notify, site, baseUrl: BASE_URL, team, adminAuth, sameOrigin, limit, isBot, trust: trustDesk, view: protectView, requireConfirmed,
+  candidates: candidateAccounts, deleteCandidate: (email) => candidateAccounts.deleteEverything(String(email).toLowerCase()), retention, readSubmissions,
+  setCandidateMonths: (months, user) => {
+    site.retentionMonths = months;
+    saveSite();
+    team.log(user, months ? `Turned on data retention: ${months} months` : 'Turned off data retention');
+    if (months) retention.run();
+  },
+});
+// Accounts deleted before an older backup was restored are deleted again.
+{
+  const replayed = privacy.replayErasures((email) => candidateAccounts.deleteEverything(email));
+  if (replayed) console.log(`Applied ${replayed} earlier account deletion${replayed === 1 ? '' : 's'} again after a restore`);
+}
+
 // Recruitment analytics: dashboards for the team and for each employer, the
 // /api/analytics/* reports and their CSV exports (analytics.js).
 analytics.register(app, {
@@ -1470,7 +1540,7 @@ app.get('/admin/site-analytics', adminAuth, (req, res) => {
 // The notification center, its API, preferences, job alerts and delivery reports.
 const center = notificationCenter.register(app, {
   notify, push, team, clients: () => clients, candidates: () => candidateAccounts, getJobs: () => jobs, sameOrigin, limit, readSubmissions, writeSubmissions, saveSubmission,
-  jobCategories, jobLocations, adminAuth, requireAdmin, siteName: site.name, analytics: siteAnalytics,
+  jobCategories, jobLocations, adminAuth, requireAdmin, siteName: site.name, analytics: siteAnalytics, privacy,
 });
 // The worker sends queued emails (and retries failed ones); scheduled checks
 // find feedback that is due and offers about to expire; old records go.
@@ -1924,16 +1994,18 @@ app.post('/admin/:type/:id/delete', adminAuth, requireAdmin, sameOrigin, (req, r
 });
 
 // Full database snapshot (VACUUM INTO) for backups; safe while the site runs.
-app.get('/admin/backup', adminAuth, requireAdmin, (req, res) => {
+app.get('/admin/backup', adminAuth, requireAdmin, requireConfirmed, security.bulkExport('Full database'), (req, res) => {
+  team.log(req.admin, 'Downloaded the database');
   const file = path.join(require('os').tmpdir(), `hireriv-backup-${Date.now()}.db`);
   db.backupTo(file);
   res.download(file, `hireriv-${new Date().toISOString().slice(0, 10)}.db`, () => fs.unlink(file, () => {}));
 });
 
 // Automatic backups: download any kept copy, or take one now.
-app.get('/admin/backups/:name', adminAuth, requireAdmin, (req, res, next) => {
+app.get('/admin/backups/:name', adminAuth, requireAdmin, requireConfirmed, security.bulkExport((req) => `Backup ${req.params.name}`), (req, res, next) => {
   const file = backups.fileFor(req.params.name);
   if (!file) return next();
+  team.log(req.admin, 'Downloaded a database backup', req.params.name);
   res.download(file, req.params.name);
 });
 app.post('/admin/backups/run', adminAuth, requireAdmin, sameOrigin, (req, res) => {
@@ -1956,12 +2028,18 @@ function csvCell(v) {
   return /[",\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
 
+// Exports with personal data need the password again (security.js), are
+// limited, and each one is in the security log.
+const exportGuard = (req, res, next) => (req.params.type === 'jobs' ? next() : requireConfirmed(req, res, next));
 app.get('/admin/export/:type.csv', adminAuth, (req, res, next) => {
   const { type } = req.params;
   if (!ADMIN_TABS.includes(type)) return next();
   if (['dashboard', 'reports', 'blog', 'settings', 'interviews', 'clients', 'team', 'templates'].includes(type)) return next();
   // Billing and the activity log are for Admins only.
   if (['placements', 'activity'].includes(type) && req.admin.role !== 'Admin') return requireAdmin(req, res, next);
+  next();
+}, exportGuard, limit('bulk-export', 20, 60 * 60 * 1000), security.bulkExport((req) => `${req.params.type}.csv`), (req, res, next) => {
+  const { type } = req.params;
   const rows =
     type === 'jobs' ? jobs
     : type === 'placements' ? billing.csvRows()
@@ -2022,7 +2100,7 @@ function linkExpired(res, back) {
 app.get('/admin/resume/:file', adminAuth, (req, res) => {
   if (!downloadLinks.valid(req)) return linkExpired(res, '/admin?tab=applications');
   const file = path.basename(req.params.file);
-  res.download(path.join(UPLOADS_DIR, file), file, (err) => err && !res.headersSent && res.status(404).end());
+  vault.send(res, path.join(UPLOADS_DIR, file), file, 'Resume');
 });
 
 // ---------- 404 / errors ----------

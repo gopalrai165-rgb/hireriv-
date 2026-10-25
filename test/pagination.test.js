@@ -58,6 +58,7 @@ test('the talent pool counts every candidate, not just the page', async () => {
 });
 
 test('CSV export still includes every row', async () => {
+  await srv.confirm(admin);
   const csv = await (await srv.request('/admin/export/applications.csv', { cookie: admin })).text();
   assert.equal(csv.trim().split('\n').length, 121);
 });

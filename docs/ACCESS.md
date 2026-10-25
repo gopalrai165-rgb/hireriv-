@@ -9,13 +9,45 @@ Every route the app serves, and who may use it. **This table is checked by `test
 | candidate | A candidate signed in with an emailed link or their password (`hr_cand` session: HttpOnly, SameSite=Lax, Secure on https) | `requireCandidate`; data is limited to applications made with their email |
 | employer | A person signed in to the employer portal, working in one of their companies (`hr_emp` session) | `requireEmployer` + their role in that company (owner, hiring manager, recruiter, viewer), checked on the server for every action; other companies' jobs and applicants are "not found" |
 | account | Anyone signed in: a candidate, an employer person or the team | `anyAccount` / `anyAccountApi`: the recipient comes from the session, never from the request, and each person sees only their own notifications. On `/api/staffing/*` (workforce) the handler then checks the record: the worker's own, the client's assignments (site supervisors: only those they supervise), or the team role |
-| team | Anyone on the team (Admin, Recruitment Manager, Recruiter, Account Manager, Staffing Manager, Finance Manager, Sales Manager, Business Development Representative, Verification Reviewer, Job Moderator, Support Agent, Trust & Safety Manager, Operations Admin, Auditor) | `adminAuth` or `teamApi` (+ two-step sign-in when the team requires it, and always for the trust & safety and operations roles), then the role's permission in `agency-roles.js` (403 otherwise). A Finance Manager can open only billing pages (and the sales reports); the sales roles only the CRM; the trust & safety and operations roles only their own pages |
+| team | Anyone on the team (Admin, Recruitment Manager, Recruiter, Account Manager, Staffing Manager, Finance Manager, Sales Manager, Business Development Representative, Verification Reviewer, Job Moderator, Support Agent, Trust & Safety Manager, Operations Admin, Auditor) | `adminAuth` or `teamApi` (+ two-step sign-in when the team requires it, always for the trust & safety and operations roles, and for Admins on the live site; the password again before exports with personal data, backups, erasing accounts, retention changes and incident containment), then the role's permission in `agency-roles.js` (403 otherwise). A Finance Manager can open only billing pages (and the sales reports); the sales roles only the CRM; the trust & safety and operations roles only their own pages |
 | admin | Team members with the Admin (Super Admin) role | `adminAuth` + `requireAdmin` (403 for everyone else) |
 | billing | Admins and Finance Managers | `adminAuth` + `requireBilling` (403 for everyone else) |
 
 Every state-changing team, candidate and client form also passes `sameOrigin` (cross-site posts are refused).
 
-Total: 588 routes.
+Total: 615 routes.
+
+## Security and privacy: identity confirmation, the security log and alerts, incidents, data-rights requests, consent records and retention
+
+| Method | Path | Policy | Notes |
+| --- | --- | --- | --- |
+| GET | `/privacy/requests` | public | Data-rights request form for anyone; signed-in job seekers go to their own page |
+| POST | `/privacy/requests` | public | Bot trap, 5 per 10 minutes per IP; same reply whether or not the email is known; nothing happens until the emailed link is confirmed |
+| GET | `/privacy/requests/verify/:token` | link | Emailed confirmation link (7 days, stored hashed); shows a button only |
+| POST | `/privacy/requests/verify/:token` | link | Emailed confirmation link (7 days, single use); the request reaches the team |
+| GET | `/account/privacy` | candidate | Own consents, their history and own data requests only |
+| POST | `/account/privacy/requests` | candidate | Own requests only; the email comes from the session; 5 per 10 minutes |
+| GET | `/api/me/consents` | candidate | Own consent records only (current and history) |
+| GET | `/api/me/data-requests` | candidate | Own data requests only |
+| POST | `/api/me/data-requests` | candidate | Own requests only; validated; 5 per 10 minutes |
+| GET | `/admin/data-requests` | team | privacy.requests (Admins, Trust & Safety Managers, Support Agents) |
+| GET | `/admin/data-requests/:id` | team | privacy.requests; each opening is in the audit trail |
+| POST | `/admin/data-requests/:id` | team | privacy.requests; version check (409 if someone else changed it); refusals need reasons; recorded in the audit trail |
+| POST | `/admin/data-requests/:id/erase` | team | privacy.erase (Admins, Trust & Safety Managers) and the password again within 10 minutes; deletion requests only |
+| GET | `/api/admin/data-requests` | team | privacy.requests; 120 a minute |
+| GET | `/admin/retention` | team | retention.view (Admins, Trust & Safety Managers, Auditors) |
+| POST | `/admin/retention` | team | retention.manage (Admins) and the password again within 10 minutes; a reason is required; recorded in the audit trail |
+| GET | `/admin/confirm` | team | Any team member: asks for the password (and authenticator code) before a sensitive action |
+| POST | `/admin/confirm` | team | Any team member; 10 per 10 minutes; valid for 10 minutes on this sign-in only; failures are in the security log |
+| GET | `/admin/security-events` | team | security.view (Admins, Trust & Safety Managers, Operations Admins, Auditors) |
+| GET | `/api/admin/security-events` | team | security.view; 120 a minute |
+| GET | `/admin/incidents` | team | incidents.view (Admins, Trust & Safety Managers, Operations Admins, Auditors) |
+| POST | `/admin/incidents` | team | incidents.manage (Admins, Trust & Safety Managers, Operations Admins); recorded in the audit trail |
+| GET | `/admin/incidents/:id` | team | incidents.view |
+| POST | `/admin/incidents/:id/update` | team | incidents.manage; version check (409); every change in the audit trail |
+| POST | `/admin/incidents/:id/contain` | team | incidents.manage and the password again within 10 minutes; a reason is required |
+| POST | `/admin/incidents/:id/preserve` | team | incidents.manage; copies the security log into the incident with its hash |
+| GET | `/api/admin/incidents` | team | incidents.view; 120 a minute |
 
 ## Analytics: dashboards and reports for the team and for employers, each seeing only what their role and company allow
 
@@ -608,7 +640,7 @@ Total: 588 routes.
 | POST | `/admin/blog/:slug` | team |  |
 | POST | `/admin/applications/:id/status` | team |  |
 | GET | `/admin/reports/:section.csv` | team | Money figures only for Admins (checked in the handler) |
-| GET | `/admin/export/:type.csv` | team | Placements and Activity exports are Admin only (checked in the handler) |
+| GET | `/admin/export/:type.csv` | team | Placements and Activity exports are Admin only (checked in the handler); personal data needs the password again within 10 minutes; 20 an hour; each export in the security log |
 | GET | `/admin/resume/:file` | team | Any team member can download any resume; signed link, valid 15 minutes |
 | GET | `/admin/security` | team | Your own account only. Still reachable when the team rule blocks everything else |
 | POST | `/admin/security/start` | team | Your own account only |
@@ -639,8 +671,8 @@ Total: 588 routes.
 | POST | `/admin/settings` | admin |  |
 | POST | `/admin/blog/:slug/delete` | admin |  |
 | POST | `/admin/:type/:id/delete` | admin | Inbox entries: applications, hire requests, contacts, newsletter, job alerts |
-| GET | `/admin/backup` | admin |  |
-| GET | `/admin/backups/:name` | admin |  |
+| GET | `/admin/backup` | admin | Admins; password again within 10 minutes; in the security log |
+| GET | `/admin/backups/:name` | admin | Admins; password again within 10 minutes; in the security log |
 | POST | `/admin/backups/run` | admin |  |
 | POST | `/admin/resumes/reindex` | admin |  |
 | POST | `/admin/team` | admin |  |

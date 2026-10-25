@@ -17,6 +17,7 @@ const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const multer = require('multer');
+const vault = require('./vault');
 const roles = require('./agency-roles');
 const { paginate } = require('./paginate');
 const { DOCUMENT_TYPES } = require('./uploads');
@@ -345,7 +346,7 @@ function register(app, deps) {
       id: crypto.randomUUID(), at: iso(), category, details, reporterType: reporter.type, reporterKey: reporter.key,
       ...(reporter.employerId ? { reporterEmployerId: reporter.employerId } : {}), email: email || reporter.email || '', ...(input.jobReportId ? { jobReportId: input.jobReportId } : {}), ...(entity.jobId ? { jobId: entity.jobId } : {}),
     };
-    const ev = file ? { id: crypto.randomUUID(), file: path.basename(file.filename), originalName: clip(file.originalname, 120), size: file.size, sha256: sha256(fs.readFileSync(file.path)), by: `Reporter (${reporter.type})`, at: iso(), fromReport: report.id } : null;
+    const ev = file ? { id: crypto.randomUUID(), file: path.basename(file.filename), originalName: clip(file.originalname, 120), size: file.size, sha256: sha256(vault.readSync(file.path)), by: `Reporter (${reporter.type})`, at: iso(), fromReport: report.id } : null;
     const existing = openCaseFor(entity.type, entity.id);
     if (existing) {
       changeCase(existing.id, null, (c) => {
@@ -793,7 +794,7 @@ function register(app, deps) {
     if (!file) return { status: 400, errors: ['choose a PDF, JPG or PNG file'] };
     const bad = await vetDocument(file);
     if (bad) return { status: 400, errors: [bad] };
-    const ev = { id: crypto.randomUUID(), file: path.basename(file.filename), originalName: clip(file.originalname, 120), size: file.size, sha256: sha256(fs.readFileSync(file.path)), by: user.name, byId: user.id, at: iso() };
+    const ev = { id: crypto.randomUUID(), file: path.basename(file.filename), originalName: clip(file.originalname, 120), size: file.size, sha256: sha256(vault.readSync(file.path)), by: user.name, byId: user.id, at: iso() };
     const r = changeCase(id, null, (k) => { k.evidence.push(ev); note(k, user, 'evidence', `Added evidence: ${ev.originalName}`); if (!k.firstResponseAt) k.firstResponseAt = iso(); });
     record(user, 'evidence-added', { entityType: c.entityType, entityId: c.entityId, caseId: id, detail: `${ev.originalName} (${ev.sha256.slice(0, 12)})` });
     return r;
@@ -807,8 +808,7 @@ function register(app, deps) {
     const file = path.join(evidenceDir, path.basename(ev.file));
     if (!fs.existsSync(file)) return next();
     record(req.admin, 'evidence-viewed', { entityType: c.entityType, entityId: c.entityId, caseId: c.id, detail: ev.originalName });
-    res.set({ 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff', 'Content-Security-Policy': "default-src 'none'" });
-    res.download(file, `${c.number}-evidence${path.extname(ev.file)}`);
+    vault.send(res, file, `${c.number}-evidence${path.extname(ev.file)}`, 'Complaint evidence');
   }
 
   // ---------- appeals: the company's side and the decision ----------
@@ -1075,7 +1075,7 @@ function register(app, deps) {
   const teamApi = (action) => (req, res, next) => {
     const user = team.currentUser(req);
     if (!user) return res.status(401).json({ ok: false, errors: ['sign in to the team admin first'] });
-    if ((team.requires2fa() || roles.STRONG_AUTH_ROLES.includes(user.role)) && !team.has2fa(user.id)) return res.status(403).json({ ok: false, errors: ['set up two-step sign-in first'] });
+    if (team.mustUse2fa(user) && !team.has2fa(user.id)) return res.status(403).json({ ok: false, errors: ['set up two-step sign-in first'] });
     if (!can(user, action)) return res.status(403).json({ ok: false, errors: ['your role does not allow that'] });
     req.admin = user;
     res.set('Cache-Control', 'no-store');

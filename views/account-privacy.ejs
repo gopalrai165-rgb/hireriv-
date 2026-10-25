@@ -1,0 +1,53 @@
+<%- include('partials/head') %>
+<% const when = function (d) { return d ? new Date(d).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'medium', timeStyle: 'short' }) : '–'; }; %>
+
+<section class="section admin portal">
+  <div class="container">
+    <%- include('partials/account-nav', { heading: 'Privacy & data' }) %>
+    <% if (typeof errors !== 'undefined' && errors.length) { %><div class="notice notice-err" role="alert"><p>Please fix:</p><ul><% errors.forEach(function (e) { %><li><%= e %></li><% }) %></ul></div><% } %>
+    <div class="dash-grid">
+      <section class="dash-card dash-wide" id="consents">
+        <div class="dash-head"><h2>What you agreed to</h2></div>
+        <p class="small muted">Each use of your data is a separate choice, and saying yes to one never means yes to another. Change them under <a href="/account/settings#privacy">Settings</a>, <a href="/notifications/settings">Notification settings</a> or in each job alert. Privacy Policy version <%= POLICY_VERSION %>.</p>
+        <div class="table-wrap"><table>
+          <caption class="sr-only">Your current choices</caption>
+          <thead><tr><th>Purpose</th><th>Now</th><th>Since</th></tr></thead>
+          <tbody>
+            <% Object.keys(PURPOSES).forEach(function (k) { const c = consents[k]; %>
+              <tr><td><b><%= PURPOSES[k].label %></b><br><span class="small muted"><%= PURPOSES[k].text %></span></td><td><%= c.granted ? 'Yes' : 'No' %></td><td class="small"><%= c.since ? when(c.since) : '–' %></td></tr>
+            <% }) %>
+          </tbody>
+        </table></div>
+        <% if (history.length) { %>
+          <details><summary>Every change (<%= history.length %>)</summary>
+            <ul class="plain-list small"><% history.forEach(function (h) { %><li><%= when(h.at) %> · <%= (PURPOSES[h.purpose] || {}).label || h.purpose %>: <b><%= h.status %></b> · <%= h.source %> · policy <%= h.policyVersion %></li><% }) %></ul>
+          </details>
+        <% } %>
+      </section>
+
+      <section class="dash-card" id="download">
+        <div class="dash-head"><h2>Your data</h2></div>
+        <p class="small">Download everything we hold about you, including these choices, straight away: <a href="/account/my-data.json">my data (JSON)</a>. Correct your profile under <a href="/account/profile">Profile &amp; resume</a>, or delete your account under <a href="/account/settings#data">Settings</a>.</p>
+        <p class="small muted">For anything else, or if something can't be fixed yourself, send us a request. We answer within 30 days.</p>
+      </section>
+
+      <section class="dash-card" id="requests">
+        <div class="dash-head"><h2>Ask us</h2></div>
+        <form class="form" method="post" action="/account/privacy/requests">
+          <label>What you need<select name="type" required><option value="">Choose</option><% Object.keys(TYPES).forEach(function (k) { %><option value="<%= k %>"<%= values.type === k ? ' selected' : '' %>><%= TYPES[k] %></option><% }) %></select></label>
+          <label>Details<textarea name="details" rows="3" maxlength="2000" placeholder="What to correct, which consent, or what went wrong"><%= values.details || '' %></textarea></label>
+          <button class="btn btn-primary btn-sm" type="submit">Send the request</button>
+        </form>
+        <% if (requests.length) { %>
+          <h3>Your requests</h3>
+          <ul class="plain-list small">
+            <% requests.forEach(function (r) { %><li><b><%= r.number %></b> · <%= r.typeLabel %> · <%= r.statusLabel %> · sent <%= when(r.createdAt) %><%= r.closedAt ? '' : ', answer by ' + when(r.dueAt) %><% if (r.resolution) { %><br><%= r.resolution %><% } %></li><% }) %>
+          </ul>
+        <% } %>
+        <p class="small muted">Not happy with an answer? Write to our Grievance Officer at <a href="mailto:<%= site.email %>"><%= site.email %></a>. You may also complain to the Data Protection Board of India.</p>
+      </section>
+    </div>
+  </div>
+</section>
+
+<%- include('partials/foot') %>
