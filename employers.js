@@ -5,6 +5,7 @@
 const crypto = require('crypto');
 const path = require('path');
 const teamStore = require('./employer-team');
+const agencyRoles = require('./agency-roles');
 
 const { can, ROLES, ROLE_KEYS } = teamStore;
 
@@ -138,6 +139,9 @@ function register(app, deps) {
   const write = (list) => db.replaceAll('employers', list);
   const secureCookie = /^https:/.test(baseUrl);
   const team = teamStore.create({ readSubmissions, writeSubmissions, saveSubmission });
+  // Set by trust.js: records verification decisions and offers an appeal.
+  const hooks = {};
+  const roleGate = (action) => (req, res, next) => (agencyRoles.can(req.admin, action) ? next() : res.status(403).render('thanks', { title: 'Not part of your role', page: '', ok: false, message: 'Your role does not include checking companies.', noindex: true }));
   const now = () => new Date().toISOString();
 
   // Logins used to belong to companies; once, each becomes a person who owns it.
@@ -299,6 +303,8 @@ function register(app, deps) {
     const list = read();
     const emp = list.find((e) => e.id === req.params.id);
     if (!emp) return next();
+    // A suspension or closure by trust & safety is lifted only from its case or an appeal.
+    if (emp.suspension || emp.terminatedAt) return res.redirect(adminUrl('clients', `${emp.company} was ${emp.terminatedAt ? 'closed' : 'suspended'} by trust & safety: change it from its case`));
     emp.active = !emp.active;
     write(list);
     // Deactivating signs everyone at the company out.
@@ -309,42 +315,120 @@ function register(app, deps) {
 
   // Company verification (separate from approving each job): the team checks
   // the company (GSTIN, CIN, website, a call) and verifies or declines it.
+  // An open check is waiting for the team, or for the company's answer to a question.
+  const OPEN_CHECKS = ['pending', 'info-requested'];
   function closeVerification(emp, outcome, by, note = '') {
     const list = readSubmissions('employer-verifications');
-    const open = list.find((v) => v.employerId === emp.id && v.status === 'pending');
+    const open = list.find((v) => v.employerId === emp.id && OPEN_CHECKS.includes(v.status));
     if (open) {
-      Object.assign(open, { status: outcome, reviewedAt: now(), reviewedBy: by, note });
+      Object.assign(open, { status: outcome, reviewedAt: now(), reviewedBy: by.name, reviewedById: by.id || '', note });
       writeSubmissions('employer-verifications', list);
-    } else saveSubmission('employer-verifications', { employerId: emp.id, status: outcome, submittedBy: '', reviewedAt: now(), reviewedBy: by, note, details: verificationDetails(emp) });
+      return open;
+    }
+    return saveSubmission('employer-verifications', { employerId: emp.id, status: outcome, submittedBy: '', reviewedAt: now(), reviewedBy: by.name, reviewedById: by.id || '', note, details: verificationDetails(emp) });
   }
   const verificationDetails = (emp) => Object.fromEntries(['company', 'gstin', 'cin', 'udyam', 'website', 'industry', 'addressLine', 'city', 'state', 'pincode'].map((k) => [k, emp[k] || '']));
+  const ownersOf = (emp) => team.owners(emp.id).map((m) => team.userById(m.userId)).filter(Boolean).map((u) => addressed(emp, u));
 
-  app.post('/admin/clients/:id/approve', adminAuth, sameOrigin, (req, res, next) => {
+  // The team's decisions on a company that signed up itself. `by` is the
+  // team member ({ id, name }); each returns { errors } or the record.
+  function verifyCompany(empId, by) {
     const list = read();
-    const emp = list.find((e) => e.id === req.params.id && e.selfSignup);
-    if (!emp) return next();
-    if (!emp.approvedAt) {
-      Object.assign(emp, { approvedAt: now(), approvedBy: req.admin.name });
-      write(list);
-      closeVerification(emp, 'verified', req.admin.name);
-      team.audit(emp.id, null, 'company-verified', `by ${req.admin.name}`);
-      for (const m of team.owners(emp.id)) { const u = team.userById(m.userId); if (u) mailer.employerApproved(addressed(emp, u)); }
-    }
-    res.redirect(adminUrl('clients', `${emp.company} approved · their jobs can now go live after review`));
-  });
-
-  app.post('/admin/clients/:id/reject', adminAuth, sameOrigin, (req, res, next) => {
+    const emp = list.find((e) => e.id === empId && e.selfSignup);
+    if (!emp) return { status: 404, errors: ['company not found'] };
+    if (emp.approvedAt) return { status: 409, errors: ['this company is already verified'] };
+    if (!emp.active) return { status: 409, errors: ['this company is closed or suspended'] };
+    Object.assign(emp, { approvedAt: now(), approvedBy: by.name });
+    delete emp.infoRequestedAt;
+    write(list);
+    const record = closeVerification(emp, 'verified', by);
+    team.audit(emp.id, null, 'company-verified', `by ${by.name}`);
+    for (const owner of ownersOf(emp)) mailer.employerApproved(owner);
+    return { status: 200, employer: emp, record };
+  }
+  function declineCompany(empId, by, reason) {
     const list = read();
-    const emp = list.find((e) => e.id === req.params.id && e.selfSignup && !e.approvedAt);
-    if (!emp) return next();
-    const reason = String(req.body.reason || '').trim().slice(0, 500);
+    const emp = list.find((e) => e.id === empId && e.selfSignup && !e.approvedAt);
+    if (!emp) return { status: 404, errors: ['company not found or already verified'] };
+    if (emp.rejectedAt) return { status: 409, errors: ['this sign-up was already declined'] };
     Object.assign(emp, { active: false, rejectedAt: now(), rejectedReason: reason });
     write(list);
     endCompanySessions(emp.id);
-    closeVerification(emp, 'declined', req.admin.name, reason);
+    const record = closeVerification(emp, 'declined', by, reason);
     team.audit(emp.id, null, 'company-declined', reason);
-    for (const m of team.owners(emp.id)) { const u = team.userById(m.userId); if (u) mailer.employerRejected(addressed(emp, u), reason); }
-    res.redirect(adminUrl('clients', `${emp.company}'s sign-up was declined and the account closed`));
+    return { status: 200, employer: emp, record, owners: ownersOf(emp) };
+  }
+  // Asks the company for more (a document, a website, a call); the company
+  // answers by sending its details again from its Company profile.
+  function requestCompanyInfo(empId, by, note) {
+    const list = read();
+    const emp = list.find((e) => e.id === empId && e.selfSignup && !e.approvedAt && e.active);
+    if (!emp) return { status: 404, errors: ['company not found or already decided'] };
+    const checks = readSubmissions('employer-verifications');
+    let record = checks.find((v) => v.employerId === emp.id && OPEN_CHECKS.includes(v.status));
+    if (record && record.status === 'info-requested') return { status: 409, errors: ['we are already waiting for this company to answer'] };
+    if (record) {
+      Object.assign(record, { status: 'info-requested', note, infoRequestedAt: now(), infoRequestedBy: by.name, infoRequestedById: by.id || '' });
+      writeSubmissions('employer-verifications', checks);
+    } else record = saveSubmission('employer-verifications', { employerId: emp.id, status: 'info-requested', submittedBy: 'sign-up', note, infoRequestedAt: now(), infoRequestedBy: by.name, infoRequestedById: by.id || '', details: verificationDetails(emp) });
+    emp.infoRequestedAt = now();
+    write(list);
+    team.audit(emp.id, null, 'verification-info-requested', note);
+    for (const owner of ownersOf(emp)) mailer.employerInfoRequested(owner, note);
+    return { status: 200, employer: emp, record };
+  }
+  // Trust & safety: a suspension (reversible) or a closure; both sign everyone out.
+  function restrictCompany(empId, fields) {
+    const list = read();
+    const emp = list.find((e) => e.id === empId);
+    if (!emp) return null;
+    Object.assign(emp, { active: false, ...fields });
+    write(list);
+    endCompanySessions(emp.id);
+    team.audit(emp.id, null, fields.terminatedAt ? 'company-closed' : 'company-suspended', fields.suspension ? fields.suspension.reason : fields.terminationReason || '');
+    return emp;
+  }
+  function reinstateCompany(empId, by) {
+    const list = read();
+    const emp = list.find((e) => e.id === empId);
+    if (!emp) return null;
+    const history = [...(emp.restrictionHistory || []), { at: now(), by: by.name, suspension: emp.suspension || null, terminatedAt: emp.terminatedAt || null }];
+    for (const k of ['suspension', 'terminatedAt', 'terminatedBy', 'terminationReason']) delete emp[k];
+    Object.assign(emp, { active: true, restrictionHistory: history.slice(-20) });
+    write(list);
+    team.audit(emp.id, null, 'company-reinstated', `by ${by.name}`);
+    return emp;
+  }
+  // An appeal against a declined sign-up was upheld: back in the queue.
+  function reopenVerification(empId, by) {
+    const list = read();
+    const emp = list.find((e) => e.id === empId && e.selfSignup && !e.approvedAt);
+    if (!emp) return null;
+    emp.active = true;
+    delete emp.rejectedAt;
+    delete emp.rejectedReason;
+    write(list);
+    saveSubmission('employer-verifications', { employerId: emp.id, status: 'pending', submittedBy: `appeal (reopened by ${by.name})`, details: verificationDetails(emp) });
+    team.audit(emp.id, null, 'verification-reopened', `appeal upheld by ${by.name}`);
+    return emp;
+  }
+
+  app.post('/admin/clients/:id/approve', adminAuth, roleGate('verify.review'), sameOrigin, (req, res, next) => {
+    const r = verifyCompany(req.params.id, req.admin);
+    if (r.status === 404) return next();
+    const emp = r.employer || read().find((e) => e.id === req.params.id);
+    if (r.errors && r.status !== 409) return res.redirect(adminUrl('clients', r.errors.join(', ')));
+    if (hooks.decided) hooks.decided(req.admin, 'verify', emp, '');
+    res.redirect(adminUrl('clients', `${emp.company} approved · their jobs can now go live after review`));
+  });
+
+  app.post('/admin/clients/:id/reject', adminAuth, roleGate('verify.review'), sameOrigin, (req, res, next) => {
+    const reason = String(req.body.reason || '').trim().slice(0, 500);
+    const r = declineCompany(req.params.id, req.admin, reason);
+    if (r.errors) return next();
+    if (hooks.decided) hooks.decided(req.admin, 'decline', r.employer, reason);
+    else for (const owner of r.owners) mailer.employerRejected(owner, reason);
+    res.redirect(adminUrl('clients', `${r.employer.company}'s sign-up was declined and the account closed`));
   });
 
   // ---------- employer: self-signup and email confirmation ----------
@@ -427,7 +511,7 @@ function register(app, deps) {
       emp.emailVerifiedAt = user.emailVerifiedAt;
       write(list);
       // Signing up is the company's first request for verification.
-      saveSubmission('employer-verifications', { employerId: emp.id, status: 'pending', submittedBy: user.name, details: verificationDetails(emp) });
+      if (!readSubmissions('employer-verifications').some((v) => v.employerId === emp.id && OPEN_CHECKS.includes(v.status))) saveSubmission('employer-verifications', { employerId: emp.id, status: 'pending', submittedBy: user.name, details: verificationDetails(emp) });
       mailer.employerSignedUp(emp, `${baseUrl}/admin?tab=clients`);
     }
     team.audit(emp.id, user, 'email-confirmed');
@@ -568,11 +652,14 @@ function register(app, deps) {
     if (verificationOf(emp) !== 'pending') return res.redirect('/employer/company?msg=' + encodeURIComponent('Your company is already verified.'));
     if (!emp.gstin && !emp.cin && !emp.udyam && !emp.website) return res.redirect('/employer/company?msg=' + encodeURIComponent('Add a GSTIN, CIN, Udyam number or website first, so our team can check the company.'));
     const list = readSubmissions('employer-verifications');
-    const open = list.find((v) => v.employerId === emp.id && v.status === 'pending');
+    const open = list.find((v) => v.employerId === emp.id && OPEN_CHECKS.includes(v.status));
+    const reply = String(req.body.reply || '').trim().slice(0, 1000);
     if (open) {
-      Object.assign(open, { details: verificationDetails(emp), resubmittedAt: now(), submittedBy: req.employerUser.name });
+      // An answer to our question puts the check back in the queue.
+      Object.assign(open, { status: 'pending', details: verificationDetails(emp), resubmittedAt: now(), submittedBy: req.employerUser.name, ...(reply ? { reply } : {}) });
       writeSubmissions('employer-verifications', list);
-    } else saveSubmission('employer-verifications', { employerId: emp.id, status: 'pending', submittedBy: req.employerUser.name, details: verificationDetails(emp) });
+    } else saveSubmission('employer-verifications', { employerId: emp.id, status: 'pending', submittedBy: req.employerUser.name, details: verificationDetails(emp), ...(reply ? { reply } : {}) });
+    if (emp.infoRequestedAt) { const all = read(); const e = all.find((x) => x.id === emp.id); delete e.infoRequestedAt; write(all); }
     team.audit(emp.id, req.employerUser, 'verification-requested');
     mailer.employerVerificationRequested(emp, req.employerUser, `${baseUrl}/admin?tab=clients`);
     res.redirect('/employer/company?msg=' + encodeURIComponent('Sent to our team. We usually check companies within one working day.'));
@@ -850,7 +937,8 @@ function register(app, deps) {
     return { status: 200, name: a.name, feedback: a.shared.feedback };
   }
 
-  return { read, write, team, context, currentEmployer, requireEmployer, requireEmployerApi, allow, forbid, shortlistFor, shortlistFeedback, clientView, createClient, DECISIONS, isApproved, verificationOf, addressed, membersWith: (employerId, action, job) => team.membersOf(employerId).filter((m) => can(m, action, job)) };
+  const verification = { verifyCompany, declineCompany, requestCompanyInfo, restrictCompany, reinstateCompany, reopenVerification, OPEN_CHECKS };
+  return { verification, hooks, read, write, team, context, currentEmployer, requireEmployer, requireEmployerApi, allow, forbid, shortlistFor, shortlistFeedback, clientView, createClient, DECISIONS, isApproved, verificationOf, addressed, membersWith: (employerId, action, job) => team.membersOf(employerId).filter((m) => can(m, action, job)) };
 }
 
 module.exports = { register, hashPassword, checkPassword, validGstin, gstinCheckChar, isFreeEmail, isApproved, parseCompany, verificationOf, INDUSTRIES, COMPANY_SIZES };

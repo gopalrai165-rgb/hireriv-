@@ -31,6 +31,11 @@ const agency = require('./agency');
 const workforce = require('./workforce');
 const clientPortal = require('./client-portal');
 const crm = require('./crm');
+const trust = require('./trust');
+// Request and error counts and background-job runs for the operations view.
+const ops = require('./ops-monitor').create();
+// Set once trust & safety is registered; job reports become cases.
+const trustHooks = { reportJob: () => null };
 // Set once the CRM is registered; website inquiries and sign-ups become leads.
 const leadCapture = { capture: () => null };
 const { can: employerCan } = require('./employer-team');
@@ -63,7 +68,8 @@ const DB_FILE = process.env.DB_FILE ? path.resolve(process.env.DB_FILE) : path.j
 const db = openDb(DB_FILE);
 // Conversion counts for the website (no personal data; see site-analytics.js).
 const siteAnalytics = require('./site-analytics').create({ db });
-setInterval(() => { try { siteAnalytics.flush(); } catch (e) { console.error('Analytics flush failed:', e.message); } }, Number(process.env.ANALYTICS_FLUSH_MS) || 60 * 1000).unref();
+const flushAnalytics = ops.track('analytics-flush', () => siteAnalytics.flush(), Number(process.env.ANALYTICS_FLUSH_MS) || 60 * 1000);
+setInterval(() => { try { flushAnalytics(); } catch (e) { console.error('Analytics flush failed:', e.message); } }, Number(process.env.ANALYTICS_FLUSH_MS) || 60 * 1000).unref();
 const FORM_TYPES = ['applications', 'hire-requests', 'contacts', 'newsletter', 'job-alerts', 'job-reports'];
 for (const type of [...FORM_TYPES, 'employers']) {
   const n = db.importOnce(type, path.join(SUBMISSIONS_DIR, `${type}.json`));
@@ -244,7 +250,7 @@ function closeExpiredJobs() {
   return expired.length;
 }
 setImmediate(closeExpiredJobs);
-setInterval(closeExpiredJobs, 60 * 60 * 1000).unref();
+setInterval(ops.track('close-expired-jobs', closeExpiredJobs, 60 * 60 * 1000), 60 * 60 * 1000).unref();
 const categoriesOf = (list) => [...new Set(list.map((j) => j.category))];
 // The category list from Settings, plus any older category a job still uses.
 const jobCategories = () => [...new Set([...(site.jobCategories || DEFAULT_JOB_CATEGORIES), ...categoriesOf(jobs)])];
@@ -416,6 +422,7 @@ app.use((req, res, next) => {
 });
 
 // Health check for hosts and uptime monitors: confirms the database answers.
+app.use(ops.middleware);
 app.get('/healthz', (req, res) => {
   try {
     db.count('jobs');
@@ -515,6 +522,7 @@ Disallow: /saved
 Disallow: /staffing
 Disallow: /worker
 Disallow: /job-alerts/
+Disallow: /appeal/
 Disallow: /healthz
 
 Sitemap: ${BASE_URL}/sitemap.xml
@@ -757,6 +765,8 @@ app.get('/jobs/industry/:slug', (req, res, next) => {
 app.get('/jobs/:id', (req, res, next) => {
   const job = findJobBySlug(jobs.filter(isPublicJob), req.params.id);
   if (!job) return next();
+  // Removed by trust & safety: gone, not just closed.
+  if (job.moderation && job.moderation.locked && job.moderation.state === 'removed') return res.status(410).render('thanks', { title: 'Listing removed', page: 'jobs', ok: false, message: 'This listing was removed because it did not meet our rules. See open jobs for current vacancies.', noindex: true });
   // An old title in the address (the job was renamed) moves to the current one.
   if (req.params.id !== job.id && req.params.id !== jobPath(job).slice(6)) {
     const qs = req.originalUrl.includes('?') ? req.originalUrl.slice(req.originalUrl.indexOf('?')) : '';
@@ -1156,7 +1166,8 @@ app.get('/api/jobs/:id', limit('job-search', 120, 60 * 1000), (req, res) => {
 
 // Anyone can flag a listing that looks fake, asks for money or is misleading.
 // The team gets an email and sees it under Inbox → Reported jobs.
-const REPORT_REASONS = ['Looks fake or like a scam', 'Asks candidates to pay money', 'Wrong or misleading details', 'Already filled or closed', 'Discriminatory or offensive', 'Something else'];
+// Each report also opens (or adds to) a trust & safety case (trust.js).
+const REPORT_REASONS = ['Looks fake or like a scam', 'Asks candidates to pay money', 'Asks for Aadhaar, bank details or an OTP', 'Pretends to be another company', 'Wrong or misleading details', 'Already filled or closed', 'Discriminatory or offensive', 'Something else'];
 app.post('/api/jobs/:id/report', limit('job-report', 5), (req, res, next) => {
   const job = jobs.find((j) => j.id === req.params.id);
   if (!job) return next();
@@ -1165,7 +1176,11 @@ app.post('/api/jobs/:id/report', limit('job-report', 5), (req, res, next) => {
   const data = clean(req.body, ['reason', 'details', 'email']);
   const errors = validate(data, ['reason']);
   if (data.reason && !REPORT_REASONS.includes(data.reason)) errors.push('reason is invalid');
-  if (!errors.length) mailer.jobReported(saveSubmission('job-reports', { jobId: job.id, jobTitle: job.title, company: job.company, reason: data.reason, details: data.details.slice(0, 1000), email: data.email.toLowerCase() }));
+  if (!errors.length) {
+    const saved = saveSubmission('job-reports', { jobId: job.id, jobTitle: job.title, company: job.company, reason: data.reason, details: data.details.slice(0, 1000), email: data.email.toLowerCase() });
+    mailer.jobReported(saved);
+    trustHooks.reportJob(req, job, { ...data, details: data.details.slice(0, 1000) }, saved.id);
+  }
   respond(req, res, errors, thanks);
 });
 
@@ -1261,8 +1276,9 @@ const { adminAuth, requireAdmin } = team;
 
 // Data retention (off unless switched on in Settings): runs at start and daily.
 const retention = retentionModule.create({ db, site, uploadsDir: UPLOADS_DIR, readSubmissions, writeSubmissions, log: team.log });
-retention.run();
-setInterval(retention.run, 24 * 60 * 60 * 1000).unref();
+const runRetention = ops.track('data-retention', () => retention.run(), 24 * 60 * 60 * 1000);
+runRetention();
+setInterval(runRetention, 24 * 60 * 60 * 1000).unref();
 
 // Daily database backups, kept next to the database unless BACKUP_DIR says otherwise.
 const backups = backupsModule.create({ db, dir: process.env.BACKUP_DIR ? path.resolve(process.env.BACKUP_DIR) : path.join(path.dirname(DB_FILE), 'backups'), log: team.log });
@@ -1406,6 +1422,15 @@ const crmDesk = crm.register(app, {
 });
 leadCapture.capture = crmDesk.capture;
 
+// Platform trust & safety: company checks, job moderation, complaint cases,
+// appeals, the audit history, system health and access control.
+const trustDesk = trust.register(app, {
+  db, team, clients, hiring, getJobs: () => jobs, saveJobs, jobPath, readSubmissions, writeSubmissions, saveSubmission, adminAuth, sameOrigin, limit, isBot,
+  mailer, notify, site, baseUrl: BASE_URL, uploadsDir: UPLOADS_DIR, downloadLinks, linkExpired, vetDocument: resumeCheck.vetDocument,
+  candidateEmail: (req) => candidateAccounts.currentEmail(req), ops, backups,
+});
+trustHooks.reportJob = trustDesk.reportJob;
+
 // Website conversion counts for the team (Admins, recruitment and sales managers).
 app.get('/admin/site-analytics', adminAuth, (req, res) => {
   if (!agencyRoles.can(req.admin, 'site.analytics')) return res.status(403).render('thanks', { title: 'Not part of your role', page: '', ok: false, message: 'Your role does not include website analytics.', noindex: true });
@@ -1420,18 +1445,21 @@ const center = notificationCenter.register(app, {
 // The worker sends queued emails (and retries failed ones); scheduled checks
 // find feedback that is due and offers about to expire; old records go.
 if (process.env.NOTIFY_WORKER !== 'off') notify.start();
-notify.prune();
-setInterval(notify.prune, 24 * 3600000).unref();
-setTimeout(() => events.scan(todayIst), 60 * 1000).unref();
-setInterval(() => events.scan(todayIst), 60 * 60 * 1000).unref();
+const pruneNotifications = ops.track('notification-prune', () => notify.prune(), 24 * 3600000);
+pruneNotifications();
+setInterval(pruneNotifications, 24 * 3600000).unref();
+const scanEvents = ops.track('scheduled-reminders', () => events.scan(todayIst), 60 * 60 * 1000);
+setTimeout(scanEvents, 60 * 1000).unref();
+setInterval(scanEvents, 60 * 60 * 1000).unref();
 // Candidates who turned off "let recruiters find me" stay out of the Talent pool.
 const searchableApplications = (list) => {
   const hidden = candidateAccounts.hiddenFromSearch();
   return hidden.size ? list.filter((a) => !hidden.has(String(a.email).toLowerCase())) : list;
 };
 // Accounts whose applications were all removed (e.g. by data retention) go too.
-candidateAccounts.pruneAccounts();
-setInterval(candidateAccounts.pruneAccounts, 24 * 60 * 60 * 1000).unref();
+const pruneAccounts = ops.track('candidate-account-prune', () => candidateAccounts.pruneAccounts(), 24 * 60 * 60 * 1000);
+pruneAccounts();
+setInterval(pruneAccounts, 24 * 60 * 60 * 1000).unref();
 const timesheets = timesheetsModule.register(app, {
   db, mailer, baseUrl: BASE_URL, sameOrigin, limit, adminAuth, requireAdmin, clients,
   requireCandidate: candidateAccounts.requireCandidate, requireEmployer: clients.requireEmployer,
@@ -1478,6 +1506,7 @@ app.post('/admin/applications/new', adminAuth, sameOrigin, (req, res) => {
 
 app.get('/admin', adminAuth, (req, res) => {
   if (agencyRoles.SALES_ROLES.includes(req.admin.role)) return res.redirect('/admin/crm');
+  if (agencyRoles.TRUST_ROLES.includes(req.admin.role)) return res.redirect('/admin/overview');
   const tabs = tabsFor(req.admin);
   const tab = tabs.includes(req.query.tab) ? req.query.tab : tabs.includes('dashboard') ? 'dashboard' : tabs[0];
   const applications = readSubmissions('applications');
@@ -1740,6 +1769,8 @@ app.post('/admin/jobs/:id', adminAuth, sameOrigin, (req, res, next) => {
 app.post('/admin/jobs/:id/toggle', adminAuth, sameOrigin, (req, res, next) => {
   const job = jobs.find((j) => j.id === req.params.id);
   if (!job) return next();
+  // Restricted or removed by trust & safety: changed only from its case or an appeal.
+  if (job.moderation && job.moderation.locked) return res.redirect(adminUrl('jobs', `"${job.title}" was ${job.moderation.state === 'removed' ? 'removed' : 'restricted'} by trust & safety: change it from Job moderation`));
   // Drafts and jobs waiting for review go live through approval, not here.
   if (['draft', 'pending', 'rejected'].includes(job.status)) return res.redirect(adminUrl('jobs', `"${job.title}" is ${job.status === 'pending' ? 'waiting for review: approve or send it back' : 'not published yet'}`));
   job.status = job.status === 'open' ? 'closed' : 'open';
@@ -1968,6 +1999,7 @@ app.get('/admin/resume/:file', adminAuth, (req, res) => {
 app.use((req, res) => res.status(404).render('404', { title: 'Page not found', page: '', noindex: true }));
 app.use((err, req, res, next) => {
   console.error(err);
+  ops.recordError(req, err);
   siteAnalytics.track('server-error', `/${String(req.path).split('/')[1] || ''}`);
   res.status(500).render('thanks', { title: 'Something went wrong', page: '', ok: false, message: 'Something went wrong on our side. Please try again.', noindex: true });
 });

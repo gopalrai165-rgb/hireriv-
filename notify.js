@@ -74,6 +74,8 @@ const TYPES = {
   // the sales team (crm.js)
   'crm-lead': { category: 'jobs', optional: true, label: 'Sales leads: new, assigned to you, answers and conversions' },
   'crm-follow-up': { category: 'jobs', optional: true, label: 'Sales follow-ups due and overdue' },
+  // trust & safety (trust.js)
+  'trust-case': { category: 'jobs', optional: true, label: 'Trust & safety: urgent cases, escalations, assignments, closures to approve and appeals' },
 };
 
 const sha = (s) => crypto.createHash('sha256').update(String(s)).digest('hex');

@@ -141,10 +141,11 @@ function create({ db, mailer, baseUrl, ownerUser, ownerPass, site = {}, resetOwn
     res.locals.roleLabel = (agencyRoles.ROLE_INFO[user.role] || { label: user.role }).label;
     if (!agencyRoles.pathAllowed(user, req.path)) {
       if (!wantsHtml(req)) return res.status(403).send('Your role does not include this page.');
-      return res.status(403).render('thanks', { title: 'Not part of your role', page: '', ok: false, message: `Your role covers ${agencyRoles.SALES_ROLES.includes(user.role) ? 'the sales CRM' : 'billing'} only. Ask an Admin on your team if you need this page.`, noindex: true });
+      return res.status(403).render('thanks', { title: 'Not part of your role', page: '', ok: false, message: `Your role covers ${agencyRoles.SALES_ROLES.includes(user.role) ? 'the sales CRM' : agencyRoles.TRUST_ROLES.includes(user.role) ? 'trust & safety and platform operations' : 'billing'} only. Ask an Admin on your team if you need this page.`, noindex: true });
     }
     // When the team requires two-step sign-in, people without it can only set it up.
-    if (requires2fa() && !has2fa(user.id) && !req.path.startsWith('/admin/security')) {
+    // So does every trust & safety and operations role, whatever the team setting.
+    if ((requires2fa() || agencyRoles.STRONG_AUTH_ROLES.includes(user.role)) && !has2fa(user.id) && !req.path.startsWith('/admin/security') && !req.path.startsWith('/admin/logout')) {
       if (wantsHtml(req)) return res.redirect('/admin/security');
       return res.status(403).send('Your team requires two-step sign-in. Set it up at /admin/security first.');
     }
@@ -284,7 +285,7 @@ function create({ db, mailer, baseUrl, ownerUser, ownerPass, site = {}, resetOwn
       res.set('Cache-Control', 'no-store');
       page(res, 'admin-security', {
         title: 'Sign-in security', on: Boolean(s.twoFactor), enabledAt: s.twoFactor ? s.twoFactor.enabledAt : '', recoveryLeft: recoveryLeft(s.twoFactor),
-        required: requires2fa(), setup, codes: null, msg: String(req.query.msg || '').slice(0, 300), ...extra,
+        required: requires2fa() || agencyRoles.STRONG_AUTH_ROLES.includes(req.admin.role), setup, codes: null, msg: String(req.query.msg || '').slice(0, 300), ...extra,
       });
     }
     function issueRecovery(userId) {
@@ -329,7 +330,7 @@ function create({ db, mailer, baseUrl, ownerUser, ownerPass, site = {}, resetOwn
 
     app.post('/admin/security/off', adminAuth, sameOrigin, (req, res) => {
       if (!has2fa(req.admin.id)) return res.redirect(secUrl());
-      if (requires2fa()) return res.redirect(secUrl('Your team requires two-step sign-in, so it cannot be turned off. Ask an Admin to reset it if you changed phones.'));
+      if (requires2fa() || agencyRoles.STRONG_AUTH_ROLES.includes(req.admin.role)) return res.redirect(secUrl('Your team or your role requires two-step sign-in, so it cannot be turned off. Ask an Admin to reset it if you changed phones.'));
       if (!useSecondFactor(req.admin.id, String(req.body.code || '').slice(0, 40))) return res.redirect(secUrl("That code didn't work, so two-step sign-in is still on."));
       saveSecurity(req.admin.id, { twoFactor: null, twoFactorPending: null });
       notify(req.admin, 'Two-step sign-in was turned off', `Two-step sign-in was turned off for your ${site.name} team account, so only your password is needed to sign in. If this wasn't you, change your password and tell an Admin.`);

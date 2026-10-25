@@ -276,3 +276,92 @@ Suggested order: 2 → 1 → 3 → 4, which makes Hireriv usable for skilled and
 - **Analytics.** Counts per day, event and a short label (kind of work, service, industry, lead source) in `site-analytics`, kept 400 days. No cookies, IPs, user agents, ids or form contents; bots and browsers with Global Privacy Control or Do Not Track are skipped, so no consent banner is needed. Browsers may report only "application started"; everything else is counted on the server. "Qualified" is counted once per website lead when the sales team qualifies it.
 - **Performance.** Jobs are already held in memory and expired on each request, so listings, landing pages and the sitemap always reflect closing dates without a separate cache to invalidate. Landing pages and search are paginated (20 a page). No database index was added: public pages read the in-memory jobs, not SQL queries.
 - **Tests.** `test/website.test.js` (8): every sitemap page answers 200 with a unique title, description and canonical address, no `noindex` and valid JSON-LD; landing pages list the right live jobs; JobPosting accuracy and absence on closed and sample jobs; robots and `noindex` on search variants, 404s and redirects; the public API without private data; inquiries validated, rate-limited and into the CRM; candidate registration; counts without personal data, bots and opt-outs skipped, qualified once.
+
+## Step 59: platform administration, trust, safety and quality control
+
+- **Audit first.** Already there:
+  - team roles, checked on the server for every page and API (`agency-roles.js`)
+  - two-step sign-in for team accounts, which an Admin could require for everyone
+  - employer self-sign-up with a company check (approve or decline under Clients, recorded in `employer-verifications`)
+  - employers' jobs reviewed before going live (approve, or send back with a reason)
+  - "Report this job", with an email to the team and an inbox tab
+  - separate audit logs for the agency, the CRM, the workforce, employer accounts and team activity
+  - `/healthz`, plus email delivery stats and retries for Admins
+  - private uploads with real file-type checks, virus scanning and signed links
+
+  Missing:
+  - roles for verification, moderation, support, trust & safety, operations and audit
+  - asking a company for more information
+  - any check on listing content
+  - restricting or removing a live listing
+  - complaint cases and appeals
+  - a combined, tamper-evident audit view
+  - the health of background jobs and errors
+  - any limit on who could approve companies and jobs (every team role could)
+- **Reused, not duplicated.**
+  - Verification decisions use the existing checks and emails: `employers.js` now exposes them as functions, and the Clients tab buttons call the same code.
+  - Job approvals use the existing review: `employer-hiring.js` has `approveJob` and `sendBackJob`, and the Jobs tab buttons call them too.
+  - "Report this job" keeps its inbox and email, and also opens a case.
+  - Permissions live in `agency-roles.js`; sign-in and two-step sign-in in `team.js`; notifications in `notify.js` (type `trust-case`); evidence files go through the `uploads.js` checks.
+  - The audit page reads every existing log rather than copying it.
+- **Least privilege.** Six new roles, each opening only its own pages (`TRUST_PAGES`), with every action behind a permission.
+  - Approving companies now needs `verify.review`: Admins, Recruitment and Account Managers, Verification Reviewers and Trust & Safety Managers. Recruiters and Staffing Managers can no longer approve them.
+  - Approving jobs needs `jobs.review`: the recruitment roles as before, minus Staffing and Finance Managers.
+  - Restricting or removing listings needs `jobs.moderate`.
+  - Suspending or closing accounts needs `accounts.restrict` plus two-step sign-in. Closing also needs a second person to approve, never the one who asked.
+  - Support Agents see only cases assigned to them. Moderators also see job cases, and verification reviewers employer cases.
+  - Auditors read the audit history and the access matrix, and can change nothing.
+  - Operations Admins see health and email delivery (what failed and why, never to whom), but no complaints or candidates.
+- **Stronger authentication.** Every trust & safety and operations role must turn on two-step sign-in before any page opens, and can't turn it off. Admins need it for strong actions and for appeal decisions.
+- **Automated flags are prompts, not verdicts.** The scan runs every 10 minutes (`TRUST_SCAN_MS`). It looks for:
+  - fees or deposits
+  - requests for Aadhaar, PAN, bank details or OTPs
+  - scam promises
+  - WhatsApp, Telegram and shortened links, and bare IP or non-HTTPS links
+  - text copied from an earlier listing by another company
+
+  Flags at or above the policy level open a case, or add to one. Nothing is unpublished, closed or banned automatically. A moderator can mark flags as checked, so the same content isn't flagged again.
+- **Reports.** These rules apply to `POST /api/reports` and to the job page form:
+  - Input is validated: a known category, details up to 1000 characters, an optional email and one evidence file (PDF, JPG or PNG; signature check and virus scan).
+  - Abuse controls: a bot trap, link-stuffed text treated as spam, and 5 reports per 10 minutes per IP.
+  - The reporter comes from the session, never from the request.
+  - The reply is the same whether or not the job, company or candidate exists, so it can't be used to discover accounts.
+  - Candidates can be reported only by an employer who can already see that application.
+  - Repeat reports from the same person don't raise the count.
+- **Decisions, history and appeals.**
+  - Every decision records a reason, the person and the time: in the case history, on the listing (`moderationHistory`) or the check, and in the audit trail.
+  - Two people can't decide the same thing at once: listings and checks use `expectedStatus`, appeals are claimed in a transaction, and cases carry a `version`. The second person gets a 409.
+  - Adverse decisions about a company (listing unpublished or removed, account suspended or closed, sign-up declined) email the owners a 30-day appeal link: a random token, stored hashed.
+  - Someone other than the original decider upholds or overturns the appeal. Overturning restores the listing's previous state, reactivates the company or reopens its check.
+  - Suspensions and moderation locks can't be undone from the ordinary Jobs and Clients buttons.
+- **Audit trail.** `trust-audit` entries are append-only and hash-chained: each stores the previous hash, and the newest is kept separately. Editing, deleting or reordering entries therefore shows as a broken chain on the audit page and in system health. No route edits or deletes them (the generic delete covers only inbox forms). Viewing evidence is recorded.
+- **Privacy and retention.**
+  - Complaint details, reporter emails and evidence are visible only to the people allowed to handle that case. Reporters hear only that their report was handled.
+  - Evidence is stored outside the public folder under random names, and downloaded through 15-minute signed links.
+  - Two years after a case closes, details, emails and evidence files are deleted and appeal statements cleared. The case outline and the audit trail stay.
+  - Operational monitoring keeps request counts, background-job runs and the last 50 errors in memory. Emails, links, paths, tokens and numbers are stripped from the messages.
+- **Metrics.** The overview never counts adverse decisions per reviewer. It shows:
+  - the verification backlog and the time to decide
+  - listings waiting for review or flagged
+  - open cases by status and priority, and open cases per person
+  - first-response and resolution times
+  - appeal outcomes and the overturn rate
+- **Adapted from the brief.**
+  - The app stays on Express, EJS and the existing SQLite record store instead of React and new PostgreSQL tables. Cases, appeals and the audit trail are collections like the rest of the app (`trust-cases`, `trust-appeals`, `trust-audit`), so no separate migration is needed.
+  - The brief's "message" reports are not offered: the platform has no messaging between users yet.
+  - Exceptional data exports were not added, so nothing exists yet to put behind dual approval. Account closure is behind it.
+- **Not done here.**
+  - No staging run, external penetration test or load test.
+  - Incident escalation outside the app (who to call about credible threats or exposed data) still needs a written procedure.
+  - The in-memory request and error counts reset when the server restarts.
+- **Tests.** `test/trust.test.js` has 12 tests, covering:
+  - flag rules and copy detection, and cleaned monitoring data
+  - roles that need two-step sign-in and see only their own pages
+  - reports: validation, identical replies, the rate limit, repeat reporters, urgency, the job page form, the bot trap and evidence file checks
+  - automated cases that leave listings live, then removal and the 410 page
+  - verification: a question, the company's answer, a race between two reviewers, decline, appeal and overturn by someone else
+  - an employer job: approval, a race between two moderators, restriction with history, blocked resubmission, appeal and restore
+  - cases: versions, assignment, Support Agent visibility, escalation, and resolving with a reason plus a reporter email without details
+  - suspension and reinstatement, closure needing a second person, and two-step sign-in for strong actions
+  - a policy change with a reason, and health data without secrets
+  - a read-only audit trail and tamper detection

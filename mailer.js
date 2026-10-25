@@ -375,7 +375,7 @@ function createMailer(site) {
       });
     },
 
-    employerRejected(emp, reason) {
+    employerRejected(emp, reason, appealUrl) {
       return send(site, {
         to: emp.email,
         replyTo: teamInbox,
@@ -384,7 +384,54 @@ function createMailer(site) {
         html:
           p(`Thanks for signing up <b>${esc(emp.company)}</b>. We weren't able to verify the company, so the account has been closed.`) +
           (reason ? p(`<b>Reason:</b> ${esc(reason)}`) : '') +
-          p('If you think this is a mistake, reply to this email with your company details (GSTIN, website or registration certificate) and we will look again.'),
+          (appealUrl
+            ? p('If you think this is a mistake, you can ask for the decision to be reviewed by someone else on our team.') + button(appealUrl, 'Appeal this decision')
+            : p('If you think this is a mistake, reply to this email with your company details (GSTIN, website or registration certificate) and we will look again.')),
+      });
+    },
+
+    // The verification team needs more before it can decide.
+    employerInfoRequested(emp, note) {
+      return send(site, {
+        to: emp.email,
+        replyTo: teamInbox,
+        subject: `${site.name} needs a little more about ${emp.company}`,
+        heading: 'We need more information to verify your company',
+        html:
+          p(`Thanks for signing up <b>${esc(emp.company)}</b>. Before we can verify the company, our team needs:`) +
+          p(`<b>${esc(note)}</b>`) +
+          p('Open your company profile, update the details if needed and send your answer. We never ask for Aadhaar or bank details to verify a company.') +
+          button(`${baseUrl}/employer/company`, 'Open company profile'),
+      });
+    },
+
+    // A trust & safety decision about a company's listing or account, with
+    // the way to ask for a review when one is offered.
+    trustDecision(to, { subject, heading, lines, appealUrl }) {
+      return send(site, {
+        to: to.email,
+        replyTo: teamInbox,
+        subject,
+        heading,
+        html:
+          p(`Hi ${first(to.name)},`) +
+          lines.map((l) => p(esc(l))).join('') +
+          (appealUrl ? p('If you think this decision is wrong, you can appeal within 30 days. Someone who did not make the decision will review it.') + button(appealUrl, 'Appeal this decision') : ''),
+      });
+    },
+
+    // To someone who reported a listing or account: no details of what we did
+    // to the other party, only that the report was handled or what we need.
+    trustReporterUpdate(email, { number, kind, text }) {
+      return send(site, {
+        to: email,
+        replyTo: teamInbox,
+        subject: kind === 'question' ? `About your report ${number}: a question from ${site.name}` : `Your report ${number} to ${site.name}`,
+        heading: kind === 'question' ? 'We need a little more information' : 'Thanks for your report',
+        html:
+          p(kind === 'question' ? `Thanks for reporting this to us. To look into it, our team would like to know:` : 'Thanks for telling us. Our team has reviewed your report.') +
+          p(`<b>${esc(text)}</b>`) +
+          p(kind === 'question' ? 'Just reply to this email. Please do not send passwords, OTPs, Aadhaar or bank details.' : 'For privacy, we cannot share what action was taken about another person or company.'),
       });
     },
 

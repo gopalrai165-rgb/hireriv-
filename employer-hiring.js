@@ -21,12 +21,19 @@ const EMPLOYER_JOB_FIELDS = ['title', 'location', 'mode', 'type', 'category', 'w
 const STATUS_LABELS = { draft: 'Draft', pending: 'Waiting for review', open: 'Live', paused: 'Paused', closed: 'Closed', rejected: 'Needs changes' };
 const ACTIVE = ['open', 'paused', 'pending'];
 const selfManaged = (job) => Boolean(job) && job.createdBy === 'employer';
+// Restricted or removed by trust & safety (trust.js): only a moderator or an appeal changes it.
+const lockedByModeration = (job) => Boolean(job && job.moderation && job.moderation.locked);
+const LOCKED_MESSAGE = 'this listing was restricted by our moderators; use the link in our email to appeal';
 
 function register(app, deps) {
   const { site, mailer, baseUrl, limit, sameOrigin, adminAuth, adminUrl, clients, readSubmissions, writeSubmissions, uploadsDir, downloadLinks, linkExpired } = deps;
   const { getJobs, saveJobs, parseJob, nextJobId, todayIst, publicJob, jobPath, sendJobAlerts, alertedNote, appStatuses, moveStage, interviewDesk, parseInterview, interviewModes, interviewDurations, formatIst, skillMatch, jobFormLocals } = deps;
   const { requireEmployer, requireEmployerApi, team, addressed } = clients;
   const { events } = deps;
+  const agencyRoles = require('./agency-roles');
+  // Set by trust.js: the configurable limit for companies not yet verified.
+  const hooks = {};
+  const waitingLimit = () => (hooks.waitingLimit ? hooks.waitingLimit() : MAX_WAITING_UNVERIFIED);
   const actorOf = (req) => ({ label: byLine(req), kind: 'employer', userId: req.employerUser.id });
   const now = () => new Date().toISOString();
   const page = (res, view, locals, status = 200) => res.status(status).render(view, { page: 'employer', noindex: true, errors: [], msg: '', ...locals });
@@ -78,6 +85,7 @@ function register(app, deps) {
     if (errors.length) return { errors };
     // A change to a live, paused or waiting job is checked again before it shows.
     const status = ACTIVE.includes(job.status) ? 'pending' : job.status === 'closed' ? 'closed' : 'draft';
+    if (lockedByModeration(job)) return { errors: [LOCKED_MESSAGE] };
     if (status === 'pending' && job.status !== 'pending') {
       const problem = submitProblem(req, job);
       if (problem) return { errors: [problem] };
@@ -100,11 +108,13 @@ function register(app, deps) {
     if (emp.selfSignup && !req.employerUser.phoneVerifiedAt) return 'verify your mobile number in Settings before sending jobs for review';
     const mine = getJobs().filter((j) => j.employerId === emp.id && j.id !== job.id);
     if (mine.filter((j) => ACTIVE.includes(j.status)).length >= MAX_ACTIVE_JOBS) return `a company can have up to ${MAX_ACTIVE_JOBS} jobs live, paused or waiting for review; close one first`;
-    if (!clients.isApproved(emp) && mine.filter((j) => j.status === 'pending').length >= MAX_WAITING_UNVERIFIED) return `until your company is verified, up to ${MAX_WAITING_UNVERIFIED} jobs can wait for review`;
+    const most = waitingLimit();
+    if (!clients.isApproved(emp) && mine.filter((j) => j.status === 'pending').length >= most) return most ? `until your company is verified, up to ${most} job${most === 1 ? '' : 's'} can wait for review` : 'jobs can be sent for review once your company is verified';
     return '';
   }
   function submitJob(req, job) {
     if (job.status === 'pending') return { job, errors: [] };
+    if (lockedByModeration(job)) return { errors: [LOCKED_MESSAGE] };
     if (!['draft', 'rejected', 'closed'].includes(job.status)) return { errors: ['only drafts, jobs sent back and closed jobs can be sent for review'] };
     const { errors } = employerJobInput(req.employer, {}, job);
     if (errors.length) return { errors };
@@ -396,36 +406,57 @@ function register(app, deps) {
 
   // ---------- the team's decision on a job sent for review ----------
   // The person who posted it and the company's owners hear about it (notify-events.js).
-  app.post('/admin/jobs/:id/approve', adminAuth, sameOrigin, (req, res, next) => {
-    const job = getJobs().find((j) => j.id === req.params.id && j.status === 'pending');
-    if (!job) return next();
+  // Shared with the moderation queue (trust.js). `by` is the team member.
+  function approveJob(job, by) {
+    if (!job || job.status !== 'pending') return { status: 409, errors: ['this job is no longer waiting for review'] };
     const emp = clients.read().find((c) => c.id === job.employerId);
-    if (emp && !clients.isApproved(emp)) return res.redirect(adminUrl('jobs', `Verify ${emp.company} under Clients first, then this job`));
-    Object.assign(job, { status: 'open', posted: todayIst(), approvedAt: now(), approvedBy: req.admin.name });
+    if (emp && !clients.isApproved(emp)) return { status: 409, errors: [`verify ${emp.company} first, then this job`] };
+    Object.assign(job, { status: 'open', posted: todayIst(), approvedAt: now(), approvedBy: by.name });
     const alerted = sendJobAlerts(job);
     saveJobs();
     if (emp) {
-      team.audit(emp.id, null, 'job-published', `${job.title} (${job.id}) by ${req.admin.name}`);
+      team.audit(emp.id, null, 'job-published', `${job.title} (${job.id}) by ${by.name}`);
       events.jobDecision(job, emp, true, '');
     }
-    res.redirect(adminUrl('jobs', `"${job.title}" is live${alertedNote(alerted)}`));
-  });
-
-  app.post('/admin/jobs/:id/reject', adminAuth, sameOrigin, (req, res, next) => {
-    const job = getJobs().find((j) => j.id === req.params.id && j.status === 'pending');
-    if (!job) return next();
-    const reason = String(req.body.reason || '').trim().slice(0, 500) || 'It does not meet our listing rules.';
-    Object.assign(job, { status: 'rejected', rejectedReason: reason, rejectedAt: now(), rejectedBy: req.admin.name });
+    return { status: 200, job, alerted };
+  }
+  // Back to the employer with what to change: a job waiting for review, or
+  // (by a moderator) a live or paused one.
+  function sendBackJob(job, by, reason, { live = false } = {}) {
+    const allowed = live ? ['pending', 'open', 'paused'] : ['pending'];
+    if (!job || !allowed.includes(job.status)) return { status: 409, errors: [live ? 'only jobs waiting for review, live or paused can be sent back' : 'this job is no longer waiting for review'] };
+    if (!job.employerId) return { status: 409, errors: ['only jobs posted by employers can be sent back for changes'] };
+    const text = String(reason || '').trim().slice(0, 500) || 'It does not meet our listing rules.';
+    Object.assign(job, { status: 'rejected', rejectedReason: text, rejectedAt: now(), rejectedBy: by.name });
     saveJobs();
     const emp = clients.read().find((c) => c.id === job.employerId);
     if (emp) {
-      team.audit(emp.id, null, 'job-sent-back', `${job.title} (${job.id}): ${reason}`);
-      events.jobDecision(job, emp, false, reason);
+      team.audit(emp.id, null, 'job-sent-back', `${job.title} (${job.id}): ${text}`);
+      events.jobDecision(job, emp, false, text);
     }
+    return { status: 200, job };
+  }
+  const reviewGate = (req, res, next) => (agencyRoles.can(req.admin, 'jobs.review') ? next() : res.status(403).render('thanks', { title: 'Not part of your role', page: '', ok: false, message: 'Your role does not include reviewing jobs.', noindex: true }));
+
+  app.post('/admin/jobs/:id/approve', adminAuth, reviewGate, sameOrigin, (req, res, next) => {
+    const job = getJobs().find((j) => j.id === req.params.id && j.status === 'pending');
+    if (!job) return next();
+    const r = approveJob(job, req.admin);
+    if (r.errors) return res.redirect(adminUrl('jobs', r.errors[0].replace(/^verify (.*) first/, 'Verify $1 under Clients first')));
+    if (hooks.decided) hooks.decided(req.admin, 'approve', job, '');
+    res.redirect(adminUrl('jobs', `"${job.title}" is live${alertedNote(r.alerted)}`));
+  });
+
+  app.post('/admin/jobs/:id/reject', adminAuth, reviewGate, sameOrigin, (req, res, next) => {
+    const job = getJobs().find((j) => j.id === req.params.id && j.status === 'pending');
+    if (!job) return next();
+    const r = sendBackJob(job, req.admin, req.body.reason);
+    if (r.errors) return res.redirect(adminUrl('jobs', r.errors[0]));
+    if (hooks.decided) hooks.decided(req.admin, 'request-correction', job, job.rejectedReason);
     res.redirect(adminUrl('jobs', `"${job.title}" was sent back to the employer`));
   });
 
-  return { selfManaged, STATUS_LABELS, applicantView, applicationsFor, withApplicant, withJob, visibleJobs, companyJob, changeStatus, bookInterview, actorOf, byLine };
+  return { hooks, approveJob, sendBackJob, lockedByModeration, selfManaged, STATUS_LABELS, applicantView, applicationsFor, withApplicant, withJob, visibleJobs, companyJob, changeStatus, bookInterview, actorOf, byLine };
 }
 
-module.exports = { register, selfManaged, STATUS_LABELS, MAX_ACTIVE_JOBS, MAX_WAITING_UNVERIFIED };
+module.exports = { register, lockedByModeration, selfManaged, STATUS_LABELS, MAX_ACTIVE_JOBS, MAX_WAITING_UNVERIFIED };

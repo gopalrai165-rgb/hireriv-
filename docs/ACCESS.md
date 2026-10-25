@@ -9,13 +9,52 @@ Every route the app serves, and who may use it. **This table is checked by `test
 | candidate | A candidate signed in with an emailed link or their password (`hr_cand` session: HttpOnly, SameSite=Lax, Secure on https) | `requireCandidate`; data is limited to applications made with their email |
 | employer | A person signed in to the employer portal, working in one of their companies (`hr_emp` session) | `requireEmployer` + their role in that company (owner, hiring manager, recruiter, viewer), checked on the server for every action; other companies' jobs and applicants are "not found" |
 | account | Anyone signed in: a candidate, an employer person or the team | `anyAccount` / `anyAccountApi`: the recipient comes from the session, never from the request, and each person sees only their own notifications. On `/api/staffing/*` (workforce) the handler then checks the record: the worker's own, the client's assignments (site supervisors: only those they supervise), or the team role |
-| team | Anyone on the team (Admin, Recruitment Manager, Recruiter, Account Manager, Staffing Manager, Finance Manager, Sales Manager, Business Development Representative) | `adminAuth` or `teamApi` (+ two-step sign-in when the team requires it), then the role's permission in `agency-roles.js` (403 otherwise). A Finance Manager can open only billing pages (and the sales reports); the sales roles only the CRM |
+| team | Anyone on the team (Admin, Recruitment Manager, Recruiter, Account Manager, Staffing Manager, Finance Manager, Sales Manager, Business Development Representative, Verification Reviewer, Job Moderator, Support Agent, Trust & Safety Manager, Operations Admin, Auditor) | `adminAuth` or `teamApi` (+ two-step sign-in when the team requires it, and always for the trust & safety and operations roles), then the role's permission in `agency-roles.js` (403 otherwise). A Finance Manager can open only billing pages (and the sales reports); the sales roles only the CRM; the trust & safety and operations roles only their own pages |
 | admin | Team members with the Admin (Super Admin) role | `adminAuth` + `requireAdmin` (403 for everyone else) |
 | billing | Admins and Finance Managers | `adminAuth` + `requireBilling` (403 for everyone else) |
 
 Every state-changing team, candidate and client form also passes `sameOrigin` (cross-site posts are refused).
 
-Total: 535 routes.
+Total: 569 routes.
+
+## Trust & safety and platform operations: verification, moderation, complaint cases, appeals, audit history, system health; public reports and appeal links
+
+| Method | Path | Policy | Notes |
+| --- | --- | --- | --- |
+| GET | `/admin/overview` | team | trust.overview (Admins and trust & safety roles): backlogs, response times, appeal outcomes; never decisions per person |
+| GET | `/admin/verifications` | team | verify.review (Admins, recruitment and account managers, Verification Reviewers, Trust & Safety Managers): companies waiting to be checked |
+| POST | `/admin/verifications/:id/decision` | team | verify.review; verify, decline (reason, appeal offered) or ask for information (reason); only an open check; recorded with reviewer and time |
+| GET | `/admin/job-moderation` | team | jobs.review: jobs sent in, flagged and reported listings |
+| GET | `/admin/job-moderation/:id` | team | jobs.review: one listing with its flags, cases and decision history |
+| POST | `/admin/job-moderation/:id/decision` | team | Approve or send back a job sent in: jobs.review; restrict, remove, lift, clear flags or correct a live job: jobs.moderate; reason required; 409 if the listing changed |
+| GET | `/admin/reports` | team | cases.view: complaint cases; Support Agents see those assigned to them, moderators job cases, verification reviewers employer cases |
+| GET | `/admin/cases/:id` | team | cases.view and that case visible to the role; 404 otherwise |
+| POST | `/admin/cases/:id` | team | Status (reason to close), assignment and priority (cases.manage); under the case version, 409 if someone else changed it |
+| POST | `/admin/cases/:id/actions` | team | Each action has its own permission; suspending or closing accounts needs two-step sign-in, and closing needs a second person to approve |
+| POST | `/admin/cases/:id/evidence` | team | cases.view on that case; PDF, JPG or PNG up to 5 MB, real file type and virus scan; kept privately |
+| GET | `/admin/cases/:id/evidence/:eid` | team | cases.view on that case and a signed link that expires; each download is recorded in the audit trail |
+| GET | `/admin/appeals` | team | cases.view; all appeals for appeals.decide, otherwise only those on cases the role sees |
+| POST | `/admin/appeals/:id/decision` | team | appeals.decide (Admins, Trust & Safety Managers) with two-step sign-in, never the person who made the decision; overturning reverses it |
+| GET | `/admin/audit-logs` | team | audit.platform (Admins, Trust & Safety Managers, Auditors): read-only history from every audit log, with the hash-chain check |
+| GET | `/admin/system-health` | team | ops.health (Admins, Operations Admins): status, background jobs, cleaned errors, email delivery; no customer content |
+| POST | `/admin/system-health/deliveries/:id/retry` | team | ops.health: queues a failed email again |
+| GET | `/admin/access-control` | team | access.view (Admins, Auditors): roles, permissions and who has two-step sign-in |
+| POST | `/admin/access-control/policy` | team | trust.policy (Admins); reason required, recorded in the audit trail |
+| GET | `/api/admin/verifications` | team | verify.review; pages of checks with details and signals |
+| POST | `/api/admin/verifications/:id/decision` | team | Same rules as the form |
+| GET | `/api/admin/moderation/jobs` | team | jobs.review; pages of listings to look at |
+| POST | `/api/admin/moderation/jobs/:id/decision` | team | Same rules as the form; expectedStatus guards against two decisions at once |
+| GET | `/api/admin/cases` | team | cases.view; only cases the role sees; filters and pages |
+| GET | `/api/admin/cases/:id` | team | cases.view on that case; reporter emails only to those who handle it |
+| PATCH | `/api/admin/cases/:id` | team | Same rules as the form; version required |
+| POST | `/api/admin/cases/:id/actions` | team | Same rules as the form |
+| GET | `/api/admin/appeals` | team | cases.view; as the appeals page |
+| POST | `/api/admin/appeals/:id/decision` | team | Same rules as the form |
+| GET | `/api/admin/audit-logs` | team | audit.platform; read-only, pages of 100 |
+| GET | `/api/admin/system-health` | team | ops.health; counts and cleaned messages only |
+| POST | `/api/reports` | public | Bot trap, 5 per 10 minutes per IP, validated; the same reply whether or not the thing reported exists; candidates can be reported only by an employer who can see them; optional evidence file checked like uploads |
+| GET | `/appeal/:token` | link | Random link emailed with an adverse decision; expires after 30 days |
+| POST | `/appeal/:token` | link | One appeal per decision, 20 to 2000 characters, bot trap and 10 per 10 minutes |
 
 ## Sales CRM: the sales team (Sales Managers, Business Development Representatives, Admins), and the client's proposal and unsubscribe links
 
@@ -184,7 +223,7 @@ Total: 535 routes.
 | GET | `/api/public/site-config` | public | Public settings only: name, contact numbers, social links, services, filters; never billing or settings behind sign-in |
 | POST | `/api/public/events` | public | Counts an application form being opened; only events a browser may report; no personal data; 60 per 10 minutes |
 | GET | `/api/jobs/:id` | public | Open, published jobs only |
-| POST | `/api/jobs/:id/report` | public | 5 per 10 minutes per IP |
+| POST | `/api/jobs/:id/report` | public | 5 per 10 minutes per IP; also opens or adds to a trust & safety case |
 | POST | `/api/job-alerts` | public | Bot trap, per-IP limit. Signed out: confirmed by an emailed link, same reply either way. Signed in as a candidate (own email): on at once |
 | POST | `/api/newsletter` | public |  |
 | GET | `/post-a-job` | public | Signed-in employer: the job form; anyone else: employer sign-up |
@@ -508,13 +547,13 @@ Total: 535 routes.
 | GET | `/admin/clients/:id/contract-documents` | team | Roles that see contracts (checked in the handler) |
 | POST | `/admin/contracts/:id/versions` | team | Admins or the client's Account Manager (checked in the handler) |
 | POST | `/admin/contract-versions/:id/:action` | team | Same rules as the JSON API |
-| POST | `/admin/jobs/:id/approve` | team | Only for verified companies; tells the job's poster and the company owners |
-| POST | `/admin/jobs/:id/reject` | team |  |
+| POST | `/admin/jobs/:id/approve` | team | jobs.review; only for verified companies; tells the job's poster and the company owners; recorded in the trust audit trail |
+| POST | `/admin/jobs/:id/reject` | team | jobs.review; reason sent to the employer; recorded in the trust audit trail |
 | POST | `/admin/clients` | team |  |
 | POST | `/admin/clients/:id/invite` | team |  |
-| POST | `/admin/clients/:id/toggle` | team |  |
-| POST | `/admin/clients/:id/approve` | team |  |
-| POST | `/admin/clients/:id/reject` | team |  |
+| POST | `/admin/clients/:id/toggle` | team | Not for companies suspended or closed by trust & safety |
+| POST | `/admin/clients/:id/approve` | team | verify.review; recorded in the trust audit trail |
+| POST | `/admin/clients/:id/reject` | team | verify.review; the company is emailed the reason and an appeal link |
 | POST | `/admin/applications/:id/share` | team |  |
 | POST | `/admin/applications/:id/unshare` | team |  |
 | GET | `/admin/applications/:id/interview` | team |  |
@@ -538,7 +577,7 @@ Total: 535 routes.
 | GET | `/admin/jobs/:id/edit` | team |  |
 | POST | `/admin/jobs` | team |  |
 | POST | `/admin/jobs/:id` | team |  |
-| POST | `/admin/jobs/:id/toggle` | team |  |
+| POST | `/admin/jobs/:id/toggle` | team | Not for listings restricted or removed by trust & safety |
 | GET | `/admin/blog/new` | team |  |
 | GET | `/admin/blog/:slug/edit` | team |  |
 | POST | `/admin/blog` | team |  |

@@ -2,7 +2,10 @@
 // server for every page and API call, from the signed-in person's role, never
 // from anything the browser sends. Client employers and candidates have their
 // own sign-ins and never reach these pages.
-const ROLES = ['Admin', 'Recruitment Manager', 'Recruiter', 'Account Manager', 'Staffing Manager', 'Finance Manager', 'Sales Manager', 'Business Development'];
+// Platform trust & safety (trust.js): verification, moderation, complaints,
+// operations and audit. They work only on those pages.
+const TRUST_ROLES = ['Verification Reviewer', 'Job Moderator', 'Support Agent', 'Trust & Safety Manager', 'Operations Admin', 'Auditor'];
+const ROLES = ['Admin', 'Recruitment Manager', 'Recruiter', 'Account Manager', 'Staffing Manager', 'Finance Manager', 'Sales Manager', 'Business Development', ...TRUST_ROLES];
 
 const ROLE_INFO = {
   Admin: { label: 'Super Admin', text: 'Everything, including settings, the team, billing, backups and deleting records' },
@@ -13,10 +16,16 @@ const ROLE_INFO = {
   'Finance Manager': { label: 'Finance Manager', text: 'Billing only: invoices, payments, credit notes and money reports. No candidate details beyond names on invoices' },
   'Sales Manager': { label: 'Sales Manager', text: 'Runs the sales CRM: every lead and opportunity, assignment, imports, approving proposals and converting won clients. No candidate details' },
   'Business Development': { label: 'Business Development Representative', text: 'Works the leads and opportunities assigned to them: activities, follow-ups and proposals. No candidate details' },
+  'Verification Reviewer': { label: 'Verification Reviewer', text: 'Checks employer companies: verifies, declines or asks for more information, and handles complaints about employers' },
+  'Job Moderator': { label: 'Job Moderator', text: 'Reviews jobs sent in and flagged listings: approves, asks for corrections, restricts or removes, and handles complaints about jobs' },
+  'Support Agent': { label: 'Support Agent', text: 'Works the complaint cases assigned to them: notes, evidence, asking for information and resolving' },
+  'Trust & Safety Manager': { label: 'Trust & Safety Manager', text: 'Every case and escalation: assigns reviewers, suspends accounts (closing one needs a second person), decides appeals and reads the audit history' },
+  'Operations Admin': { label: 'Operations Admin', text: 'Service health, background jobs and email delivery. No complaint details or candidate records' },
+  Auditor: { label: 'Auditor', text: 'Read-only: the audit history and who may do what. Nothing can be changed' },
 };
 
-// Everyone on the recruitment side; the sales roles have only the CRM.
-const ALL = ROLES.filter((r) => !['Sales Manager', 'Business Development'].includes(r));
+// Everyone on the recruitment side; the sales and platform roles have only their own pages.
+const ALL = ROLES.filter((r) => !['Sales Manager', 'Business Development', ...TRUST_ROLES].includes(r));
 const PERMS = {
   'clients.view': ALL,
   // Assigning account managers and changing contracts.
@@ -54,6 +63,24 @@ const PERMS = {
   'site.analytics': ['Admin', 'Recruitment Manager', 'Account Manager', 'Sales Manager', 'Business Development'],
   // Revenue from paid invoices in the CRM reports.
   'crm.revenue': ['Admin', 'Sales Manager', 'Finance Manager'],
+  // Platform trust & safety (trust.js).
+  'trust.overview': ['Admin', ...TRUST_ROLES],
+  // Verifying, declining or asking a company for more information.
+  'verify.review': ['Admin', 'Recruitment Manager', 'Account Manager', 'Verification Reviewer', 'Trust & Safety Manager'],
+  // Approving jobs sent for review, or sending them back with instructions.
+  'jobs.review': ['Admin', 'Recruitment Manager', 'Recruiter', 'Account Manager', 'Job Moderator', 'Trust & Safety Manager'],
+  // Restricting, removing or asking for corrections to live listings.
+  'jobs.moderate': ['Admin', 'Job Moderator', 'Trust & Safety Manager'],
+  // Complaint cases: Support Agents see those assigned to them, moderators
+  // and verification reviewers also those about jobs or employers.
+  'cases.view': ['Admin', 'Trust & Safety Manager', 'Support Agent', 'Job Moderator', 'Verification Reviewer'],
+  'cases.manage': ['Admin', 'Trust & Safety Manager'],
+  'accounts.restrict': ['Admin', 'Trust & Safety Manager'],
+  'appeals.decide': ['Admin', 'Trust & Safety Manager'],
+  'audit.platform': ['Admin', 'Trust & Safety Manager', 'Auditor'],
+  'ops.health': ['Admin', 'Operations Admin'],
+  'access.view': ['Admin', 'Auditor'],
+  'trust.policy': ['Admin'],
 };
 
 const can = (user, action) => Boolean(user && user.active !== false && (PERMS[action] || []).includes(user.role));
@@ -71,15 +98,19 @@ const FINANCE_TABS = ['placements', 'clients', 'reports'];
 const SALES_ROLES = ['Sales Manager', 'Business Development'];
 const SALES_PAGES = [/^\/admin\/?$/, /^\/admin\/(login|logout|security)(\/|$)/, /^\/admin\/crm(\/|$)/, /^\/admin\/site-analytics\/?$/];
 const SALES_TABS = [];
+const TRUST_PAGES = [/^\/admin\/?$/, /^\/admin\/(login|logout|security)(\/|$)/, /^\/admin\/(overview|verifications|job-moderation|reports|cases|appeals|audit-logs|system-health|access-control)(\/|$)/];
+// Roles that must use two-step sign-in before opening any of their pages.
+const STRONG_AUTH_ROLES = [...TRUST_ROLES];
 function pathAllowed(user, path) {
   if (user && SALES_ROLES.includes(user.role)) return SALES_PAGES.some((re) => re.test(path));
+  if (user && TRUST_ROLES.includes(user.role)) return TRUST_PAGES.some((re) => re.test(path));
   if (!user || user.role !== 'Finance Manager') return true;
   return FINANCE_PAGES.some((re) => re.test(path));
 }
 function tabsAllowed(user, tabs) {
   if (user && user.role === 'Finance Manager') return tabs.filter((t) => FINANCE_TABS.includes(t));
-  if (user && SALES_ROLES.includes(user.role)) return tabs.filter((t) => SALES_TABS.includes(t));
+  if (user && (SALES_ROLES.includes(user.role) || TRUST_ROLES.includes(user.role))) return tabs.filter((t) => SALES_TABS.includes(t));
   return tabs;
 }
 
-module.exports = { ROLES, ROLE_INFO, PERMS, SALES_ROLES, can, canBill, pathAllowed, tabsAllowed };
+module.exports = { ROLES, ROLE_INFO, PERMS, SALES_ROLES, TRUST_ROLES, STRONG_AUTH_ROLES, can, canBill, pathAllowed, tabsAllowed };

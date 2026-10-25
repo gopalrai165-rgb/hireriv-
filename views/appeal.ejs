@@ -1,0 +1,37 @@
+<%- include('partials/head') %>
+
+<section class="section">
+  <div class="container narrow">
+    <h1>Appeal a decision</h1>
+    <% if (done) { %>
+      <p class="notice" role="status">Thanks. We have your appeal. Someone who did not make the original decision will review it and email you the outcome, usually within three working days.</p>
+    <% } else if (!a) { %>
+      <p class="lead">This appeal link is not valid. Use the link in the email we sent you, or reply to that email.</p>
+    <% } else { %>
+      <div class="form-card">
+        <p><b><%= APPEAL_KIND[a.kind] || 'Our decision' %>:</b> <%= a.label %></p>
+        <p><b>Reason we gave:</b> <%= a.decisionReason %></p>
+        <p class="muted small">Decided on <%= new Date(a.decidedAt).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'medium' }) %>.</p>
+      </div>
+      <% if (a.status === 'pending') { %>
+        <p class="notice" role="status">We already have your appeal and will email you the outcome.</p>
+      <% } else if (a.status === 'upheld' || a.status === 'overturned') { %>
+        <p class="notice" role="status"><%= a.status === 'overturned' ? 'We reviewed your appeal and reversed the decision.' : 'We reviewed your appeal and the decision stands.' %></p>
+      <% } else if (a.status !== 'available' || expired) { %>
+        <p class="notice" role="status">This decision can no longer be appealed here. If something has changed, reply to our email.</p>
+      <% } else { %>
+        <% if (errors.length) { %><div class="notice notice-err" role="alert"><ul><% errors.forEach(function (e) { %><li><%= e %></li><% }) %></ul></div><% } %>
+        <form class="form" method="post">
+          <%- include('partials/honeypot') %>
+          <label>Why is the decision wrong? <span class="muted small">(what you changed, or what we missed; 20 to 2000 characters)</span>
+            <textarea name="statement" rows="7" minlength="20" maxlength="2000" required><%= typeof statement !== 'undefined' ? statement : '' %></textarea>
+          </label>
+          <p class="muted small">Please don't include passwords, OTPs, Aadhaar or bank details. If we need documents we will ask for them.</p>
+          <button class="btn btn-primary" type="submit">Send appeal</button>
+        </form>
+      <% } %>
+    <% } %>
+  </div>
+</section>
+
+<%- include('partials/foot') %>

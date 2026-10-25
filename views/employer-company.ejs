@@ -14,11 +14,15 @@
           <p class="muted small">Your jobs show a verified employer badge. Changing the company name or registration numbers is reviewed again by our team.</p>
         <% } else { %>
           <p class="muted small">Our team checks every company before its jobs go live, usually within one working day. A GSTIN, CIN or Udyam number and a company website make this quicker. We never ask for Aadhaar or bank details to verify a company.</p>
-          <% if (can('company.verify')) { %><form method="post" action="/employer/company/verify"><button class="btn btn-primary btn-sm" type="submit">Send details for checking</button></form><% } %>
+          <% const asked = checks.find(function (c) { return c.status === 'info-requested'; }); %>
+          <% if (asked) { %><div class="notice" role="status"><p><b>Our team needs more information:</b> <%= asked.note %></p><p class="small">Update the details below if needed, then answer here.</p></div><% } %>
+          <% if (can('company.verify')) { %><form class="form" method="post" action="/employer/company/verify">
+            <% if (asked) { %><label>Your answer<textarea name="reply" rows="3" maxlength="1000" required></textarea></label><% } %>
+            <button class="btn btn-primary btn-sm" type="submit"><%= asked ? 'Send answer and details' : 'Send details for checking' %></button></form><% } %>
         <% } %>
         <% if (checks.length) { %>
           <ul class="activity">
-            <% checks.forEach(function (c) { %><li><span class="activity-row"><span class="pill"><%= c.status %></span><span class="activity-text">Requested by <%= c.submittedBy || 'sign-up' %><%= c.reason ? ' · ' + c.reason : '' %></span><span class="muted small"><%= formatDate(c.createdAt) %></span></span></li><% }) %>
+            <% checks.forEach(function (c) { %><li><span class="activity-row"><span class="pill"><%= c.status === 'info-requested' ? 'more information needed' : c.status %></span><span class="activity-text">Requested by <%= c.submittedBy || 'sign-up' %><%= c.reason ? ' · ' + c.reason : '' %><%= c.note && c.status !== 'verified' ? ' · ' + c.note : '' %></span><span class="muted small"><%= formatDate(c.createdAt) %></span></span></li><% }) %>
           </ul>
         <% } %>
       </section>

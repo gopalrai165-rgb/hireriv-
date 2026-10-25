@@ -1,0 +1,490 @@
+<%- include('partials/head') %>
+<%
+  const when = function (d) { return d ? new Date(d).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'medium', timeStyle: 'short' }) : '–'; };
+  const hrs = function (h) { return h === null || h === undefined ? '–' : h < 48 ? h + ' h' : Math.round(h / 24) + ' days'; };
+  const tabOf = { overview: 'overview', verifications: 'verifications', moderation: 'moderation', 'moderation-job': 'moderation', cases: 'cases', case: 'cases', appeals: 'appeals', audit: 'audit', health: 'health', access: 'access' };
+  const pill = function (p) { return p === 'high' ? 'st-rejected' : p === 'low' ? '' : 'st-screening'; };
+  const STATE = { restricted: 'Unpublished', removed: 'Removed', 'account-suspended': 'Company suspended', 'account-closed': 'Company closed' };
+%>
+<section class="section admin">
+  <div class="container">
+    <%- include('partials/trust-nav', { heading: title, tab: tabOf[section] }) %>
+
+    <% if (section === 'overview') { %>
+      <p class="muted small">Workload and response times, to keep queues moving and spot problems early. These numbers are not targets for any reviewer, and they never count adverse decisions per person.</p>
+      <div class="dash-grid">
+        <section class="dash-card">
+          <h2>Employer verification</h2>
+          <ul class="plain-list">
+            <li><b><%= o.verification.waiting %></b> waiting for a reviewer</li>
+            <li><b><%= o.verification.awaitingCompany %></b> waiting for the company to answer</li>
+            <li>Oldest waiting: <b><%= hrs(o.verification.oldestHours) %></b></li>
+            <li>Median time to decide (30 days): <b><%= hrs(o.verification.medianHours30d) %></b> over <%= o.verification.decided30d %></li>
+          </ul>
+          <% if (can('verify.review')) { %><a class="btn btn-outline btn-sm" href="/admin/verifications">Open the queue</a><% } %>
+        </section>
+        <section class="dash-card">
+          <h2>Listings</h2>
+          <ul class="plain-list">
+            <li><b><%= o.listings.waitingReview %></b> sent in by employers, waiting for review</li>
+            <li><b><%= o.listings.flagged %></b> flagged by automated checks</li>
+            <li><b><%= o.listings.reported %></b> with open reports</li>
+            <li><b><%= o.listings.restricted %></b> unpublished or removed by moderators</li>
+          </ul>
+          <% if (can('jobs.review')) { %><a class="btn btn-outline btn-sm" href="/admin/job-moderation">Open job moderation</a><% } %>
+        </section>
+        <section class="dash-card">
+          <h2>Reports &amp; cases</h2>
+          <ul class="plain-list">
+            <li><b><%= o.cases.open %></b> open (<%= o.cases.high %> urgent, <%= o.cases.unassigned %> unassigned)</li>
+            <li><% Object.keys(o.cases.byStatus).forEach(function (s, i) { %><%= i ? ' · ' : '' %><%= STATUS_LABEL[s] %>: <b><%= o.cases.byStatus[s] %></b><% }) %></li>
+            <li><b><%= o.cases.awaitingApproval %></b> account closures waiting for a second person</li>
+            <li>Median first response (30 days): <b><%= hrs(o.cases.medianFirstResponseHours30d) %></b> · to close: <b><%= hrs(o.cases.medianResolutionHours30d) %></b> (<%= o.cases.closed30d %> closed)</li>
+          </ul>
+          <% if (can('cases.view')) { %><a class="btn btn-outline btn-sm" href="/admin/reports">Open cases</a><% } %>
+        </section>
+        <section class="dash-card">
+          <h2>Appeals</h2>
+          <ul class="plain-list">
+            <li><b><%= o.appeals.waiting %></b> waiting for a decision</li>
+            <li>Last 90 days: <%= o.appeals.decided90d %> decided, <b><%= o.appeals.overturned90d %></b> overturned<%= o.appeals.overturnPercent === null ? '' : ' (' + o.appeals.overturnPercent + '%)' %></li>
+          </ul>
+          <p class="muted small">Many overturned decisions point to unclear rules or rushed reviews, not to reviewers to blame.</p>
+        </section>
+        <section class="dash-card">
+          <h2>Open cases by person</h2>
+          <% if (!o.workload.length) { %><p class="muted small">No open cases.</p><% } else { %>
+            <ul class="plain-list"><% o.workload.forEach(function (w) { %><li><%= w.name %>: <b><%= w.open %></b></li><% }) %></ul>
+          <% } %>
+        </section>
+        <% if (h) { %>
+        <section class="dash-card">
+          <h2>Service health</h2>
+          <p><span class="pill <%= h.status === 'ok' ? 'st-hired' : 'st-rejected' %>"><%= h.status === 'ok' ? 'All good' : h.status === 'down' ? 'Down' : 'Needs attention' %></span></p>
+          <ul class="plain-list">
+            <li>Server errors (24 h): <b><%= h.requests.serverErrors24h %></b> of <%= h.requests.last24h %> requests</li>
+            <li>Emails failed (24 h): <b><%= h.notifications.failed24h %></b> · waiting: <%= h.notifications.queued %></li>
+            <li>Background jobs with problems: <b><%= h.backgroundJobs.filter(function (j) { return j.failing || j.overdue; }).length %></b></li>
+          </ul>
+          <a class="btn btn-outline btn-sm" href="/admin/system-health">System health</a>
+        </section>
+        <% } %>
+      </div>
+    <% } %>
+
+    <% if (section === 'verifications') { %>
+      <p class="muted small">Companies that signed up themselves, before their jobs can go live. Check the registration numbers (GSTIN, CIN, Udyam), the website and the contact; call if anything is unclear. Never ask for Aadhaar or bank details. Every decision is recorded with your name, the time and the reason, and a declined company can appeal.</p>
+      <form class="form filter-bar" method="get" action="/admin/verifications">
+        <label>Show
+          <select name="status"><% [['', 'Waiting (all)'], ['pending', 'Waiting for us'], ['info-requested', 'Waiting for the company'], ['verified', 'Verified'], ['declined', 'Declined']].forEach(function (s) { %><option value="<%= s[0] %>"<%= (q.status || '') === s[0] ? ' selected' : '' %>><%= s[1] %></option><% }) %></select>
+        </label>
+        <label>Search<input type="search" name="q" value="<%= q.q || '' %>" placeholder="Company, email or GSTIN"></label>
+        <button class="btn btn-outline btn-sm" type="submit">Show</button>
+      </form>
+      <% if (!rows.length) { %><div class="empty"><p>Nothing to check.</p></div><% } %>
+      <% rows.forEach(function (r) { const e = r.employer; const d = r.check.details || {}; %>
+        <section class="dash-card dash-wide">
+          <div class="dash-head"><h2><%= e.company || d.company %></h2><span class="pill"><%= r.check.status === 'info-requested' ? 'waiting for the company' : r.check.status %></span></div>
+          <div class="table-wrap"><table>
+            <tbody>
+              <tr><th scope="row">Contact</th><td><%= e.name %> · <%= e.email %><%= e.freeEmail ? ' (personal mailbox)' : '' %> · <%= e.phone %></td></tr>
+              <tr><th scope="row">Registration</th><td>GSTIN <%= d.gstin || '–' %> · CIN <%= d.cin || '–' %> · Udyam <%= d.udyam || '–' %></td></tr>
+              <tr><th scope="row">Website</th><td><%= d.website || '–' %></td></tr>
+              <tr><th scope="row">Industry and address</th><td><%= d.industry || '–' %> · <%= [d.addressLine, d.city, d.state, d.pincode].filter(Boolean).join(', ') || '–' %></td></tr>
+              <tr><th scope="row">Sent by</th><td><%= r.check.submittedBy || 'sign-up' %> · waiting since <%= when(r.waitingSince) %></td></tr>
+              <% if (r.check.note) { %><tr><th scope="row">Our note</th><td><%= r.check.note %><%= r.check.reviewedBy ? ' (' + r.check.reviewedBy + ', ' + when(r.check.reviewedAt) + ')' : r.check.infoRequestedBy ? ' (' + r.check.infoRequestedBy + ')' : '' %></td></tr><% } %>
+              <% if (r.check.reply) { %><tr><th scope="row">Company's answer</th><td><%= r.check.reply %></td></tr><% } %>
+              <% if (r.signals.length) { %><tr><th scope="row">Worth checking</th><td><%= r.signals.join(' · ') %></td></tr><% } %>
+            </tbody>
+          </table></div>
+          <% if (['pending', 'info-requested'].includes(r.check.status)) { %>
+            <form class="form" method="post" action="/admin/verifications/<%= r.check.id %>/decision">
+              <input type="hidden" name="expectedStatus" value="<%= r.check.status %>">
+              <div class="form-grid">
+                <label>Decision
+                  <select name="decision" required><% Object.keys(VERIFY_DECISIONS).forEach(function (k) { %><option value="<%= k %>"><%= VERIFY_DECISIONS[k] %></option><% }) %></select>
+                </label>
+                <label class="span-2">Reason or what the company should send <span class="muted small">(required to decline or ask; the company sees it)</span><textarea name="reason" rows="2" maxlength="500"></textarea></label>
+              </div>
+              <button class="btn btn-primary btn-sm" type="submit">Record decision</button>
+            </form>
+          <% } %>
+        </section>
+      <% }) %>
+      <%- include('partials/pager', { pager: pager, pagerLabel: 'Verification pages' }) %>
+      <p class="muted small">Companies not yet verified can have up to <b><%= pol.unverifiedPendingLimit %></b> job<%= pol.unverifiedPendingLimit === 1 ? '' : 's' %> waiting for review (Access control → Policy).</p>
+    <% } %>
+
+    <% if (section === 'moderation') { %>
+      <p class="muted small">Jobs employers sent in, listings flagged by automated checks and listings people reported. Flags are prompts to look, not proof: nothing is unpublished until a moderator decides, and the employer can appeal.</p>
+      <form class="form filter-bar" method="get" action="/admin/job-moderation">
+        <label>Show
+          <select name="kind"><% [['', 'Everything to look at'], ['pending', 'Waiting for review'], ['flagged', 'Flagged'], ['reported', 'Reported'], ['restricted', 'Unpublished or removed']].forEach(function (s) { %><option value="<%= s[0] %>"<%= (q.kind || '') === s[0] ? ' selected' : '' %>><%= s[1] %></option><% }) %></select>
+        </label>
+        <label>Search<input type="search" name="q" value="<%= q.q || '' %>" placeholder="Title, company or job id"></label>
+        <button class="btn btn-outline btn-sm" type="submit">Show</button>
+      </form>
+      <% if (!rows.length) { %><div class="empty"><p>Nothing waiting.</p></div><% } else { %>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Listing</th><th>Why it is here</th><th>Flags</th><th>Since</th><th></th></tr></thead>
+          <tbody>
+            <% rows.forEach(function (r) { %>
+              <tr>
+                <td><b><%= r.job.title %></b><br><span class="muted small"><%= r.job.company %> · <%= r.job.id %> · <%= r.job.status %></span></td>
+                <td><%= r.kinds.map(function (k) { return { pending: 'Waiting for review', flagged: 'Flagged', reported: 'Reported', restricted: 'Restricted' }[k]; }).join(', ') %><% if (r.case) { %><br><a class="small" href="/admin/cases/<%= r.case.id %>"><%= r.case.number %></a><% } %></td>
+                <td class="small"><% if (r.flags.length) { %><span class="pill <%= pill(r.level === 'medium' ? 'normal' : r.level) %>"><%= r.level %></span> <%= r.flags.map(function (f) { return f.label; }).join('; ') %><% } else { %>–<% } %></td>
+                <td class="small"><%= when(r.since) %></td>
+                <td><a class="btn btn-outline btn-sm" href="/admin/job-moderation/<%= encodeURIComponent(r.job.id) %>">Review</a></td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table></div>
+      <% } %>
+      <%- include('partials/pager', { pager: pager, pagerLabel: 'Moderation pages' }) %>
+    <% } %>
+
+    <% if (section === 'moderation-job') { const s = job.trustScan || { flags: [] }; %>
+      <p><a href="/admin/job-moderation">← Job moderation</a></p>
+      <div class="dash-grid">
+        <section class="dash-card dash-wide">
+          <div class="dash-head"><h2><%= job.title %></h2><span class="pill"><%= job.status %><%= job.moderation && job.moderation.locked ? ' · ' + STATE[job.moderation.state] : '' %></span></div>
+          <p class="muted small"><%= job.company %> · <%= job.location %> (<%= job.mode %>) · <%= job.type %> · <%= job.salary || 'Pay not disclosed' %> · <%= job.id %><%= emp ? ' · company ' + (emp.approvedAt || !emp.selfSignup ? 'verified' : 'not verified yet') : ' · posted by the Hireriv team' %></p>
+          <% if (job.status === 'open') { %><p><a href="<%= jobPath(job) %>" target="_blank" rel="noopener">Open the public page</a></p><% } %>
+          <h3>Description</h3>
+          <p class="prewrap"><%= job.description %></p>
+          <% ['responsibilities', 'qualifications', 'benefits', 'eligibility', 'mustHave'].forEach(function (k) { if (Array.isArray(job[k]) && job[k].length) { %><h3><%= { responsibilities: 'Responsibilities', qualifications: 'Qualifications', benefits: 'Benefits', eligibility: 'Eligibility', mustHave: 'Must have' }[k] %></h3><ul><% job[k].forEach(function (x) { %><li><%= x %></li><% }) %></ul><% } }) %>
+          <% if (job.payNote) { %><h3>Pay note</h3><p><%= job.payNote %></p><% } %>
+        </section>
+        <section class="dash-card">
+          <h2>Automated checks</h2>
+          <% if (!s.flags.length) { %><p class="muted small">Nothing flagged.</p><% } else { %>
+            <ul class="plain-list"><% s.flags.forEach(function (f) { %><li><span class="pill <%= pill(f.severity === 'medium' ? 'normal' : f.severity) %>"><%= f.severity %></span> <%= f.label %><% if (f.detail) { %>: <q><%= f.detail %></q><% } %></li><% }) %></ul>
+            <p class="muted small"><%= s.clearedFp === s.fp ? 'Checked by ' + s.clearedBy + ' on ' + when(s.clearedAt) : 'Not checked yet. These are signals for you to look at, not proof.' %></p>
+          <% } %>
+          <h2>Cases</h2>
+          <% if (!related.length) { %><p class="muted small">No reports.</p><% } else { %><ul class="plain-list"><% related.forEach(function (c) { %><li><a href="/admin/cases/<%= c.id %>"><%= c.number %></a> · <%= STATUS_LABEL[c.status] %> · <%= c.reports.length %> report<%= c.reports.length === 1 ? '' : 's' %></li><% }) %></ul><% } %>
+          <h2>History</h2>
+          <% const hist = (job.moderationHistory || []); %>
+          <% if (!hist.length && !job.approvedBy && !job.rejectedBy) { %><p class="muted small">No decisions yet.</p><% } %>
+          <ul class="plain-list small">
+            <% if (job.approvedBy) { %><li>Approved by <%= job.approvedBy %> · <%= when(job.approvedAt) %></li><% } %>
+            <% if (job.rejectedBy) { %><li>Sent back by <%= job.rejectedBy %> · <%= when(job.rejectedAt) %>: <%= job.rejectedReason %></li><% } %>
+            <% hist.slice().reverse().forEach(function (h) { %><li><%= h.decision %> by <%= h.by %> · <%= when(h.at) %>: <%= h.reason %></li><% }) %>
+          </ul>
+        </section>
+        <section class="dash-card dash-wide">
+          <h2>Decision</h2>
+          <form class="form" method="post" action="/admin/job-moderation/<%= encodeURIComponent(job.id) %>/decision">
+            <input type="hidden" name="expectedStatus" value="<%= job.status %>">
+            <% if (related[0]) { %><input type="hidden" name="caseId" value="<%= related.find(function (c) { return !CLOSED.includes(c.status); }) ? related.find(function (c) { return !CLOSED.includes(c.status); }).id : '' %>"><% } %>
+            <div class="form-grid">
+              <label>Decision
+                <select name="decision" required>
+                  <% const locked = job.moderation && job.moderation.locked; %>
+                  <% Object.keys(MODERATION_DECISIONS).filter(function (k) {
+                    if (k === 'approve') return job.status === 'pending' && can('jobs.review');
+                    if (k === 'request-correction') return job.employerId && ['pending', 'open', 'paused'].includes(job.status) && (job.status === 'pending' ? can('jobs.review') : can('jobs.moderate'));
+                    if (k === 'clear') return s.flags.length && s.clearedFp !== s.fp && can('jobs.moderate');
+                    if (k === 'lift') return locked && can('jobs.moderate');
+                    return !locked || (k === 'remove' && job.moderation.state !== 'removed') ? can('jobs.moderate') : false;
+                  }).forEach(function (k) { %><option value="<%= k %>"><%= MODERATION_DECISIONS[k] %></option><% }) %>
+                </select>
+              </label>
+              <label class="span-2">Reason and what to correct <span class="muted small">(required except to approve; the employer sees it)</span><textarea name="reason" rows="3" maxlength="500"></textarea></label>
+            </div>
+            <button class="btn btn-primary btn-sm" type="submit">Record decision</button>
+          </form>
+        </section>
+      </div>
+    <% } %>
+
+    <% if (section === 'cases') { %>
+      <p class="muted small">Reports from candidates, employers and visitors, and listings flagged by automated checks. Open a case to see the details, add evidence and decide. <%= can('cases.manage') ? 'You see every case.' : 'You see the cases assigned to you' + (admin.role === 'Job Moderator' ? ' and those about job listings.' : admin.role === 'Verification Reviewer' ? ' and those about employers.' : '.') %></p>
+      <form class="form filter-bar" method="get" action="/admin/reports">
+        <label>Status
+          <select name="status"><option value="">Open</option><% STATUSES.forEach(function (s) { %><option value="<%= s %>"<%= q.status === s ? ' selected' : '' %>><%= STATUS_LABEL[s] %></option><% }) %><option value="closed"<%= q.status === 'closed' ? ' selected' : '' %>>Closed</option><option value="all"<%= q.status === 'all' ? ' selected' : '' %>>All</option></select>
+        </label>
+        <label>Priority
+          <select name="priority"><option value="">Any</option><% PRIORITIES.forEach(function (p) { %><option<%= q.priority === p ? ' selected' : '' %>><%= p %></option><% }) %></select>
+        </label>
+        <label>About
+          <select name="entityType"><option value="">Anything</option><% Object.keys(ENTITY_LABEL).forEach(function (k) { %><option value="<%= k %>"<%= q.entityType === k ? ' selected' : '' %>><%= ENTITY_LABEL[k] %></option><% }) %></select>
+        </label>
+        <label>Category
+          <select name="category"><option value="">Any</option><% Object.keys(CATEGORIES).forEach(function (k) { %><option value="<%= k %>"<%= q.category === k ? ' selected' : '' %>><%= CATEGORIES[k] %></option><% }) %></select>
+        </label>
+        <label>Assigned
+          <select name="assignee"><option value="">Anyone</option><option value="me"<%= q.assignee === 'me' ? ' selected' : '' %>>Me</option><option value="none"<%= q.assignee === 'none' ? ' selected' : '' %>>Nobody</option><% people.forEach(function (u) { %><option value="<%= u.id %>"<%= q.assignee === u.id ? ' selected' : '' %>><%= u.name %></option><% }) %></select>
+        </label>
+        <label>Search<input type="search" name="q" value="<%= q.q || '' %>" placeholder="Case number or name"></label>
+        <button class="btn btn-outline btn-sm" type="submit">Show</button>
+      </form>
+      <% if (!rows.length) { %><div class="empty"><p>No cases match.</p></div><% } else { %>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Case</th><th>About</th><th>Category</th><th>Priority</th><th>Status</th><th>Assigned</th><th>Opened</th></tr></thead>
+          <tbody>
+            <% rows.forEach(function (c) { %>
+              <tr>
+                <td><a href="/admin/cases/<%= c.id %>"><%= c.number %></a><%= c.pending ? ' ⏳' : '' %></td>
+                <td><%= ENTITY_LABEL[c.entityType] %>: <%= c.entityLabel %><br><span class="muted small"><%= c.source === 'automated' ? 'Automated checks' : c.reports.length + ' report' + (c.reports.length === 1 ? '' : 's') %></span></td>
+                <td class="small"><%= CATEGORIES[c.category] || c.category %></td>
+                <td><span class="pill <%= pill(c.priority) %>"><%= c.priority %></span><%= c.escalated ? ' · escalated' : '' %></td>
+                <td><%= STATUS_LABEL[c.status] %></td>
+                <td class="small"><%= c.assigneeName || '–' %></td>
+                <td class="small"><%= when(c.createdAt) %></td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table></div>
+      <% } %>
+      <%- include('partials/pager', { pager: pager, pagerLabel: 'Case pages' }) %>
+    <% } %>
+
+    <% if (section === 'case') { %>
+      <p><a href="/admin/reports">← Reports &amp; cases</a></p>
+      <div class="dash-grid">
+        <section class="dash-card dash-wide">
+          <div class="dash-head"><h2><%= c.number %>: <%= CATEGORIES[c.category] || c.category %></h2><span class="pill <%= pill(c.priority) %>"><%= c.priority %></span></div>
+          <p><b><%= ENTITY_LABEL[c.entityType] %>:</b> <%= c.entityLabel %>
+            <% if (job) { %> · <a href="/admin/job-moderation/<%= encodeURIComponent(job.id) %>">review the listing</a> (<%= job.status %><%= job.moderation && job.moderation.locked ? ', ' + STATE[job.moderation.state] : '' %>)<% } %>
+            <% if (emp) { %> · company <%= emp.terminatedAt ? 'closed' : emp.suspension ? 'suspended' : emp.active ? 'active' : 'inactive' %><% } %>
+          </p>
+          <p class="muted small">Status: <b><%= STATUS_LABEL[c.status] %></b> · opened <%= when(c.createdAt) %> from <%= c.source === 'automated' ? 'automated checks' : 'reports' %> · assigned to <%= c.assigneeName || 'nobody' %><%= c.escalated ? ' · escalated' : '' %></p>
+          <% if (c.resolution) { %><p class="notice"><b><%= STATUS_LABEL[c.resolution.outcome] %></b> by <%= c.resolution.by %>, <%= when(c.resolution.at) %>: <%= c.resolution.reason %></p><% } %>
+          <% if (c.pending) { %><div class="notice" role="status"><p><b>Waiting for a second person:</b> <%= c.pending.byName %> asked to close the company account (<%= when(c.pending.at) %>): <%= c.pending.reason %></p></div><% } %>
+          <% if (c.flags.length) { %><h3>Automated flags (signals, not proof)</h3><ul class="plain-list"><% c.flags.forEach(function (f) { %><li><span class="pill <%= pill(f.severity === 'medium' ? 'normal' : f.severity) %>"><%= f.severity %></span> <%= f.label %><% if (f.detail) { %>: <q><%= f.detail %></q><% } %></li><% }) %></ul><% } %>
+          <% if (c.reports.length) { %>
+            <h3>Reports</h3>
+            <div class="table-wrap"><table>
+              <thead><tr><th>When</th><th>From</th><th>Category</th><th>What they said</th></tr></thead>
+              <tbody><% c.reports.forEach(function (r) { %><tr><td class="small"><%= when(r.at) %></td><td class="small"><%= r.reporterType %><%= r.email ? ' · ' + r.email : '' %></td><td class="small"><%= CATEGORIES[r.category] %></td><td class="prewrap"><%= r.details || '–' %></td></tr><% }) %></tbody>
+            </table></div>
+          <% } %>
+          <h3>Evidence</h3>
+          <% const evs = c.evidence.filter(function (e) { return !e.purgedAt; }); %>
+          <% if (!evs.length) { %><p class="muted small">None yet.</p><% } else { %><ul class="plain-list"><% evs.forEach(function (e) { %><li><a href="<%= evidenceLinks[e.id] %>"><%= e.originalName %></a> <span class="muted small">(<%= Math.round(e.size / 1024) %> KB, <%= e.by %>, <%= when(e.at) %>; the link works for 15 minutes and each download is recorded)</span></li><% }) %></ul><% } %>
+          <% if (!CLOSED.includes(c.status)) { %>
+            <form class="form" method="post" action="/admin/cases/<%= c.id %>/evidence" enctype="multipart/form-data">
+              <label>Add evidence <span class="muted small">(PDF, JPG or PNG, up to 5 MB; checked for viruses)</span><input type="file" name="evidence" accept=".pdf,.jpg,.jpeg,.png" required></label>
+              <button class="btn btn-outline btn-sm" type="submit">Upload</button>
+            </form>
+          <% } %>
+        </section>
+
+        <section class="dash-card">
+          <h2>Take an action</h2>
+          <% const acts = Object.keys(CASE_ACTIONS).filter(function (k) {
+            const a = CASE_ACTIONS[k];
+            if (!can(a.perm)) return false;
+            if (a.entity && !a.entity.includes(c.entityType)) return false;
+            if (CLOSED.includes(c.status)) return k === 'note' || k === 'reopen';
+            if (k === 'reopen') return false;
+            if (k.endsWith('-employer') && !emp) return false;
+            if (k === 'suspend-employer') return emp && !emp.suspension && !emp.terminatedAt;
+            if (k === 'reinstate-employer') return emp && emp.suspension && !emp.terminatedAt;
+            if (k === 'terminate-employer') return emp && !emp.terminatedAt && !c.pending;
+            if (k === 'approve-pending' || k === 'reject-pending') return Boolean(c.pending) && (k === 'reject-pending' || c.pending.byId !== admin.id);
+            if (k.endsWith('-job') || k === 'request-correction' || k === 'clear-flags') {
+              if (!job) return false;
+              const locked = job.moderation && job.moderation.locked;
+              if (k === 'lift-job') return locked;
+              if (k === 'clear-flags') return job.trustScan && job.trustScan.flags.length && job.trustScan.clearedFp !== job.trustScan.fp;
+              if (k === 'request-correction') return job.employerId && ['pending', 'open', 'paused'].includes(job.status);
+              if (k === 'remove-job') return !locked || job.moderation.state !== 'removed';
+              return !locked;
+            }
+            if (k === 'request-information') return c.reports.some(function (r) { return r.email; });
+            return true;
+          }); %>
+          <form class="form" method="post" action="/admin/cases/<%= c.id %>/actions">
+            <input type="hidden" name="version" value="<%= c.version %>">
+            <label>Action
+              <select name="action" required><% acts.forEach(function (k) { %><option value="<%= k %>"><%= CASE_ACTIONS[k].label %></option><% }) %></select>
+            </label>
+            <label>Reason, note or question <span class="muted small">(required; kept in the history)</span><textarea name="reason" rows="3" maxlength="1000" required></textarea></label>
+            <label class="check-row"><input type="checkbox" name="notifyReporter" value="1"> When resolving or dismissing, tell the people who reported it (no details of any action)</label>
+            <button class="btn btn-primary btn-sm" type="submit">Do it</button>
+          </form>
+          <% if (!strong) { %><p class="muted small">Suspending or closing accounts needs two-step sign-in: <a href="/admin/security">turn it on</a>.</p><% } %>
+
+          <% if (can('cases.manage') || !CLOSED.includes(c.status)) { %>
+          <h2>Status and assignment</h2>
+          <form class="form" method="post" action="/admin/cases/<%= c.id %>">
+            <input type="hidden" name="version" value="<%= c.version %>">
+            <label>Status
+              <select name="status"><option value="__keep"><%= STATUS_LABEL[c.status] %> (no change)</option><% MOVES[c.status].forEach(function (s) { %><option value="<%= s %>"><%= STATUS_LABEL[s] %></option><% }) %></select>
+            </label>
+            <% if (can('cases.manage')) { %>
+              <label>Assigned to
+                <select name="assigneeId"><option value="__keep"><%= c.assigneeName || 'Nobody' %> (no change)</option><option value="">Nobody</option><% people.forEach(function (u) { %><option value="<%= u.id %>"><%= u.name %> (<%= u.role %>)</option><% }) %></select>
+              </label>
+              <label>Priority
+                <select name="priority"><option value="__keep"><%= c.priority %> (no change)</option><% PRIORITIES.forEach(function (p) { %><option><%= p %></option><% }) %></select>
+              </label>
+            <% } %>
+            <label>Reason <span class="muted small">(required to close)</span><input name="reason" maxlength="500"></label>
+            <button class="btn btn-outline btn-sm" type="submit">Save</button>
+          </form>
+          <% } %>
+        </section>
+
+        <section class="dash-card">
+          <h2>History</h2>
+          <ul class="activity">
+            <% c.history.slice().reverse().forEach(function (h) { %><li><span class="activity-row"><span class="pill"><%= h.action %></span><span class="activity-text"><%= h.by %><%= h.text ? ': ' + h.text : '' %></span><span class="muted small"><%= when(h.at) %></span></span></li><% }) %>
+          </ul>
+          <% if (caseAppeals.length) { %>
+            <h2>Appeals</h2>
+            <ul class="plain-list"><% caseAppeals.forEach(function (a) { %><li><%= a.kindLabel %>: <b><%= a.status %></b><%= a.review ? ' by ' + a.review.by : '' %></li><% }) %></ul>
+          <% } %>
+        </section>
+      </div>
+    <% } %>
+
+    <% if (section === 'appeals') { %>
+      <p class="muted small">Companies can appeal an unpublished or removed listing, a suspension, a closed account or a declined sign-up for 30 days. Someone who did not make the original decision reviews each appeal; overturning it reverses the decision.</p>
+      <form class="form filter-bar" method="get" action="/admin/appeals">
+        <label>Show
+          <select name="status"><% [['pending', 'Waiting for a decision'], ['upheld', 'Upheld'], ['overturned', 'Overturned']].forEach(function (s) { %><option value="<%= s[0] %>"<%= q.status === s[0] ? ' selected' : '' %>><%= s[1] %></option><% }) %></select>
+        </label>
+        <button class="btn btn-outline btn-sm" type="submit">Show</button>
+      </form>
+      <% if (!rows.length) { %><div class="empty"><p>No appeals here.</p></div><% } %>
+      <% rows.forEach(function (a) { %>
+        <section class="dash-card dash-wide">
+          <div class="dash-head"><h2><%= APPEAL_KIND[a.kind] || a.kind %>: <%= a.label %></h2><span class="pill"><%= a.status %></span></div>
+          <p class="small"><b>Decision</b> by <%= a.decisionBy %>, <%= when(a.decidedAt) %>: <%= a.decisionReason %><% if (a.caseId) { %> · <a href="/admin/cases/<%= a.caseId %>">case</a><% } %></p>
+          <p class="prewrap"><b>The company says:</b> <%= a.statement %></p>
+          <p class="muted small">Sent <%= when(a.submittedAt) %></p>
+          <% if (a.review) { %><p class="notice"><b><%= a.review.outcome %></b> by <%= a.review.by %>, <%= when(a.review.at) %>: <%= a.review.reason %></p><% } %>
+          <% if (a.status === 'pending' && can('appeals.decide')) { %>
+            <% if (a.decisionById === admin.id) { %><p class="muted small">You made the original decision, so someone else must review this appeal.</p><% } else { %>
+            <form class="form" method="post" action="/admin/appeals/<%= a.id %>/decision">
+              <input type="hidden" name="version" value="<%= a.version %>">
+              <div class="form-grid">
+                <label>Outcome
+                  <select name="outcome" required><option value="upheld">Uphold (the decision stands)</option><option value="overturned">Overturn (reverse the decision)</option></select>
+                </label>
+                <label class="span-2">Reason <span class="muted small">(the company sees it)</span><textarea name="reason" rows="2" maxlength="1000" required></textarea></label>
+              </div>
+              <button class="btn btn-primary btn-sm" type="submit">Record outcome</button>
+            </form>
+            <% } %>
+          <% } %>
+        </section>
+      <% }) %>
+      <%- include('partials/pager', { pager: pager, pagerLabel: 'Appeal pages' }) %>
+    <% } %>
+
+    <% if (section === 'audit') { %>
+      <p class="muted small">Read-only history of administrative actions across the platform. Nothing here can be edited or deleted. Trust &amp; safety entries are chained by hashes so any change shows up:
+        <span class="pill <%= chain.ok ? 'st-hired' : 'st-rejected' %>"><%= chain.ok ? 'Chain intact (' + chain.entries + ' entries)' : 'Chain broken: ' + chain.problem %></span></p>
+      <form class="form filter-bar" method="get" action="/admin/audit-logs">
+        <label>Source
+          <select name="source"><option value="">Everything</option><% Object.keys(sources).forEach(function (k) { %><option value="<%= k %>"<%= q.source === k ? ' selected' : '' %>><%= sources[k] %></option><% }) %></select>
+        </label>
+        <label>From<input type="date" name="from" value="<%= q.from || '' %>"></label>
+        <label>To<input type="date" name="to" value="<%= q.to || '' %>"></label>
+        <label>Search<input type="search" name="q" value="<%= q.q || '' %>" placeholder="Person, action or detail"></label>
+        <button class="btn btn-outline btn-sm" type="submit">Show</button>
+      </form>
+      <% if (!rows.length) { %><div class="empty"><p>Nothing recorded.</p></div><% } else { %>
+        <div class="table-wrap"><table>
+          <thead><tr><th>When</th><th>Source</th><th>Who</th><th>What</th><th>About</th><th>Details</th></tr></thead>
+          <tbody><% rows.forEach(function (e) { %><tr><td class="small"><%= when(e.at) %></td><td class="small"><%= e.sourceLabel %><%= e.seq ? ' #' + e.seq : '' %></td><td><%= e.actor %><% if (e.role) { %><br><span class="muted small"><%= e.role %></span><% } %></td><td><%= String(e.action).replace(/-/g, ' ') %></td><td class="small"><%= e.entity %></td><td class="small"><%= e.detail %></td></tr><% }) %></tbody>
+        </table></div>
+      <% } %>
+      <%- include('partials/pager', { pager: pager, pagerLabel: 'Audit pages' }) %>
+    <% } %>
+
+    <% if (section === 'health') { %>
+      <p class="muted small">Service status, background jobs and email delivery. This page shows counts and cleaned error messages only: no passwords, tokens, email addresses or customer content.</p>
+      <div class="dash-grid">
+        <section class="dash-card">
+          <h2>Status</h2>
+          <p><span class="pill <%= h.status === 'ok' ? 'st-hired' : 'st-rejected' %>"><%= h.status === 'ok' ? 'All good' : h.status === 'down' ? 'Down' : 'Needs attention' %></span></p>
+          <ul class="plain-list">
+            <li>Database: <b><%= h.database.ok ? 'answering' : 'not answering' %></b> (<%= h.database.ms %> ms)</li>
+            <li>Up for <%= Math.round(h.process.uptimeSeconds / 3600) %> h · memory <%= h.process.memoryMb %> MB</li>
+            <li>Requests (24 h): <%= h.requests.last24h %> · server errors <b><%= h.requests.serverErrors24h %></b> (<%= h.requests.serverErrorPercent %>%) · availability <%= h.requests.availabilityPercent %>%</li>
+            <% if (h.backups) { %><li>Backups: <%= h.backups.warning || 'last ' + when(h.backups.lastBackupAt) %></li><% } %>
+            <li>Audit chain: <%= h.auditTrail.ok ? 'intact' : 'broken (' + h.auditTrail.problem + ')' %></li>
+          </ul>
+        </section>
+        <section class="dash-card">
+          <h2>Email delivery</h2>
+          <ul class="plain-list">
+            <li>Waiting to send: <b><%= h.notifications.queued %></b> (<%= h.notifications.retrying %> retrying; oldest <%= h.notifications.oldestQueuedMinutes %> min)</li>
+            <li>Failed in the last day: <b><%= h.notifications.failed24h %></b></li>
+            <li>Bounced or reported as spam this week: <%= h.notifications.bounceRate %>%</li>
+          </ul>
+          <% h.notifications.problems.forEach(function (p) { %><p class="notice notice-err"><%= p %></p><% }) %>
+        </section>
+        <section class="dash-card dash-wide">
+          <h2>Background jobs</h2>
+          <div class="table-wrap"><table>
+            <thead><tr><th>Job</th><th>Last run</th><th>Last success</th><th>Runs / failures</th><th>Last problem</th></tr></thead>
+            <tbody><% h.backgroundJobs.forEach(function (j) { %><tr><td><%= j.name %><%= j.failing ? ' · failing' : '' %><%= j.overdue ? ' · overdue' : '' %></td><td class="small"><%= when(j.lastRunAt) %> (<%= j.lastMs %> ms)</td><td class="small"><%= when(j.lastOkAt) %></td><td><%= j.runs %> / <%= j.failures %></td><td class="small"><%= j.lastError || '–' %></td></tr><% }) %></tbody>
+          </table></div>
+        </section>
+        <section class="dash-card dash-wide">
+          <h2>Recent application errors</h2>
+          <% if (!h.recentErrors.length) { %><p class="muted small">None since the server started.</p><% } else { %>
+            <div class="table-wrap"><table>
+              <thead><tr><th>When</th><th>Route</th><th>Message</th></tr></thead>
+              <tbody><% h.recentErrors.forEach(function (e) { %><tr><td class="small"><%= when(e.at) %></td><td class="small"><%= e.route %></td><td class="small"><%= e.message %></td></tr><% }) %></tbody>
+            </table></div>
+          <% } %>
+        </section>
+        <section class="dash-card dash-wide">
+          <h2>Failed emails</h2>
+          <% if (!failed.length) { %><p class="muted small">None.</p><% } else { %>
+            <div class="table-wrap"><table>
+              <thead><tr><th>Kind</th><th>Failed</th><th>Tries</th><th>Why</th><th></th></tr></thead>
+              <tbody><% failed.forEach(function (d) { %><tr><td class="small"><%= d.type %> · <%= d.template %></td><td class="small"><%= when(d.failedAt) %></td><td><%= d.attempts %></td><td class="small"><%= d.lastError || '–' %></td><td><form method="post" action="/admin/system-health/deliveries/<%= d.id %>/retry"><button class="btn btn-outline btn-sm" type="submit">Try again</button></form></td></tr><% }) %></tbody>
+            </table></div>
+          <% } %>
+        </section>
+      </div>
+    <% } %>
+
+    <% if (section === 'access') { %>
+      <p class="muted small">Who may do what, checked on the server for every page and API call. Roles are changed by an Admin on the Team tab. These roles must use two-step sign-in: <%= strongRoles.join(', ') %>; Admins need it to suspend or close accounts and decide appeals.</p>
+      <section class="dash-card dash-wide">
+        <h2>Team</h2>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Name</th><th>Role</th><th>Two-step sign-in</th><th>Status</th></tr></thead>
+          <tbody><% members.forEach(function (u) { %><tr><td><%= u.name %><br><span class="muted small"><%= u.email %></span></td><td><%= (roleInfo[u.role] || {}).label || u.role %></td><td><%= u.twoFactorOn ? 'On' : 'Off' %></td><td><%= !u.active ? 'Inactive' : u.pending ? 'Invited' : 'Active' %></td></tr><% }) %></tbody>
+        </table></div>
+        <% if (admin.role === 'Admin') { %><a class="btn btn-outline btn-sm" href="/admin?tab=team">Change roles on the Team tab</a><% } %>
+      </section>
+      <section class="dash-card dash-wide">
+        <h2>Permissions</h2>
+        <div class="table-wrap"><table class="small">
+          <thead><tr><th>Permission</th><% roleList.forEach(function (r) { %><th scope="col"><%= (roleInfo[r] || {}).label || r %></th><% }) %></tr></thead>
+          <tbody><% Object.keys(perms).forEach(function (p) { %><tr><th scope="row"><%= p %></th><% roleList.forEach(function (r) { %><td><%= perms[p].includes(r) ? '✓' : '' %><span class="sr-only"><%= perms[p].includes(r) ? 'allowed' : 'not allowed' %></span></td><% }) %></tr><% }) %></tbody>
+        </table></div>
+        <h3>Roles</h3>
+        <ul class="plain-list small"><% roleList.forEach(function (r) { %><li><b><%= (roleInfo[r] || {}).label || r %>:</b> <%= (roleInfo[r] || {}).text %></li><% }) %></ul>
+      </section>
+      <section class="dash-card dash-wide">
+        <h2>Policy</h2>
+        <form class="form" method="post" action="/admin/access-control/policy">
+          <fieldset<%= can('trust.policy') ? '' : ' disabled' %>>
+            <div class="form-grid">
+              <label>Jobs a company not yet verified may have waiting for review<input type="number" name="unverifiedPendingLimit" min="0" max="50" value="<%= pol.unverifiedPendingLimit %>" required></label>
+              <label>Automated flags open a case from
+                <select name="flagLevel"><% ['low', 'medium', 'high'].forEach(function (l) { %><option<%= pol.flagLevel === l ? ' selected' : '' %>><%= l %></option><% }) %></select>
+              </label>
+              <label>Reports from different people that make a case urgent<input type="number" name="urgentReports" min="2" max="20" value="<%= pol.urgentReports %>" required></label>
+              <label class="span-2">Reason for the change <span class="muted small">(kept in the audit history)</span><input name="reason" maxlength="500" required></label>
+            </div>
+            <button class="btn btn-primary btn-sm" type="submit">Save policy</button>
+          </fieldset>
+        </form>
+      </section>
+    <% } %>
+  </div>
+</section>
+
+<%- include('partials/foot') %>
