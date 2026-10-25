@@ -40,8 +40,11 @@ function can(m, action, job = null) {
     case 'workforce.supervise': return ['manager', 'supervisor'].includes(role);
     case 'workforce.view': return ['manager', 'supervisor', 'viewer'].includes(role);
     case 'workload.view': return role === 'manager';
+    // Contracts with Hireriv: hiring managers read them; only owners sign.
+    case 'contracts.view': return role === 'manager';
+    case 'reports.view': return ['manager', 'viewer'].includes(role);
     case 'dashboard.view': case 'analytics.view': return role !== 'supervisor';
-    // company.edit, team.manage, billing.view, company.verify and stage.correct
+    // company.edit, team.manage, billing.view, company.verify, contracts.sign and stage.correct
     // (moving an application outside the workflow): owners only.
     default: return false;
   }

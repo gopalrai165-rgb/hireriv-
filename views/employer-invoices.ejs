@@ -1,0 +1,26 @@
+<%- include('partials/head') %>
+
+<section class="section admin portal">
+  <div class="container">
+    <%- include('partials/employer-nav', { heading: 'Invoices' }) %>
+    <% const all = placements.flatMap(function (p) { return p.invoices.map(function (i) { return { p: p, i: i }; }); }); %>
+    <% if (!all.length) { %><p class="muted dash-empty">No invoices yet.</p><% } else { %>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Invoice</th><th>For</th><th>Date</th><th>Due</th><th class="num">Total</th><th class="num">Balance</th><th>Status</th></tr></thead>
+        <tbody><% all.forEach(function (x) { const i = x.i, p = x.p; %>
+          <tr>
+            <td><a href="/employer/invoices/<%= p.id %><%= i.key === 'main' ? '' : '?inv=' + i.key %>"><b><%= i.number %></b></a><% i.creditNotes.forEach(function (c) { %><br><a class="small" href="/employer/invoices/<%= p.id %>/credit-notes/<%= c.id %>">Credit note <%= c.number %></a><% }) %></td>
+            <td><%= p.candidateName %> · <%= p.jobTitle %><%= i.month ? ' · ' + i.month : '' %></td>
+            <td><%= formatDate(i.date) %></td>
+            <td><%= i.dueDate ? formatDate(i.dueDate) : '—' %></td>
+            <td class="num"><%= new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(i.total) %></td>
+            <td class="num"><%= new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(Math.max(0, i.balance)) %></td>
+            <td><%= i.status %><%= i.overdue ? ' · overdue' : '' %></td>
+          </tr>
+        <% }) %></tbody>
+      </table></div>
+    <% } %>
+  </div>
+</section>
+
+<%- include('partials/foot') %>

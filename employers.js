@@ -619,6 +619,8 @@ function register(app, deps) {
     const role = String(req.body.role || m.role);
     if (!ROLE_KEYS.includes(role)) return toTeam(res, 'Choose a role.');
     if (role !== 'owner' && lastOwner(m)) return toTeam(res, 'A company needs at least one owner. Make someone else an owner first.');
+    // Nobody changes their own role: another owner does.
+    if (m.userId === req.employerUser.id && role !== m.role) return toTeam(res, "You can't change your own role. Ask another owner.");
     team.updateMember(m.id, { role, jobIds: ownJobIds(req, req.body.jobIds) });
     const u = team.userById(m.userId) || {};
     team.audit(req.employer.id, req.employerUser, 'member-changed', `${u.email}: ${ROLES[role].label}`);
@@ -703,8 +705,7 @@ function register(app, deps) {
     you: { name: req.employerUser.name, email: req.employerUser.email, role: req.member.role, mobileVerified: Boolean(req.employerUser.phoneVerifiedAt) },
     companies: companiesOf(req.employerUser.id).map((x) => ({ id: x.employer.id, company: x.employer.company, role: x.member.role })),
   });
-  app.get('/api/employers/me', requireEmployerApi, (req, res) => res.json(companyJson(req)));
-  app.patch('/api/employers/me', requireEmployerApi, allow('company.edit'), limit('employer-company', 20), sameOrigin, (req, res) => {
+  function patchCompany(req, res) {
     const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : null;
     if (!body) return res.status(400).json({ ok: false, errors: ['send the company details as a JSON object'] });
     const unknown = Object.keys(body).filter((k) => !COMPANY_FIELDS.includes(k));
@@ -713,7 +714,12 @@ function register(app, deps) {
     if (r.errors.length) return res.status(400).json({ ok: false, errors: r.errors });
     req.employer = r.employer;
     res.json(companyJson(req));
-  });
+  }
+  app.get('/api/employers/me', requireEmployerApi, (req, res) => res.json(companyJson(req)));
+  app.patch('/api/employers/me', requireEmployerApi, allow('company.edit'), limit('employer-company', 20), sameOrigin, (req, res) => patchCompany(req, res));
+  // The same under the client portal's address.
+  app.get('/api/client/company-profile', requireEmployerApi, (req, res) => res.json(companyJson(req)));
+  app.patch('/api/client/company-profile', requireEmployerApi, allow('company.edit'), limit('employer-company', 20), sameOrigin, (req, res) => patchCompany(req, res));
 
   // ---------- portal dashboard ----------
   // Jobs this member can see, with applicant counts per stage.
@@ -815,15 +821,28 @@ function register(app, deps) {
     const list = readSubmissions('applications');
     const a = list.find((x) => x.id === req.params.appId);
     if (!a || !a.shared || a.shared.employerId !== req.employer.id) return next();
-    const decision = String(req.body.decision || '');
-    if (!DECISIONS.includes(decision)) return res.redirect('/employer?msg=' + encodeURIComponent('Choose Interested, Maybe or Not a fit.') + '#shortlist');
-    a.shared.feedback = { decision, comment: String(req.body.comment || '').trim().slice(0, 1000), by: req.employerUser.name, at: now() };
-    writeSubmissions('applications', list);
-    mailer.clientFeedback(addressed(req.employer, req.employerUser), a, a.shared.feedback, `${baseUrl}/admin?tab=applications`);
-    res.redirect('/employer?msg=' + encodeURIComponent(`Thanks! Your feedback on ${a.name} was sent to your account manager.`) + '#shortlist');
+    const r = shortlistFeedback(req, a.id, req.body.decision, req.body.comment);
+    res.redirect('/employer?msg=' + encodeURIComponent(r.errors ? r.errors.join(' ') : `Thanks! Your feedback on ${r.name} was sent to your account manager.`) + '#shortlist');
   });
+  // A client's answer on a shared candidate. A reason is kept with every
+  // "Not a fit", and earlier answers stay in the history.
+  function shortlistFeedback(req, appId, decisionIn, commentIn) {
+    const list = readSubmissions('applications');
+    const a = list.find((x) => x.id === appId);
+    if (!a || !a.shared || a.shared.employerId !== req.employer.id) return { status: 404, errors: ['candidate not found'] };
+    const decision = String(decisionIn || '');
+    const comment = String(commentIn || '').trim().slice(0, 1000);
+    if (!DECISIONS.includes(decision)) return { status: 400, errors: ['Choose Interested, Maybe or Not a fit.'] };
+    if (decision === 'Not a fit' && !comment) return { status: 400, errors: ['Say why they are not a fit, so your recruiter can find better matches.'] };
+    if (a.shared.feedback) a.shared.feedbackHistory = [...(a.shared.feedbackHistory || []), a.shared.feedback].slice(-20);
+    a.shared.feedback = { decision, comment, by: req.employerUser.name, userId: req.employerUser.id, at: now() };
+    writeSubmissions('applications', list);
+    team.audit(req.employer.id, req.employerUser, 'shortlist-feedback', `${a.name}: ${decision}${comment ? ` (${comment.slice(0, 120)})` : ''}`);
+    mailer.clientFeedback(addressed(req.employer, req.employerUser), a, a.shared.feedback, `${baseUrl}/admin?tab=applications`);
+    return { status: 200, name: a.name, feedback: a.shared.feedback };
+  }
 
-  return { read, write, team, context, currentEmployer, requireEmployer, requireEmployerApi, allow, forbid, shortlistFor, DECISIONS, isApproved, verificationOf, addressed, membersWith: (employerId, action, job) => team.membersOf(employerId).filter((m) => can(m, action, job)) };
+  return { read, write, team, context, currentEmployer, requireEmployer, requireEmployerApi, allow, forbid, shortlistFor, shortlistFeedback, clientView, DECISIONS, isApproved, verificationOf, addressed, membersWith: (employerId, action, job) => team.membersOf(employerId).filter((m) => can(m, action, job)) };
 }
 
 module.exports = { register, hashPassword, checkPassword, validGstin, gstinCheckChar, isFreeEmail, isApproved, parseCompany, verificationOf, INDUSTRIES, COMPANY_SIZES };

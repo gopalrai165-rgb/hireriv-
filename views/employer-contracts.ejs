@@ -1,0 +1,59 @@
+<%- include('partials/head') %>
+
+<section class="section admin portal">
+  <div class="container">
+    <%- include('partials/employer-nav', { heading: v ? v.reference + ' · version ' + v.version : 'Contracts' }) %>
+
+    <% if (v) { %>
+      <p><a href="/employer/contracts">← All contracts</a></p>
+      <div class="kpis">
+        <div class="kpi"><span class="kpi-label">Status</span><span class="kpi-value"><%= LABEL[v.status] %></span><span class="kpi-note"><%= v.sentAt ? 'Sent ' + formatDate(v.sentAt) : '' %></span></div>
+        <div class="kpi"><span class="kpi-label">Document fingerprint</span><span class="kpi-value small"><%= v.sha256.slice(0, 16) %>…</span><span class="kpi-note">SHA-256 of the text below</span></div>
+      </div>
+      <section class="dash-card dash-wide">
+        <h2><%= v.title %></h2>
+        <pre class="contract-text" style="white-space:pre-wrap;font:inherit"><%= v.text %></pre>
+      </section>
+      <% if (v.signature) { %>
+        <p class="notice">Signed by <b><%= v.signature.name %></b> (<%= v.signature.designation %>) on <%= formatDate(v.signature.at) %>. The signature covers exactly this text (SHA-256 <code><%= v.signature.documentSha256 %></code>).</p>
+      <% } %>
+      <% if (v.status === 'terminated' && v.terminationReason) { %><p class="muted"><%= v.terminationReason %></p><% } %>
+      <% if (v.status === 'sent') { %>
+        <% if (canSign) { %>
+          <section class="dash-card dash-wide">
+            <h2>Sign for <%= employer.company %></h2>
+            <form class="form" method="post" action="/employer/contracts/<%= v.id %>/sign">
+              <input type="hidden" name="sha256" value="<%= v.sha256 %>">
+              <div class="form-grid">
+                <label>Type your full name*<input name="typedName" required maxlength="80" autocomplete="name" placeholder="<%= employerUser.name %>"></label>
+                <label>Your designation*<input name="designation" required maxlength="80" placeholder="e.g. Director"></label>
+              </div>
+              <label class="small"><input type="checkbox" name="accept" value="1" required> I have read this contract and agree to it on behalf of <%= employer.company %>, and I am authorised to do so.</label>
+              <button class="btn btn-primary" type="submit">Sign the contract</button>
+              <p class="muted small">We record your name, the time, a fingerprint of your connection and your browser, and the document's SHA-256, as evidence of the signature.</p>
+            </form>
+          </section>
+          <details class="dash-card dash-wide">
+            <summary><b>Ask for changes instead</b></summary>
+            <form class="form" method="post" action="/employer/contracts/<%= v.id %>/request-changes">
+              <label>What would you like changed?*<textarea name="comment" rows="3" maxlength="2000" required></textarea></label>
+              <button class="btn btn-outline" type="submit">Send to my account manager</button>
+            </form>
+          </details>
+        <% } else { %><p class="muted small">A company owner signs contracts.</p><% } %>
+      <% } %>
+    <% } else { %>
+      <p class="muted small">Your agreements with Hireriv. Each version is reviewed at Hireriv before it is sent; a company owner signs it here.</p>
+      <% if (!rows.length) { %><p class="muted dash-empty">No contracts sent to you yet.</p><% } else { %>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Contract</th><th>Version</th><th>Status</th><th>Signed</th></tr></thead>
+          <tbody><% rows.forEach(function (r) { %>
+            <tr><td><a href="/employer/contracts/<%= r.id %>"><b><%= r.reference %></b> · <%= r.title %></a></td><td><%= r.version %></td><td><span class="pill"><%= LABEL[r.status] %></span></td><td><%= r.signature ? r.signature.name + ', ' + formatDate(r.signature.at) : '—' %></td></tr>
+          <% }) %></tbody>
+        </table></div>
+      <% } %>
+    <% } %>
+  </div>
+</section>
+
+<%- include('partials/foot') %>

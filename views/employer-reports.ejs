@@ -1,0 +1,21 @@
+<%- include('partials/head') %>
+
+<section class="section admin portal">
+  <div class="container">
+    <%- include('partials/employer-nav', { heading: 'Reports' }) %>
+    <% const r = report; %>
+    <div class="kpis">
+      <div class="kpi"><span class="kpi-label">Open requests</span><span class="kpi-value"><%= r.requisitions.open %></span><span class="kpi-note"><%= r.requisitions.openingsLeft %> openings left · <%= r.requisitions.awaitingReview %> waiting for Hireriv's review</span></div>
+      <div class="kpi"><span class="kpi-label">Filled</span><span class="kpi-value"><%= r.requisitions.filled %></span><span class="kpi-note"><%= r.requisitions.medianDaysToFill === null ? 'No fills yet' : 'Median ' + r.requisitions.medianDaysToFill + ' days to fill' %></span></div>
+      <div class="kpi"><span class="kpi-label">Shortlisted for you</span><span class="kpi-value"><%= r.shortlist.shared %></span><span class="kpi-note"><%= r.shortlist.answered %> answered · <%= r.shortlist.interested %> interested · <%= r.shortlist.notAFit %> not a fit</span></div>
+      <div class="kpi"><span class="kpi-label">Upcoming interviews</span><span class="kpi-value"><%= r.interviews.upcoming %></span></div>
+      <div class="kpi"><span class="kpi-label">Workers on assignment</span><span class="kpi-value"><%= r.workforce.active %></span><span class="kpi-note"><%= r.workforce.scheduled %> starting soon · <%= r.workforce.approvedHoursLast30Days %> approved hours in 30 days</span></div>
+      <% if (r.billing) { %>
+        <div class="kpi"><span class="kpi-label">Invoiced</span><span class="kpi-value"><%= inr(r.billing.invoicedPaise) %></span><span class="kpi-note"><%= r.billing.invoices %> invoices · outstanding <%= inr(r.billing.outstandingPaise) %><%= r.billing.overdue ? ' · ' + r.billing.overdue + ' overdue' : '' %></span></div>
+      <% } %>
+    </div>
+    <p class="muted small">Hiring pipeline reports for jobs you run yourself are under <a href="/employer/ats/reports">Pipeline → Reports</a>.</p>
+  </div>
+</section>
+
+<%- include('partials/foot') %>

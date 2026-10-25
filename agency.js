@@ -539,12 +539,12 @@ function register(app, deps) {
   };
 
   // ---------- requisitions a client asks for ----------
-  function clientRequisition(emp, user, input, strict) {
+  function clientRequisition(emp, user, input, strict, extra = {}) {
     const { errors, values } = parseRequisition(input, { strict, fields: CLIENT_REQ_FIELDS });
     if (errors.length) return { status: 400, errors };
     const r = saveSubmission('requisitions', {
       number: nextNumber(), employerId: emp.id, ...values, priority: 'Normal', contractId: null, jobId: null, rates: null, status: 'Requested', source: 'client',
-      requestedBy: { userId: user.id, name: user.name }, recruiterIds: [], managerId: null, history: [{ at: now(), by: `${user.name} (${emp.company})`, text: 'Requested by the client' }], updatedAt: now(), closedAt: null,
+      requestedBy: { userId: user.id, name: user.name }, recruiterIds: [], managerId: null, history: [{ at: now(), by: `${user.name} (${emp.company})`, text: 'Requested by the client' }], updatedAt: now(), closedAt: null, ...extra,
     });
     team.log(null, `${emp.company} requested ${r.openings} × ${r.title} (${r.number})`, 'requisitions');
     saveSubmission('agency-audit', { actorId: '', actorName: `${user.name} (${emp.company})`, role: 'Client Employer', action: 'requisition-requested', entity: 'requisition', entityId: r.id, employerId: emp.id, detail: `${r.number}: ${r.openings} × ${r.title}` });
@@ -1186,7 +1186,7 @@ function register(app, deps) {
     res.status(201).json({ ok: true, requisition: clientReqView(r.requisition, req.member) });
   });
 
-  return { report, requisitions, contracts, assignments, drafts, createDraft, issueDraft, describeReq };
+  return { report, requisitions, contracts, assignments, drafts, createDraft, issueDraft, describeReq, clientRequisition, clientReqView, CLIENT_REQ_FIELDS };
 }
 
 module.exports = { register, paiseFrom, bpFrom, qtyFrom, percentOf, timesQty, parseContract, parseRequisition, parseAssignment, REQ_MOVES, ASSIGN_MOVES, REQ_STATUSES };

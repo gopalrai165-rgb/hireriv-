@@ -29,6 +29,7 @@ const jobRecommendations = require('./job-recommendations');
 const employerDiscovery = require('./employer-discovery');
 const agency = require('./agency');
 const workforce = require('./workforce');
+const clientPortal = require('./client-portal');
 const { can: employerCan } = require('./employer-team');
 const jobMatch = require('./job-match');
 const { interviewIcs } = require('./ics');
@@ -1260,6 +1261,12 @@ const workforceDesk = workforce.register(app, {
   team, clients, billing, agency: agencyDesk, candidates: candidateAccounts, readSubmissions, writeSubmissions, saveSubmission, adminAuth, sameOrigin, limit, site, saveSite,
   notify, mailer, baseUrl: BASE_URL, uploadsDir: UPLOADS_DIR, downloadLinks, linkExpired, vetDocument: resumeCheck.vetDocument, hooks: placementHooks,
   requireEmployer: clients.requireEmployer, requireCandidate: candidateAccounts.requireCandidate, can: employerCan,
+});
+// The client's self-service portal: contract documents to sign, bulk hiring
+// requests, shortlist answers, interviews, invoices, reports and the team.
+clientPortal.register(app, {
+  team, clients, billing, agency: agencyDesk, workforce: workforceDesk, readSubmissions, writeSubmissions, saveSubmission, adminAuth, sameOrigin, limit, site, mailer, baseUrl: BASE_URL,
+  requireEmployer: clients.requireEmployer, requireEmployerApi: clients.requireEmployerApi, can: employerCan, getJobs: () => jobs, secret: db.metaGet('secret:links'),
 });
 
 // The notification center, its API, preferences, job alerts and delivery reports.

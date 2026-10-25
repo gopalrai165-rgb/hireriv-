@@ -49,6 +49,21 @@
         </details>
       <% } %>
 
+      <% if (canRequest) { %>
+        <details class="dash-card dash-wide">
+          <summary><b>+ Bulk order</b> <span class="muted small">(several roles at once)</span></summary>
+          <form class="form" method="post" action="/employer/requisitions/bulk">
+            <label>One role per line: how many × role, location*<textarea name="lines" rows="5" maxlength="4000" required placeholder="10 × Warehouse Picker, Chakan&#10;2 × Forklift Operator, Chakan&#10;1 × Shift Supervisor, Pune"></textarea></label>
+            <div class="form-grid">
+              <label>Kind of hire<select name="kind"><% REQ_KINDS.forEach(function (k) { %><option><%= k %></option><% }) %></select></label>
+              <label>Note<input name="note" maxlength="500"></label>
+            </div>
+            <button class="btn btn-primary" type="submit">Send the order</button>
+            <p class="muted small">Every line is checked before anything is sent. Each becomes its own request, which Hireriv reviews before it opens.</p>
+          </form>
+        </details>
+      <% } %>
+
       <% if (!rows.length) { %>
         <p class="muted dash-empty">No requisitions yet.</p>
       <% } else { %>

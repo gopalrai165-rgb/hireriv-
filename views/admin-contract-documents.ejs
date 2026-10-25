@@ -1,0 +1,58 @@
+<%- include('partials/head') %>
+
+<section class="section admin">
+  <div class="container">
+    <%- include('partials/agency-nav', { heading: c.company + ' · Contract documents', tab: 'clients' }) %>
+    <p><a href="/admin/clients/<%= c.id %>">← <%= c.company %></a></p>
+    <p class="muted small">Each version is written from the contract's terms plus its own clauses, reviewed by someone other than its author, then sent to the client's owners to sign. Signed versions become active on the contract's start date and expire at its end. A version can't change once it leaves draft: write a new one instead.</p>
+
+    <% if (!cs.length) { %><p class="muted dash-empty">Record the contract's terms on the client page first.</p><% } %>
+    <% cs.forEach(function (k) { const vs = versions.filter(function (v) { return v.contractId === k.id; }); const busy = vs.some(function (v) { return ['draft', 'pending_review', 'sent'].includes(v.status); }); %>
+      <section class="dash-card dash-wide">
+        <h2><%= k.reference %> <span class="muted small">· <%= k.kind %> · terms <%= k.status %></span></h2>
+        <% vs.forEach(function (v) { %>
+          <details<%= ['draft', 'pending_review'].includes(v.status) ? ' open' : '' %>>
+            <summary><b>Version <%= v.version %></b> · <%= v.title %> · <span class="pill"><%= LABEL[v.status] %></span> <span class="muted small">by <%= v.authorName %><%= v.reviewerName ? ', reviewed by ' + v.reviewerName : '' %></span></summary>
+            <pre style="white-space:pre-wrap;font:inherit"><%= v.text %></pre>
+            <p class="muted small">SHA-256 <code><%= v.sha256 %></code></p>
+            <% if (v.signature) { %><p class="small">Signed by <b><%= v.signature.name %></b> (<%= v.signature.designation %>, <%= v.signature.email %>) at <%= v.signature.at %> · connection <%= v.signature.ipHash %> · <%= v.signature.userAgent %></p><% } %>
+            <ul class="plain-list small"><% v.history.forEach(function (h) { %><li><%= h.at.slice(0, 16).replace('T', ' ') %> · <%= h.by %>: <%= h.text %></li><% }) %></ul>
+            <% if (canManage) { %>
+              <div class="row-actions">
+                <% if (v.status === 'draft') { %>
+                  <form method="post" action="/admin/contract-versions/<%= v.id %>/submit"><button class="btn btn-primary btn-sm">Send for review</button></form>
+                <% } %>
+                <% if (v.status === 'pending_review' && v.authorId !== me) { %>
+                  <form method="post" action="/admin/contract-versions/<%= v.id %>/send"><button class="btn btn-primary btn-sm">Reviewed: send to the client</button></form>
+                  <form method="post" action="/admin/contract-versions/<%= v.id %>/back"><input name="reason" required maxlength="300" placeholder="What needs changing"><button class="btn btn-outline btn-sm">Send back</button></form>
+                <% } else if (v.status === 'pending_review') { %><span class="muted small">Someone other than you reviews it.</span><% } %>
+                <% if (!['expired', 'terminated'].includes(v.status)) { %>
+                  <form method="post" action="/admin/contract-versions/<%= v.id %>/terminate"><input name="reason" required maxlength="300" placeholder="Reason"><button class="btn btn-outline btn-sm">Terminate</button></form>
+                <% } %>
+              </div>
+              <% if (v.status === 'draft') { %>
+                <form class="form" method="post" action="/admin/contract-versions/<%= v.id %>/edit">
+                  <label>Title<input name="title" maxlength="120" value="<%= v.title %>"></label>
+                  <label>Clauses<textarea name="clauses" rows="8" maxlength="20000"><%= v.clauses %></textarea></label>
+                  <button class="btn btn-outline btn-sm">Save draft</button>
+                </form>
+              <% } %>
+            <% } %>
+          </details>
+        <% }) %>
+        <% if (canManage && !busy) { %>
+          <details>
+            <summary><b>+ New version</b></summary>
+            <form class="form" method="post" action="/admin/contracts/<%= k.id %>/versions">
+              <label>Title<input name="title" maxlength="120" placeholder="<%= k.kind %> agreement"></label>
+              <label>Clauses <span class="muted small">(added after the recorded terms)</span><textarea name="clauses" rows="8" maxlength="20000"></textarea></label>
+              <button class="btn btn-primary btn-sm">Save draft</button>
+            </form>
+          </details>
+        <% } %>
+      </section>
+    <% }) %>
+  </div>
+</section>
+
+<%- include('partials/foot') %>

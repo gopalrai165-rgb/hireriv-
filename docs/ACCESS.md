@@ -15,7 +15,7 @@ Every route the app serves, and who may use it. **This table is checked by `test
 
 Every state-changing team, candidate and client form also passes `sameOrigin` (cross-site posts are refused).
 
-Total: 420 routes.
+Total: 458 routes.
 
 ## Workforce: workers, client supervisors and the staffing team
 
@@ -68,6 +68,14 @@ Total: 420 routes.
 | GET | `/recruiter/placements` | public | Short link to /admin/workspace |
 | GET | `/client/requisitions` | public | Short link to /employer/requisitions |
 | GET | `/client/candidates` | public | Short link to the shortlist on the client's dashboard |
+| GET | `/client/dashboard` | public | Short link to /employer |
+| GET | `/client/company-profile` | public | Short link to /employer/company |
+| GET | `/client/hiring-requests` | public | Short link to /employer/requisitions |
+| GET | `/client/interviews` | public | Short link to /employer/interviews |
+| GET | `/client/contracts` | public | Short link to /employer/contracts |
+| GET | `/client/invoices` | public | Short link to /employer/invoices |
+| GET | `/client/reports` | public | Short link to /employer/reports |
+| GET | `/client/team` | public | Short link to /employer/team |
 | POST | `/webhooks/email` | public | Email provider to server only: HMAC-SHA256 signature with EMAIL_WEBHOOK_SECRET over the exact body, 5-minute replay window, each event processed once; 404 when no secret is set |
 | GET | `/healthz` | public | Uptime check |
 | GET | `/og/site.png` | public |  |
@@ -232,6 +240,27 @@ Total: 420 routes.
 | GET | `/api/employers/requisitions` | employer | JSON; own company only |
 | GET | `/api/employers/requisitions/:id` | employer | JSON; 404 for other companies |
 | POST | `/api/employers/requisitions` | employer | JSON; owners and hiring managers; unknown fields refused |
+| GET | `/api/client/dashboard` | employer | JSON; the company from the session's membership; supervisors get workforce numbers only |
+| GET | `/api/client/hiring-requests` | employer | JSON; the company's own requests only; budgets for owners |
+| GET | `/api/client/hiring-requests/:id` | employer | JSON; 404 for other companies |
+| POST | `/api/client/hiring-requests` | employer | JSON; owners and hiring managers; one request or a bulk order of up to 20 lines, all checked before any is saved; each starts as Requested until Hireriv reviews it |
+| GET | `/api/client/candidates` | employer | JSON; candidates shared with the company, without contact details |
+| POST | `/api/client/candidates/:id/feedback` | employer | JSON; owners, hiring managers and recruiters; a reason is required for "Not a fit"; earlier answers kept |
+| GET | `/api/client/interviews` | employer | JSON; interviews on the company's jobs the person may see, and on shared candidates |
+| GET | `/api/client/contracts` | employer | JSON; owners and hiring managers; versions sent to the company (never drafts or internal review) |
+| GET | `/api/client/contracts/:id` | employer | JSON; 404 for other companies |
+| POST | `/api/client/contracts/:id/sign` | employer | JSON; owners only; typed name, designation, agreement and the document's SHA-256; evidence recorded |
+| POST | `/api/client/contracts/:id/request-changes` | employer | JSON; owners only; ends that version with the comment |
+| GET | `/api/client/invoices` | employer | JSON; owners (billing permission); the company's invoices only |
+| GET | `/api/client/reports` | employer | JSON; owners, hiring managers and viewers; money for owners only |
+| GET | `/api/client/team` | employer | JSON; the company's members; emails for owners only |
+| GET | `/employer/contracts` | employer | Owners and hiring managers |
+| GET | `/employer/contracts/:id` | employer | 404 for other companies' contracts; drafts never shown |
+| POST | `/employer/contracts/:id/sign` | employer | Owners only; the page sends the SHA-256 of the text shown |
+| POST | `/employer/contracts/:id/request-changes` | employer | Owners only |
+| GET | `/employer/invoices` | employer | Owners (billing permission) |
+| GET | `/employer/reports` | employer | Owners, hiring managers and viewers |
+| POST | `/employer/requisitions/bulk` | employer | Owners and hiring managers; one role per line, checked whole |
 | GET | `/employer/ats` | employer | Pipeline board and table for the company's own jobs this member may see |
 | GET | `/employer/ats/reports` | employer | Metrics for the jobs this member may see; team workload for owners and hiring managers |
 | POST | `/employer/applicants/:id/notes` | employer | Internal notes: owners, or managers and recruiters on the job; never shown to candidates |
@@ -315,6 +344,8 @@ Total: 420 routes.
 | POST | `/employer/settings/password` | employer | Needs the current password; signs out other sessions |
 | GET | `/api/employers/me` | employer | 401 when signed out |
 | PATCH | `/api/employers/me` | employer | 401 when signed out; company owners only; unknown fields refused |
+| GET | `/api/client/company-profile` | employer | JSON; same as /api/employers/me |
+| PATCH | `/api/client/company-profile` | employer | JSON; owners only; same as PATCH /api/employers/me |
 | GET | `/employer` | employer | Dashboard for the signed-in person’s current company; billing for owners only |
 | GET | `/employer/resume/:appId` | employer | Candidates shared with this company; owners, managers and recruiters; signed link, valid 15 minutes |
 | POST | `/employer/candidates/:appId/feedback` | employer | Candidates shared with this company; owners, managers and recruiters |
@@ -391,6 +422,13 @@ Total: 420 routes.
 | POST | `/admin/templates/:id` | team |  |
 | POST | `/admin/applications/bulk` | team |  |
 | POST | `/admin/applications/bulk-email` | team |  |
+| GET | `/api/contracts/:id/versions` | team | JSON; roles that see contracts |
+| POST | `/api/contracts/:id/versions` | team | JSON; Admins or the client's Account Manager; one version in progress at a time |
+| PATCH | `/api/contract-versions/:id` | team | JSON; drafts only |
+| POST | `/api/contract-versions/:id/:action` | team | JSON; submit, send (by someone other than the author, after review), back or terminate (with a reason) |
+| GET | `/admin/clients/:id/contract-documents` | team | Roles that see contracts (checked in the handler) |
+| POST | `/admin/contracts/:id/versions` | team | Admins or the client's Account Manager (checked in the handler) |
+| POST | `/admin/contract-versions/:id/:action` | team | Same rules as the JSON API |
 | POST | `/admin/jobs/:id/approve` | team | Only for verified companies; tells the job's poster and the company owners |
 | POST | `/admin/jobs/:id/reject` | team |  |
 | POST | `/admin/clients` | team |  |

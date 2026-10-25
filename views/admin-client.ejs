@@ -42,6 +42,7 @@
       <% if (showTerms) { %>
         <section class="dash-card dash-wide" id="contracts">
           <h2>Contracts</h2>
+          <p class="small"><a href="/admin/clients/<%= c.id %>/contract-documents">Contract documents for the client to sign →</a></p>
           <% if (!contracts.length) { %><p class="muted dash-empty">No contract recorded. Placements for this client use the fee in Settings until one is.</p><% } else { %>
             <div class="table-wrap">
               <table>
