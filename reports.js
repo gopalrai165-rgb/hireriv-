@@ -72,7 +72,7 @@ function firstResponseKpi(apps) {
 }
 
 function create({ readSubmissions, getJobs, getPlacements, team, appOwner }) {
-  const invoicesOf = (p) => [p.invoice, ...(p.monthlyInvoices || [])].filter(Boolean);
+  const invoicesOf = (p) => [p.invoice, ...(p.monthlyInvoices || []), ...(p.staffingInvoices || [])].filter(Boolean);
 
   function build({ period: periodKey, isAdmin }) {
     const period = periodRange(periodKey);

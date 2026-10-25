@@ -63,6 +63,7 @@ const TYPES = {
   'job-expired': { category: 'jobs', optional: true, label: 'Job closed' },
   'job-review': { category: 'jobs', optional: true, label: 'Job waiting for review' },
   'staffing-request': { category: 'jobs', optional: true, label: 'Staffing request' },
+  'requisition-assigned': { category: 'jobs', optional: true, label: 'Requisition assigned to you' },
 };
 
 const sha = (s) => crypto.createHash('sha256').update(String(s)).digest('hex');

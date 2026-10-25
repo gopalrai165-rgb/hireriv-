@@ -1,0 +1,49 @@
+<%# The requisition fields, for opening one (with a client) or editing it. `rf` holds the values. %>
+<div class="form-grid">
+  <% if (withClient) { %>
+    <label>Client*
+      <select name="clientId" required>
+        <option value="">Choose a client</option>
+        <% clientList.forEach(function (c) { %><option value="<%= c.id %>"<%= rf.clientId === c.id ? ' selected' : '' %>><%= c.company %></option><% }) %>
+      </select>
+    </label>
+  <% } %>
+  <label>Role title*<input name="title" required maxlength="120" value="<%= rf.title || '' %>" placeholder="e.g. Forklift Operator"></label>
+  <label>Kind of hire
+    <select name="kind"><% REQ_KINDS.forEach(function (k) { %><option<%= (rf.kind || 'Permanent') === k ? ' selected' : '' %>><%= k %></option><% }) %></select>
+  </label>
+  <label>Openings*<input name="openings" inputmode="numeric" maxlength="3" value="<%= rf.openings || '1' %>"></label>
+  <label>Location<input name="location" maxlength="80" value="<%= rf.location || '' %>"></label>
+  <label>Experience<input name="experience" maxlength="40" value="<%= rf.experience || '' %>" placeholder="e.g. 1-3 years"></label>
+  <label>Skills <span class="muted small">(comma separated)</span><input name="skills" maxlength="440" value="<%= Array.isArray(rf.skills) ? rf.skills.join(', ') : rf.skills || '' %>"></label>
+  <label>Priority
+    <select name="priority"><% PRIORITIES.forEach(function (p) { %><option<%= (rf.priority || 'Normal') === p ? ' selected' : '' %>><%= p %></option><% }) %></select>
+  </label>
+  <label>Fill by<input type="date" name="dueOn" value="<%= rf.dueOn || '' %>"></label>
+  <label>Client contract
+    <select name="contractId">
+      <option value="">The client's active contract for this kind of hire</option>
+      <% contractList.forEach(function (c) { if (!withClient && c.employerId !== rf.employerId) return; %><option value="<%= c.id %>"<%= rf.contractId === c.id ? ' selected' : '' %>><%= c.reference %> · <%= c.kind %></option><% }) %>
+    </select>
+  </label>
+  <label>Linked job <span class="muted small">(its applicants form the pipeline)</span>
+    <select name="jobId">
+      <option value="">No job yet</option>
+      <% jobs.forEach(function (j) { %><option value="<%= j.id %>"<%= rf.jobId === j.id ? ' selected' : '' %>><%= j.title %> · <%= j.company %> · <%= j.location %></option><% }) %>
+    </select>
+  </label>
+</div>
+<% if (money) { %>
+  <fieldset class="check-set">
+    <legend>Budget and rates <span class="muted small">(rupees, exact to the paisa)</span></legend>
+    <div class="form-grid">
+      <label>Budget from<input name="budgetMin" inputmode="decimal" value="<%= rf.budgetMin || '' %>"></label>
+      <label>Budget to<input name="budgetMax" inputmode="decimal" value="<%= rf.budgetMax || '' %>"></label>
+      <label>Per<select name="budgetPeriod"><% PAY_PERIODS.forEach(function (p) { %><option<%= (rf.budgetPeriod || 'year') === p ? ' selected' : '' %>><%= p %></option><% }) %></select></label>
+      <label>Bill rate <span class="muted small">(temporary or contract)</span><input name="billRate" inputmode="decimal" value="<%= rf.billRate || '' %>"></label>
+      <label>Pay rate<input name="payRate" inputmode="decimal" value="<%= rf.payRate || '' %>"></label>
+      <label>Rates per<select name="ratePer"><% RATE_PER.forEach(function (p) { %><option<%= (rf.ratePer || 'day') === p ? ' selected' : '' %>><%= p %></option><% }) %></select></label>
+    </div>
+  </fieldset>
+<% } %>
+<label>Description<textarea name="description" rows="3" maxlength="3000"><%= rf.description || '' %></textarea></label>

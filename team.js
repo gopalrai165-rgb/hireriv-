@@ -1,6 +1,8 @@
 // Recruiter team: individual admin logins with roles, sessions and an activity log.
-// Roles: "Admin" sees and does everything; "Recruiter" works jobs, candidates and
-// clients but can't touch billing, settings, the team, backups or deletions.
+// Roles: "Admin" (Super Admin) sees and does everything; "Recruiter" works jobs,
+// candidates and clients but can't touch billing, settings, the team, backups or
+// deletions. Recruitment Managers, Account Managers and Finance Managers add
+// their own permissions (agency-roles.js); a Finance Manager sees billing only.
 // The ADMIN_USER / ADMIN_PASS account from the environment is the built-in owner
 // (always an Admin), so a fresh install can sign in and invite the team.
 // Anyone can add two-step sign-in (an authenticator app code after the
@@ -8,8 +10,9 @@
 const crypto = require('crypto');
 const { hashPassword, checkPassword } = require('./employers');
 const tf = require('./twofactor');
+const agencyRoles = require('./agency-roles');
 
-const ROLES = ['Admin', 'Recruiter'];
+const { ROLES } = agencyRoles;
 const SESSION_HOURS = 12;
 const INVITE_HOURS = 72;
 const COOKIE = 'hr_admin';
@@ -133,6 +136,13 @@ function create({ db, mailer, baseUrl, ownerUser, ownerPass, site = {}, resetOwn
     req.admin = user;
     res.locals.admin = user;
     res.locals.isAdmin = user.role === 'Admin';
+    res.locals.canBill = agencyRoles.canBill(user);
+    res.locals.agencyCan = (action) => agencyRoles.can(user, action);
+    res.locals.roleLabel = (agencyRoles.ROLE_INFO[user.role] || { label: user.role }).label;
+    if (!agencyRoles.pathAllowed(user, req.path)) {
+      if (!wantsHtml(req)) return res.status(403).send('Your role does not include this page.');
+      return res.status(403).render('thanks', { title: 'Not part of your role', page: '', ok: false, message: 'Your role covers billing only. Ask an Admin on your team if you need this page.', noindex: true });
+    }
     // When the team requires two-step sign-in, people without it can only set it up.
     if (requires2fa() && !has2fa(user.id) && !req.path.startsWith('/admin/security')) {
       if (wantsHtml(req)) return res.redirect('/admin/security');
@@ -157,6 +167,11 @@ function create({ db, mailer, baseUrl, ownerUser, ownerPass, site = {}, resetOwn
   function requireAdmin(req, res, next) {
     if (req.admin && req.admin.role === 'Admin') return next();
     res.status(403).render('thanks', { title: 'Admins only', page: '', ok: false, message: 'Only an Admin can do this. Ask an Admin on your team if you need it.', noindex: true });
+  }
+  // Invoices, payments and credit notes: Admins and Finance Managers.
+  function requireBilling(req, res, next) {
+    if (agencyRoles.canBill(req.admin)) return next();
+    res.status(403).render('thanks', { title: 'Billing only', page: '', ok: false, message: 'Only an Admin or a Finance Manager can do this.', noindex: true });
   }
 
   // ---------- login ----------
@@ -444,7 +459,7 @@ function create({ db, mailer, baseUrl, ownerUser, ownerPass, site = {}, resetOwn
   const members = () => list().filter((u) => u.active);
   const activity = ({ userId = '', limit = 200 } = {}) => db.all('activity').filter((a) => !userId || a.userId === userId).slice(0, limit);
 
-  return { adminAuth, requireAdmin, register, log, list, members, activity, byId, currentUser, has2fa, requires2fa, ROLES, OWNER_ID };
+  return { adminAuth, requireAdmin, requireBilling, register, log, list, members, activity, byId, currentUser, has2fa, requires2fa, ROLES, OWNER_ID };
 }
 
 module.exports = { create, ROLES };

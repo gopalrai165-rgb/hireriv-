@@ -1,10 +1,13 @@
+<% const finance = admin.role === 'Finance Manager'; %>
+<% if (!finance) { %>
 <form class="form talent-search client-add" method="post" action="/admin/clients">
   <label>Company*<input name="company" required maxlength="120" placeholder="e.g. Acme Fintech"></label>
   <label>Contact name*<input name="name" required maxlength="120"></label>
   <label>Work email*<input type="email" name="email" required maxlength="160"></label>
   <div class="talent-actions"><button class="btn btn-primary btn-sm" type="submit">+ Add client &amp; email invite</button></div>
 </form>
-<p class="muted small talent-summary">Clients get a secure invite link to set their password. Link a job to a client from the job's edit page so it appears in their portal.</p>
+<p class="muted small talent-summary">Clients get a secure invite link to set their password. Link a job to a client from the job's edit page so it appears in their portal. Open a client for its account manager, contracts, requisitions and staffing.</p>
+<% } %>
 
 <% if (!rows.length) { %>
   <div class="empty"><p>No clients yet.</p></div>
@@ -15,7 +18,7 @@
       <tbody>
         <% rows.forEach(function (c) { %>
           <tr>
-            <td><b><%= c.company %></b><br><span class="muted small"><%= c.selfSignup ? 'Signed up' : 'Added' %> <%= formatDate(c.createdAt) %></span>
+            <td><a href="/admin/clients/<%= c.id %>"><b><%= c.company %></b></a><br><span class="muted small"><%= c.selfSignup ? 'Signed up' : 'Added' %> <%= formatDate(c.createdAt) %></span>
               <% if (c.gstin) { %><br><span class="small">GSTIN <%= c.gstin %></span><% } %>
               <% if (c.phone) { %><br><span class="small"><%= c.phone %></span><% } %></td>
             <td><%= c.name %><br><a href="mailto:<%= c.email %>"><%= c.email %></a><% if (c.freeEmail) { %><br><span class="pill st-screening" title="A personal mailbox, not a company domain: check the company another way">Personal email</span><% } %></td>
@@ -32,17 +35,19 @@
             <td>
               <% if (c.money) { %>
                 <b><%= c.money.placements %></b> placement<%= c.money.placements === 1 ? '' : 's' %><br>
-                <% if (isAdmin) { %><span class="muted small">Billed <%= inr(c.money.billed) %> · settled <%= inr(c.money.received) %></span><% } %>
-                <% if (isAdmin && c.money.outstanding) { %><br><a class="small" href="/admin?tab=placements&view=unpaid"><%= inr(c.money.outstanding) %> outstanding</a><% } %>
+                <% if (agencyCan('money.view')) { %><span class="muted small">Billed <%= inr(c.money.billed) %> · settled <%= inr(c.money.received) %></span><% } %>
+                <% if (agencyCan('money.view') && c.money.outstanding) { %><br><a class="small" href="/admin?tab=placements&view=unpaid"><%= inr(c.money.outstanding) %> outstanding</a><% } %>
               <% } else { %><span class="muted">—</span><% } %>
             </td>
             <td class="row-actions">
+              <% if (!finance) { %>
               <% if (c.active && c.selfSignup && !c.approvedAt) { %>
                 <form method="post" action="/admin/clients/<%= c.id %>/approve"><button class="btn btn-primary btn-sm">Approve</button></form>
                 <form method="post" action="/admin/clients/<%= c.id %>/reject" data-confirm="Decline this sign-up and close the account?"><input type="hidden" name="reason" value="We could not verify the company."><button class="btn btn-sm btn-danger">Decline</button></form>
               <% } %>
               <% if (c.active) { %><form method="post" action="/admin/clients/<%= c.id %>/invite"><button class="btn btn-outline btn-sm"><%= c.passwordHash ? 'Send reset link' : 'Resend invite' %></button></form><% } %>
               <form method="post" action="/admin/clients/<%= c.id %>/toggle"<% if (c.active) { %> data-confirm="Deactivate this client? They will be signed out and can't log in."<% } %>><button class="btn btn-sm <%= c.active ? 'btn-danger' : 'btn-outline' %>"><%= c.active ? 'Deactivate' : 'Re-activate' %></button></form>
+              <% } %>
             </td>
           </tr>
         <% }) %>

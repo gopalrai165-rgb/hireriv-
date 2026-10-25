@@ -1,0 +1,53 @@
+<%- include('partials/head') %>
+
+<section class="section admin">
+  <div class="container">
+    <%- include('partials/agency-nav', { heading: 'Recruitment reports', tab: 'reports' }) %>
+    <nav class="pipeline" aria-label="Period">
+      <% [['30', 'Last 30 days'], ['90', 'Last 90 days'], ['365', 'Last 12 months'], ['all', 'All time']].forEach(function (p) { %><a class="pill<%= period === p[0] ? ' active' : '' %>" href="/admin/recruitment-reports?period=<%= p[0] %>"><%= p[1] %></a><% }) %>
+    </nav>
+
+    <div class="kpis">
+      <div class="kpi"><span class="kpi-label">Open requisitions</span><span class="kpi-value"><%= r.requisitions.open %></span><span class="kpi-note"><%= r.requisitions.openingsLeft %> openings to fill · <%= r.requisitions.requested %> requested</span></div>
+      <div class="kpi"><span class="kpi-label">Placements</span><span class="kpi-value"><%= r.requisitions.placementsInPeriod %></span><span class="kpi-note">against requisitions, this period</span></div>
+      <div class="kpi"><span class="kpi-label">Median days to fill</span><span class="kpi-value"><%= r.requisitions.medianDaysToFill === null ? '—' : r.requisitions.medianDaysToFill %></span><span class="kpi-note">requisition opened to placement</span></div>
+      <div class="kpi"><span class="kpi-label">Fill rate</span><span class="kpi-value"><%= r.requisitions.fillRate === null ? '—' : r.requisitions.fillRate + '%' %></span><span class="kpi-note"><%= r.requisitions.filledInPeriod %> filled · <%= r.requisitions.cancelledInPeriod %> cancelled</span></div>
+      <div class="kpi"><span class="kpi-label">Needs attention</span><span class="kpi-value"><%= r.requisitions.overdue + r.requisitions.stale %></span><span class="kpi-note<%= r.requisitions.overdue ? ' kpi-alert' : '' %>"><%= r.requisitions.overdue %> overdue · <%= r.requisitions.stale %> without a placement in 30 days</span></div>
+      <div class="kpi"><span class="kpi-label">Workers on assignment</span><span class="kpi-value"><%= r.staffing.active %></span><span class="kpi-note"><%= r.staffing.startingThisWeek %> starting this week · <%= r.staffing.endingIn14Days %> ending in 14 days</span></div>
+      <% if (money) { %>
+        <div class="kpi"><span class="kpi-label">Billed before GST</span><span class="kpi-value kpi-money"><%= inrPaise(r.billedPaise) %></span><span class="kpi-note">invoices dated this period</span></div>
+        <div class="kpi"><span class="kpi-label">Waiting to invoice</span><span class="kpi-value kpi-money"><%= inrPaise(r.invoiceDrafts.waitingPaise) %></span><span class="kpi-note"><%= r.invoiceDrafts.waiting %> draft<%= r.invoiceDrafts.waiting === 1 ? '' : 's' %></span></div>
+      <% } else { %>
+        <div class="kpi"><span class="kpi-label">Invoice drafts</span><span class="kpi-value"><%= r.invoiceDrafts.waiting %></span><span class="kpi-note">waiting for Finance</span></div>
+      <% } %>
+    </div>
+
+    <section class="dash-card dash-wide">
+      <h2>Placements by type</h2>
+      <p><% Object.keys(r.placementsByType).forEach(function (t, i) { %><%= i ? ' · ' : '' %><%= t %>: <b><%= r.placementsByType[t] %></b><% }) %></p>
+    </section>
+
+    <section class="dash-card dash-wide" id="workload">
+      <h2>Workload</h2>
+      <% if (!r.workload.length) { %><p class="muted dash-empty">No one on the team works requisitions yet.</p><% } else { %><%- include('partials/workload-table', { rows: r.workload }) %><% } %>
+    </section>
+
+    <section class="dash-card dash-wide">
+      <h2>By client</h2>
+      <% if (!r.clients.length) { %><p class="muted dash-empty">Nothing in this period.</p><% } else { %>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Client</th><th>Account manager</th><th class="num">Open requisitions</th><th class="num">Openings left</th><th class="num">Placements</th><th class="num">Workers active</th><% if (money) { %><th class="num">Billed</th><% } %></tr></thead>
+            <tbody>
+              <% r.clients.forEach(function (c) { %>
+                <tr><td><a href="/admin/clients/<%= c.id %>"><%= c.company %></a></td><td><%= c.accountManager || '—' %></td><td class="num"><%= c.openRequisitions %></td><td class="num"><%= c.openingsLeft %></td><td class="num"><%= c.placements %></td><td class="num"><%= c.activeWorkers %></td><% if (money) { %><td class="num"><%= inrPaise(c.billedPaise) %></td><% } %></tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+      <% } %>
+    </section>
+  </div>
+</section>
+
+<%- include('partials/foot') %>

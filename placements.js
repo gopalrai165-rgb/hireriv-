@@ -7,7 +7,7 @@ const timesheets = require('./timesheets');
 const { moveStage } = require('./history');
 
 const STATUSES = ['Awaiting joining', 'Joined', 'Did not join', 'Left in guarantee', 'Contract ended'];
-const TYPES = ['Permanent', 'Contract', 'Contract-to-hire'];
+const TYPES = ['Permanent', 'Temporary', 'Contract', 'Contract-to-hire'];
 const DAY_MS = 86400000;
 
 // Defaults used until billing details are saved in Admin → Settings.
@@ -92,8 +92,10 @@ function refreshStatus(inv) {
 // ----- many invoices per placement -----
 // A permanent placement has one fee invoice (p.invoice); a monthly contract has
 // one invoice per month (p.monthlyInvoices). Every invoice is addressed by its
-// key: its id, or "main" for the one-time invoice.
-const invoicesOf = (p) => [p.invoice, ...(p.monthlyInvoices || [])].filter(Boolean);
+// key: its id, or "main" for the one-time invoice. Temporary and contract
+// workers placed on staffing assignments are billed per assignment period
+// (p.staffingInvoices), from drafts the team approves (agency.js).
+const invoicesOf = (p) => [p.invoice, ...(p.monthlyInvoices || []), ...(p.staffingInvoices || [])].filter(Boolean);
 const invKey = (inv) => inv.id || 'main';
 const isOverdue = (inv) => OPEN.includes(inv.status) && inv.dueDate < todayIst();
 
@@ -137,7 +139,7 @@ function describe(p) {
   return {
     ...p,
     guaranteeEnds,
-    inGuarantee: p.feeMode !== 'monthly' && p.status === 'Joined' && guaranteeEnds && today <= guaranteeEnds,
+    inGuarantee: !['monthly', 'assignment'].includes(p.feeMode) && p.status === 'Joined' && guaranteeEnds && today <= guaranteeEnds,
     guaranteeDaysLeft: guaranteeEnds ? daysBetween(today, guaranteeEnds) : null,
     acct: inv ? accountOf(inv) : null,
     overdue: Boolean(inv && isOverdue(inv)),
@@ -173,7 +175,7 @@ function parsePlacement(body) {
     taxType: get('taxType', 5) === 'intra' ? 'intra' : 'inter',
     joiningDate: get('joiningDate', 10),
     ctc: num('ctc'),
-    feeMode: ['flat', 'free', 'monthly'].includes(get('feeMode', 10)) ? get('feeMode', 10) : 'percent',
+    feeMode: ['flat', 'free', 'monthly', 'assignment'].includes(get('feeMode', 10)) ? get('feeMode', 10) : 'percent',
     monthlyRate: num('monthlyRate'),
     contractEnd: get('contractEnd', 10),
     feePercent: num('feePercent'),
@@ -202,6 +204,10 @@ function parsePlacement(body) {
     // Contract staffing: the client is billed every month at this rate.
     if (f.type === 'Permanent') errors.push('monthly billing is for contract placements');
     if (!(f.monthlyRate > 0)) errors.push('enter the monthly bill rate');
+    if (Number.isNaN(f.ctc)) f.ctc = 0;
+  } else if (f.feeMode === 'assignment') {
+    // Temporary and contract staffing billed from each assignment's rates.
+    if (f.type === 'Permanent') errors.push('billing per staffing assignment is for temporary and contract placements');
     if (Number.isNaN(f.ctc)) f.ctc = 0;
   } else if (Number.isNaN(f.ctc)) {
     // Free replacement under the original placement's guarantee: no fee, no invoice.
@@ -233,9 +239,11 @@ const moneyIn = (v) => {
 };
 
 function register(app, deps) {
-  const { db, site, mailer, baseUrl, adminAuth, requireAdmin, sameOrigin, adminUrl, readSubmissions, writeSubmissions, getJobs, clients, requireEmployer } = deps;
+  const { db, site, mailer, baseUrl, adminAuth, requireAdmin, requireBilling, sameOrigin, adminUrl, readSubmissions, writeSubmissions, getJobs, clients, requireEmployer } = deps;
   const read = () => db.all('placements');
   const write = (list) => db.replaceAll('placements', list);
+  // Filled in by agency.js: the requisition and contract a placement belongs to.
+  const hooks = deps.hooks || {};
   const clientById = (id) => clients.read().find((c) => c.id === id);
 
   // Numbers never repeat, even when an invoice is cancelled: INV/2026-27/0001.
@@ -274,12 +282,15 @@ function register(app, deps) {
         p: { type, company, employerId: origClient, billingName, billingAddress, clientGstin, taxType, joiningDate: todayIst(), ctc: '', feeMode: 'free', feePercent: b.feePercent, flatFee: '', guaranteeDays, status: 'Awaiting joining', notes: `Replacement for ${orig.candidateName}` },
       });
     }
+    // Terms come from the client's active contract when the job belongs to a requisition under one, else from Settings.
+    const terms = hooks.termsFor ? hooks.termsFor(a) : null;
     formPage(res, {
-      a,
+      a, terms,
       p: {
-        type: job && job.type === 'Contract' ? 'Contract' : 'Permanent', company: client ? client.company : (job ? job.company : ''), employerId: client ? client.id : '',
-        billingName: '', billingAddress: '', clientGstin: '', taxType: 'intra', joiningDate: todayIst(), ctc: '', feeMode: 'percent',
-        feePercent: b.feePercent, flatFee: '', guaranteeDays: b.guaranteeDays, status: 'Awaiting joining', notes: '',
+        type: terms && terms.type ? terms.type : job && job.type === 'Contract' ? 'Contract' : 'Permanent', company: client ? client.company : (job ? job.company : ''), employerId: client ? client.id : '',
+        billingName: '', billingAddress: '', clientGstin: '', taxType: 'intra', joiningDate: todayIst(), ctc: '', feeMode: terms && terms.feeMode ? terms.feeMode : 'percent',
+        feePercent: terms && terms.feePercent !== undefined ? terms.feePercent : b.feePercent, flatFee: terms && terms.flatFee ? terms.flatFee : '',
+        guaranteeDays: terms && terms.guaranteeDays !== undefined ? terms.guaranteeDays : b.guaranteeDays, status: 'Awaiting joining', notes: '',
       },
     });
   });
@@ -297,9 +308,11 @@ function register(app, deps) {
     if (data.feeMode === 'free' && !orig) errors.push('only a replacement can be free of charge');
     if (errors.length) return formPage(res, { a, replaces: orig, p: { ...f, employerId }, errors }, 400);
     const now = new Date().toISOString();
+    const link = hooks.linkFor ? hooks.linkFor(a, employerId) : {};
     const placement = {
       id: crypto.randomUUID(), appId: a.id, candidateName: a.name, candidateEmail: a.email, jobId: a.jobId, jobTitle: a.jobTitle,
       employerId, ...data, replacementFor: orig ? orig.id : null, invoice: null, cancelledInvoices: [], createdAt: now, updatedAt: now,
+      requisitionId: link.requisitionId || null, contractId: link.contractId || null, recruiterId: link.recruiterId || req.admin.id,
     };
     if (orig) Object.assign(orig, { replacedBy: placement.id, updatedAt: now });
     list.unshift(placement);
@@ -309,6 +322,7 @@ function register(app, deps) {
       moveStage(a, 'Hired', `${req.admin.name} (placement recorded)`, now);
       writeSubmissions('applications', apps);
     }
+    if (hooks.placed) hooks.placed(placement, req.admin);
     res.redirect(adminUrl('placements', orig ? `${a.name} recorded as the replacement for ${orig.candidateName} at ${data.company}` : `Placement recorded for ${a.name} at ${data.company} · fee ${inr(data.fee)}`));
   });
 
@@ -340,6 +354,8 @@ function register(app, deps) {
     if (data.feeMode === 'free' && p.invoice) errors.push('this placement has an invoice; issue a credit note instead of making it free');
     if (data.feeMode === 'monthly' && p.invoice) errors.push('this placement already has a one-time fee invoice');
     if (data.feeMode !== 'monthly' && (p.monthlyInvoices || []).length) errors.push('this placement has monthly invoices, so it must stay on monthly billing');
+    if (data.feeMode !== 'assignment' && (p.staffingInvoices || []).length) errors.push('this placement has staffing invoices, so it must stay billed per assignment');
+    if (data.feeMode === 'assignment' && p.invoice) errors.push('this placement already has a one-time fee invoice');
     const replaces = p.replacementFor ? list.find((x) => x.id === p.replacementFor) : null;
     if (errors.length) return formPage(res, { a: { name: p.candidateName, email: p.candidateEmail, jobTitle: p.jobTitle }, replaces, p: { ...f, id: p.id, employerId, invoice: p.invoice }, errors }, 400);
     Object.assign(p, data, { employerId, updatedAt: new Date().toISOString() });
@@ -384,30 +400,58 @@ function register(app, deps) {
       seller: { name: b.legalName || site.name, address: site.address, gstin: b.gstin, pan: b.pan, stateName: b.stateName, bank: b.bank, email: site.email, phone: site.phone },
       buyer: { name: p.billingName || p.company, address: p.billingAddress, gstin: p.clientGstin },
       // SAC codes: 998512 permanent placement, 998513 contract staffing.
-      sac: p.type === 'Contract' || p.feeMode === 'monthly' ? '998513' : '998512',
+      sac: p.type === 'Contract' || p.type === 'Temporary' || ['monthly', 'assignment'].includes(p.feeMode) ? '998513' : '998512',
       status: 'Unpaid', paidAt: null, sentAt: null, payments: [], creditNotes: [],
       ...extra,
     };
   }
   const invoiceLink = (p, inv) => `${baseUrl}/employer/invoices/${p.id}${inv.id ? `?inv=${inv.id}` : ''}`;
 
-  app.post('/admin/placements/:id/invoice', adminAuth, requireAdmin, sameOrigin, (req, res, next) => {
-    const { list, p } = findPlacement(req.params.id);
-    if (!p) return next();
-    if (p.invoice) return res.redirect(adminUrl('placements', `Invoice ${p.invoice.number} is already issued`));
-    if (p.feeMode === 'monthly') return res.redirect(`/admin/placements/${p.id}/bill`);
-    if (!(p.fee > 0)) return res.redirect(adminUrl('placements', 'Set a fee on the placement before invoicing'));
+  // The one-time fee invoice, from this page or from an approved draft.
+  function issueFee(id, { email = false } = {}) {
+    const { list, p } = findPlacement(id);
+    if (!p) return { error: 'placement not found', status: 404 };
+    if (p.invoice) return { error: `invoice ${p.invoice.number} is already issued`, status: 409, p };
+    if (['monthly', 'assignment'].includes(p.feeMode)) return { error: 'this placement is billed by month or by assignment, not with a one-time fee', status: 409, p };
+    if (!(p.fee > 0)) return { error: 'set a fee on the placement before invoicing', status: 409, p };
     p.invoice = newInvoice(p, p.fee, {
       item: `Recruitment fee – ${p.jobTitle} (${p.candidateName}), joined ${formatYmd(p.joiningDate)}${p.feeMode === 'percent' ? ` · ${p.feePercent}% of annual CTC ${inr(p.ctc)}` : ''}`,
     });
     const client = clientById(p.employerId);
-    const emailed = req.body.email === '1' && client && client.active;
+    const emailed = email && client && client.active;
     if (emailed) {
       p.invoice.sentAt = new Date().toISOString();
       mailer.invoiceIssued(client, p.invoice, invoiceLink(p, p.invoice));
     }
     write(list);
-    res.redirect(adminUrl('placements', `Invoice ${p.invoice.number} issued for ${inr(p.invoice.total)}${emailed ? ` · emailed to ${client.email}` : ''}`));
+    return { p, inv: p.invoice, emailedTo: emailed ? client.email : '' };
+  }
+  // An invoice for one staffing assignment period (amounts in rupees, already exact to the paisa).
+  function issueStaffing(id, { subtotal, lines, period, assignmentId, email = false }) {
+    const { list, p } = findPlacement(id);
+    if (!p) return { error: 'placement not found', status: 404 };
+    if (p.feeMode !== 'assignment') return { error: 'this placement is not billed per staffing assignment', status: 409, p };
+    if (!(subtotal > 0)) return { error: 'the invoice total must be more than zero', status: 400, p };
+    const inv = newInvoice(p, subtotal, { id: crypto.randomUUID(), period, assignmentId, lines, item: lines[0].text });
+    p.staffingInvoices = [...(p.staffingInvoices || []), inv];
+    const client = clientById(p.employerId);
+    const emailed = email && client && client.active;
+    if (emailed) {
+      inv.sentAt = new Date().toISOString();
+      mailer.invoiceIssued(client, inv, invoiceLink(p, inv));
+    }
+    write(list);
+    return { p, inv, emailedTo: emailed ? client.email : '' };
+  }
+
+  app.post('/admin/placements/:id/invoice', adminAuth, requireBilling, sameOrigin, (req, res, next) => {
+    const { p } = findPlacement(req.params.id);
+    if (!p) return next();
+    if (p.feeMode === 'monthly' && !p.invoice) return res.redirect(`/admin/placements/${p.id}/bill`);
+    if (p.feeMode === 'assignment' && !p.invoice) return res.redirect(adminUrl('placements', 'This placement is billed from its staffing assignments: approve a draft under Invoice drafts'));
+    const r = issueFee(p.id, { email: req.body.email === '1' });
+    if (r.error) return res.redirect(adminUrl('placements', r.error.charAt(0).toUpperCase() + r.error.slice(1)));
+    res.redirect(adminUrl('placements', `Invoice ${r.inv.number} issued for ${inr(r.inv.total)}${r.emailedTo ? ` · emailed to ${r.emailedTo}` : ''}`));
   });
 
   // ----- monthly contract invoices -----
@@ -439,13 +483,13 @@ function register(app, deps) {
     });
   }
 
-  app.get('/admin/placements/:id/bill', adminAuth, requireAdmin, (req, res, next) => {
+  app.get('/admin/placements/:id/bill', adminAuth, requireBilling, (req, res, next) => {
     const { p } = findPlacement(req.params.id);
     if (!p || p.feeMode !== 'monthly') return next();
     billPage(res, p, String(req.query.month || ''), { msg: String(req.query.msg || '') });
   });
 
-  app.post('/admin/placements/:id/bill', adminAuth, requireAdmin, sameOrigin, (req, res, next) => {
+  app.post('/admin/placements/:id/bill', adminAuth, requireBilling, sameOrigin, (req, res, next) => {
     const { list, p } = findPlacement(req.params.id);
     if (!p || p.feeMode !== 'monthly') return next();
     const month = String(req.body.month || '');
@@ -485,7 +529,7 @@ function register(app, deps) {
 
   // Cancelling keeps the number on record (no gaps are reused) and lets you reissue.
   // Once money or a credit note is recorded, use a credit note instead (GST rules).
-  app.post('/admin/placements/:id/invoice/cancel', adminAuth, requireAdmin, sameOrigin, (req, res, next) => {
+  app.post('/admin/placements/:id/invoice/cancel', adminAuth, requireBilling, sameOrigin, (req, res, next) => {
     const { list, p } = findPlacement(req.params.id);
     const current = pickInvoice(p, keyFrom(req));
     if (!current) return next();
@@ -495,6 +539,7 @@ function register(app, deps) {
     const inv = { ...current, status: 'Cancelled', cancelledAt: todayIst() };
     p.cancelledInvoices = [...(p.cancelledInvoices || []), inv];
     if (current === p.invoice) p.invoice = null;
+    else if ((p.staffingInvoices || []).includes(current)) p.staffingInvoices = p.staffingInvoices.filter((i) => i !== current);
     else p.monthlyInvoices = p.monthlyInvoices.filter((i) => i !== current);
     write(list);
     res.redirect(adminUrl('placements', `Invoice ${inv.number} cancelled. You can issue a new one.`));
@@ -518,14 +563,14 @@ function register(app, deps) {
     });
   }
 
-  app.get('/admin/placements/:id/payments', adminAuth, requireAdmin, (req, res, next) => {
+  app.get('/admin/placements/:id/payments', adminAuth, requireBilling, (req, res, next) => {
     const { p } = findPlacement(req.params.id);
     const inv = pickInvoice(p, keyFrom(req));
     if (!inv) return next();
     paymentsPage(res, p, inv, { msg: String(req.query.msg || '') });
   });
 
-  app.post('/admin/placements/:id/payments', adminAuth, requireAdmin, sameOrigin, (req, res, next) => {
+  app.post('/admin/placements/:id/payments', adminAuth, requireBilling, sameOrigin, (req, res, next) => {
     const { list, p } = findPlacement(req.params.id);
     const inv = pickInvoice(p, keyFrom(req));
     if (!inv) return next();
@@ -548,7 +593,7 @@ function register(app, deps) {
     res.redirect(paymentsUrl(p, inv, `Recorded ${inr(pay.amount)}${pay.tds ? ` + ${inr(pay.tds)} TDS` : ''} · invoice is ${inv.status.toLowerCase()}`));
   });
 
-  app.post('/admin/placements/:id/payments/:payId/delete', adminAuth, requireAdmin, sameOrigin, (req, res, next) => {
+  app.post('/admin/placements/:id/payments/:payId/delete', adminAuth, requireBilling, sameOrigin, (req, res, next) => {
     const { list, p } = findPlacement(req.params.id);
     const inv = p && invoicesOf(p).find((i) => (i.payments || []).some((x) => x.id === req.params.payId));
     if (!inv) return next();
@@ -573,7 +618,7 @@ function register(app, deps) {
   });
 
   // ----- refunds -----
-  app.post('/admin/placements/:id/refunds', adminAuth, requireAdmin, sameOrigin, (req, res, next) => {
+  app.post('/admin/placements/:id/refunds', adminAuth, requireBilling, sameOrigin, (req, res, next) => {
     const { list, p } = findPlacement(req.params.id);
     const inv = pickInvoice(p, keyFrom(req));
     if (!inv) return next();
@@ -593,7 +638,7 @@ function register(app, deps) {
     res.redirect(paymentsUrl(p, inv, `Refund of ${inr(refund.amount)} recorded`));
   });
 
-  app.post('/admin/placements/:id/refunds/:refundId/delete', adminAuth, requireAdmin, sameOrigin, (req, res, next) => {
+  app.post('/admin/placements/:id/refunds/:refundId/delete', adminAuth, requireBilling, sameOrigin, (req, res, next) => {
     const { list, p } = findPlacement(req.params.id);
     const inv = p && invoicesOf(p).find((i) => (i.refunds || []).some((x) => x.id === req.params.refundId));
     if (!inv) return next();
@@ -616,7 +661,7 @@ function register(app, deps) {
     return true;
   }
 
-  app.post('/admin/placements/:id/remind', adminAuth, requireAdmin, sameOrigin, (req, res, next) => {
+  app.post('/admin/placements/:id/remind', adminAuth, requireBilling, sameOrigin, (req, res, next) => {
     const { list, p } = findPlacement(req.params.id);
     const inv = pickInvoice(p, keyFrom(req));
     if (!inv) return next();
@@ -650,7 +695,7 @@ function register(app, deps) {
 
   // A credit note reduces what the client owes (or creates a refund if they've paid).
   // It carries GST at the invoice's rate and split, and its own number series.
-  app.post('/admin/placements/:id/credit-notes', adminAuth, requireAdmin, sameOrigin, (req, res, next) => {
+  app.post('/admin/placements/:id/credit-notes', adminAuth, requireBilling, sameOrigin, (req, res, next) => {
     const { list, p } = findPlacement(req.params.id);
     const inv = pickInvoice(p, keyFrom(req));
     if (!inv) return next();
@@ -688,7 +733,7 @@ function register(app, deps) {
       p, inv, cn, back, cnBase, acct: accountOf(inv), inr, amountInWords, formatYmd,
     });
 
-  app.get('/admin/placements/:id/invoice', adminAuth, requireAdmin, (req, res, next) => {
+  app.get('/admin/placements/:id/invoice', adminAuth, requireBilling, (req, res, next) => {
     const { p } = findPlacement(req.params.id);
     const inv = p && (req.query.n ? (p.cancelledInvoices || []).find((i) => i.number === req.query.n) : pickInvoice(p, keyFrom(req)));
     if (!inv) return next();
@@ -704,7 +749,7 @@ function register(app, deps) {
     return null;
   };
 
-  app.get('/admin/placements/:id/credit-notes/:cnId', adminAuth, requireAdmin, (req, res, next) => {
+  app.get('/admin/placements/:id/credit-notes/:cnId', adminAuth, requireBilling, (req, res, next) => {
     const { p } = findPlacement(req.params.id);
     const hit = p && creditNoteIn(p, req.params.cnId);
     if (!hit) return next();
@@ -739,14 +784,14 @@ function register(app, deps) {
         guaranteeEnds: p.guaranteeEnds, inGuarantee: p.inGuarantee, monthly: p.feeMode === 'monthly', contractEnd: p.contractEnd,
         invoices: p.invoices.slice().reverse().map(({ inv, key, acct, overdue }) => ({
           key, number: inv.number, date: inv.date, dueDate: inv.dueDate, total: inv.total, status: inv.status, overdue,
-          month: inv.period ? monthLabel(inv.period.month) : '', balance: acct.balance, refundDue: acct.refundDue,
+          month: inv.period ? (inv.period.month ? monthLabel(inv.period.month) : inv.period.label || '') : '', balance: acct.balance, refundDue: acct.refundDue,
           creditNotes: (inv.creditNotes || []).map((c) => ({ id: c.id, number: c.number, total: c.total })),
         })),
       }));
 
   // ----- admin tab & dashboard numbers -----
   // Joined with an unbilled one-time fee, or a contract with a finished month to bill.
-  const needsInvoice = (p) => (p.feeMode === 'monthly' ? p.monthsDue.length > 0 : p.status === 'Joined' && !p.invoice && p.fee > 0);
+  const needsInvoice = (p) => (p.feeMode === 'monthly' ? p.monthsDue.length > 0 : p.feeMode === 'assignment' ? false : p.status === 'Joined' && !p.invoice && p.fee > 0);
 
   function summary(list = read().map(describe)) {
     const fy = financialYear(todayIst());
@@ -826,7 +871,7 @@ function register(app, deps) {
     return out;
   }
 
-  return { read, describe, summary, followUps, forClient, csvRows, byClient, autoRemind, needsInvoice, monthLabel, STATUSES, inr };
+  return { read, write, describe, summary, followUps, forClient, csvRows, byClient, autoRemind, needsInvoice, monthLabel, issueFee, issueStaffing, invoicesOf, STATUSES, TYPES, inr };
 }
 
 const formatYmd = (ymd) => (ymd ? new Date(`${ymd}T00:00:00Z`).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' }) : '');

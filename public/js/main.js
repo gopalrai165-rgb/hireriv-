@@ -320,6 +320,7 @@ if (feeForm) {
     feeForm.querySelectorAll('[data-fee-monthly-wrap]').forEach((el) => { el.hidden = mode !== 'monthly'; });
     $('[data-fee-label]').textContent = mode === 'monthly' ? 'Billed every month, before GST:' : 'Fee before GST:';
     if (mode === 'free') { $('[data-fee-out]').textContent = 'Free replacement'; return; }
+    if (mode === 'assignment') { $('[data-fee-out]').textContent = 'Billed from each staffing assignment'; return; }
     if (mode === 'monthly') {
       const rate = num($('[data-fee-monthly]'));
       $('[data-fee-out]').textContent = rate > 0 ? `${money.format(rate)} / month` : '—';

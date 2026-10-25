@@ -2,11 +2,11 @@
   <label>Name*<input name="name" required maxlength="120" placeholder="e.g. Priya Sharma"></label>
   <label>Work email*<input type="email" name="email" required maxlength="160"></label>
   <label>Role
-    <select name="role"><% roles.forEach(function (r) { %><option<%= r === 'Recruiter' ? ' selected' : '' %>><%= r %></option><% }) %></select>
+    <select name="role"><% roles.forEach(function (r) { %><option value="<%= r %>"<%= r === 'Recruiter' ? ' selected' : '' %>><%= roleInfo[r].label %></option><% }) %></select>
   </label>
   <div class="talent-actions"><button class="btn btn-primary btn-sm" type="submit">+ Invite to the team</button></div>
 </form>
-<p class="muted small talent-summary"><b>Admin</b>: everything, including billing, settings, the team, the activity log, backups and deleting records. <b>Recruiter</b>: jobs, candidates, interviews, shortlists, clients and recording placements, but no invoices, payments, settings or deletions.</p>
+<ul class="muted small talent-summary role-list"><% roles.forEach(function (r) { %><li><b><%= roleInfo[r].label %></b>: <%= roleInfo[r].text %>.</li><% }) %></ul>
 
 <section class="form-card two-step-card" id="two-step">
   <h2>Two-step sign-in</h2>
@@ -33,7 +33,7 @@
             <% if (u.builtIn) { %>Admin<br><span class="muted small">Owner account from the server settings</span>
             <% } else { %>
               <form class="inline-form" method="post" action="/admin/team/<%= u.id %>/role">
-                <select name="role" aria-label="Role for <%= u.name %>" data-autosubmit><% roles.forEach(function (r) { %><option<%= r === u.role ? ' selected' : '' %>><%= r %></option><% }) %></select>
+                <select name="role" aria-label="Role for <%= u.name %>" data-autosubmit><% roles.forEach(function (r) { %><option value="<%= r %>"<%= r === u.role ? ' selected' : '' %>><%= roleInfo[r].label %></option><% }) %></select>
                 <noscript><button class="btn btn-outline btn-sm">Save</button></noscript>
               </form>
             <% } %>

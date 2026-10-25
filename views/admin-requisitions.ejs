@@ -1,0 +1,64 @@
+<%- include('partials/head') %>
+
+<section class="section admin">
+  <div class="container">
+    <%- include('partials/agency-nav', { heading: 'Requisitions', tab: 'requisitions' }) %>
+    <p class="muted small">A requisition is a client's request to fill a number of openings. Link it to the client's job so its applicants form the pipeline; placements recorded for that job count towards it, and it closes as Filled when the last opening is placed.<% if (admin.role === 'Recruiter') { %> You see the requisitions assigned to you.<% } %></p>
+
+    <form class="form filter-bar" method="get" action="/admin/requisitions">
+      <label>Status
+        <select name="status">
+          <option value="">Open, requested and on hold</option>
+          <% REQ_STATUSES.forEach(function (s) { %><option<%= f.status === s ? ' selected' : '' %>><%= s %></option><% }) %>
+          <option value="all"<%= f.status === 'all' ? ' selected' : '' %>>All</option>
+        </select>
+      </label>
+      <label>Client
+        <select name="client"><option value="">All clients</option><% clientList.forEach(function (c) { %><option value="<%= c.id %>"<%= f.client === c.id ? ' selected' : '' %>><%= c.company %></option><% }) %></select>
+      </label>
+      <label>Recruiter
+        <select name="recruiter">
+          <option value="">Anyone</option>
+          <option value="me"<%= f.recruiter === 'me' ? ' selected' : '' %>>Me</option>
+          <% people.forEach(function (u) { %><option value="<%= u.id %>"<%= f.recruiter === u.id ? ' selected' : '' %>><%= u.name %></option><% }) %>
+        </select>
+      </label>
+      <button class="btn btn-outline btn-sm" type="submit">Show</button>
+    </form>
+
+    <% if (canCreate) { %>
+      <details class="dash-card dash-wide"<%= typeof openForm !== 'undefined' && openForm ? ' open' : '' %>>
+        <summary><b>+ Open a requisition</b></summary>
+        <form class="form" method="post" action="/admin/requisitions">
+          <%- include('partials/requisition-form', { withClient: true, money: can('money.view') }) %>
+          <button class="btn btn-primary" type="submit">Open requisition</button>
+        </form>
+      </details>
+    <% } %>
+
+    <% if (!rows.length) { %>
+      <div class="empty"><p>No requisitions here.</p></div>
+    <% } else { %>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Requisition</th><th>Client</th><th>Status</th><th class="num">Filled</th><th>Pipeline</th><th>Recruiters</th><th>Fill by</th></tr></thead>
+          <tbody>
+            <% rows.forEach(function (r) { %>
+              <tr>
+                <td><a href="/admin/requisitions/<%= r.id %>"><b><%= r.number %></b> · <%= r.title %></a><br><span class="muted small"><%= r.kind %><%= r.location ? ' · ' + r.location : '' %><%= r.priority !== 'Normal' ? ' · ' + r.priority : '' %><%= r.source === 'client' ? ' · from the client' : '' %></span></td>
+                <td><a href="/admin/clients/<%= r.employerId %>"><%= r.company %></a></td>
+                <td><span class="pill <%= r.status === 'Filled' ? 'st-hired' : r.status === 'Cancelled' ? 'st-rejected' : r.status === 'Requested' ? 'st-new' : 'st-screening' %>"><%= r.status %></span><% if (r.stale) { %><br><span class="muted small">No placement in <%= r.ageDays %> days</span><% } %></td>
+                <td class="num"><%= r.filled %> / <%= r.openings %></td>
+                <td class="small"><%= r.pipeline.applied %> applied · <%= r.pipeline.shortlisted %> shortlisted · <%= r.pipeline.interviewing %> interviewing</td>
+                <td class="small"><%= r.recruiters.map(function (x) { return x.name; }).join(', ') || 'Not assigned' %></td>
+                <td class="small"><%= r.dueOn ? formatDate(r.dueOn) : '—' %><% if (r.overdue) { %> <span class="pill st-rejected">Overdue</span><% } %></td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+    <% } %>
+  </div>
+</section>
+
+<%- include('partials/foot') %>

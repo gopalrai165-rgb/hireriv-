@@ -9,17 +9,23 @@ Every route the app serves, and who may use it. **This table is checked by `test
 | candidate | A candidate signed in with an emailed link or their password (`hr_cand` session: HttpOnly, SameSite=Lax, Secure on https) | `requireCandidate`; data is limited to applications made with their email |
 | employer | A person signed in to the employer portal, working in one of their companies (`hr_emp` session) | `requireEmployer` + their role in that company (owner, hiring manager, recruiter, viewer), checked on the server for every action; other companies' jobs and applicants are "not found" |
 | account | Anyone signed in: a candidate, an employer person or the team | `anyAccount` / `anyAccountApi`: the recipient comes from the session, never from the request, and each person sees only their own notifications |
-| team | Anyone on the recruiting team (Admin or Recruiter) | `adminAuth` (+ two-step sign-in when the team requires it) |
-| admin | Team members with the Admin role | `adminAuth` + `requireAdmin` (403 for Recruiters) |
+| team | Anyone on the team (Admin, Recruitment Manager, Recruiter, Account Manager, Finance Manager) | `adminAuth` or `teamApi` (+ two-step sign-in when the team requires it), then the role's permission in `agency-roles.js` (403 otherwise). A Finance Manager can open only billing pages |
+| admin | Team members with the Admin (Super Admin) role | `adminAuth` + `requireAdmin` (403 for everyone else) |
+| billing | Admins and Finance Managers | `adminAuth` + `requireBilling` (403 for everyone else) |
 
 Every state-changing team, candidate and client form also passes `sameOrigin` (cross-site posts are refused).
 
-Total: 319 routes.
+Total: 373 routes.
 
 ## Public website
 
 | Method | Path | Policy | Notes |
 | --- | --- | --- | --- |
+| GET | `/recruiter/workspace` | public | Short link to /admin/workspace (sign-in needed there) |
+| GET | `/recruiter/placements` | public | Short link to /admin/workspace |
+| GET | `/staffing/assignments` | public | Short link to /admin/staffing |
+| GET | `/client/requisitions` | public | Short link to /employer/requisitions |
+| GET | `/client/candidates` | public | Short link to the shortlist on the client's dashboard |
 | POST | `/webhooks/email` | public | Email provider to server only: HMAC-SHA256 signature with EMAIL_WEBHOOK_SECRET over the exact body, 5-minute replay window, each event processed once; 404 when no secret is set |
 | GET | `/healthz` | public | Uptime check |
 | GET | `/og/site.png` | public |  |
@@ -176,6 +182,13 @@ Total: 319 routes.
 
 | Method | Path | Policy | Notes |
 | --- | --- | --- | --- |
+| GET | `/employer/requisitions` | employer | The company's own requisitions only (from the session's membership); budgets for owners |
+| GET | `/employer/requisitions/:id` | employer | 404 for another company's requisition; shortlisted candidates without contact details |
+| POST | `/employer/requisitions` | employer | Owners and hiring managers; starts as Requested until Hireriv confirms it |
+| POST | `/employer/requisitions/:id/cancel` | employer | Only while still Requested |
+| GET | `/api/employers/requisitions` | employer | JSON; own company only |
+| GET | `/api/employers/requisitions/:id` | employer | JSON; 404 for other companies |
+| POST | `/api/employers/requisitions` | employer | JSON; owners and hiring managers; unknown fields refused |
 | GET | `/employer/ats` | employer | Pipeline board and table for the company's own jobs this member may see |
 | GET | `/employer/ats/reports` | employer | Metrics for the jobs this member may see; team workload for owners and hiring managers |
 | POST | `/employer/applicants/:id/notes` | employer | Internal notes: owners, or managers and recruiters on the job; never shown to candidates |
@@ -288,6 +301,48 @@ Total: 319 routes.
 
 | Method | Path | Policy | Notes |
 | --- | --- | --- | --- |
+| GET | `/admin/clients` | team | Short link to the Clients tab |
+| GET | `/admin/clients/:id` | team | One client: account manager, contracts (terms for roles that see them), requisitions and portal requests |
+| POST | `/admin/clients/:id/account-manager` | team | Admins only (checked in the handler); must be an Admin or Account Manager on the team |
+| POST | `/admin/clients/:id/contracts` | team | Admins, or the client's own Account Manager; fees written exactly, nothing assumed |
+| POST | `/admin/contracts/:id` | team | Admins, or the client's own Account Manager: make active or end |
+| GET | `/admin/requisitions` | team | Requisition permission; Recruiters see only those assigned to them |
+| POST | `/admin/requisitions` | team | Admins, Recruitment Managers and Account Managers (their own clients); contract and job must be the client's |
+| GET | `/admin/requisitions/:id` | team | Recruiters only if assigned (otherwise 404) |
+| POST | `/admin/requisitions/:id` | team | Change details or status; only allowed moves; managers of that requisition |
+| POST | `/admin/requisitions/:id/recruiters` | team | Admins and Recruitment Managers; active team members except Finance |
+| POST | `/admin/hire-requests/:id/requisition` | team | Turns a client's portal request into a requisition |
+| GET | `/admin/workspace` | team | The signed-in person's requisitions, placements and workers; workload for managers |
+| GET | `/admin/staffing` | team | Staffing permission; rates only for roles that see money |
+| POST | `/admin/staffing` | team | Temporary or contract placements billed per assignment; no overlapping dates for one worker |
+| POST | `/admin/staffing/:id` | team | Only allowed status moves; billed rates and periods stay as billed |
+| POST | `/admin/staffing/:id/invoice-draft` | team | Past days only, inside the assignment, no period billed twice |
+| GET | `/admin/invoice-drafts` | team | Roles that may ask for invoices; issuing needs Admin or Finance Manager |
+| POST | `/admin/placements/:id/invoice-draft` | team | Joined placements with a one-time fee; the same fee gives the same draft |
+| POST | `/admin/invoice-drafts/:id/issue` | team | Admins and Finance Managers; issuing twice returns the first invoice |
+| POST | `/admin/invoice-drafts/:id/discard` | team | Only drafts not yet issued |
+| GET | `/admin/recruitment-reports` | team | Report permission; money only for Admins, Account Managers and Finance Managers |
+| GET | `/admin/agency-audit` | team | Admins, Recruitment Managers and Finance Managers; read only |
+| GET | `/api/clients` | team | JSON; any team member; no contact details |
+| GET | `/api/clients/:id` | team | JSON; contract terms only for roles that see them |
+| PUT | `/api/clients/:id/account-manager` | team | JSON; Admins only |
+| POST | `/api/clients/:id/contracts` | team | JSON; Admins or the client's Account Manager; unknown fields refused |
+| PATCH | `/api/contracts/:id` | team | JSON; Admins or the client's Account Manager |
+| GET | `/api/requisitions` | team | JSON; Recruiters see only their own |
+| POST | `/api/requisitions` | team | JSON; same rules as the page; unknown fields refused |
+| GET | `/api/requisitions/:id` | team | JSON; 404 when not visible to the person |
+| PATCH | `/api/requisitions/:id` | team | JSON; same rules as the page |
+| PUT | `/api/requisitions/:id/recruiters` | team | JSON; Admins and Recruitment Managers |
+| GET | `/api/placements` | team | JSON; fees and invoices only for roles that see money |
+| GET | `/api/placements/:id/invoices` | team | JSON; issued invoices and drafts |
+| POST | `/api/placements/:id/invoices` | team | JSON; creates a draft only (never an invoice); Idempotency-Key header supported |
+| POST | `/api/placements/:id/invoices/:draftId/issue` | team | JSON; Admins and Finance Managers; idempotent |
+| DELETE | `/api/placements/:id/invoices/:draftId` | team | JSON; discards a draft not yet issued |
+| GET | `/api/staffing/assignments` | team | JSON; rates only for roles that see money |
+| POST | `/api/staffing/assignments` | team | JSON; same rules as the page |
+| PATCH | `/api/staffing/assignments/:id` | team | JSON; same rules as the page |
+| GET | `/api/recruitment/reports` | team | JSON; report permission; money only for roles that see it |
+| GET | `/api/recruitment/audit` | team | JSON; Admins, Recruitment Managers and Finance Managers |
 | POST | `/admin/templates` | team |  |
 | POST | `/admin/templates/:id` | team |  |
 | POST | `/admin/applications/bulk` | team |  |
@@ -345,19 +400,6 @@ Total: 319 routes.
 | POST | `/admin/notifications/:id/retry` | admin | Queues a failed email again |
 | POST | `/admin/notifications/suppressions/:id/delete` | admin | Lets a bounced address receive emails again |
 | POST | `/admin/placements/:id/delete` | admin |  |
-| POST | `/admin/placements/:id/invoice` | admin |  |
-| GET | `/admin/placements/:id/bill` | admin |  |
-| POST | `/admin/placements/:id/bill` | admin |  |
-| POST | `/admin/placements/:id/invoice/cancel` | admin |  |
-| GET | `/admin/placements/:id/payments` | admin |  |
-| POST | `/admin/placements/:id/payments` | admin |  |
-| POST | `/admin/placements/:id/payments/:payId/delete` | admin |  |
-| POST | `/admin/placements/:id/refunds` | admin |  |
-| POST | `/admin/placements/:id/refunds/:refundId/delete` | admin |  |
-| POST | `/admin/placements/:id/remind` | admin |  |
-| POST | `/admin/placements/:id/credit-notes` | admin |  |
-| GET | `/admin/placements/:id/invoice` | admin |  |
-| GET | `/admin/placements/:id/credit-notes/:cnId` | admin |  |
 | POST | `/admin/jobs/:id/delete` | admin |  |
 | POST | `/admin/settings` | admin |  |
 | POST | `/admin/blog/:slug/delete` | admin |  |
@@ -374,3 +416,21 @@ Total: 319 routes.
 | POST | `/admin/team/:id/invite` | admin |  |
 | POST | `/admin/placements/:id/timesheets/:tsId/approve` | admin |  |
 | POST | `/admin/placements/:id/timesheets/:tsId/reject` | admin |  |
+
+## Billing: Admins and Finance Managers
+
+| Method | Path | Policy | Notes |
+| --- | --- | --- | --- |
+| POST | `/admin/placements/:id/invoice` | billing |  |
+| GET | `/admin/placements/:id/bill` | billing |  |
+| POST | `/admin/placements/:id/bill` | billing |  |
+| POST | `/admin/placements/:id/invoice/cancel` | billing |  |
+| GET | `/admin/placements/:id/payments` | billing |  |
+| POST | `/admin/placements/:id/payments` | billing |  |
+| POST | `/admin/placements/:id/payments/:payId/delete` | billing |  |
+| POST | `/admin/placements/:id/refunds` | billing |  |
+| POST | `/admin/placements/:id/refunds/:refundId/delete` | billing |  |
+| POST | `/admin/placements/:id/remind` | billing |  |
+| POST | `/admin/placements/:id/credit-notes` | billing |  |
+| GET | `/admin/placements/:id/invoice` | billing |  |
+| GET | `/admin/placements/:id/credit-notes/:cnId` | billing |  |

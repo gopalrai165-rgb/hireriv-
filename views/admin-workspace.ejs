@@ -1,0 +1,54 @@
+<%- include('partials/head') %>
+
+<section class="section admin">
+  <div class="container">
+    <%- include('partials/agency-nav', { heading: 'My workspace', tab: 'workspace' }) %>
+
+    <section class="dash-card dash-wide">
+      <div class="dash-head"><h2>My requisitions</h2><a class="small" href="/admin/requisitions?recruiter=me">All of mine</a></div>
+      <% if (!mine.length) { %><p class="muted dash-empty">Nothing assigned to you right now.</p><% } else { %>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Requisition</th><th>Client</th><th class="num">To fill</th><th>Pipeline</th><th>Fill by</th></tr></thead>
+            <tbody>
+              <% mine.forEach(function (r) { %>
+                <tr>
+                  <td><a href="/admin/requisitions/<%= r.id %>"><b><%= r.number %></b> · <%= r.title %></a><br><span class="muted small"><%= r.status %> · <%= r.priority %> priority</span></td>
+                  <td><%= r.company %></td>
+                  <td class="num"><%= r.remaining %> of <%= r.openings %></td>
+                  <td class="small"><%= r.pipeline.applied %> applied · <%= r.pipeline.shortlisted %> shortlisted · <%= r.pipeline.interviewing %> interviewing · <%= r.pipeline.offered %> offered</td>
+                  <td class="small"><%= r.dueOn ? formatDate(r.dueOn) : '—' %><% if (r.overdue) { %> <span class="pill st-rejected">Overdue</span><% } %></td>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+      <% } %>
+    </section>
+
+    <div class="dash-grid">
+      <section class="dash-card" id="placements">
+        <h2>My placements</h2>
+        <% if (!myPlacements.length) { %><p class="muted dash-empty">None yet.</p><% } else { %>
+          <ul class="plain-list"><% myPlacements.forEach(function (p) { %><li><b><%= p.candidateName %></b> · <%= p.jobTitle %> at <%= p.company %> · <%= p.type %> · <%= p.status %></li><% }) %></ul>
+        <% } %>
+        <p class="small"><a href="/admin?tab=placements">All placements</a></p>
+      </section>
+      <section class="dash-card">
+        <h2>Workers on my requisitions</h2>
+        <% if (!myStaffing.length) { %><p class="muted dash-empty">No one scheduled or on assignment.</p><% } else { %>
+          <ul class="plain-list"><% myStaffing.forEach(function (a) { %><li><%= a.workerName %> · <%= a.role %> · <%= a.status %> from <%= formatDate(a.startsOn) %></li><% }) %></ul>
+        <% } %>
+      </section>
+    </div>
+
+    <% if (report.workload.length > 1) { %>
+      <section class="dash-card dash-wide" id="workload">
+        <h2>Team workload</h2>
+        <%- include('partials/workload-table', { rows: report.workload }) %>
+      </section>
+    <% } %>
+  </div>
+</section>
+
+<%- include('partials/foot') %>

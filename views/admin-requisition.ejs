@@ -1,0 +1,84 @@
+<%- include('partials/head') %>
+
+<section class="section admin">
+  <div class="container">
+    <%- include('partials/agency-nav', { heading: r.number + ' · ' + r.title, tab: 'requisitions' }) %>
+
+    <div class="kpis">
+      <div class="kpi"><span class="kpi-label">Status</span><span class="kpi-value"><%= r.status %></span><span class="kpi-note"><%= r.priority %> priority</span></div>
+      <div class="kpi"><span class="kpi-label">Filled</span><span class="kpi-value"><%= r.filled %> / <%= r.openings %></span><span class="kpi-note"><%= r.remaining %> to go</span></div>
+      <div class="kpi"><span class="kpi-label">Pipeline</span><span class="kpi-value"><%= r.pipeline.applied %></span><span class="kpi-note"><%= r.pipeline.shortlisted %> shortlisted · <%= r.pipeline.offered %> offered</span></div>
+      <div class="kpi"><span class="kpi-label">Fill by</span><span class="kpi-value small"><%= r.dueOn ? formatDate(r.dueOn) : '—' %></span><span class="kpi-note<%= r.overdue ? ' kpi-alert' : '' %>"><%= r.overdue ? 'overdue' : r.ageDays + ' days open' %></span></div>
+    </div>
+
+    <div class="dash-grid">
+      <section class="dash-card">
+        <h2>Details</h2>
+        <p><a href="/admin/clients/<%= r.employerId %>"><b><%= r.company %></b></a> · <%= r.kind %><%= r.location ? ' · ' + r.location : '' %><%= r.experience ? ' · ' + r.experience : '' %></p>
+        <p class="small">Contract: <%= r.contractRef || 'none linked' %> · Job: <% if (r.jobId) { %><a href="/admin/jobs/<%= r.jobId %>/edit">linked</a> (<a href="/admin?tab=applications&job=<%= r.jobId %>">applicants</a>)<% } else { %>not linked yet<% } %></p>
+        <% if (r.skills && r.skills.length) { %><div class="chips"><% r.skills.forEach(function (s) { %><span class="chip"><%= s %></span><% }) %></div><% } %>
+        <% if (money && r.budget) { %><p class="small">Budget <%= inrPaise(r.budget.minPaise) %><%= r.budget.maxPaise !== null ? ' – ' + inrPaise(r.budget.maxPaise) : '' %> a <%= r.budget.period %></p><% } %>
+        <% if (money && r.rates) { %><p class="small">Bill <%= inrPaise(r.rates.billPaise) %> / pay <%= r.rates.payPaise !== null ? inrPaise(r.rates.payPaise) : '—' %> a <%= r.rates.per %></p><% } %>
+        <% if (r.description) { %><p class="small pre"><%= r.description %></p><% } %>
+        <% if (canManage && REQ_MOVES[r.status].length) { %>
+          <form class="form inline-form" method="post" action="/admin/requisitions/<%= r.id %>">
+            <label>Move to
+              <select name="status"><% REQ_MOVES[r.status].forEach(function (s) { %><option><%= s %></option><% }) %></select>
+            </label>
+            <label>Note <span class="muted small">(needed to cancel)</span><input name="note" maxlength="300"></label>
+            <button class="btn btn-outline btn-sm" type="submit">Change status</button>
+          </form>
+        <% } %>
+      </section>
+
+      <section class="dash-card">
+        <h2>Recruiters</h2>
+        <% if (canAssign) { %>
+          <form class="form" method="post" action="/admin/requisitions/<%= r.id %>/recruiters">
+            <fieldset class="check-set"><legend class="sr-only">Recruiters on <%= r.number %></legend>
+              <div class="check-grid">
+                <% people.forEach(function (u) { %><label class="check-row"><input type="checkbox" name="recruiterIds" value="<%= u.id %>"<%= (r.recruiterIds || []).includes(u.id) ? ' checked' : '' %>> <span><%= u.name %> <span class="muted small"><%= roleInfo[u.role] ? roleInfo[u.role].label : u.role %></span></span></label><% }) %>
+              </div>
+            </fieldset>
+            <button class="btn btn-outline btn-sm" type="submit">Save recruiters</button>
+          </form>
+          <p class="small"><a href="/admin/recruitment-reports#workload">See everyone's workload</a></p>
+        <% } else { %>
+          <p><%= r.recruiters.map(function (x) { return x.name; }).join(', ') || 'Not assigned yet' %></p>
+        <% } %>
+      </section>
+
+      <section class="dash-card dash-wide" id="placements">
+        <h2>Placements</h2>
+        <% if (!placements.length) { %><p class="muted dash-empty">None yet. Record a placement from a hired applicant of the linked job and it counts here.</p><% } else { %>
+          <ul class="plain-list">
+            <% placements.forEach(function (p) { %><li><b><%= p.candidateName %></b> · <%= p.type %> · <%= p.status %> · joining <%= formatDate(p.joiningDate) %><% if (p.feeMode === 'assignment') { %> · <a href="/admin/staffing?placement=<%= p.id %>">assignments</a><% } %></li><% }) %>
+          </ul>
+        <% } %>
+        <% if (staffing.length) { %>
+          <h3>Staffing assignments</h3>
+          <ul class="plain-list"><% staffing.forEach(function (a) { %><li><%= a.workerName %> · <%= a.role %><%= a.site ? ' at ' + a.site : '' %> · <%= formatDate(a.startsOn) %> – <%= a.endsOn ? formatDate(a.endsOn) : 'open-ended' %> · <%= a.status %></li><% }) %></ul>
+        <% } %>
+      </section>
+
+      <% if (canManage && r.status !== 'Cancelled') { %>
+        <section class="dash-card dash-wide">
+          <details<%= errors.length ? ' open' : '' %>>
+            <summary><b>Edit details</b></summary>
+            <form class="form" method="post" action="/admin/requisitions/<%= r.id %>">
+              <%- include('partials/requisition-form', { withClient: false, money: money, clientList: [] }) %>
+              <button class="btn btn-primary" type="submit">Save</button>
+            </form>
+          </details>
+        </section>
+      <% } %>
+
+      <section class="dash-card dash-wide">
+        <h2>History</h2>
+        <ul class="plain-list small"><% r.history.slice().reverse().forEach(function (h) { %><li><%= new Date(h.at).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'medium', timeStyle: 'short' }) %> · <%= h.by %>: <%= h.text %></li><% }) %></ul>
+      </section>
+    </div>
+  </div>
+</section>
+
+<%- include('partials/foot') %>

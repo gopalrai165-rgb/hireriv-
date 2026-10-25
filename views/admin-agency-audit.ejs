@@ -1,0 +1,31 @@
+<%- include('partials/head') %>
+
+<section class="section admin">
+  <div class="container">
+    <%- include('partials/agency-nav', { heading: 'Agency audit log', tab: 'audit' }) %>
+    <p class="muted small">Every change to clients' contracts and account managers, requisitions, recruiter assignments, staffing assignments and invoices, with who made it. Entries can't be edited or deleted. The latest 200 are shown.</p>
+    <form class="form filter-bar" method="get" action="/admin/agency-audit">
+      <label>Kind
+        <select name="entity"><option value="">Everything</option><% [['requisition', 'Requisitions'], ['contract', 'Contracts'], ['client', 'Account managers'], ['assignment', 'Staffing'], ['invoice-draft', 'Invoices']].forEach(function (e) { %><option value="<%= e[0] %>"<%= q.entity === e[0] ? ' selected' : '' %>><%= e[1] %></option><% }) %></select>
+      </label>
+      <label>Client
+        <select name="client"><option value="">All clients</option><% clientList.forEach(function (c) { %><option value="<%= c.id %>"<%= q.client === c.id ? ' selected' : '' %>><%= c.company %></option><% }) %></select>
+      </label>
+      <button class="btn btn-outline btn-sm" type="submit">Show</button>
+    </form>
+    <% if (!rows.length) { %><div class="empty"><p>Nothing recorded yet.</p></div><% } else { %>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>When</th><th>Who</th><th>What</th><th>Details</th></tr></thead>
+          <tbody>
+            <% rows.forEach(function (e) { %>
+              <tr><td class="small"><%= new Date(e.createdAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'medium', timeStyle: 'short' }) %></td><td><%= e.actorName %><br><span class="muted small"><%= roleInfo[e.role] ? roleInfo[e.role].label : e.role %></span></td><td><%= e.action.replace(/-/g, ' ') %></td><td class="small"><%= e.detail %></td></tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+    <% } %>
+  </div>
+</section>
+
+<%- include('partials/foot') %>

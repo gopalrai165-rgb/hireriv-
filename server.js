@@ -19,6 +19,7 @@ const employerHiring = require('./employer-hiring');
 const employerAts = require('./employer-ats');
 const placements = require('./placements');
 const teamModule = require('./team');
+const agencyRoles = require('./agency-roles');
 const bulk = require('./bulk');
 const reportsModule = require('./reports');
 const timesheetsModule = require('./timesheets');
@@ -26,6 +27,8 @@ const history = require('./history');
 const resumes = require('./resume-parse');
 const jobRecommendations = require('./job-recommendations');
 const employerDiscovery = require('./employer-discovery');
+const agency = require('./agency');
+const { can: employerCan } = require('./employer-team');
 const jobMatch = require('./job-match');
 const { interviewIcs } = require('./ics');
 const ogImages = require('./og');
@@ -1157,7 +1160,7 @@ const TAB_LABELS = { 'hire-requests': 'Hire requests', 'job-alerts': 'Job alerts
 const ADMIN_TABS = ['dashboard', 'reports', 'jobs', 'talent', 'interviews', 'placements', 'clients', ...FORM_TYPES, 'templates', 'blog', 'settings', 'team', 'activity'];
 // Recruiters don't see these tabs.
 const ADMIN_ONLY_TABS = ['settings', 'team', 'activity'];
-const tabsFor = (user) => ADMIN_TABS.filter((t) => user.role === 'Admin' || !ADMIN_ONLY_TABS.includes(t));
+const tabsFor = (user) => agencyRoles.tabsAllowed(user, ADMIN_TABS.filter((t) => user.role === 'Admin' || !ADMIN_ONLY_TABS.includes(t)));
 const adminUrl = (tab, msg) => `/admin?tab=${tab}${msg ? `&msg=${encodeURIComponent(msg)}` : ''}`;
 
 team.register(app, { sameOrigin, adminUrl });
@@ -1197,9 +1200,11 @@ const atsDesk = employerAts.register(app, {
   site, mailer, baseUrl: BASE_URL, limit, sameOrigin, clients, hiring, readSubmissions, writeSubmissions, getJobs: () => jobs,
   interviewDesk, moveStage: history.moveStage, formatIst: interviews.formatIst, todayIst, events, db,
 });
+// Filled in by agency.js: which requisition and contract a new placement belongs to.
+const placementHooks = {};
 const billing = placements.register(app, {
-  db, site, mailer, baseUrl: BASE_URL, adminAuth, requireAdmin, sameOrigin, adminUrl, readSubmissions, writeSubmissions,
-  getJobs: () => jobs, clients, requireEmployer: clients.requireEmployer,
+  db, site, mailer, baseUrl: BASE_URL, adminAuth, requireAdmin, requireBilling: team.requireBilling, sameOrigin, adminUrl, readSubmissions, writeSubmissions,
+  getJobs: () => jobs, clients, requireEmployer: clients.requireEmployer, hooks: placementHooks,
 });
 const templates = bulk.register(app, {
   db, site, mailer, adminAuth, requireAdmin, sameOrigin, adminUrl, readSubmissions, writeSubmissions,
@@ -1242,6 +1247,12 @@ setInterval(() => { try { recommendations.digestScan(); } catch (e) { console.er
 employerDiscovery.register(app, {
   readSubmissions, saveSubmission, sameOrigin, limit, site, getJobs: () => jobs, isLive, isSample, jobPath, clients, events, paginate,
   stateOf: search.stateOf, jobTypes: JOB_TYPES,
+});
+
+// Recruitment agency and staffing: contracts, requisitions, assignments, invoice drafts, reports.
+agency.register(app, {
+  db, team, clients, billing, readSubmissions, writeSubmissions, saveSubmission, getJobs: () => jobs, adminAuth, sameOrigin, limit, site, events,
+  ownerOf: appOwner, hooks: placementHooks, requireEmployer: clients.requireEmployer, requireEmployerApi: clients.requireEmployerApi, can: employerCan,
 });
 
 // The notification center, its API, preferences, job alerts and delivery reports.
@@ -1310,7 +1321,7 @@ app.post('/admin/applications/new', adminAuth, sameOrigin, (req, res) => {
 
 app.get('/admin', adminAuth, (req, res) => {
   const tabs = tabsFor(req.admin);
-  const tab = tabs.includes(req.query.tab) ? req.query.tab : 'dashboard';
+  const tab = tabs.includes(req.query.tab) ? req.query.tab : tabs.includes('dashboard') ? 'dashboard' : tabs[0];
   const applications = readSubmissions('applications');
   const counts = { dashboard: '', reports: '', settings: '', activity: '', templates: templates.read().length, team: team.members().length, blog: posts.length, interviews: interviews.upcoming(applications).length, placements: billing.read().length, clients: clients.read().length, jobs: jobs.length, talent: new Set(applications.map((a) => String(a.email).toLowerCase())).size, ...Object.fromEntries(FORM_TYPES.map((t) => [t, readSubmissions(t).length])) };
   const members = team.members();
@@ -1321,9 +1332,9 @@ app.get('/admin', adminAuth, (req, res) => {
   const pageOf = (list) => paginate(list, { page: req.query.page, size: ADMIN_PAGE_SIZE, query: req.query, path: '/admin' });
 
   if (tab === 'dashboard') return res.render('admin', { ...locals, rows: [], dash: buildDashboard(applications, req.admin), setupTodo: req.admin.role === 'Admin' ? setupTodo() : [] });
-  if (tab === 'team') return res.render('admin', { ...locals, rows: team.list(), roles: team.ROLES, requires2fa: team.requires2fa(), my2fa: team.has2fa(req.admin.id) });
+  if (tab === 'team') return res.render('admin', { ...locals, rows: team.list(), roles: team.ROLES, roleInfo: agencyRoles.ROLE_INFO, requires2fa: team.requires2fa(), my2fa: team.has2fa(req.admin.id) });
   if (tab === 'templates') return res.render('admin', { ...locals, rows: templates.read(), placeholders: bulk.PLACEHOLDERS });
-  if (tab === 'reports') return res.render('admin', { ...locals, rows: [], report: reports.build({ period: String(req.query.period || ''), isAdmin: req.admin.role === 'Admin' }), inr: billing.inr });
+  if (tab === 'reports') return res.render('admin', { ...locals, rows: [], report: reports.build({ period: String(req.query.period || ''), isAdmin: agencyRoles.can(req.admin, 'money.view') }), inr: billing.inr });
   if (tab === 'activity') {
     const who = String(req.query.user || '');
     const { rows, pager } = pageOf(team.activity({ userId: who }));

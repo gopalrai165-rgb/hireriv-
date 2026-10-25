@@ -1,0 +1,77 @@
+<%- include('partials/head') %>
+
+<section class="section admin portal">
+  <div class="container">
+    <%- include('partials/employer-nav', { heading: detail ? detail.r.number + ' · ' + detail.r.title : 'Requisitions', tab: 'requisitions' }) %>
+
+    <% if (detail) { %>
+      <% const r = detail.r; %>
+      <p><a href="/employer/requisitions">← All requisitions</a></p>
+      <div class="kpis">
+        <div class="kpi"><span class="kpi-label">Status</span><span class="kpi-value"><%= r.status %></span><span class="kpi-note"><%= r.accountManager ? 'Account manager: ' + r.accountManager : 'Account manager being assigned' %></span></div>
+        <div class="kpi"><span class="kpi-label">Filled</span><span class="kpi-value"><%= r.filled %> / <%= r.openings %></span><span class="kpi-note"><%= r.kind %></span></div>
+        <div class="kpi"><span class="kpi-label">Shortlisted for you</span><span class="kpi-value"><%= detail.shortlist.length %></span><span class="kpi-note"><a href="/employer#shortlist">Review on your dashboard</a></span></div>
+      </div>
+      <section class="dash-card dash-wide">
+        <h2>Shortlisted candidates</h2>
+        <% if (!detail.shortlist.length) { %><p class="muted dash-empty">None shared yet. Your Hireriv recruiter shares candidates here once they've screened them.</p><% } else { %>
+          <ul class="plain-list"><% detail.shortlist.forEach(function (a) { %><li><b><%= a.name %></b> · <%= a.experience || 'experience not given' %><%= a.location ? ' · ' + a.location : '' %><%= a.feedback ? ' · your answer: ' + a.feedback.decision : '' %></li><% }) %></ul>
+        <% } %>
+      </section>
+      <% if (detail.workers.length) { %>
+        <section class="dash-card dash-wide">
+          <h2>Workers deployed</h2>
+          <ul class="plain-list"><% detail.workers.forEach(function (w) { %><li><b><%= w.worker %></b> · <%= w.role %><%= w.site ? ' at ' + w.site : '' %><%= w.shift ? ' · ' + w.shift + ' shift' : '' %> · <%= formatDate(w.startsOn) %> – <%= w.endsOn ? formatDate(w.endsOn) : 'open-ended' %> · <%= w.status %></li><% }) %></ul>
+        </section>
+      <% } %>
+    <% } else { %>
+      <p class="muted small">Ask Hireriv for people here: permanent hires, temporary or contract staff, one opening or many. Your account manager confirms each request, and you can follow how many are filled and who has been shortlisted.</p>
+
+      <% if (canRequest) { %>
+        <details class="dash-card dash-wide"<%= errors.length ? ' open' : '' %>>
+          <summary><b>+ Request people</b></summary>
+          <form class="form" method="post" action="/employer/requisitions">
+            <div class="form-grid">
+              <label>Role*<input name="title" required maxlength="120" value="<%= rf.title || '' %>" placeholder="e.g. Warehouse Picker"></label>
+              <label>Kind of hire<select name="kind"><% REQ_KINDS.forEach(function (k) { %><option<%= (rf.kind || 'Permanent') === k ? ' selected' : '' %>><%= k %></option><% }) %></select></label>
+              <label>How many*<input name="openings" inputmode="numeric" maxlength="3" value="<%= rf.openings || '1' %>"></label>
+              <label>Location<input name="location" maxlength="80" value="<%= rf.location || '' %>"></label>
+              <label>Experience<input name="experience" maxlength="40" value="<%= rf.experience || '' %>"></label>
+              <label>Skills <span class="muted small">(comma separated)</span><input name="skills" maxlength="440" value="<%= rf.skills || '' %>"></label>
+              <label>Needed by<input type="date" name="dueOn" value="<%= rf.dueOn || '' %>"></label>
+              <label>Budget from (₹)<input name="budgetMin" inputmode="decimal" value="<%= rf.budgetMin || '' %>"></label>
+              <label>Budget to (₹)<input name="budgetMax" inputmode="decimal" value="<%= rf.budgetMax || '' %>"></label>
+              <label>Per<select name="budgetPeriod"><% PAY_PERIODS.forEach(function (p) { %><option<%= (rf.budgetPeriod || 'year') === p ? ' selected' : '' %>><%= p %></option><% }) %></select></label>
+            </div>
+            <label>Anything else<textarea name="description" rows="3" maxlength="3000"><%= rf.description || '' %></textarea></label>
+            <button class="btn btn-primary" type="submit">Send request</button>
+          </form>
+        </details>
+      <% } %>
+
+      <% if (!rows.length) { %>
+        <p class="muted dash-empty">No requisitions yet.</p>
+      <% } else { %>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Requisition</th><th>Status</th><th class="num">Filled</th><th class="num">Shortlisted</th><th>Needed by</th><th></th></tr></thead>
+            <tbody>
+              <% rows.forEach(function (r) { %>
+                <tr>
+                  <td><a href="/employer/requisitions/<%= r.id %>"><b><%= r.number %></b> · <%= r.title %></a><br><span class="muted small"><%= r.kind %><%= r.location ? ' · ' + r.location : '' %><% if (money && r.budget) { %> · budget ₹<%= r.budget.min || '?' %>–<%= r.budget.max || '?' %> a <%= r.budget.period %><% } %></span></td>
+                  <td><%= r.status %></td>
+                  <td class="num"><%= r.filled %> / <%= r.openings %></td>
+                  <td class="num"><%= r.shortlisted %></td>
+                  <td><%= r.dueOn ? formatDate(r.dueOn) : '—' %></td>
+                  <td><% if (canRequest && r.status === 'Requested') { %><form method="post" action="/employer/requisitions/<%= r.id %>/cancel" data-confirm="Cancel this request?"><button class="btn btn-outline btn-sm">Cancel</button></form><% } %></td>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+      <% } %>
+    <% } %>
+  </div>
+</section>
+
+<%- include('partials/foot') %>

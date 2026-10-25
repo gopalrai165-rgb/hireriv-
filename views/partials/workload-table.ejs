@@ -1,0 +1,16 @@
+<div class="table-wrap">
+  <table>
+    <thead><tr><th>Person</th><th class="num">Open requisitions</th><th class="num">Openings left</th><th class="num">Overdue</th><th class="num">Placements</th></tr></thead>
+    <tbody>
+      <% rows.forEach(function (w) { %>
+        <tr>
+          <td><b><%= w.name %></b><br><span class="muted small"><%= w.role %></span><% if (w.busy) { %> <span class="pill st-interview">Heavy load</span><% } %></td>
+          <td class="num"><%= w.openRequisitions %></td>
+          <td class="num"><%= w.openingsLeft %></td>
+          <td class="num"><%= w.overdue %></td>
+          <td class="num"><%= w.placements %></td>
+        </tr>
+      <% }) %>
+    </tbody>
+  </table>
+</div>

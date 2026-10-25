@@ -3,7 +3,8 @@
 <section class="section admin">
   <div class="container">
     <div class="admin-userbar">
-      <span>Signed in as <b><%= admin.name %></b> · <%= admin.role %></span>
+      <span>Signed in as <b><%= admin.name %></b> · <%= roleLabel %></span>
+      <% if (agencyCan('requisitions.view')) { %><a class="small" href="/admin/workspace">Agency &amp; staffing</a><% } else if (agencyCan('invoices.draft')) { %><a class="small" href="/admin/invoice-drafts">Invoice drafts</a><% } %>
       <%- include('partials/notification-bell', { as: 'team', bellQuery: '?as=team', bellClass: 'small' }) %>
       <% if (isAdmin) { %><a class="small" href="/admin/notifications">Email delivery</a><% } %>
       <a class="small" href="/admin/security">Sign-in security</a>

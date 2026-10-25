@@ -1,0 +1,82 @@
+<%- include('partials/head') %>
+
+<section class="section admin">
+  <div class="container">
+    <%- include('partials/agency-nav', { heading: 'Staffing assignments', tab: 'staffing' }) %>
+    <p class="muted small">Where temporary and contract workers are deployed, with their dates, shift and rates. A worker can't have two assignments on the same days. Placements billed "per staffing assignment" are invoiced from here: draft an invoice for days or hours worked and Finance issues it.</p>
+
+    <form class="form filter-bar" method="get" action="/admin/staffing">
+      <label>Status
+        <select name="status"><option value="">Scheduled and active</option><% ASSIGN_STATUSES.forEach(function (s) { %><option<%= f.status === s ? ' selected' : '' %>><%= s %></option><% }) %></select>
+      </label>
+      <label>Client
+        <select name="client"><option value="">All clients</option><% clientList.forEach(function (c) { %><option value="<%= c.id %>"<%= f.client === c.id ? ' selected' : '' %>><%= c.company %></option><% }) %></select>
+      </label>
+      <% if (f.placement) { %><input type="hidden" name="placement" value="<%= f.placement %>"><% } %>
+      <button class="btn btn-outline btn-sm" type="submit">Show</button>
+    </form>
+
+    <% if (canAdd) { %>
+      <details class="dash-card dash-wide"<%= typeof openForm !== 'undefined' && openForm ? ' open' : '' %>>
+        <summary><b>+ Schedule an assignment</b></summary>
+        <% if (!eligible.length) { %>
+          <p class="muted small">First record a temporary or contract placement billed "per staffing assignment".</p>
+        <% } else { %>
+          <form class="form" method="post" action="/admin/staffing">
+            <div class="form-grid">
+              <label>Worker (placement)*
+                <select name="placementId" required><% eligible.forEach(function (p) { %><option value="<%= p.id %>"<%= af.placementId === p.id ? ' selected' : '' %>><%= p.candidateName %> · <%= p.jobTitle %> · <%= p.company %></option><% }) %></select>
+              </label>
+              <label>Role<input name="role" maxlength="120" value="<%= af.role || '' %>" placeholder="The placement's job title"></label>
+              <label>Site<input name="site" maxlength="160" value="<%= af.site || '' %>" placeholder="e.g. Chakan warehouse"></label>
+              <label>Starts*<input type="date" name="startsOn" required value="<%= af.startsOn || '' %>"></label>
+              <label>Ends<input type="date" name="endsOn" value="<%= af.endsOn || '' %>"></label>
+              <label>Shift<select name="shift"><option value="">Not set</option><% SHIFTS.forEach(function (s) { %><option<%= af.shift === s ? ' selected' : '' %>><%= s %></option><% }) %></select></label>
+              <label>Bill rate (₹)*<input name="billRate" inputmode="decimal" required value="<%= af.billRate || '' %>"></label>
+              <label>Pay rate (₹)<input name="payRate" inputmode="decimal" value="<%= af.payRate || '' %>"></label>
+              <label>Per<select name="ratePer"><% RATE_PER.forEach(function (p) { %><option<%= (af.ratePer || 'day') === p ? ' selected' : '' %>><%= p %></option><% }) %></select></label>
+            </div>
+            <label>Notes<textarea name="notes" rows="2" maxlength="500"><%= af.notes || '' %></textarea></label>
+            <button class="btn btn-primary" type="submit">Schedule</button>
+          </form>
+        <% } %>
+      </details>
+    <% } %>
+
+    <% if (!rows.length) { %>
+      <div class="empty"><p>No assignments here.</p></div>
+    <% } else { %>
+      <ul class="cand-list">
+        <% rows.forEach(function (a) { %>
+          <li class="dash-card">
+            <div class="dash-head">
+              <div><b><%= a.workerName %></b> · <%= a.role %> · <%= a.company %><br><span class="muted small"><%= a.site || 'Site not set' %><%= a.shift ? ' · ' + a.shift + ' shift' : '' %> · <%= formatDate(a.startsOn) %> – <%= a.endsOn ? formatDate(a.endsOn) : 'open-ended' %></span></div>
+              <span class="pill <%= a.status === 'Active' ? 'st-hired' : a.status === 'Scheduled' ? 'st-new' : a.status === 'Cancelled' ? 'st-rejected' : 'st-screening' %>"><%= a.status %></span>
+            </div>
+            <% if (money) { %><p class="small">Bill <%= inrPaise(a.rate.billPaise) %><%= a.rate.payPaise !== null ? ' · pay ' + inrPaise(a.rate.payPaise) : '' %> a <%= a.rate.per %></p><% } %>
+            <% if (a.billed.length) { %><p class="small muted">Billed or drafted: <%= a.billed.map(function (d) { return d.period.label + (d.invoiceNumber ? ' (' + d.invoiceNumber + ')' : ' (draft)'); }).join(', ') %></p><% } %>
+            <div class="row-actions">
+              <% if (a.canManage && ASSIGN_MOVES[a.status].length) { %>
+                <form class="inline-form" method="post" action="/admin/staffing/<%= a.id %>">
+                  <label class="sr-only" for="st-<%= a.id %>">New status</label>
+                  <select id="st-<%= a.id %>" name="status"><% ASSIGN_MOVES[a.status].forEach(function (s) { %><option><%= s %></option><% }) %></select>
+                  <button class="btn btn-outline btn-sm" type="submit">Change status</button>
+                </form>
+              <% } %>
+              <% if (canDraft && ['Active', 'Completed', 'Ended early'].includes(a.status)) { %>
+                <form class="inline-form" method="post" action="/admin/staffing/<%= a.id %>/invoice-draft">
+                  <label>From<input type="date" name="from" required></label>
+                  <label>To<input type="date" name="to" required max="<%= today %>"></label>
+                  <label><%= a.rate.per.charAt(0).toUpperCase() + a.rate.per.slice(1) %>s worked<input name="quantity" inputmode="decimal" required size="5"></label>
+                  <button class="btn btn-outline btn-sm" type="submit">Draft invoice</button>
+                </form>
+              <% } %>
+            </div>
+          </li>
+        <% }) %>
+      </ul>
+    <% } %>
+  </div>
+</section>
+
+<%- include('partials/foot') %>

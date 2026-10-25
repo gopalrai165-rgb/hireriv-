@@ -1,0 +1,60 @@
+<%- include('partials/head') %>
+
+<section class="section admin">
+  <div class="container">
+    <%- include('partials/agency-nav', { heading: 'Invoice drafts', tab: 'drafts' }) %>
+    <p class="muted small">The team asks for invoices here; an Admin or Finance Manager checks and issues them as numbered GST invoices. Asking twice for the same fee or period gives the same draft. Payments are recorded afterwards, under Placements → Payments.</p>
+
+    <nav class="pipeline" aria-label="Draft status">
+      <% ['Draft', 'Issued', 'Discarded'].forEach(function (s) { %><a class="pill<%= status === s ? ' active' : '' %>" href="/admin/invoice-drafts?status=<%= s %>"><%= s === 'Draft' ? 'Waiting' : s %></a><% }) %>
+    </nav>
+
+    <% if (status === 'Draft' && waiting.length) { %>
+      <section class="dash-card dash-wide">
+        <h2>Joined, fee not invoiced</h2>
+        <ul class="plain-list">
+          <% waiting.forEach(function (p) { %>
+            <li><b><%= p.candidateName %></b> · <%= p.jobTitle %> at <%= p.company %> · fee <%= inrPaise(Math.round(p.fee * 100)) %>
+              <form class="inline-form" method="post" action="/admin/placements/<%= p.id %>/invoice-draft"><input type="hidden" name="requestKey" value="<%= requestKey %>-<%= p.id.slice(0, 8) %>"><button class="link-btn small">Draft the fee invoice</button></form></li>
+          <% }) %>
+        </ul>
+      </section>
+    <% } %>
+
+    <% if (!rows.length) { %>
+      <div class="empty"><p>Nothing here.</p></div>
+    <% } else { %>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>For</th><th>What</th><th class="num">Before GST</th><th>Asked by</th><th></th></tr></thead>
+          <tbody>
+            <% rows.forEach(function (d) { %>
+              <tr>
+                <td><b><%= d.company %></b><br><span class="muted small"><%= d.p ? d.p.candidateName + ' · ' + d.p.jobTitle : 'placement removed' %></span></td>
+                <td class="small"><% d.lines.forEach(function (l) { %><%= l.text %><br><% }) %><% if (d.note) { %><span class="muted"><%= d.note %></span><% } %></td>
+                <td class="num"><b><%= inrPaise(d.subtotalPaise) %></b></td>
+                <td class="small"><%= d.createdByName %><br><span class="muted"><%= formatDate(d.createdAt) %></span></td>
+                <td class="row-actions">
+                  <% if (d.status === 'Draft') { %>
+                    <% if (canIssue) { %>
+                      <form method="post" action="/admin/invoice-drafts/<%= d.id %>/issue" data-confirm="Issue a numbered invoice for <%= inrPaise(d.subtotalPaise) %> + GST?">
+                        <% const c = clientById(d.employerId); if (c && c.active) { %><label class="notify"><input type="checkbox" name="email" value="1" checked> Email to <%= c.email %></label><% } %>
+                        <button class="btn btn-primary btn-sm">Issue invoice</button>
+                      </form>
+                    <% } %>
+                    <form method="post" action="/admin/invoice-drafts/<%= d.id %>/discard" data-confirm="Discard this draft?"><input type="hidden" name="reason" value="Discarded"><button class="btn btn-outline btn-sm">Discard</button></form>
+                  <% } else if (d.status === 'Issued') { %>
+                    <a href="/admin/placements/<%= d.placementId %>/invoice?inv=<%= d.invoiceKey %>" target="_blank" rel="noopener"><%= d.invoiceNumber %></a>
+                    <% if (canIssue) { %><br><a class="small" href="/admin/placements/<%= d.placementId %>/payments?inv=<%= d.invoiceKey %>">Payments</a><% } %>
+                  <% } else { %><span class="muted small">Discarded</span><% } %>
+                </td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+    <% } %>
+  </div>
+</section>
+
+<%- include('partials/foot') %>

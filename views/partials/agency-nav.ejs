@@ -1,0 +1,20 @@
+<%# Header and links shared by the agency pages; each link shows only to roles that may open it. %>
+<div class="admin-userbar">
+  <span>Signed in as <b><%= admin.name %></b> · <%= roleLabel %></span>
+  <a class="small" href="/admin">Back to admin</a>
+  <form method="post" action="/admin/logout"><button class="link-btn small" type="submit">Sign out</button></form>
+</div>
+<div class="admin-head">
+  <div>
+    <span class="eyebrow">Agency &amp; staffing</span>
+    <h1><%= heading %></h1>
+  </div>
+  <% if (typeof actions !== 'undefined' && actions) { %><div class="admin-actions"><%- actions %></div><% } %>
+</div>
+<nav class="account-tabs" aria-label="Agency and staffing">
+  <% [['workspace', '/admin/workspace', 'My workspace', 'requisitions.view'], ['requisitions', '/admin/requisitions', 'Requisitions', 'requisitions.view'], ['staffing', '/admin/staffing', 'Staffing', 'staffing.view'], ['drafts', '/admin/invoice-drafts', 'Invoice drafts', 'invoices.draft'], ['reports', '/admin/recruitment-reports', 'Reports', 'reports.view'], ['audit', '/admin/agency-audit', 'Audit log', 'audit.view'], ['clients', '/admin?tab=clients', 'Clients', 'clients.view']].filter(function (t) { return can(t[3]); }).forEach(function (t) { %>
+    <a href="<%= t[1] %>"<%- tab === t[0] ? ' aria-current="page" class="active"' : '' %>><%= t[2] %></a>
+  <% }) %>
+</nav>
+<% if (typeof msg !== 'undefined' && msg) { %><p class="notice" role="status"><%= msg %></p><% } %>
+<% if (typeof errors !== 'undefined' && errors.length) { %><div class="notice notice-err" role="alert"><p>Please fix:</p><ul><% errors.forEach(function (e) { %><li><%= e %></li><% }) %></ul></div><% } %>

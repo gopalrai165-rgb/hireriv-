@@ -18,7 +18,9 @@ const EXPAND = {
 
 function policyOf(args, p) {
   if (args.includes('requireAdmin')) return 'admin';
-  if (args.includes('adminAuth')) return 'team';
+  // Invoices and payments: Admins and Finance Managers.
+  if (args.includes('requireBilling')) return 'billing';
+  if (args.includes('adminAuth') || args.includes('teamApi(')) return 'team';
   if (args.includes('requireCandidate')) return 'candidate';
   if (args.includes('requireEmployer')) return 'employer';
   // Any signed-in account (candidate, employer or team): the notification center.

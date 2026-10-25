@@ -1,0 +1,99 @@
+<%- include('partials/head') %>
+
+<section class="section admin">
+  <div class="container">
+    <%- include('partials/agency-nav', { heading: c.company, tab: 'clients' }) %>
+    <p class="muted"><%= c.active ? 'Active client' : 'Deactivated' %> · contact <%= c.name %> · <a href="/admin?tab=clients">All clients</a></p>
+
+    <div class="dash-grid">
+      <section class="dash-card">
+        <h2>Account manager</h2>
+        <p><%= accountManager ? accountManager.name : 'Nobody yet' %></p>
+        <% if (admin.role === 'Admin') { %>
+          <form class="form inline-form" method="post" action="/admin/clients/<%= c.id %>/account-manager">
+            <label class="sr-only" for="am">Account manager</label>
+            <select id="am" name="accountManagerId">
+              <option value="">Nobody</option>
+              <% accountManagers.forEach(function (u) { %><option value="<%= u.id %>"<%= c.accountManagerId === u.id ? ' selected' : '' %>><%= u.name %> (<%= roleInfo[u.role].label %>)</option><% }) %>
+            </select>
+            <button class="btn btn-outline btn-sm" type="submit">Save</button>
+          </form>
+        <% } %>
+        <p class="muted small">The account manager changes this client's contracts and requisitions. Only Admins assign them.</p>
+      </section>
+
+      <section class="dash-card">
+        <h2>Requisitions</h2>
+        <% if (!reqs.length) { %><p class="muted dash-empty">None yet.</p><% } else { %>
+          <ul class="plain-list"><% reqs.forEach(function (r) { %><li><a href="/admin/requisitions/<%= r.id %>"><b><%= r.number %></b> · <%= r.title %></a> · <%= r.status %> · <%= r.filled %>/<%= r.openings %></li><% }) %></ul>
+        <% } %>
+        <% if (canReq) { %><a class="btn btn-outline btn-sm" href="/admin/requisitions?client=<%= c.id %>">+ Open a requisition</a><% } %>
+        <% if (hireRequests.length && canReq) { %>
+          <h3>Requests from the client portal</h3>
+          <ul class="plain-list small">
+            <% hireRequests.forEach(function (h) { %>
+              <li><%= h.roles %><%= h.headcount ? ' · ' + h.headcount + ' people' : '' %><%= h.location ? ' · ' + h.location : '' %> · <%= formatDate(h.createdAt) %>
+                <form class="inline-form" method="post" action="/admin/hire-requests/<%= h.id %>/requisition"><button class="link-btn small">Make it a requisition</button></form></li>
+            <% }) %>
+          </ul>
+        <% } %>
+      </section>
+
+      <% if (showTerms) { %>
+        <section class="dash-card dash-wide" id="contracts">
+          <h2>Contracts</h2>
+          <% if (!contracts.length) { %><p class="muted dash-empty">No contract recorded. Placements for this client use the fee in Settings until one is.</p><% } else { %>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>Reference</th><th>Covers</th><th>Dates</th><th>Fee</th><th>Guarantee</th><th>Payment</th><th>Status</th></tr></thead>
+                <tbody>
+                  <% contracts.forEach(function (k) { %>
+                    <tr>
+                      <td><b><%= k.reference %></b><% if (k.notes) { %><br><span class="muted small"><%= k.notes %></span><% } %></td>
+                      <td><%= k.kind %></td>
+                      <td class="small"><%= formatDate(k.startsOn) %> – <%= k.endsOn ? formatDate(k.endsOn) : 'no end date' %></td>
+                      <td><% if (k.kind === 'Temporary & contract staffing') { %>—<% } else if (k.feeMode === 'flat') { %><%= inrPaise(k.flatFeePaise) %> fixed<% } else { %><%= showBp(k.feeBp) %>% of annual CTC<% } %><% if (k.markupBp !== null && k.markupBp !== undefined) { %><br><span class="small">Staffing markup <%= showBp(k.markupBp) %>%</span><% } %></td>
+                      <td><%= k.guaranteeDays !== null && k.guaranteeDays !== undefined ? k.guaranteeDays + ' days' : '—' %></td>
+                      <td><%= k.paymentDays %> days</td>
+                      <td>
+                        <span class="pill <%= k.status === 'Active' ? 'st-hired' : k.status === 'Ended' ? 'st-rejected' : 'st-new' %>"><%= k.status %></span>
+                        <% if (canManage && k.status !== 'Ended') { %>
+                          <form class="inline-form" method="post" action="/admin/contracts/<%= k.id %>"><input type="hidden" name="status" value="<%= k.status === 'Draft' ? 'Active' : 'Ended' %>"><button class="link-btn small"><%= k.status === 'Draft' ? 'Make active' : 'End it' %></button></form>
+                        <% } %>
+                      </td>
+                    </tr>
+                  <% }) %>
+                </tbody>
+              </table>
+            </div>
+          <% } %>
+          <% if (canManage) { %>
+            <details<%= errors.length ? ' open' : '' %>>
+              <summary><b>+ Add a contract</b></summary>
+              <form class="form" method="post" action="/admin/clients/<%= c.id %>/contracts">
+                <div class="form-grid">
+                  <label>Reference*<input name="reference" required maxlength="60" value="<%= cf.reference || '' %>" placeholder="e.g. MSA-2026-01"></label>
+                  <label>Covers<select name="kind"><% CONTRACT_KINDS.forEach(function (k) { %><option<%= cf.kind === k ? ' selected' : '' %>><%= k %></option><% }) %></select></label>
+                  <label>Status<select name="status"><% ['Draft', 'Active'].forEach(function (s) { %><option<%= (cf.status || 'Active') === s ? ' selected' : '' %>><%= s %></option><% }) %></select></label>
+                  <label>Starts*<input type="date" name="startsOn" required value="<%= cf.startsOn || '' %>"></label>
+                  <label>Ends<input type="date" name="endsOn" value="<%= cf.endsOn || '' %>"></label>
+                  <label>Permanent fee based on<select name="feeMode"><option value="percent"<%= cf.feeMode !== 'flat' ? ' selected' : '' %>>% of annual CTC</option><option value="flat"<%= cf.feeMode === 'flat' ? ' selected' : '' %>>Fixed amount</option></select></label>
+                  <label>Fee %<input name="feePercent" inputmode="decimal" value="<%= cf.feePercent || '' %>"<% if (settingsFee) { %> placeholder="Settings: <%= settingsFee %>"<% } %>></label>
+                  <label>Fixed fee (₹)<input name="flatFee" inputmode="decimal" value="<%= cf.flatFee || '' %>"></label>
+                  <label>Guarantee (days)<input name="guaranteeDays" inputmode="numeric" value="<%= cf.guaranteeDays || '' %>"></label>
+                  <label>Payment due (days)*<input name="paymentDays" inputmode="numeric" required value="<%= cf.paymentDays || '' %>"></label>
+                  <label>Staffing markup % <span class="muted small">(optional)</span><input name="markupPercent" inputmode="decimal" value="<%= cf.markupPercent || '' %>"></label>
+                </div>
+                <label>Notes<textarea name="notes" rows="2" maxlength="1000"><%= cf.notes || '' %></textarea></label>
+                <p class="muted small">Write the fee exactly as agreed: nothing is assumed. Placements for this client's requisitions take their fee and guarantee from the active contract.</p>
+                <button class="btn btn-primary" type="submit">Add contract</button>
+              </form>
+            </details>
+          <% } %>
+        </section>
+      <% } %>
+    </div>
+  </div>
+</section>
+
+<%- include('partials/foot') %>

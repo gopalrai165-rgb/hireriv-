@@ -445,6 +445,11 @@ function create(deps) {
     emit({ key: `staffing-request:${entry.id}`, type: 'staffing-request', to: team.members().map((u) => ({ kind: 'team', userId: u.id })), inApp: { title: `Staffing request from ${entry.company}`, body: `${entry.roles}${entry.headcount ? ` · ${entry.headcount} people` : ''}${entry.location ? ` · ${entry.location}` : ''}`, link: '/admin?tab=hire-requests' } });
   }
 
+  // A recruiter was given a requisition (in-app only; no candidate details).
+  function agencyAssigned(r, userId, client) {
+    emit({ key: `requisition-assigned:${r.id}:${userId}`, type: 'requisition-assigned', to: [team.byId(userId) ? { kind: 'team', userId } : null], inApp: { title: `Requisition assigned to you: ${r.number}`, body: `${r.openings} × ${r.title}${client ? ` for ${client.company}` : ''}`, link: `/admin/requisitions/${r.id}` } });
+  }
+
   // ---------- account ----------
   function accountSecurity(email, title, body) {
     emit({ key: `security:${notify.candidateRk(email)}:${Date.now()}`, type: 'account-security', to: [{ kind: 'candidate', email }], inApp: { title, body, link: '/account/settings' } });
@@ -462,7 +467,7 @@ function create(deps) {
 
   return {
     applicationSubmitted, newApplication, stageMoved, statusEmail, interviewBooked, interviewRescheduled, interviewCancelled, interviewReminder, interviewAnswered,
-    feedbackDueScan, offerCreated, offerApproved, offerAnswered, offerDeadlineScan, assigned, jobDecision, jobExpired, jobSubmitted, jobAlerts, jobDigest, jobInvite, staffingRequest,
+    feedbackDueScan, offerCreated, offerApproved, offerAnswered, offerDeadlineScan, assigned, jobDecision, jobExpired, jobSubmitted, jobAlerts, jobDigest, jobInvite, staffingRequest, agencyAssigned,
     accountSecurity, scan, JOB_ALERTS_PER_DAY,
   };
 }

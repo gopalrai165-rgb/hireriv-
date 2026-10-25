@@ -2,14 +2,15 @@
   <a class="kpi" href="/admin?tab=placements&view=awaiting"><span class="kpi-label">Awaiting joining</span><span class="kpi-value"><%= sum.awaitingJoining %></span><span class="kpi-note">offers accepted</span></a>
   <a class="kpi" href="/admin?tab=placements&view=guarantee"><span class="kpi-label">In guarantee</span><span class="kpi-value"><%= sum.inGuarantee %></span><span class="kpi-note">replacement period running</span></a>
   <a class="kpi" href="/admin?tab=placements&view=to-invoice"><span class="kpi-label">To invoice</span><span class="kpi-value"><%= sum.toInvoice %></span><span class="kpi-note">fees to raise, months to bill</span></a>
-  <% if (isAdmin) { %>
+  <% if (canBill) { %>
   <a class="kpi" href="/admin?tab=placements&view=unpaid"><span class="kpi-label">Outstanding</span><span class="kpi-value kpi-money"><%= inr(sum.outstanding) %></span><span class="kpi-note<%= sum.overdueCount ? ' kpi-alert' : '' %>"><%= sum.overdueCount ? sum.overdueCount + ' overdue' : sum.unpaidCount + ' unpaid' %></span></a>
   <a class="kpi" href="/admin?tab=placements"><span class="kpi-label">Billed FY <%= sum.fy %></span><span class="kpi-value kpi-money"><%= inr(sum.billedFy) %></span><span class="kpi-note">incl. GST, net of credit notes</span></a>
   <a class="kpi" href="/admin/export/placements.csv"><span class="kpi-label">Received FY <%= sum.fy %></span><span class="kpi-value kpi-money"><%= inr(sum.receivedFy) %></span><span class="kpi-note">+ <%= inr(sum.tdsFy) %> TDS to claim<%= sum.refundsDue ? ' · ' + inr(sum.refundsDue) + ' refunds due' : '' %></span></a>
   <% } %>
 </div>
 
-<% if (unrecorded.length) { %>
+<% const finance = admin.role === 'Finance Manager'; %>
+<% if (unrecorded.length && !finance) { %>
   <div class="notice placement-todo">
     <%= unrecorded.length %> hired candidate<%= unrecorded.length === 1 ? ' has' : 's have' %> no placement yet:
     <% unrecorded.slice(0, 5).forEach(function (a, i) { %><%= i ? ', ' : ' ' %><a href="/admin/applications/<%= a.id %>/placement"><%= a.name %></a><% }) %><%= unrecorded.length > 5 ? '…' : '' %>
@@ -48,10 +49,10 @@
               <% if (p.inGuarantee) { %><br><span class="muted small">Guarantee until <%= formatYmd(p.guaranteeEnds) %> (<%= p.guaranteeDaysLeft %> day<%= p.guaranteeDaysLeft === 1 ? '' : 's' %> left)</span>
               <% } else if (p.status === 'Joined' && p.guaranteeDays && p.feeMode !== 'monthly') { %><br><span class="muted small">Guarantee ended <%= formatYmd(p.guaranteeEnds) %></span><% } %>
             </td>
-            <td><% if (p.feeMode === 'monthly') { %><b><%= inr(p.monthlyRate) %></b> / month<br><span class="muted small"><%= p.contractEnd ? 'Contract to ' + formatYmd(p.contractEnd) : 'No end date' %></span><% } else if (p.feeMode === 'free') { %><b>Free</b><br><span class="muted small">Replacement under guarantee</span><% } else { %><b><%= inr(p.fee) %></b><br><span class="muted small"><%= p.feeMode === 'percent' ? p.feePercent + '% of ' + inr(p.ctc) : 'Fixed fee' %></span><% } %></td>
+            <td><% if (p.feeMode === 'monthly') { %><b><%= inr(p.monthlyRate) %></b> / month<br><span class="muted small"><%= p.contractEnd ? 'Contract to ' + formatYmd(p.contractEnd) : 'No end date' %></span><% } else if (p.feeMode === 'assignment') { %><b>Per assignment</b><br><a class="muted small" href="/admin/staffing?placement=<%= p.id %>">Staffing assignments</a><% } else if (p.feeMode === 'free') { %><b>Free</b><br><span class="muted small">Replacement under guarantee</span><% } else { %><b><%= inr(p.fee) %></b><br><span class="muted small"><%= p.feeMode === 'percent' ? p.feePercent + '% of ' + inr(p.ctc) : 'Fixed fee' %></span><% } %></td>
             <td>
-              <% if (!isAdmin) { %>
-                <span class="muted small"><%= p.invoices.length ? p.invoices.length + ' invoice' + (p.invoices.length === 1 ? '' : 's') + ' issued' : 'Not invoiced yet' %>. Billing is handled by an Admin.</span>
+              <% if (!canBill) { %>
+                <span class="muted small"><%= p.invoices.length ? p.invoices.length + ' invoice' + (p.invoices.length === 1 ? '' : 's') + ' issued' : 'Not invoiced yet' %>. Billing is handled by an Admin or Finance Manager.</span>
               <% } else if (p.feeMode === 'monthly') { %>
                 <% const recent = p.invoices.slice().sort(function (a, b) { return b.inv.period.month.localeCompare(a.inv.period.month); }); %>
                 <% recent.slice(0, 3).forEach(function (x) { %>
@@ -65,6 +66,16 @@
                 <% if (p.timesheetsPending) { %><a class="pill st-screening" href="/admin/placements/<%= p.id %>/bill"><%= p.timesheetsPending %> timesheet<%= p.timesheetsPending === 1 ? '' : 's' %> waiting</a><br><% } %>
                 <% if (p.monthsDue.length) { %><span class="pill st-new">To bill: <%= p.monthsDue.map(monthLabel).join(', ') %></span><br><% } else if (!recent.length) { %><span class="muted small">No months billed yet</span><br><% } %>
                 <a class="btn btn-<%= p.monthsDue.length ? 'primary' : 'outline' %> btn-sm" href="/admin/placements/<%= p.id %>/bill">Bill a month</a>
+              <% } else if (p.feeMode === 'assignment') { %>
+                <% p.invoices.slice(-3).reverse().forEach(function (x) { %>
+                  <div class="month-inv">
+                    <a href="/admin/placements/<%= p.id %>/invoice?inv=<%= x.key %>" target="_blank" rel="noopener"><b><%= x.inv.number %></b></a> <span class="muted small"><%= x.inv.period ? x.inv.period.label : '' %></span><br>
+                    <%= inr(x.inv.total) %>
+                    <a class="pill <%= x.inv.status === 'Paid' ? 'st-hired' : x.overdue ? 'st-rejected' : x.inv.status === 'Credited' ? 'st-new' : 'st-screening' %>" href="/admin/placements/<%= p.id %>/payments?inv=<%= x.key %>"><%= x.overdue ? 'Overdue' : x.inv.status %></a>
+                  </div>
+                <% }) %>
+                <% if (!p.invoices.length) { %><span class="muted small">No periods billed yet</span><br><% } %>
+                <a class="btn btn-outline btn-sm" href="/admin/invoice-drafts">Invoice drafts</a>
               <% } else if (p.invoice) { %>
                 <a href="/admin/placements/<%= p.id %>/invoice" target="_blank" rel="noopener"><b><%= p.invoice.number %></b></a><br>
                 <%= inr(p.invoice.total) %>
@@ -93,17 +104,17 @@
                   </form>
                 <% } %>
               <% } %>
-              <% if (isAdmin) (p.cancelledInvoices || []).forEach(function (c) { %><br><a class="muted small strike" href="/admin/placements/<%= p.id %>/invoice?n=<%= encodeURIComponent(c.number) %>" target="_blank" rel="noopener"><%= c.number %></a> <span class="muted small">cancelled</span><% }) %>
+              <% if (canBill) (p.cancelledInvoices || []).forEach(function (c) { %><br><a class="muted small strike" href="/admin/placements/<%= p.id %>/invoice?n=<%= encodeURIComponent(c.number) %>" target="_blank" rel="noopener"><%= c.number %></a> <span class="muted small">cancelled</span><% }) %>
             </td>
             <td class="row-actions">
-              <a class="btn btn-outline btn-sm" href="/admin/placements/<%= p.id %>/edit">Edit</a>
-              <% if (!isAdmin) { %>
+              <% if (!finance) { %><a class="btn btn-outline btn-sm" href="/admin/placements/<%= p.id %>/edit">Edit</a><% } %>
+              <% if (!canBill) { %>
               <% } else if (p.invoice) { %>
                 <a class="btn btn-<%= ['Unpaid', 'Part paid'].includes(p.invoice.status) ? 'primary' : 'outline' %> btn-sm" href="/admin/placements/<%= p.id %>/payments">Payments</a>
                 <% if (p.invoice.status === 'Unpaid' && !(p.invoice.payments || []).length && !(p.invoice.creditNotes || []).length) { %>
                   <form method="post" action="/admin/placements/<%= p.id %>/invoice/cancel" data-confirm="Cancel invoice <%= p.invoice.number %>? The number stays on record and you can issue a new invoice."><button class="btn btn-sm btn-danger">Cancel invoice</button></form>
                 <% } %>
-              <% } else if (!p.invoices.length && !(p.cancelledInvoices || []).length) { %>
+              <% } else if (isAdmin && !p.invoices.length && !(p.cancelledInvoices || []).length) { %>
                 <form method="post" action="/admin/placements/<%= p.id %>/delete" data-confirm="Delete this placement?"><button class="btn btn-sm btn-danger">Delete</button></form>
               <% } %>
             </td>
