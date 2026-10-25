@@ -1,0 +1,23 @@
+<%- include('partials/head') %>
+
+<section class="page-hero page-hero-sm">
+  <div class="container narrow">
+    <span class="eyebrow"><%= t('a11y.eyebrow') %></span>
+    <h1><%= t('a11y.title') %></h1>
+    <p class="lead"><%= t('a11y.lead', { site: site.name }) %></p>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container narrow prose">
+    <h2><%= t('a11y.doneTitle') %></h2>
+    <ul class="checks"><% tlist('a11y.done').forEach(function (x) { %><li><%= x %></li><% }) %></ul>
+    <h2><%= t('a11y.limitsTitle') %></h2>
+    <ul><% tlist('a11y.limits').forEach(function (x) { %><li><%= x %></li><% }) %></ul>
+    <h2><%= t('a11y.contactTitle') %></h2>
+    <p><%- th('a11y.contactText', { site: site.name, email: html('<a href="mailto:' + esc(site.email) + '">' + esc(site.email) + '</a>'), phone: html('<a href="tel:' + esc(site.phone.replace(/\s/g, '')) + '">' + esc(site.phone) + '</a>') }) %></p>
+    <p class="small muted"><%= t('a11y.standard', { date: formatDate(reviewedOn) }) %></p>
+  </div>
+</section>
+
+<%- include('partials/foot') %>

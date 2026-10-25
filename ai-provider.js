@@ -110,6 +110,16 @@ function mockProvider() {
           { question: 'How old are you and are you married?', why: 'Personal', listen_for: '', type: 'personal' },
           { question: 'Which of the listed skills have you used most recently?', why: 'Skills', listen_for: 'Specific tasks', type: 'skills' },
         ] };
+      } else if (task === 'job-translation') {
+        // "हिन्दी: …" in front of every value; numbers kept, unless the
+        // listing asks the mock to drop them (MOCK_DROP_NUMBERS).
+        const src = JSON.parse((input.match(/<untrusted_job_listing>\n([\s\S]*)\n<\/untrusted_job_listing>/) || [])[1] || '{}');
+        const drop = input.includes('MOCK_DROP_NUMBERS');
+        const tr = (x) => `हिन्दी: ${drop ? String(x).replace(/\d/g, '') : x}`;
+        json = {
+          title: tr(src.title || ''), description: tr(src.description || ''), responsibilities: (src.responsibilities || []).map(tr), qualifications: (src.qualifications || []).map(tr),
+          benefits: (src.benefits || []).map(tr), unclear: ['"shift" was kept in English'],
+        };
       } else {
         text = input.includes('ignore previous instructions') ? 'I can help with your job search, resume and interviews.' : `Here is some help with: ${input.slice(0, 80)}`;
       }

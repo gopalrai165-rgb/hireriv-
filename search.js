@@ -107,15 +107,18 @@ function inLocation(job, location) {
 }
 
 // ---------- keyword ----------
-const words = (s) => String(s || '').toLowerCase().split(/[^\p{L}\p{N}+#.]+/u).filter((w) => w.length > 1 || /\d/.test(w));
+// Letters include combining marks, so Hindi and Telugu words (ड्राइवर, డ్రైవర్)
+// stay whole; invisible joiners are dropped first.
+const words = (s) => String(s || '').normalize('NFC').replace(/[​-‍⁠﻿]/g, '').toLowerCase().split(/[^\p{L}\p{M}\p{N}+#.]+/u).filter((w) => w.length > 1 || /\d/.test(w));
 // Every word must appear somewhere; title matches count most, then skills,
-// company and category, then the description.
-function relevance(job, terms) {
+// company and category, then the description. `more` is the text of the
+// job's approved translations, so words typed in Hindi can match them.
+function relevance(job, terms, more = '') {
   if (!terms.length) return 1;
   const fields = [
     [job.title, 6], [(job.skills || []).join(' '), 4], [job.company, 2], [job.category, 2],
-    [[job.description, ...(job.responsibilities || []), ...(job.qualifications || [])].join(' '), 1],
-  ].map(([text, weight]) => [String(text || '').toLowerCase(), weight]);
+    [[job.description, ...(job.responsibilities || []), ...(job.qualifications || [])].join(' '), 1], [more, 3],
+  ].map(([text, weight]) => [String(text || '').normalize('NFC').toLowerCase(), weight]);
   let score = 0;
   for (const t of terms) {
     let best = 0;
@@ -136,8 +139,9 @@ const hasSkills = (job, skills) => !skills.length || skills.every((s) => (job.sk
 
 // Filters: q, location, categories[], type, mode, work, group, experience,
 // minPay (₹ a month), skills[] (all of them), company, shift, sort.
-// `extra(job)` adds caller-specific rules.
-function searchJobs(list, f, { extra = () => true } = {}) {
+// `extra(job)` adds caller-specific rules; `moreText(job)` adds searchable
+// text (approved translations).
+function searchJobs(list, f, { extra = () => true, moreText = null } = {}) {
   const terms = [...new Set(words(f.q))].slice(0, 12);
   const cats = new Set(f.categories || []);
   const skills = f.skills || [];
@@ -153,7 +157,7 @@ function searchJobs(list, f, { extra = () => true } = {}) {
     if (f.experience && !fitsLevel(job, f.experience)) continue;
     if (f.minPay && !(monthlyMax(job) >= f.minPay)) continue;
     if (!extra(job)) continue;
-    const score = relevance(job, terms);
+    const score = relevance(job, terms, moreText && terms.length ? moreText(job) : '');
     if (!score) continue;
     scored.push({ job, score });
   }

@@ -1,15 +1,17 @@
 <%- include('partials/head') %>
-
+<%# Kept by the browser for when there is no connection, so it says the same
+    thing in every offered language: the person may have changed language
+    since it was saved. %>
 <section class="section">
   <div class="container narrow offline-page" data-offline-page>
-    <h1>You are offline</h1>
-    <p class="lead">There's no internet connection right now, so this page can't load.</p>
-    <ul class="plain-list">
-      <li>Check that mobile data or Wi-Fi is on.</li>
-      <li>Anything you were typing in a form is still in that page: go back and send it again once you're connected.</li>
-      <li>Your applications, profile and messages are never stored on this device, so sign in again once you're back online to see them.</li>
-    </ul>
-    <p><button type="button" class="btn btn-primary btn-lg" data-retry>Try again</button></p>
+    <% [locale].concat(languages.map(function (l) { return l.code; }).filter(function (c) { return c !== locale; })).forEach(function (code, i) { %>
+      <div lang="<%= code %>"<%- i ? ' class="offline-alt"' : '' %>>
+        <% if (i === 0) { %><h1><%= tIn(code, 'offline.title') %></h1><% } else { %><h2><%= tIn(code, 'offline.title') %></h2><% } %>
+        <p class="lead"><%= tIn(code, 'offline.lead') %></p>
+        <ul class="plain-list"><% tlistIn(code, 'offline.tips').forEach(function (x) { %><li><%= x %></li><% }) %></ul>
+      </div>
+      <% if (i === 0) { %><p><button type="button" class="btn btn-primary btn-lg" data-retry><%= tIn(code, 'offline.retry') %></button></p><% } %>
+    <% }) %>
   </div>
 </section>
 

@@ -1,63 +1,65 @@
+<% locals.translated = true; %>
 <%- include('partials/head') %>
 
 <section class="section auth-section">
   <div class="container auth-wrap register-wrap">
     <% if (done) { %>
       <div class="form-card auth-card">
-        <span class="eyebrow">Job-seeker account</span>
-        <h1>Check your email</h1>
-        <p class="notice" role="status">We've sent a link to open your account. It works once and expires in 24 hours.</p>
-        <p class="muted small">Didn't get it? Check spam, or <a href="/account/login">ask for a new sign-in link</a>.</p>
-        <a class="btn btn-outline btn-block" href="/jobs">Browse jobs meanwhile</a>
+        <span class="eyebrow"><%= t('account.eyebrow') %></span>
+        <h1><%= t('account.checkEmail') %></h1>
+        <p class="notice" role="status"><%= t('account.registerSent') %></p>
+        <p class="muted small"><%= t('account.noLink') %> <a href="/account/login"><%= t('account.newLink') %></a>.</p>
+        <a class="btn btn-outline btn-block" href="/jobs"><%= t('account.browseMeanwhile') %></a>
       </div>
     <% } else { %>
       <div class="register-intro">
-        <span class="eyebrow">Job-seeker account</span>
-        <h1>Create your free account</h1>
-        <p class="lead-sm">Save your details and resume once, then apply to jobs in one click.</p>
+        <span class="eyebrow"><%= t('account.eyebrow') %></span>
+        <h1><%= t('account.registerTitle') %></h1>
+        <p class="lead-sm"><%= t('account.registerLead') %></p>
         <ul class="checks">
-          <li>One-click applying with your saved profile</li>
-          <li>Jobs that match your skills and city</li>
-          <li>Job alerts by email, switched on in a click</li>
-          <li>Follow every application and interview</li>
-          <li>Free for job seekers, always. Sign in with an email link, or add a password later</li>
-          <li>We never ask for Aadhaar, PAN or bank details to apply</li>
+          <li><%= t('account.point1') %></li>
+          <li><%= t('account.point2') %></li>
+          <li><%= t('account.point3') %></li>
+          <li><%= t('account.point4') %></li>
+          <li><%= t('account.point5') %></li>
+          <li><%= t('account.point6') %></li>
         </ul>
-        <p class="small muted">Already have an account? <a href="/account/login<%= next ? '?next=' + encodeURIComponent(next) : '' %>">Sign in</a></p>
+        <p class="small muted"><%= t('account.haveAccount') %> <a href="/account/login<%= next ? '?next=' + encodeURIComponent(next) : '' %>"><%= t('account.signIn') %></a></p>
       </div>
       <div class="form-card auth-card">
-        <% if (errors.length) { %><div class="notice notice-err" role="alert"><% errors.forEach(function (e) { %><p><%= e %></p><% }) %></div><% } %>
+        <% if (errors.length) { %><div class="notice notice-err" role="alert" tabindex="-1" data-error-summary><% errors.forEach(function (e) { %><p><%= tm(e) %></p><% }) %></div><% } %>
         <form class="form" method="post" action="/account/register" enctype="multipart/form-data">
           <%- include('partials/honeypot') %>
           <% if (next) { %><input type="hidden" name="next" value="<%= next %>"><% } %>
+          <p class="small muted"><%= t('common.requiredNote') %></p>
           <div class="form-grid">
-            <label class="span-2">Full name*<input name="name" required maxlength="120" autocomplete="name" value="<%= values.name || '' %>"></label>
-            <label>Email*<input type="email" name="email" required maxlength="160" autocomplete="email" value="<%= values.email || '' %>"></label>
-            <label>Mobile number*<input type="tel" name="phone" required maxlength="20" autocomplete="tel" inputmode="tel" placeholder="98xxxxxxxx" value="<%= values.phone || '' %>"></label>
-            <label>Current city<input name="location" maxlength="120" autocomplete="address-level2" value="<%= values.location || '' %>"></label>
-            <label class="file-field">Resume <span class="muted small">(optional · PDF, DOC or DOCX, max 5 MB)</span><input type="file" name="resume" accept=".pdf,.doc,.docx"></label>
+            <label class="span-2"><%= t('account.fullName') %>*<input name="name" required maxlength="120" autocomplete="name" value="<%= values.name || '' %>"></label>
+            <label><%= t('account.email') %>*<input type="email" name="email" required maxlength="160" autocomplete="email" value="<%= values.email || '' %>"></label>
+            <label><%= t('account.mobile') %>*<input type="tel" name="phone" required maxlength="20" autocomplete="tel" inputmode="tel" placeholder="98xxxxxxxx" value="<%= values.phone || '' %>"></label>
+            <label><%= t('account.city') %><input name="location" maxlength="120" autocomplete="address-level2" value="<%= values.location || '' %>"></label>
+            <label class="file-field"><%= t('account.resume') %> <span class="muted small"><%= t('account.resumeOptional') %></span><input type="file" name="resume" accept=".pdf,.doc,.docx"></label>
           </div>
           <details class="more-fields"<%= values.experience || values.noticePeriod || values.skills || values.linkedin ? ' open' : '' %>>
-            <summary>Add experience and skills now <span class="muted small">(optional, you can do it later)</span></summary>
+            <summary><%= t('account.addMore') %> <span class="muted small"><%= t('account.addMoreNote') %></span></summary>
             <div class="form-grid">
-            <label>Experience
-              <select name="experience"><option value="">Select…</option><% experienceOptions.forEach(function (o) { %><option<%= o === values.experience ? ' selected' : '' %>><%= o %></option><% }) %></select>
+            <label><%= t('account.experience') %>
+              <select name="experience"><option value=""><%= t('account.select') %></option><% experienceOptions.forEach(function (o) { %><option value="<%= o %>"<%= o === values.experience ? ' selected' : '' %>><%= tv('experience', o) %></option><% }) %></select>
             </label>
-            <label>Notice period / can start
-              <select name="noticePeriod"><option value="">Select…</option><% noticeOptions.forEach(function (o) { %><option<%= o === values.noticePeriod ? ' selected' : '' %>><%= o %></option><% }) %></select>
+            <label><%= t('account.notice') %>
+              <select name="noticePeriod"><option value=""><%= t('account.select') %></option><% noticeOptions.forEach(function (o) { %><option value="<%= o %>"<%= o === values.noticePeriod ? ' selected' : '' %>><%= tv('notice', o) %></option><% }) %></select>
             </label>
-            <label class="span-2">Key skills, licences or certificates <span class="muted small">(comma separated)</span><input name="skills" maxlength="500" placeholder="e.g. Tally, GST or ITI Electrician, forklift" value="<%= values.skills || '' %>"></label>
-            <label class="span-2">LinkedIn / portfolio <span class="muted small">(optional)</span><input type="url" name="linkedin" maxlength="300" placeholder="https://" value="<%= values.linkedin || '' %>"></label>
+            <label class="span-2"><%= t('account.skills') %> <span class="muted small"><%= t('account.skillsNote') %></span><input name="skills" maxlength="500" placeholder="<%= t('account.skillsPlaceholder') %>" value="<%= values.skills || '' %>"></label>
+            <label class="span-2"><%= t('account.linkedin') %> <span class="muted small"><%= t('common.optional') %></span><input type="url" name="linkedin" maxlength="300" placeholder="https://" value="<%= values.linkedin || '' %>"></label>
             </div>
           </details>
           <div class="form-grid">
-            <p class="span-2 muted small">We use these details to keep your account, send each application to the employer you apply to, and tell you what happens next. Each choice below is separate and optional, and you can change it any time under Privacy &amp; data.</p>
-            <label class="span-2 check-row"><input type="checkbox" name="agree" value="1" required> <span>I agree to the <a href="/terms">Terms of Use</a> and have read the <a href="/privacy">Privacy Policy</a>.</span></label>
-            <label class="span-2 check-row"><input type="checkbox" name="considered" value="1"<%= values.considered === '1' ? ' checked' : '' %>> <span>Let <%= site.name %> recruiters consider me for other jobs that fit and contact me about them <span class="muted small">(optional)</span></span></label>
-            <label class="span-2 check-row"><input type="checkbox" name="whatsapp" value="1"> <span>Also send me job matches on WhatsApp <span class="muted small">(optional, switch off any time in Settings)</span></span></label>
+            <p class="span-2 muted small"><%= t('account.useNote') %></p>
+            <label class="span-2 check-row"><input type="checkbox" name="agree" value="1" required> <span><%- th('account.agree', { terms: html('<a href="/terms">' + esc(t('footer.terms')) + '</a>'), privacy: html('<a href="/privacy">' + esc(t('footer.privacy')) + '</a>') }) %></span></label>
+            <label class="span-2 check-row"><input type="checkbox" name="considered" value="1"<%= values.considered === '1' ? ' checked' : '' %>> <span><%= t('account.considered', { site: site.name }) %> <span class="muted small"><%= t('common.optional') %></span></span></label>
+            <label class="span-2 check-row"><input type="checkbox" name="whatsapp" value="1"> <span><%= t('account.whatsapp') %> <span class="muted small"><%= t('account.whatsappNote') %></span></span></label>
           </div>
-          <button class="btn btn-primary btn-block" type="submit">Create account</button>
-          <p class="muted small form-note">We'll email you a link to open your account. Your details are shared with an employer only when you apply or agree to it.</p>
+          <button class="btn btn-primary btn-block" type="submit"><%= t('account.create') %></button>
+          <p class="muted small form-note"><%= t('account.createNote') %></p>
         </form>
       </div>
     <% } %>

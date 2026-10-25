@@ -31,6 +31,7 @@ const FEATURES = {
   'resume-summary': 'Resume summaries',
   'interview-questions': 'Interview questions',
   'career-assistant': 'Career assistant for candidates',
+  'job-translation': 'Job listing translations',
 };
 const DEFAULTS = {
   enabled: true,
@@ -126,6 +127,14 @@ const TASKS = {
     effort: 'low', maxTokens: 1200,
     system: `${BASE}\nYou are Hireriv's career assistant for a job seeker. Help with finding suitable jobs on Hireriv, improving their profile and resume, and preparing for interviews. Keep answers short and practical. Only mention jobs from the list given, with their links. Never promise a job or an interview. Remind people that genuine employers never ask for money to apply and never need an OTP, UPI PIN or bank password. If asked about something unrelated to work and careers, say what you can help with. For legal or medical questions, suggest a qualified professional.`,
     schema: null,
+  },
+  'job-translation': {
+    effort: 'medium', maxTokens: 6000,
+    system: `${BASE.replace('Write plain, friendly English that a first-time job seeker understands.', 'Write plain, friendly language that a first-time job seeker understands.')}
+You translate a job listing into the target language named in the request, for the employer to check before it is published. Translate the meaning faithfully and simply, the way people in India say it; keep common English work words (such as shift, ITI, CTC) where people use them.
+Keep every number, amount, date, time and count exactly as written, in the same digits. Do not convert pay, add qualifications, local requirements or employment terms, or drop anything. Keep company names, brand names, product names, job ids, licence and certificate names as they are.
+Keep the same number of items in each list, in the same order. Under "unclear", list any word or sentence that was ambiguous, that you left in English, or that the employer should check.`,
+    schema: obj({ title: str, description: str, responsibilities: strs, qualifications: strs, benefits: strs, unclear: strs }),
   },
 };
 
@@ -244,6 +253,27 @@ function create(deps) {
       qualifications: r.qualifications.filter((x) => !PERSONAL_RE.test(x)).filter((x) => stripInvented(x, source, warnings) === x),
     });
     return run('job-draft', { actorType: 'employer', actorKey: `emp-user:${req.employerUser.id}`, employerId: req.employer.id, userText: f.notes, inputText, fallback, shape, guard });
+  }
+
+  // A translation of a job listing for the employer (or the team) to check
+  // and approve (job-translations.js). Without the AI, the original is copied
+  // for a person to write over; numbers and links are checked there.
+  function translateJob({ actorKey, actorType, employerId, job, source, lang, language }) {
+    const inputText = `Target language: ${language} (${lang})
+Translate this job listing. Keep the JSON keys; translate only the values.
+${fence('job_listing', JSON.stringify(source, null, 1))}`;
+    const shape = (j) => j && typeof j.title === 'string' && {
+      title: clip(j.title, 140), description: clip(j.description, 4000), responsibilities: list(j.responsibilities, 20), qualifications: list(j.qualifications, 20), benefits: list(j.benefits, 20), unclear: list(j.unclear, 10, 200),
+    };
+    const fallback = () => ({ ...source, unclear: [] });
+    return run('job-translation', { actorType, actorKey, employerId, jobId: job.id, userText: allTextOf(source), inputText, fallback, shape });
+  }
+  const allTextOf = (f) => [f.title, f.description, ...(f.responsibilities || []), ...(f.qualifications || []), ...(f.benefits || [])].join(' ');
+  const translationAvailable = () => Boolean(provider) && settings().enabled && settings().features['job-translation'];
+  // The person approved a translation the AI drafted.
+  function markReviewed(generationId, by, decision) {
+    const g = db.where(C.generations, 'id', generationId)[0];
+    if (g) review(g, { actorKey: by }, { decision });
   }
 
   // The match factors from job-match.js put into words. The score stays the
@@ -501,7 +531,7 @@ function create(deps) {
     res.redirect(303, '/admin/ai?msg=Saved');
   });
 
-  return { jobDraft, matchExplain, resumeSummary, interviewQuestions, careerMessage, settings, prune, erase, FEATURES };
+  return { jobDraft, matchExplain, resumeSummary, interviewQuestions, careerMessage, translateJob, translationAvailable, markReviewed, settings, prune, erase, FEATURES };
 }
 
 module.exports = { create, redact, fence, looksLikeInjection, stripInvented, inventedTerms, PERSONAL_RE, FEATURES, PROMPT_VERSION, TASKS };

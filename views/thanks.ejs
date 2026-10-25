@@ -2,12 +2,12 @@
 
 <section class="section">
   <div class="container narrow center status-page">
-    <span class="status-icon <%= ok ? 'ok' : 'err' %>"><svg class="i"><use href="#<%= ok ? 'i-check' : 'i-plus' %>"/></svg></span>
-    <h1><%= title %></h1>
-    <p class="lead"><%= message %></p>
+    <span class="status-icon <%= ok ? 'ok' : 'err' %>" aria-hidden="true"><svg class="i"><use href="#<%= ok ? 'i-check' : 'i-plus' %>"/></svg></span>
+    <h1><%= tm(title) %></h1>
+    <p class="lead"<%- ok ? '' : ' role="alert"' %>><%= tm(message) %></p>
     <div class="hero-ctas center">
-      <% if (ok) { %><a href="/" class="btn btn-primary">Back to home</a><a href="/jobs" class="btn btn-outline">Browse jobs</a>
-      <% } else { %><a href="/" class="btn btn-primary" data-history-back>Go back and fix</a><% } %>
+      <% if (ok) { %><a href="/" class="btn btn-primary"><%= t('status.backHome') %></a><a href="/jobs" class="btn btn-outline"><%= t('status.browseJobs') %></a>
+      <% } else { %><a href="/" class="btn btn-primary" data-history-back><%= t('status.goBack') %></a><% } %>
     </div>
   </div>
 </section>

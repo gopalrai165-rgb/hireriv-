@@ -16,28 +16,28 @@
         <div class="invoice-meta">
           <h1>Payment receipt</h1>
           <dl>
-            <dt>Received</dt><dd><%= new Date(t.paidAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'medium', timeStyle: 'short' }) %></dd>
-            <dt>Payment reference</dt><dd><%= t.paymentId %></dd>
-            <dt>Order</dt><dd><%= t.orderId %></dd>
-            <% if (t.method) { %><dt>Paid by</dt><dd><%= t.method.toUpperCase() %></dd><% } %>
+            <dt>Received</dt><dd><%= new Date(txn.paidAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'medium', timeStyle: 'short' }) %></dd>
+            <dt>Payment reference</dt><dd><%= txn.paymentId %></dd>
+            <dt>Order</dt><dd><%= txn.orderId %></dd>
+            <% if (txn.method) { %><dt>Paid by</dt><dd><%= txn.method.toUpperCase() %></dd><% } %>
           </dl>
         </div>
       </header>
       <section class="invoice-to">
         <p class="eyebrow">Received from</p>
-        <p><b><%= (t.quote && t.quote.buyer && t.quote.buyer.name) || company.company %></b></p>
+        <p><b><%= (txn.quote && txn.quote.buyer && txn.quote.buyer.name) || company.company %></b></p>
       </section>
       <div class="scroll-x">
         <table class="invoice-lines">
           <thead><tr><th>For</th><th class="num">Amount</th></tr></thead>
-          <tbody><tr><td><%= t.label %><% if (inv) { %><br><span class="muted small">Invoice <a href="/employer/billing/invoices/<%= inv.id %>"><%= inv.number %></a></span><% } %></td><td class="num"><%= inr(t.amountPaise) %></td></tr></tbody>
+          <tbody><tr><td><%= txn.label %><% if (inv) { %><br><span class="muted small">Invoice <a href="/employer/billing/invoices/<%= inv.id %>"><%= inv.number %></a></span><% } %></td><td class="num"><%= inr(txn.amountPaise) %></td></tr></tbody>
           <tfoot>
-            <% if (t.refundedPaise) { %><tr><td>Refunded</td><td class="num">− <%= inr(t.refundedPaise) %></td></tr><% } %>
-            <tr class="invoice-total"><td>Total received</td><td class="num"><%= inr(t.amountPaise - (t.refundedPaise || 0)) %></td></tr>
+            <% if (txn.refundedPaise) { %><tr><td>Refunded</td><td class="num">− <%= inr(txn.refundedPaise) %></td></tr><% } %>
+            <tr class="invoice-total"><td>Total received</td><td class="num"><%= inr(txn.amountPaise - (txn.refundedPaise || 0)) %></td></tr>
           </tfoot>
         </table>
       </div>
-      <p class="muted small invoice-foot">Payment received online through <%= t.provider === 'razorpay' ? 'Razorpay' : t.provider %>. This receipt is not a tax invoice<%= inv ? '; the tax invoice is ' + inv.number : '' %>.</p>
+      <p class="muted small invoice-foot">Payment received online through <%= txn.provider === 'razorpay' ? 'Razorpay' : txn.provider %>. This receipt is not a tax invoice<%= inv ? '; the tax invoice is ' + inv.number : '' %>.</p>
     </article>
   </div>
 </section>

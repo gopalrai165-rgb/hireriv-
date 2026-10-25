@@ -1,34 +1,45 @@
 <%- include('partials/head') %>
-
+<%
+  // An approved translation in this page's language: the words come from it,
+  // and every job detail (pay, place, type, dates) from the original listing.
+  const tr = typeof translation !== 'undefined' && translation;
+  const txt = tr || job;
+  const trLang = tr ? ' lang="' + tr.lang + '"' : '';
+  const pay = payLabel(job);
+  const place = job.location + (stateName && stateName !== job.location ? ', ' + stateName : '');
+%>
 <section class="page-hero page-hero-sm">
   <span class="deco deco-spark" aria-hidden="true"></span><span class="deco deco-dots" aria-hidden="true"></span><span class="deco deco-squiggle" aria-hidden="true"></span>
   <div class="container">
-    <a href="/jobs" class="back-link">← All jobs</a>
+    <a href="/jobs" class="back-link"><%= t('job.allJobs') %></a>
     <div class="job-title-row">
       <div>
-        <div class="chips"><span class="tag tag-<%= job.mode.toLowerCase().replace(/[^a-z]+/g, '-') %>"><%= job.mode %></span><span class="chip"><%= job.type %></span><span class="chip"><%= job.category %></span></div>
-        <h1><%= job.title %></h1>
+        <div class="chips"><span class="tag tag-<%= job.mode.toLowerCase().replace(/[^a-z]+/g, '-') %>"><%= tv('mode', job.mode) %></span><span class="chip"><%= tv('type', job.type) %></span><span class="chip"><%= tv('category', job.category) %></span></div>
+        <h1<%- trLang %>><%= txt.title %></h1>
         <% const tl = typeof trustLabels !== 'undefined' ? trustLabels : null; const badge = tl && tl.company; %>
-        <p class="lead"><% if (tl && tl.profileUrl) { %><a href="<%= tl.profileUrl %>"><%= job.company %></a><% } else { %><%= job.company %><% } %><% if (badge && badge.level === 'business') { %> <span class="verified" title="<%= badge.explain %>"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg><%= badge.label %></span><% } else if (!badge && verifiedEmployer) { %> <span class="verified" title="A client account checked by the <%= site.name %> team"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg>Verified employer</span><% } %></p>
+        <p class="lead"><% if (tl && tl.profileUrl) { %><a href="<%= tl.profileUrl %>"><%= job.company %></a><% } else { %><%= job.company %><% } %><% if (badge && badge.level === 'business') { %> <span class="verified" title="<%= badge.explain %>"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg><%= badge.label %></span><% } else if (!badge && verifiedEmployer) { %> <span class="verified" title="<%= t('job.verifiedTitle', { site: site.name }) %>"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg><%= t('job.verified') %></span><% } %></p>
       </div>
-      <% if (live) { %><div class="job-actions"><button type="button" class="btn btn-outline btn-lg save-btn save-btn-lg" data-save-job="<%= job.id %>" aria-pressed="false"><svg class="i"><use href="#i-bookmark"/></svg><span class="save-label">Save job</span></button><a href="#apply" class="btn btn-primary btn-lg">Apply now</a></div><% } else { %><span class="pill st-rejected">No longer accepting applications</span><% } %>
+      <% if (live) { %><div class="job-actions"><button type="button" class="btn btn-outline btn-lg save-btn save-btn-lg" data-save-job="<%= job.id %>" aria-pressed="false"><svg class="i" aria-hidden="true"><use href="#i-bookmark"/></svg><span class="save-label"><%= t('job.saveJob') %></span></button><a href="#apply" class="btn btn-primary btn-lg"><%= t('job.applyNow') %></a></div><% } else { %><span class="pill st-rejected"><%= t('job.noLonger') %></span><% } %>
     </div>
     <ul class="job-meta job-meta-lg">
-      <li><svg class="i"><use href="#i-pin"/></svg><span class="sr-only">Location: </span><%= job.location %><%= stateName && stateName !== job.location ? ', ' + stateName : '' %></li>
-      <% if (job.experience) { %><li><svg class="i"><use href="#i-briefcase"/></svg><span class="sr-only">Experience: </span><%= job.experience %></li><% } %>
-      <li><svg class="i"><use href="#i-wallet"/></svg><span class="sr-only">Pay: </span><%= job.salary || 'Pay not disclosed' %></li>
-      <li><svg class="i"><use href="#i-clock"/></svg>Posted <%= daysAgo(job.posted).toLowerCase() %></li>
-      <% if (live && job.closesOn) { %><li><svg class="i"><use href="#i-clock"/></svg>Apply by <%= formatDate(job.closesOn) %></li><% } %>
+      <li><svg class="i" aria-hidden="true"><use href="#i-pin"/></svg><span class="sr-only"><%= t('job.location') %> </span><%= place %></li>
+      <% if (job.experience) { %><li><svg class="i" aria-hidden="true"><use href="#i-briefcase"/></svg><span class="sr-only"><%= t('job.experience') %> </span><%= tv('experience', job.experience) %></li><% } %>
+      <li><svg class="i" aria-hidden="true"><use href="#i-wallet"/></svg><span class="sr-only"><%= t('job.pay') %> </span><%= pay || t('pay.notDisclosed') %></li>
+      <% const ago = Math.max(0, Math.floor((Date.now() - new Date(job.posted)) / 86400000)); %>
+      <li><svg class="i" aria-hidden="true"><use href="#i-clock"/></svg><%= ago === 0 ? t('time.postedToday') : t('time.postedAgo', { count: ago }) %></li>
+      <% if (live && job.closesOn) { %><li><svg class="i" aria-hidden="true"><use href="#i-clock"/></svg><%= t('job.applyBy', { date: formatDate(job.closesOn) }) %></li><% } %>
     </ul>
     <% if (live) { %>
       <%# Shared links carry utm_source so Reports can show which shares bring applicants. %>
       <% const shareText = job.title + ' (' + job.location + ') – apply via ' + site.name + ': ' + canonical + '?utm_source=whatsapp'; %>
       <div class="share-row" data-share-url="<%= canonical %>?utm_source=share" data-share-title="<%= job.title %> – <%= site.name %>">
-        <span class="share-label">Share this job</span>
-        <a class="share-btn share-wa" href="https://wa.me/?text=<%= encodeURIComponent(shareText) %>" target="_blank" rel="noopener noreferrer" aria-label="Share on WhatsApp"><svg class="i"><use href="#i-whatsapp"/></svg><span>WhatsApp</span></a>
-        <a class="share-btn share-li" href="https://www.linkedin.com/sharing/share-offsite/?url=<%= encodeURIComponent(canonical + '?utm_source=linkedin') %>" target="_blank" rel="noopener noreferrer" aria-label="Share on LinkedIn"><svg class="i"><use href="#i-linkedin"/></svg><span>LinkedIn</span></a>
-        <button type="button" class="share-btn" data-copy-link aria-label="Copy link to this job"><svg class="i"><use href="#i-link"/></svg><span>Copy link</span></button>
-        <button type="button" class="share-btn share-native" data-native-share hidden aria-label="More sharing options"><svg class="i"><use href="#i-share"/></svg><span>More</span></button>
+        <span class="share-label"><%= t('job.share') %></span>
+        <a class="share-btn share-wa" href="https://wa.me/?text=<%= encodeURIComponent(shareText) %>" target="_blank" rel="noopener noreferrer" aria-label="<%= t('job.shareWhatsapp') %>"><svg class="i" aria-hidden="true"><use href="#i-whatsapp"/></svg><span>WhatsApp</span></a>
+        <a class="share-btn share-li" href="https://www.linkedin.com/sharing/share-offsite/?url=<%= encodeURIComponent(canonical + '?utm_source=linkedin') %>" target="_blank" rel="noopener noreferrer" aria-label="<%= t('job.shareLinkedin') %>"><svg class="i" aria-hidden="true"><use href="#i-linkedin"/></svg><span>LinkedIn</span></a>
+        <button type="button" class="share-btn" data-copy-link aria-label="<%= t('job.copyLinkLabel') %>"><svg class="i" aria-hidden="true"><use href="#i-link"/></svg><span><%= t('job.copyLink') %></span></button>
+        <button type="button" class="share-btn share-native" data-native-share hidden aria-label="<%= t('job.moreLabel') %>"><svg class="i" aria-hidden="true"><use href="#i-share"/></svg><span><%= t('job.more') %></span></button>
+        <%# Read aloud with the browser's own voice; hidden where the browser has none. %>
+        <button type="button" class="share-btn" data-read-aloud="#job-text" data-read-lang="<%= tr ? langInfo.tag : 'en-IN' %>" aria-pressed="false" hidden><svg class="i" aria-hidden="true"><use href="#i-speaker"/></svg><span data-read-label><%= t('job.listen') %></span></button>
       </div>
     <% } %>
   </div>
@@ -37,127 +48,141 @@
 <section class="section">
   <div class="container job-layout">
     <article class="job-body">
-      <h2>About the role</h2>
-      <p><%= job.description %></p>
-      <% if (job.responsibilities.length) { %>
-        <h2>What you'll do</h2>
-        <ul class="checks"><% job.responsibilities.forEach(function (r) { %><li><%= r %></li><% }) %></ul>
-      <% } %>
-      <% if ((job.qualifications || []).length) { %>
-        <h2>What you need</h2>
-        <ul class="checks"><% job.qualifications.forEach(function (r) { %><li><%= r %></li><% }) %></ul>
+      <div id="job-text"<%- trLang %>>
+        <% if (tr) { %><p class="notice small" lang="<%= locale %>"><%= tr.byCompany ? t('job.translatedBy', { language: langInfo.native, company: job.company, date: formatDate(tr.approvedAt) }) : t('job.translatedByAgency', { language: langInfo.native, site: site.name, date: formatDate(tr.approvedAt) }) %></p><% } %>
+        <h2 lang="<%= locale %>"><%= t('job.about') %></h2>
+        <p class="pre-line"><%= txt.description %></p>
+        <% if ((txt.responsibilities || []).length) { %>
+          <h2 lang="<%= locale %>"><%= t('job.whatYouDo') %></h2>
+          <ul class="checks"><% txt.responsibilities.forEach(function (r) { %><li><%= r %></li><% }) %></ul>
+        <% } %>
+        <% if ((txt.qualifications || []).length) { %>
+          <h2 lang="<%= locale %>"><%= t('job.whatYouNeed') %></h2>
+          <ul class="checks"><% txt.qualifications.forEach(function (r) { %><li><%= r %></li><% }) %></ul>
+        <% } %>
+      </div>
+      <% if (tr) { %>
+        <details class="original-text" lang="en">
+          <summary lang="<%= locale %>"><%= t('job.original', { language: 'English' }) %></summary>
+          <h3><%= job.title %></h3>
+          <p class="pre-line"><%= job.description %></p>
+          <% if (job.responsibilities.length) { %><ul><% job.responsibilities.forEach(function (r) { %><li><%= r %></li><% }) %></ul><% } %>
+          <% if ((job.qualifications || []).length) { %><ul><% job.qualifications.forEach(function (r) { %><li><%= r %></li><% }) %></ul><% } %>
+          <% if ((job.benefits || []).length) { %><ul><% job.benefits.forEach(function (r) { %><li><%= r %></li><% }) %></ul><% } %>
+        </details>
       <% } %>
       <% if (job.skills.length) { %>
-        <h2>Key skills</h2>
-        <div class="chips chips-lg"><% job.skills.forEach(function (s) { %><span class="chip"><%= s %></span><% }) %></div>
+        <h2><%= t('job.keySkills') %></h2>
+        <div class="chips chips-lg"><% job.skills.forEach(function (s) { %><span class="chip" lang="en"><%= s %></span><% }) %></div>
       <% } %>
-      <h2>Job details</h2>
+      <h2><%= t('job.details') %></h2>
       <dl class="job-facts">
-        <div><dt>Employment type</dt><dd><%= job.type %></dd></div>
-        <div><dt>Work arrangement</dt><dd><%= job.mode %></dd></div>
-        <div><dt>Workplace</dt><dd><%= job.location %><%= stateName && stateName !== job.location ? ', ' + stateName : '' %></dd></div>
-        <div><dt>Pay</dt><dd><%= job.salary || 'Not disclosed' %></dd></div>
-        <div><dt>Experience</dt><dd><%= job.experience || 'Not specified' %></dd></div>
-        <% if (job.education) { %><div><dt>Education</dt><dd><%= job.education %></dd></div><% } %>
-        <% if (job.address) { %><div><dt>Address</dt><dd><%= job.address %><%= job.walkIn ? ' (walk-in interviews)' : '' %></dd></div><% } %>
-        <% if (job.openings) { %><div><dt>Openings</dt><dd><%= job.openings %></dd></div><% } %>
-        <% if (job.shift) { %><div><dt>Shift</dt><dd><%= job.shift %></dd></div><% } %>
-        <% if (job.hours) { %><div><dt>Working hours</dt><dd><%= job.hours %></dd></div><% } %>
-        <% if (job.schedule) { %><div><dt>Work schedule</dt><dd><%= job.schedule %></dd></div><% } %>
-        <% if (job.overtime) { %><div><dt>Overtime</dt><dd><%= job.overtime %></dd></div><% } %>
-        <% if (job.workerCosts) { %><div><dt>Costs you pay</dt><dd><%= job.workerCosts %></dd></div><% } %>
-        <div><dt>Apply by</dt><dd><%= job.closesOn ? formatDate(job.closesOn) : 'Open until filled' %></dd></div>
+        <div><dt><%= t('job.fType') %></dt><dd><%= tv('type', job.type) %></dd></div>
+        <div><dt><%= t('job.fMode') %></dt><dd><%= tv('mode', job.mode) %></dd></div>
+        <div><dt><%= t('job.fPlace') %></dt><dd><%= place %></dd></div>
+        <div><dt><%= t('job.fPay') %></dt><dd><%= pay || t('job.notDisclosed') %></dd></div>
+        <div><dt><%= t('job.fExperience') %></dt><dd><%= job.experience ? tv('experience', job.experience) : t('job.notSpecified') %></dd></div>
+        <% if (job.education) { %><div><dt><%= t('job.fEducation') %></dt><dd><%= job.education %></dd></div><% } %>
+        <% if (job.address) { %><div><dt><%= t('job.fAddress') %></dt><dd><%= job.address %><%= job.walkIn ? ' ' + t('job.walkIn') : '' %></dd></div><% } %>
+        <% if (job.openings) { %><div><dt><%= t('job.fOpenings') %></dt><dd><%= job.openings %></dd></div><% } %>
+        <% if (job.shift) { %><div><dt><%= t('job.fShift') %></dt><dd><%= tv('shift', job.shift) %></dd></div><% } %>
+        <% if (job.hours) { %><div><dt><%= t('job.fHours') %></dt><dd><%= job.hours %></dd></div><% } %>
+        <% if (job.schedule) { %><div><dt><%= t('job.fSchedule') %></dt><dd><%= job.schedule %></dd></div><% } %>
+        <% if (job.overtime) { %><div><dt><%= t('job.fOvertime') %></dt><dd><%= job.overtime %></dd></div><% } %>
+        <% if (job.workerCosts) { %><div><dt><%= t('job.fCosts') %></dt><dd><%= job.workerCosts %></dd></div><% } %>
+        <div><dt><%= t('job.fApplyBy') %></dt><dd><%= job.closesOn ? formatDate(job.closesOn) : t('job.openUntilFilled') %></dd></div>
       </dl>
+      <p class="small"><a href="/help/job-terms"><%= t('job.termsLink') %></a></p>
       <% const needs = (job.mustHave || []).length || job.immediate || job.physical; %>
       <% if (needs) { %>
-        <h2>Requirements</h2>
+        <h2><%= t('job.requirements') %></h2>
         <ul class="checks">
           <% (job.mustHave || []).forEach(function (r) { %><li><%= r %></li><% }) %>
-          <% if (job.immediate) { %><li>Can start straight away</li><% } %>
-          <% if (job.physical) { %><li>Physical work: <%= job.physical %></li><% } %>
+          <% if (job.immediate) { %><li><%= t('job.startNow') %></li><% } %>
+          <% if (job.physical) { %><li><%= t('job.physical', { what: job.physical }) %></li><% } %>
         </ul>
       <% } %>
       <% if (match) { %>
         <section class="match-box" aria-labelledby="match-h">
-          <h2 id="match-h">How you match</h2>
+          <h2 id="match-h"><%= t('job.howMatch') %></h2>
           <%- include('partials/match-explain', { m: match }) %>
-          <p class="small">Something missing or out of date? <a href="/account/profile">Update your profile</a>. You can apply whatever the match says.</p>
+          <p class="small"><%= t('job.matchUpdate') %> <a href="/account/profile"><%= t('job.matchUpdateLink') %></a>. <%= t('job.matchAnyway') %></p>
         </section>
       <% } %>
       <% if ((job.eligibility || []).length) { %>
-        <h2>Who can apply</h2>
+        <h2><%= t('job.whoCanApply') %></h2>
         <ul class="checks"><% job.eligibility.forEach(function (b) { %><li><%= b %></li><% }) %></ul>
       <% } %>
-      <% if ((job.benefits || []).length) { %>
-        <h2>Benefits</h2>
-        <ul class="checks"><% job.benefits.forEach(function (b) { %><li><%= b %></li><% }) %></ul>
+      <% if ((txt.benefits || []).length) { %>
+        <h2><%= t('job.benefits') %></h2>
+        <ul class="checks"<%- trLang %>><% txt.benefits.forEach(function (b) { %><li><%= b %></li><% }) %></ul>
       <% } %>
       <% if (job.createdBy === 'employer') { %>
-      <h2>About applying</h2>
-      <p>This job was posted by <%= job.company %> and checked by the <%= site.name %> team. Your application goes directly to the company's hiring team, who will contact you. It's free: <b>no genuine employer asks job seekers for money</b>. If anyone does, report this job below.</p>
+      <h2><%= t('job.aboutApplying') %></h2>
+      <p><%= t('job.employerPosted', { company: job.company, site: site.name }) %></p>
       <% } else { %>
-      <h2>Why apply through Hireriv?</h2>
-      <p>You'll work with a dedicated recruiter who shares honest feedback, helps you prepare for each interview round and negotiates on your behalf. It's completely free for candidates: <b>we never ask job seekers for money</b>.</p>
+      <h2><%= t('job.whyHireriv') %></h2>
+      <p><%= t('job.whyHirerivText') %></p>
       <% } %>
       <% if (tl && (tl.company || tl.listing)) { %>
-      <section class="trust-labels" aria-labelledby="checks-head">
-        <h2 id="checks-head">What we checked</h2>
+      <section class="trust-labels" aria-labelledby="checks-head" lang="en">
+        <h2 id="checks-head" lang="<%= locale %>"><%= t('job.checked') %></h2>
         <ul class="checks">
           <% if (tl.company) { %><li><b><%= tl.company.label %>.</b> <%= tl.company.explain %></li><% } %>
           <% if (tl.listing) { %><li><b><%= tl.listing.label %>.</b> <%= tl.listing.explain %></li><% } %>
           <% if (tl.recruiter) { %><li><b><%= tl.recruiter.label %>.</b> <%= tl.recruiter.explain %></li><% } %>
         </ul>
-        <p class="small muted"><%= tl.note %><% if (tl.profileUrl) { %> <a href="<%= tl.profileUrl %>">More about <%= job.company %></a>.<% } %></p>
+        <p class="small muted"><%= tl.note %><% if (tl.profileUrl) { %> <a href="<%= tl.profileUrl %>" lang="<%= locale %>"><%= t('job.moreAbout', { company: job.company }) %></a>.<% } %></p>
       </section>
       <% } %>
       <details class="report-job" id="report">
-        <summary>Report this job</summary>
-        <p class="small muted">Does this listing look fake, ask for money, or have wrong details? Tell us and our team will check it within one working day.</p>
+        <summary><%= t('job.report') %></summary>
+        <p class="small muted"><%= t('job.reportText') %></p>
         <form class="form js-form" action="/api/jobs/<%= job.id %>/report" method="post">
           <%- include('partials/honeypot') %>
           <div class="form-grid">
-            <label class="span-2">What's wrong?*
+            <label class="span-2"><%= t('job.reportWhat') %>
               <select name="reason" required>
-                <option value="">Choose a reason…</option>
-                <% reportReasons.forEach(function (r) { %><option><%= r %></option><% }) %>
+                <option value=""><%= t('job.reportChoose') %></option>
+                <% reportReasons.forEach(function (r) { %><option value="<%= r %>"><%= tv('report', r) %></option><% }) %>
               </select>
             </label>
-            <label class="span-2">Details <span class="muted small">(optional)</span><textarea name="details" rows="3" maxlength="1000"></textarea></label>
-            <label class="span-2">Your email <span class="muted small">(optional, if you'd like a reply)</span><input type="email" name="email" autocomplete="email"></label>
+            <label class="span-2"><%= t('job.reportDetails') %> <span class="muted small"><%= t('common.optional') %></span><textarea name="details" rows="3" maxlength="1000"></textarea></label>
+            <label class="span-2"><%= t('job.reportEmail') %> <span class="muted small"><%= t('job.reportEmailNote') %></span><input type="email" name="email" autocomplete="email"></label>
           </div>
-          <button class="btn btn-outline btn-sm" type="submit">Send report</button>
+          <button class="btn btn-outline btn-sm" type="submit"><%= t('job.reportSend') %></button>
         </form>
-        <div class="notice" data-receipt hidden tabindex="-1" role="status"><p>Your reference is <b data-ref></b>. <a data-track href="#">Follow your report</a> (keep this link private).</p></div>
-        <p class="small muted">If you have lost money or shared bank details, an OTP or a UPI PIN, report it at once on the National Cyber Crime Reporting Portal (<a href="https://cybercrime.gov.in" rel="noopener noreferrer" target="_blank">cybercrime.gov.in</a>) or call the helpline <a href="tel:1930">1930</a>, and tell your bank.</p>
+        <div class="notice" data-receipt hidden tabindex="-1" role="status"><p><%= t('job.reportRef') %> <b data-ref></b>. <a data-track href="#"><%= t('job.reportFollow') %></a> <%= t('job.reportPrivate') %></p></div>
+        <p class="small muted"><%- th('job.cyber', { portal: html('<a href="https://cybercrime.gov.in" rel="noopener noreferrer" target="_blank">cybercrime.gov.in</a>'), helpline: html('<a href="tel:1930">1930</a>') }) %></p>
       </details>
     </article>
-    <aside class="form-card sticky" id="apply">
+    <aside class="form-card sticky" id="apply" aria-labelledby="apply-h">
       <% if (isSample(job)) { %>
-        <h2>Sample listing</h2>
-        <p class="notice sample-note">This is an example that shows how jobs appear on <%= site.name %>. It isn't a real vacancy, so it isn't taking applications.</p>
-        <a href="/jobs" class="btn btn-primary btn-block">See open jobs</a>
-        <a href="/jobs#register" class="btn btn-outline btn-block">Send us your CV</a>
+        <h2 id="apply-h"><%= t('job.sampleTitle') %></h2>
+        <p class="notice sample-note"><%= t('job.sampleText', { site: site.name }) %></p>
+        <a href="/jobs" class="btn btn-primary btn-block"><%= t('common.seeOpenJobs') %></a>
+        <a href="/jobs#register" class="btn btn-outline btn-block"><%= t('job.sendCv') %></a>
       <% } else if (!live) { %>
-        <h2>This role is closed</h2>
-        <p class="muted">We're no longer accepting applications for this job. Browse our open roles or send us your CV, and we'll match you to the next one.</p>
-        <a href="/jobs" class="btn btn-primary btn-block">See open jobs</a>
+        <h2 id="apply-h"><%= t('job.closedTitle') %></h2>
+        <p class="muted"><%= t('job.closedText') %></p>
+        <a href="/jobs" class="btn btn-primary btn-block"><%= t('common.seeOpenJobs') %></a>
       <% } else { %>
-        <h2>Apply for this job</h2>
-        <% if (msg) { %><p class="notice" role="status"><%= msg %></p><% } %>
+        <h2 id="apply-h"><%= t('job.applyTitle') %></h2>
+        <% if (msg) { %><p class="notice" role="status"><%= tm(msg) %></p><% } %>
         <% if (account && account.applied) { %>
-          <p class="notice">You applied for this job on <%= formatDate(account.applied) %>.</p>
-          <a href="/account" class="btn btn-primary btn-block">Track it in My account</a>
+          <p class="notice"><%= t('job.appliedOn', { date: formatDate(account.applied) }) %></p>
+          <a href="/account" class="btn btn-primary btn-block"><%= t('job.trackIt') %></a>
         <% } else if (account && !account.missing.length) { %>
           <div class="one-click">
-            <p class="small muted">Apply with your saved profile:</p>
-            <p><b><%= account.name %></b><br><span class="small"><%= account.email %> · <%= account.phone %><%= account.hasResume ? ' · resume on file' : '' %></span></p>
-            <form method="post" action="/account/apply/<%= job.id %>"><button class="btn btn-primary btn-block" type="submit">Apply in one click</button></form>
-            <p class="small muted">Something out of date? <a href="/account#profile">Update your profile</a> first.</p>
+            <p class="small muted"><%= t('job.oneClickIntro') %></p>
+            <p><b><%= account.name %></b><br><span class="small"><%= account.email %> · <%= account.phone %><%= account.hasResume ? ' · ' + t('job.resumeOnFile') : '' %></span></p>
+            <form method="post" action="/account/apply/<%= job.id %>"><button class="btn btn-primary btn-block" type="submit"><%= t('job.oneClick') %></button></form>
+            <p class="small muted"><%= t('job.outOfDate') %> <a href="/account#profile"><%= t('job.outOfDateLink') %></a> <%= t('job.outOfDateAfter') %></p>
           </div>
         <% } else { %>
-          <% if (account) { %><p class="notice small">Add <%= account.missing.join(' and ') %> to <a href="/account#profile">your profile</a> to apply in one click, or use the form below.</p><% } %>
+          <% if (account) { %><p class="notice small"><%- th('job.addMissing', { missing: account.missing.map(function (m) { return tm(m); }).join(' ' + t('job.and') + ' '), profile: html('<a href="/account#profile">' + esc(t('job.yourProfile')) + '</a>') }) %></p><% } %>
           <%- include('partials/apply-form', { jobId: job.id, quick: quick, whatsappApply: whatsappApply }) %>
-          <% if (!account) { %><p class="small muted one-click-hint">Have an account? <a href="/account/login">Sign in</a> to apply in one click. New? <a href="/account/register">Create one free</a>.</p><% } %>
+          <% if (!account) { %><p class="small muted one-click-hint"><%= t('job.haveAccount') %> <a href="/account/login"><%= t('job.signIn') %></a> <%= t('job.oneClickHint') %> <a href="/account/register"><%= t('job.createFree') %></a>.</p><% } %>
         <% } %>
       <% } %>
     </aside>
@@ -167,7 +192,7 @@
 <% if (related.length) { %>
 <section class="section section-tint">
   <div class="container">
-    <div class="section-head row"><h2>Similar jobs</h2></div>
+    <div class="section-head row"><h2><%= t('job.similar') %></h2></div>
     <div class="jobs-grid">
       <% related.forEach(function (job) { %><%- include('partials/job-card', { job: job }) %><% }) %>
     </div>

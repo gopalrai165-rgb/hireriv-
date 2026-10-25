@@ -5,14 +5,14 @@
 <section class="newsletter">
   <div class="container newsletter-inner">
     <div>
-      <h2>Get new roles &amp; hiring insights</h2>
-      <p>One short email a fortnight. No spam, unsubscribe anytime.</p>
+      <h2><%= t('footer.newsTitle') %></h2>
+      <p><%= t('footer.newsText') %></p>
     </div>
     <form class="newsletter-form js-form" action="/api/newsletter" method="post">
   <%- include('honeypot') %>
-      <label class="sr-only" for="nl-email">Email address</label>
+      <label class="sr-only" for="nl-email"><%= t('footer.newsEmail') %></label>
       <input id="nl-email" type="email" name="email" placeholder="you@company.com" required>
-      <button class="btn btn-accent" type="submit">Subscribe</button>
+      <button class="btn btn-accent" type="submit"><%= t('footer.subscribe') %></button>
     </form>
   </div>
 </section>
@@ -26,60 +26,64 @@
       <% const socials = [['linkedin', 'LinkedIn'], ['instagram', 'Instagram'], ['facebook', 'Facebook'], ['x', 'X']].filter(function (s) { return /^https?:\/\//.test(site.social[s[0]] || ''); }); %>
       <% if (socials.length) { %>
       <div class="social">
-        <% socials.forEach(function (s) { %><a href="<%= site.social[s[0]] %>" aria-label="<%= site.name %> on <%= s[1] %>" target="_blank" rel="noopener"><svg class="i"><use href="#i-<%= s[0] %>"/></svg></a><% }) %>
+        <% socials.forEach(function (s) { %><a href="<%= site.social[s[0]] %>" aria-label="<%= t('footer.socialOn', { site: site.name, network: s[1] }) %>" target="_blank" rel="noopener"><svg class="i" aria-hidden="true"><use href="#i-<%= s[0] %>"/></svg></a><% }) %>
       </div>
       <% } %>
     </div>
     <div>
-      <h4>Company</h4>
-      <a href="/about">About Us</a>
-      <a href="/blog">Career Resources</a>
-      <a href="/contact">Contact</a>
+      <h2 class="footer-h"><%= t('footer.company') %></h2>
+      <a href="/about"><%= t('footer.about') %></a>
+      <a href="/blog"><%= t('nav.resources') %></a>
+      <a href="/contact"><%= t('footer.contact') %></a>
+      <a href="/help/job-terms"><%= t('footer.jobTerms') %></a>
+      <a href="/accessibility"><%= t('footer.accessibility') %></a>
     </div>
     <div>
-      <h4>Services</h4>
+      <h2 class="footer-h"><%= t('footer.services') %></h2>
       <% catalog.SERVICES.forEach(function (s) { %><a href="/services/<%= s.slug %>"><%= s.name %></a><% }) %>
-      <a href="/industries">Industries we hire for</a>
+      <a href="/industries"><%= t('footer.industries') %></a>
     </div>
     <div>
-      <h4>Jobs &amp; hiring</h4>
-      <a href="/jobs">Find Jobs</a>
-      <a href="/categories">Job Categories</a>
-      <a href="/jobs#register">Submit your CV</a>
-      <a href="/post-a-job">Post a Job</a>
-      <a href="/hire">Hire a Team</a>
-      <a href="/account/register">Create a job-seeker account</a>
-      <a href="/account/login">Job seeker sign in</a>
-      <a href="/employer/register">Employer sign up</a>
-      <a href="/employer/login">Employer login</a>
-      <a href="/developers">API for developers</a>
+      <h2 class="footer-h"><%= t('footer.jobsHiring') %></h2>
+      <a href="/jobs"><%= t('nav.findJobs') %></a>
+      <a href="/categories"><%= t('nav.categories') %></a>
+      <a href="/jobs#register"><%= t('footer.submitCv') %></a>
+      <a href="/post-a-job"><%= t('nav.postJob') %></a>
+      <a href="/hire"><%= t('footer.hireTeam') %></a>
+      <a href="/account/register"><%= t('footer.createSeeker') %></a>
+      <a href="/account/login"><%= t('footer.seekerSignIn') %></a>
+      <a href="/employer/register"><%= t('footer.employerSignUp') %></a>
+      <a href="/employer/login"><%= t('footer.employerLogin') %></a>
+      <a href="/developers"><%= t('footer.developers') %></a>
     </div>
     <div>
-      <h4>Get in touch</h4>
-      <p class="contact-line"><svg class="i"><use href="#i-pin"/></svg><%= site.address %></p>
-      <p class="contact-line"><svg class="i"><use href="#i-phone"/></svg><a href="tel:<%= site.phone.replace(/\s/g, '') %>"><%= site.phone %></a></p>
-      <p class="contact-line"><svg class="i"><use href="#i-mail"/></svg><a href="mailto:<%= site.email %>"><%= site.email %></a></p>
+      <h2 class="footer-h"><%= t('footer.touch') %></h2>
+      <p class="contact-line"><svg class="i" aria-hidden="true"><use href="#i-pin"/></svg><%= site.address %></p>
+      <p class="contact-line"><svg class="i" aria-hidden="true"><use href="#i-phone"/></svg><a href="tel:<%= site.phone.replace(/\s/g, '') %>"><%= site.phone %></a></p>
+      <p class="contact-line"><svg class="i" aria-hidden="true"><use href="#i-mail"/></svg><a href="mailto:<%= site.email %>"><%= site.email %></a></p>
     </div>
   </div>
   <div class="container footer-bottom">
-    <span>© <%= new Date().getFullYear() %> <%= site.name %> by Raigozen. All rights reserved.</span>
-    <span class="footer-links"><a href="/privacy">Privacy Policy</a><a href="/terms">Terms of Use</a><a href="#top">Back to top ↑</a></span>
+    <span><%= t('footer.rights', { year: new Date().getFullYear(), site: site.name }) %></span>
+    <span class="footer-links"><a href="/privacy"><%= t('footer.privacy') %></a><a href="/terms"><%= t('footer.terms') %></a><a href="#top"><%= t('common.backToTop') %></a></span>
   </div>
 </footer>
 
-<% if (!ws) { %><a class="whatsapp-float" href="https://wa.me/<%= site.whatsapp %>?text=Hi%20Hireriv%2C%20I%27d%20like%20to%20know%20more" target="_blank" rel="noopener" aria-label="Chat on WhatsApp">
-  <svg class="i"><use href="#i-whatsapp"/></svg>
+<% if (!ws) { %><a class="whatsapp-float" href="https://wa.me/<%= site.whatsapp %>?text=Hi%20Hireriv%2C%20I%27d%20like%20to%20know%20more" target="_blank" rel="noopener" aria-label="<%= t('common.whatsappChat') %>">
+  <svg class="i" aria-hidden="true"><use href="#i-whatsapp"/></svg>
 </a><% } %>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <div class="app-bar" id="app-update" role="status" hidden>
-  <span>A new version of <%= site.name %> is ready.</span>
-  <button type="button" class="btn btn-primary btn-sm" data-app-reload>Reload</button>
+  <span><%= t('footer.updateReady', { site: site.name }) %></span>
+  <button type="button" class="btn btn-primary btn-sm" data-app-reload><%= t('footer.reload') %></button>
 </div>
 <% if (typeof workspace === 'undefined' || !workspace) { %><div class="app-bar" id="app-install" hidden>
-  <span>Add <%= site.name %> to your home screen to search and apply faster.</span>
-  <button type="button" class="btn btn-primary btn-sm" data-install-app>Install</button>
-  <button type="button" class="btn btn-outline btn-sm" data-install-dismiss>Not now</button>
+  <span><%= t('footer.install', { site: site.name }) %></span>
+  <button type="button" class="btn btn-primary btn-sm" data-install-app><%= t('footer.installButton') %></button>
+  <button type="button" class="btn btn-outline btn-sm" data-install-dismiss><%= t('footer.notNow') %></button>
 </div><% } %>
+<%# Words the page scripts show, in this page's language only (data, never run). %>
+<script type="application/json" id="i18n-strings"><%- JSON.stringify(Object.assign(scriptStrings(), { voiceTitle: t('voice.consentTitle'), voiceText: t('voice.consentText', { site: site.name }), voiceAllow: t('voice.allow'), voiceCancel: t('voice.cancel') })).replace(/</g, '\\u003c') %></script>
 <script src="/js/main.js?v=<%= assetVersion %>" defer></script>
 </body>
 </html>

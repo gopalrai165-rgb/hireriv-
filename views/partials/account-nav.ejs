@@ -1,18 +1,21 @@
-<%# Header, tabs and profile meter shared by the candidate account pages. %>
-<div class="admin-head">
+<%# Header, tabs and profile meter shared by the candidate account pages. On a
+    page not yet translated, <main> is lang="en"; these parts are in the page's language. %>
+<% const own = locale !== 'en' && !locals.translated ? ' lang="' + locale + '"' : ''; %>
+<div class="admin-head"<%- own %>>
   <div>
-    <span class="eyebrow">My account</span>
-    <h1><%= heading %></h1>
-    <p class="muted">Signed in as <%= email %></p>
+    <span class="eyebrow"><%= t('account.myAccount') %></span>
+    <h1><%= tm(heading) %></h1>
+    <p class="muted"><%= t('account.signedInAs', { email: email }) %></p>
   </div>
   <div class="row-actions">
     <%- include('notification-bell', { as: 'candidate', bellQuery: '?as=candidate', bellClass: 'btn btn-outline btn-sm' }) %>
-    <form method="post" action="/account/logout"><button class="btn btn-outline btn-sm" type="submit">Log out</button></form>
+    <form method="post" action="/account/logout"><button class="btn btn-outline btn-sm" type="submit"><%= t('account.logout') %></button></form>
   </div>
 </div>
-<nav class="account-tabs" aria-label="My account">
-  <% [['dashboard', '/account', 'Dashboard'], ['recommendations', '/account/recommendations', 'Recommended'], ['profile', '/account/profile', 'Profile & resume'], ['saved', '/account/saved', 'Saved jobs'], ['saved-searches', '/account/saved-searches', 'Saved searches'], ['assistant', '/account/assistant', 'Career assistant'], ['interviews', '/account/interviews', 'Interviews'], ['work', '/account/work', 'My work'], ['settings', '/account/settings', 'Settings'], ['privacy', '/account/privacy', 'Privacy & data']].forEach(function (t) { %>
-    <a href="<%= t[1] %>"<%- tab === t[0] ? ' aria-current="page" class="active"' : '' %>><%= t[2] %></a>
+<nav class="account-tabs" aria-label="<%= t('account.tabs') %>"<%- own %>>
+  <% [['dashboard', '/account', 'tabDashboard'], ['recommendations', '/account/recommendations', 'tabRecommended'], ['profile', '/account/profile', 'tabProfile'], ['saved', '/account/saved', 'tabSaved'], ['saved-searches', '/account/saved-searches', 'tabSearches'], ['assistant', '/account/assistant', 'tabAssistant'], ['interviews', '/account/interviews', 'tabInterviews'], ['work', '/account/work', 'tabWork'], ['settings', '/account/settings', 'tabSettings'], ['privacy', '/account/privacy', 'tabPrivacy']].forEach(function (x) { %>
+    <a href="<%= x[1] %>"<%- tab === x[0] ? ' aria-current="page" class="active"' : '' %>><%= t('account.' + x[2]) %></a>
   <% }) %>
 </nav>
-<% if (typeof msg !== 'undefined' && msg) { %><p class="notice" role="status"><%= msg %></p><% } %>
+<% if (typeof msg !== 'undefined' && msg) { %><p class="notice" role="status"><%= tm(msg) %></p><% } %>
+<% if (own) { %><p class="small muted"<%- own %>><%= t('lang.translationNote') %></p><% } %>

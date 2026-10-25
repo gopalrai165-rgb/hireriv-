@@ -1406,7 +1406,7 @@ function register(app, deps) {
   app.get('/reports/track/:token', limit('report-track', 30), (req, res) => {
     const receipt = receiptByToken(req.params.token);
     res.set('Cache-Control', 'no-store');
-    res.status(receipt ? 200 : 404).render('report-track', { title: 'Your report', page: '', noindex: true, t: receipt ? trackingOf(receipt) : null, help: CYBERCRIME_HELP });
+    res.status(receipt ? 200 : 404).render('report-track', { title: 'Your report', page: '', noindex: true, track: receipt ? trackingOf(receipt) : null, help: CYBERCRIME_HELP });
   });
 
   const appealPage = (res, locals, status = 200) => { res.set('Cache-Control', 'no-store'); res.status(status).render('appeal', { title: 'Appeal a decision', page: '', noindex: true, errors: [], done: false, expired: false, APPEAL_KIND, ...locals }); };

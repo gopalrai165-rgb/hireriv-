@@ -16,7 +16,25 @@ Every route the app serves, and who may use it. **This table is checked by `test
 
 Every state-changing team, candidate and client form also passes `sameOrigin` (cross-site posts are refused).
 
-Total: 714 routes.
+Total: 727 routes.
+
+## Languages: the language choice, the glossary, the accessibility statement and job translations
+
+| Method | Path | Policy | Notes |
+| --- | --- | --- | --- |
+| POST | `/language` | public | Anyone; same-site form; sets the hr_lang cookie and the signed-in candidate's language; redirects only to an internal path |
+| GET | `/employer/jobs/:id/translations/:lang` | employer | Company members who may edit that job (job.edit; 404 for another company's job and for languages not offered); no-store |
+| POST | `/employer/jobs/:id/translations/:lang/draft` | employer | Company members who may edit that job (job.edit; 404 for another company's job and for languages not offered); an AI or copied draft, never shown until approved |
+| POST | `/employer/jobs/:id/translations/:lang` | employer | Company members who may edit that job (job.edit; 404 for another company's job and for languages not offered); saves the draft and re-runs the checks |
+| POST | `/employer/jobs/:id/translations/:lang/approve` | employer | Company members who may edit that job (job.edit; 404 for another company's job and for languages not offered); needs the confirmation and no blocking checks (numbers, links); version recorded in the company activity log |
+| POST | `/employer/jobs/:id/translations/:lang/withdraw` | employer | Company members who may edit that job (job.edit; 404 for another company's job and for languages not offered); candidates see the original again |
+| GET | `/admin/jobs/:id/translations/:lang` | team | The team; no-store |
+| POST | `/admin/jobs/:id/translations/:lang/draft` | team | The team; only for jobs the team posted (403 for an employer's job) |
+| POST | `/admin/jobs/:id/translations/:lang` | team | The team; only for jobs the team posted (403 for an employer's job) |
+| POST | `/admin/jobs/:id/translations/:lang/approve` | team | The team; only for jobs the team posted (403 for an employer's job); recorded in the trust audit history |
+| POST | `/admin/jobs/:id/translations/:lang/withdraw` | team | The team for its own jobs, jobs.moderate for an employer's; a reason is required and recorded |
+| GET | `/help/job-terms` | public | Anyone; the glossary in the page's language |
+| GET | `/accessibility` | public | Anyone; the accessibility statement |
 
 ## AI assistant: drafts, match explanations, resume summaries and interview questions for employers, the career assistant for candidates, and the team's figures and settings
 

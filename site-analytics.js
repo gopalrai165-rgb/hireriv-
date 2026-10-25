@@ -23,6 +23,9 @@ const EVENTS = {
   'app-installed': 'App installed',
   'push-enabled': 'Phone notifications turned on',
   'offline-page': 'Offline page shown',
+  // The label is a language code (en, hi): which language people chose and applied in.
+  'language-selected': 'Language chosen',
+  'application-language': 'Applications submitted, by page language',
 };
 // What a visitor's browser may report itself; everything else is counted on the server.
 const CLIENT_EVENTS = ['application-started', 'app-installed', 'offline-page'];

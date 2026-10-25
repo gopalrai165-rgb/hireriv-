@@ -1,20 +1,36 @@
 document.documentElement.classList.add('js');
 
+// Words the script shows, in the page's language (from the page itself; see
+// partials/foot.ejs). English when they are missing.
+const L = (() => {
+  try { return JSON.parse(document.getElementById('i18n-strings').textContent) || {}; } catch { return {}; }
+})();
+const say = (key, fallback) => L[key] || fallback;
+
 // Sticky header shadow
 const header = document.querySelector('.site-header');
 const onScroll = () => header.classList.toggle('scrolled', window.scrollY > 8);
 window.addEventListener('scroll', onScroll, { passive: true });
 onScroll();
 
-// Mobile menu
+// Mobile menu: the button says whether it opens or closes, and Escape closes
+// the menu (and the Login list) and returns to the button.
 const toggle = document.querySelector('.nav-toggle');
 const nav = document.getElementById('main-nav');
-toggle.addEventListener('click', () => {
-  const open = nav.classList.toggle('open');
+const setMenu = (open) => {
+  nav.classList.toggle('open', open);
   toggle.setAttribute('aria-expanded', String(open));
-});
+  toggle.setAttribute('aria-label', open ? say('menuClose', 'Close menu') : say('menuOpen', 'Open menu'));
+};
+toggle.addEventListener('click', () => setMenu(!nav.classList.contains('open')));
 nav.addEventListener('click', (e) => {
-  if (e.target.closest('a')) nav.classList.remove('open');
+  if (e.target.closest('a')) setMenu(false);
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'Escape') return;
+  const login = document.querySelector('details.nav-login[open]');
+  if (login) { login.open = false; login.querySelector('summary').focus(); return; }
+  if (nav.classList.contains('open')) { setMenu(false); toggle.focus(); }
 });
 
 // Reveal-on-scroll and animated counters
@@ -51,20 +67,33 @@ if ('IntersectionObserver' in window) {
   document.querySelectorAll('.counter').forEach(animateCounter);
 }
 
-// Industry tabs
-const tabs = document.querySelectorAll('[role="tab"]');
-tabs.forEach((tab) => {
-  tab.addEventListener('click', () => {
-    tabs.forEach((t) => {
-      const active = t === tab;
-      t.classList.toggle('active', active);
-      t.setAttribute('aria-selected', String(active));
-      const panel = document.getElementById(t.getAttribute('aria-controls'));
-      panel.hidden = !active;
-      panel.classList.toggle('active', active);
-    });
+// Industry tabs: click, or the arrow keys, Home and End (only the chosen tab
+// is in the Tab order, as screen readers expect).
+const tabs = [...document.querySelectorAll('[role="tab"]')];
+const chooseTab = (tab) => {
+  tabs.forEach((t) => {
+    const active = t === tab;
+    t.classList.toggle('active', active);
+    t.setAttribute('aria-selected', String(active));
+    t.tabIndex = active ? 0 : -1;
+    const panel = document.getElementById(t.getAttribute('aria-controls'));
+    panel.hidden = !active;
+    panel.classList.toggle('active', active);
+  });
+};
+tabs.forEach((tab, i) => {
+  tab.tabIndex = tab.getAttribute('aria-selected') === 'true' ? 0 : -1;
+  tab.addEventListener('click', () => chooseTab(tab));
+  tab.addEventListener('keydown', (e) => {
+    const n = tabs.length;
+    const to = { ArrowRight: (i + 1) % n, ArrowDown: (i + 1) % n, ArrowLeft: (i - 1 + n) % n, ArrowUp: (i - 1 + n) % n, Home: 0, End: n - 1 }[e.key];
+    if (to === undefined) return;
+    e.preventDefault();
+    tabs[to].focus();
+    chooseTab(tabs[to]);
   });
 });
+if (tabs.length && !tabs.some((t) => t.tabIndex === 0)) tabs[0].tabIndex = 0;
 
 // Toast
 const toastEl = document.getElementById('toast');
@@ -77,21 +106,61 @@ function toast(message, isError) {
   toastTimer = setTimeout(() => toastEl.classList.remove('show'), 5000);
 }
 
+// Errors stay on the form until it is sent again: a list at the top (read out
+// by screen readers and focused), and each field named in it marked invalid.
+function showErrors(form, errors, fields = []) {
+  clearErrors(form);
+  const box = document.createElement('div');
+  box.className = 'notice notice-err form-errors';
+  box.setAttribute('role', 'alert');
+  box.tabIndex = -1;
+  const title = document.createElement('p');
+  title.textContent = say('errorsTitle', 'Please fix these and try again:');
+  const list = document.createElement('ul');
+  errors.forEach((msg, i) => {
+    const li = document.createElement('li');
+    const field = fields[i] && form.elements[fields[i]];
+    if (field && field.id) {
+      const a = document.createElement('a');
+      a.href = `#${field.id}`;
+      a.textContent = msg;
+      li.append(a);
+    } else li.textContent = msg;
+    list.append(li);
+  });
+  box.append(title, list);
+  form.prepend(box);
+  fields.forEach((name) => {
+    const field = form.elements[name];
+    if (field && field.setAttribute) field.setAttribute('aria-invalid', 'true');
+  });
+  box.focus();
+}
+function clearErrors(form) {
+  form.querySelectorAll('.form-errors').forEach((x) => x.remove());
+  form.querySelectorAll('[aria-invalid="true"]').forEach((x) => x.removeAttribute('aria-invalid'));
+}
+
 // Progressive enhancement: submit forms with fetch and show a toast
 document.querySelectorAll('form.js-form').forEach((form) => {
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
+    // The apply form shows everything entered before it is sent (below).
+    if (form.dataset.applyForm !== undefined && !form.dataset.reviewed) return showReview(form);
     const btn = form.querySelector('[type="submit"]');
     const label = btn.textContent;
     btn.disabled = true;
-    btn.textContent = 'Sending…';
+    btn.textContent = say('sending', 'Sending…');
     try {
       const multipart = form.enctype === 'multipart/form-data';
       const body = multipart ? new FormData(form) : new URLSearchParams(new FormData(form));
       const res = await fetch(form.action, { method: 'POST', body, headers: { Accept: 'application/json' } });
       const data = await res.json();
       if (data.ok) {
+        clearErrors(form);
         form.reset();
+        forgetDraft(form);
+        resetReview(form);
         toast(data.message);
         // A report's reference and private tracking link stay on the page.
         const receipt = form.parentElement.querySelector('[data-receipt]');
@@ -102,16 +171,112 @@ document.querySelectorAll('form.js-form').forEach((form) => {
           receipt.focus();
         }
       } else {
+        resetReview(form);
+        showErrors(form, data.errors || [], (data.errors || []).map((x, i) => (data.fields || [])[i] || ''));
         toast(data.errors.join(', '), true);
       }
     } catch {
-      toast('Could not send right now. Please try again.', true);
+      // Offline or the connection dropped: what was typed stays on the page.
+      const msg = navigator.onLine === false ? say('offline', 'You are offline. Your answers are kept on this page: try again when you\'re connected.') : say('sendFailed', 'Could not send right now. Please try again.');
+      resetReview(form);
+      showErrors(form, [msg]);
+      toast(msg, true);
     } finally {
       btn.disabled = false;
       btn.textContent = label;
     }
   });
 });
+
+// Before an application is sent: everything entered, to check. "Edit details"
+// goes back to the form; sending again submits it.
+function showReview(form) {
+  const panel = form.querySelector('[data-apply-review]');
+  if (!panel) { form.dataset.reviewed = '1'; return form.requestSubmit(); }
+  const list = panel.querySelector('[data-review-list]');
+  list.replaceChildren();
+  const seen = new Set();
+  form.querySelectorAll('input, select, textarea').forEach((el) => {
+    if (el.type === 'hidden' || el.name === 'website' || !el.name || seen.has(el.name) || el.closest('.hp')) return;
+    seen.add(el.name);
+    const label = el.closest('label') || form.querySelector(`label[for="${el.id}"]`);
+    const name = label ? [...label.childNodes].filter((n) => n.nodeType === 3).map((n) => n.textContent).join(' ').replace(/\*/g, '').trim() : el.name;
+    let value = el.type === 'file' ? (el.files[0] ? el.files[0].name : say('noFile', 'No resume attached')) : el.tagName === 'SELECT' ? (el.selectedOptions[0] || {}).textContent || '' : el.value.trim();
+    if (!value) value = say('notGiven', 'Not given');
+    const dt = document.createElement('dt');
+    dt.textContent = name;
+    const dd = document.createElement('dd');
+    dd.textContent = value;
+    list.append(dt, dd);
+  });
+  panel.hidden = false;
+  form.dataset.reviewed = '1';
+  const btn = form.querySelector('[type="submit"]');
+  btn.textContent = btn.dataset.submitLabel || btn.textContent;
+  panel.focus();
+  panel.scrollIntoView({ block: 'nearest' });
+}
+function resetReview(form) {
+  const panel = form.querySelector('[data-apply-review]');
+  if (!panel) return;
+  panel.hidden = true;
+  delete form.dataset.reviewed;
+  const btn = form.querySelector('[type="submit"]');
+  if (btn.dataset.reviewLabel) btn.textContent = btn.dataset.reviewLabel;
+}
+document.querySelectorAll('form[data-apply-form]').forEach((form) => {
+  const btn = form.querySelector('[type="submit"]');
+  if (btn.dataset.reviewLabel) btn.textContent = btn.dataset.reviewLabel;
+  const edit = form.querySelector('[data-review-edit]');
+  if (edit) edit.addEventListener('click', () => {
+    resetReview(form);
+    const first = form.querySelector('input:not([type="hidden"]):not([name="website"]), select, textarea');
+    if (first) first.focus();
+  });
+  // Changing anything after checking means checking again.
+  form.addEventListener('input', () => { if (form.dataset.reviewed) resetReview(form); });
+  restoreDraft(form);
+});
+
+// What was typed into an application stays in this tab (sessionStorage) until
+// it is sent or the person signs out, so a dropped connection or a reload
+// loses nothing. Files are never kept.
+function draftKey(form) { return form.dataset.draftKey ? `hireriv:draft:${form.dataset.draftKey}` : ''; }
+function forgetDraft(form) {
+  const key = draftKey(form);
+  if (key) try { sessionStorage.removeItem(key); } catch { /* storage blocked */ }
+}
+function restoreDraft(form) {
+  const key = draftKey(form);
+  if (!key) return;
+  let saved = null;
+  try { saved = JSON.parse(sessionStorage.getItem(key) || 'null'); } catch { saved = null; }
+  if (saved && typeof saved === 'object') {
+    let any = false;
+    Object.entries(saved).forEach(([name, value]) => {
+      const el = form.elements[name];
+      if (el && el.type !== 'file' && el.type !== 'hidden' && typeof value === 'string' && value && !el.value) { el.value = value; any = true; }
+    });
+    if (any) {
+      const note = document.createElement('p');
+      note.className = 'small muted draft-note';
+      note.setAttribute('role', 'status');
+      note.textContent = say('restored', 'We kept what you typed on this device until you send it or sign out.');
+      form.prepend(note);
+    }
+  }
+  let timer;
+  form.addEventListener('input', () => {
+    clearTimeout(timer);
+    timer = setTimeout(() => {
+      const out = {};
+      form.querySelectorAll('input, select, textarea').forEach((el) => {
+        if (el.name && el.type !== 'file' && el.type !== 'hidden' && el.name !== 'website' && el.type !== 'password') out[el.name] = el.value.slice(0, 2000);
+      });
+      try { sessionStorage.setItem(key, JSON.stringify(out)); } catch { /* storage full or blocked */ }
+    }, 400);
+  });
+}
 
 // Website analytics: count an application form once it is first used (no
 // personal data: only that it happened, and for which job).
@@ -162,9 +327,9 @@ function paintSaved() {
     const saved = ids.includes(btn.dataset.saveJob);
     btn.classList.toggle('saved', saved);
     btn.setAttribute('aria-pressed', String(saved));
-    btn.title = saved ? 'Remove from saved jobs' : 'Save job';
+    btn.title = saved ? say('removeSaved', 'Remove from saved jobs') : say('saveJob', 'Save job');
     const label = btn.querySelector('.save-label');
-    if (label) label.textContent = saved ? 'Saved' : 'Save job';
+    if (label) label.textContent = saved ? say('savedLabel', 'Saved') : say('saveJob', 'Save job');
   });
   document.querySelectorAll('.saved-count').forEach((el) => {
     el.textContent = ids.length;
@@ -180,10 +345,10 @@ document.addEventListener('click', (e) => {
   const ids = readSaved();
   const wasSaved = ids.includes(id);
   const next = wasSaved ? ids.filter((x) => x !== id) : [id, ...ids];
-  if (!writeSaved(next) && !signedIn) return toast('Your browser is blocking saved jobs on this site.', true);
+  if (!writeSaved(next) && !signedIn) return toast(say('storageBlocked', 'Your browser is blocking saved jobs on this site.'), true);
   if (signedIn) fetch(`/api/candidate/saved-jobs/${encodeURIComponent(id)}`, { method: wasSaved ? 'DELETE' : 'PUT' }).catch(() => {});
   paintSaved();
-  toast(wasSaved ? 'Removed from saved jobs' : 'Saved! Find it any time under "Saved".');
+  toast(wasSaved ? say('removed', 'Removed from saved jobs') : say('saved', 'Saved! Find it any time under "Saved".'));
   if (wasSaved && savedList) {
     btn.closest('.job-card')?.remove();
     renderSavedSummary(next.length);
@@ -258,7 +423,7 @@ if (shareRow) {
   shareRow.querySelector('[data-copy-link]').addEventListener('click', async () => {
     try {
       await navigator.clipboard.writeText(url);
-      toast('Link copied. Paste it anywhere to share this job.');
+      toast(say('linkCopied', 'Link copied. Paste it anywhere to share this job.'));
     } catch {
       window.prompt('Copy this link:', url);
     }
@@ -582,3 +747,12 @@ document.querySelectorAll('[data-push]').forEach((box) => {
 document.querySelectorAll('details[data-more-filters]').forEach((d) => {
   if (d.dataset.moreFilters === '0' && window.matchMedia('(max-width: 700px)').matches) d.open = false;
 });
+
+// Read-aloud and speaking instead of typing (voice.js) load only on pages that
+// offer them, and only in browsers that support them. Typing always works.
+if (document.querySelector('[data-voice-for], [data-read-aloud]') && ('speechSynthesis' in window || 'SpeechRecognition' in window || 'webkitSpeechRecognition' in window)) {
+  const script = document.createElement('script');
+  script.src = `/js/voice.js?v=${(document.querySelector('script[src*="/js/main.js"]') || { src: '' }).src.split('v=')[1] || ''}`;
+  script.defer = true;
+  document.body.append(script);
+}

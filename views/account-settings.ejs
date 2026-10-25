@@ -38,6 +38,18 @@
         </form>
       </section>
 
+      <section class="dash-card" id="language"<%- locale !== 'en' ? ' lang="' + locale + '"' : '' %>>
+        <div class="dash-head"><h2><%= t('account.languageTitle') %></h2></div>
+        <p class="small muted"><%= t('account.languageText', { site: site.name }) %></p>
+        <form class="form" method="post" action="/language">
+          <input type="hidden" name="back" value="/account/settings?msg=<%= encodeURIComponent('Language saved.') %>">
+          <fieldset class="check-set"><legend class="sr-only"><%= t('lang.choose') %></legend>
+            <% languages.forEach(function (l) { %><label class="check-row"><input type="radio" name="lang" value="<%= l.code %>"<%= l.code === (candidate.language || locale) ? ' checked' : '' %>> <span lang="<%= l.code %>"><%= l.native %></span><% if (l.code !== 'en') { %> <span class="muted small">(<%= l.name %>)</span><% } %></label><% }) %>
+          </fieldset>
+          <button class="btn btn-primary btn-sm" type="submit"><%= t('account.languageSave') %></button>
+        </form>
+      </section>
+
       <section class="dash-card" id="activity">
         <div class="dash-head"><h2>Recent activity</h2></div>
         <% if (!log.length) { %><p class="small muted">Nothing yet.</p><% } else { %>

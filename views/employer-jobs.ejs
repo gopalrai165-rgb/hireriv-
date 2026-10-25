@@ -20,6 +20,7 @@
         <table>
           <thead><tr><th>Job</th><th>Status</th><th>Applicants</th><th>Updated</th><th></th></tr></thead>
           <tbody>
+            <% const TR_LABEL = { approved: 'approved and shown', outdated: 'needs checking after an edit', draft: 'draft, not shown yet', none: 'not translated' }; const TR_SHORT = { outdated: 'check', draft: 'draft', none: 'add' }; %>
             <% rows.forEach(function (j) { const own = j.createdBy === 'employer'; %>
               <tr>
                 <td><b><%= j.title %></b><br><span class="muted small"><%= j.location %> · <%= j.type %><%= j.openings ? ' · ' + j.openings + ' opening' + (j.openings === 1 ? '' : 's') : '' %><%= own ? '' : ' · run by ' + site.name %></span>
@@ -31,6 +32,7 @@
                   <% if (j.status === 'open') { %><a class="btn btn-outline btn-sm" href="<%= jobPath(j) %>" target="_blank" rel="noopener">View</a><% } %>
                   <% if (own && can('job.edit', j)) { %>
                     <a class="btn btn-outline btn-sm" href="/employer/jobs/<%= j.id %>/edit">Edit</a>
+                    <% translationStatus(j).forEach(function (tr) { %><a class="btn btn-outline btn-sm" href="/employer/jobs/<%= j.id %>/translations/<%= tr.code %>" title="<%= TR_LABEL[tr.state] %>"><span lang="<%= tr.code %>"><%= tr.native %></span><span class="sr-only"> translation: <%= TR_LABEL[tr.state] %></span><% if (tr.state !== 'approved') { %> <span class="muted small" aria-hidden="true">(<%= TR_SHORT[tr.state] %>)</span><% } %></a><% }) %>
                     <% if (['draft', 'rejected', 'closed'].includes(j.status)) { %><form method="post" action="/employer/jobs/<%= j.id %>/publish"><button class="btn btn-primary btn-sm"><%= j.status === 'closed' ? 'Reopen' : 'Send for review' %></button></form><% } %>
                     <% if (j.status === 'open') { %><form method="post" action="/employer/jobs/<%= j.id %>/pause"><button class="btn btn-outline btn-sm">Pause</button></form><% } %>
                     <% if (j.status === 'paused') { %><form method="post" action="/employer/jobs/<%= j.id %>/resume"><button class="btn btn-primary btn-sm">Resume</button></form><% } %>

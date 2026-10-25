@@ -1,20 +1,21 @@
+<% const jt = jobTitleIn(job); const pay = payLabel(job); %>
 <article class="job-card reveal<%= job.status === 'closed' ? ' is-closed' : '' %>">
   <div class="job-card-top">
     <span class="job-logo" aria-hidden="true"><%= (job.company || job.title).trim().charAt(0).toUpperCase() %></span>
     <span class="job-card-side">
-      <% if (isSample(job)) { %><span class="pill pill-sample" title="An example listing, not a real vacancy">Sample listing</span><% } else if (job.status === 'closed') { %><span class="pill st-rejected">Closed</span><% } else if (closingSoon(job)) { %><span class="pill st-screening"><%= closingSoon(job) %></span><% } else { %><span class="muted small"><%= daysAgo(job.posted) %></span><% } %>
-      <button type="button" class="save-btn" data-save-job="<%= job.id %>" aria-pressed="false" aria-label="Save <%= job.title %>" title="Save job"><svg class="i"><use href="#i-bookmark"/></svg></button>
+      <% if (isSample(job)) { %><span class="pill pill-sample" title="<%= t('card.sampleTitle') %>"><%= t('card.sample') %></span><% } else if (job.status === 'closed') { %><span class="pill st-rejected"><%= t('card.closed') %></span><% } else if (closingSoon(job)) { %><span class="pill st-screening"><%= closingSoon(job) %></span><% } else { %><span class="muted small"><%= daysAgo(job.posted) %></span><% } %>
+      <button type="button" class="save-btn" data-save-job="<%= job.id %>" aria-pressed="false" aria-label="<%= t('card.save', { title: jt.text }) %>" title="<%= t('card.saveTitle') %>"><svg class="i" aria-hidden="true"><use href="#i-bookmark"/></svg></button>
     </span>
   </div>
-  <h3><a href="<%= jobPath(job) %>"><%= job.title %></a></h3>
-  <p class="muted small"><%= job.company %> · <%= job.category %></p>
-  <span class="tag tag-<%= job.mode.toLowerCase().replace(/[^a-z]+/g, '-') %>"><%= job.mode %></span>
+  <h3><a href="<%= jobPath(job) %>"<%- jt.lang ? ' lang="' + jt.lang + '"' : '' %>><%= jt.text %></a></h3>
+  <p class="muted small"><%= job.company %> · <%= tv('category', job.category) %></p>
+  <span class="tag tag-<%= job.mode.toLowerCase().replace(/[^a-z]+/g, '-') %>"><%= tv('mode', job.mode) %></span>
   <ul class="job-meta">
-    <li><svg class="i" aria-hidden="true"><use href="#i-pin"/></svg><span class="sr-only">Location: </span><%= job.location %></li>
-    <li><svg class="i" aria-hidden="true"><use href="#i-clock"/></svg><span class="sr-only">Job type: </span><%= job.type %></li>
-    <% if (job.experience) { %><li><svg class="i" aria-hidden="true"><use href="#i-briefcase"/></svg><span class="sr-only">Experience: </span><%= job.experience %></li><% } %>
-    <% if (job.salary) { %><li><svg class="i" aria-hidden="true"><use href="#i-wallet"/></svg><span class="sr-only">Salary: </span><%= job.salary %></li><% } %>
+    <li><svg class="i" aria-hidden="true"><use href="#i-pin"/></svg><span class="sr-only"><%= t('card.location') %> </span><%= job.location %></li>
+    <li><svg class="i" aria-hidden="true"><use href="#i-clock"/></svg><span class="sr-only"><%= t('card.type') %> </span><%= tv('type', job.type) %></li>
+    <% if (job.experience) { %><li><svg class="i" aria-hidden="true"><use href="#i-briefcase"/></svg><span class="sr-only"><%= t('card.experience') %> </span><%= tv('experience', job.experience) %></li><% } %>
+    <% if (pay) { %><li><svg class="i" aria-hidden="true"><use href="#i-wallet"/></svg><span class="sr-only"><%= t('card.salary') %> </span><%= pay %></li><% } %>
   </ul>
   <div class="chips"><% job.skills.slice(0, 4).forEach(function (s) { %><span class="chip"><%= s %></span><% }) %></div>
-  <a class="card-link" href="<%= jobPath(job) %>"><%= isSample(job) ? 'View example' : 'View & apply' %> <svg class="i"><use href="#i-arrow"/></svg></a>
+  <a class="card-link" href="<%= jobPath(job) %>"><%= isSample(job) ? t('card.viewExample') : t('card.viewApply') %><span class="sr-only">: <%= jt.text %></span> <svg class="i" aria-hidden="true"><use href="#i-arrow"/></svg></a>
 </article>

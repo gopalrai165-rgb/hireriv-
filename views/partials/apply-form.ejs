@@ -1,67 +1,70 @@
 <% const quickApply = typeof quick !== 'undefined' && quick; %>
-<form class="form js-form" action="/api/apply" method="post" enctype="multipart/form-data">
+<% const fid = 'ap-' + String(jobId).replace(/[^A-Za-z0-9_-]/g, ''); %>
+<%# Values stay in English (what the team and employers see); the words shown are in the page's language. %>
+<% const opts = function (group, list, help) { return list.map(function (o) { return '<option value="' + esc(o) + '">' + esc(tv(group, o)) + '</option>'; }).join(''); }; %>
+<form class="form js-form" action="/api/apply" method="post" enctype="multipart/form-data" data-apply-form data-draft-key="apply:<%= jobId %>">
   <%- include('honeypot') %>
   <input type="hidden" name="jobId" value="<%= jobId %>">
   <input type="hidden" name="source" value="" data-source>
+  <p class="small muted"><%= t('common.requiredNote') %></p>
   <% if (quickApply) { %>
     <%# Skilled and field jobs: name and phone are enough; the rest is optional. %>
-    <p class="muted small quick-note">Takes a minute. No resume or email needed: a recruiter will call you.</p>
+    <p class="muted small quick-note"><%= t('apply.quickNote') %></p>
     <div class="form-grid">
-      <label>Full name*<input name="name" required autocomplete="name"></label>
-      <label>Mobile number (WhatsApp)*<input type="tel" name="phone" required autocomplete="tel" inputmode="tel" placeholder="98xxxxxxxx"></label>
-      <label>Area / city you live in<input name="location" autocomplete="address-level2"></label>
-      <label>Experience in this work
-        <select name="experience">
-          <option>Fresher</option><option>0-1 years</option><option>1-3 years</option>
-          <option>3-5 years</option><option>5-10 years</option><option>10+ years</option>
-        </select>
+      <label><%= t('apply.name') %>*<input name="name" required autocomplete="name"></label>
+      <label><%= t('apply.mobileWa') %>*<input type="tel" name="phone" required autocomplete="tel" inputmode="tel" placeholder="98xxxxxxxx"></label>
+      <label><%= t('apply.area') %><input name="location" autocomplete="address-level2"></label>
+      <label><%= t('apply.expHere') %>
+        <select name="experience"><%- opts('experience', ['Fresher', '0-1 years', '1-3 years', '3-5 years', '5-10 years', '10+ years']) %></select>
       </label>
-      <label>When can you start?
-        <select name="noticePeriod">
-          <option>Immediate</option><option>15 days</option><option>30 days</option><option>60 days</option>
-        </select>
+      <label><%= t('apply.start') %>
+        <select name="noticePeriod"><%- opts('notice', ['Immediate', '15 days', '30 days', '60 days']) %></select>
       </label>
     </div>
     <details class="more-details">
-      <summary>Add email, resume or skills (optional)</summary>
+      <summary><%= t('apply.more') %></summary>
       <div class="form-grid">
-        <label>Email<input type="email" name="email" autocomplete="email"></label>
-        <label class="file-field">Resume <span class="muted small">(PDF, DOC or DOCX, max 5 MB)</span>
+        <label><%= t('apply.email') %><input type="email" name="email" autocomplete="email"></label>
+        <label class="file-field"><%= t('apply.resume') %> <span class="muted small"><%= t('apply.resumeHint') %></span>
           <input type="file" name="resume" accept=".pdf,.doc,.docx" data-resume-autofill>
           <span class="small resume-status" data-resume-status aria-live="polite"></span>
         </label>
-        <label class="span-2">Skills, licences or certificates <span class="muted small">(e.g. ITI Electrician, two-wheeler licence, forklift)</span><input name="skills"></label>
-        <label class="span-2">Anything else we should know?<textarea name="message" rows="2"></textarea></label>
+        <label class="span-2"><%= t('apply.quickSkills') %> <span class="muted small"><%= t('apply.quickSkillsHint') %></span><input name="skills"></label>
+        <label class="span-2" for="<%= fid %>-msg"><%= t('apply.anythingElse') %></label>
+        <div class="span-2 with-voice"><textarea id="<%= fid %>-msg" name="message" rows="2"></textarea><% if (voiceInput) { %><button type="button" class="voice-btn" data-voice-for="<%= fid %>-msg" hidden aria-label="<%= t('apply.dictate') %>" title="<%= t('apply.dictate') %>"><svg class="i" aria-hidden="true"><use href="#i-mic"/></svg></button><% } %></div>
       </div>
     </details>
   <% } else { %>
     <div class="form-grid">
-      <label class="span-2 file-field">Resume* <span class="muted small">(PDF, DOC or DOCX, max 5 MB) · add it first and we'll fill in what we can</span>
+      <label class="span-2 file-field"><%= t('apply.resume') %>* <span class="muted small"><%= t('apply.resumeFirst') %></span>
         <input type="file" name="resume" accept=".pdf,.doc,.docx" required data-resume-autofill>
         <span class="small resume-status" data-resume-status aria-live="polite"></span>
       </label>
-      <label>Full name*<input name="name" required autocomplete="name"></label>
-      <label>Email*<input type="email" name="email" required autocomplete="email"></label>
-      <label>Phone*<input type="tel" name="phone" required autocomplete="tel" placeholder="+91 98xxxxxxxx"></label>
-      <label>Total experience
-        <select name="experience">
-          <option>Fresher</option><option>0-1 years</option><option>1-3 years</option>
-          <option>3-5 years</option><option>5-10 years</option><option>10+ years</option>
-        </select>
+      <label><%= t('apply.name') %>*<input name="name" required autocomplete="name"></label>
+      <label><%= t('apply.email') %>*<input type="email" name="email" required autocomplete="email"></label>
+      <label><%= t('apply.phone') %>*<input type="tel" name="phone" required autocomplete="tel" placeholder="+91 98xxxxxxxx"></label>
+      <label><%= t('apply.totalExp') %>
+        <select name="experience"><%- opts('experience', ['Fresher', '0-1 years', '1-3 years', '3-5 years', '5-10 years', '10+ years']) %></select>
       </label>
-      <label>Current location<input name="location" autocomplete="address-level2"></label>
-      <label>Notice period
-        <select name="noticePeriod">
-          <option>Immediate</option><option>15 days</option><option>30 days</option>
-          <option>60 days</option><option>90 days</option>
-        </select>
+      <label><%= t('apply.location') %><input name="location" autocomplete="address-level2"></label>
+      <label><%= t('apply.notice') %>
+        <select name="noticePeriod" aria-describedby="<%= fid %>-notice"><%- opts('notice', ['Immediate', '15 days', '30 days', '60 days', '90 days']) %></select>
+        <span class="small muted" id="<%= fid %>-notice"><%= t('apply.noticeHelp') %></span>
       </label>
-      <label class="span-2">Key skills <span class="muted small">(comma separated, helps us match you faster)</span><input name="skills" placeholder="e.g. React, Node.js, AWS"></label>
-      <label class="span-2">LinkedIn / portfolio URL<input type="url" name="linkedin" placeholder="https://"></label>
-      <label class="span-2">Anything else we should know?<textarea name="message" rows="3"></textarea></label>
+      <label class="span-2"><%= t('apply.skills') %> <span class="muted small"><%= t('apply.skillsHint') %></span><input name="skills" placeholder="<%= t('apply.skillsPlaceholder') %>"></label>
+      <label class="span-2"><%= t('apply.linkedin') %><input type="url" name="linkedin" placeholder="https://"></label>
+      <label class="span-2" for="<%= fid %>-msg"><%= t('apply.anythingElse') %></label>
+      <div class="span-2 with-voice"><textarea id="<%= fid %>-msg" name="message" rows="3"></textarea><% if (voiceInput) { %><button type="button" class="voice-btn" data-voice-for="<%= fid %>-msg" hidden aria-label="<%= t('apply.dictate') %>" title="<%= t('apply.dictate') %>"><svg class="i" aria-hidden="true"><use href="#i-mic"/></svg></button><% } %></div>
     </div>
   <% } %>
-  <button class="btn btn-primary btn-block" type="submit">Submit application</button>
-  <% if (quickApply && whatsappApply) { %><a class="btn btn-outline btn-block wa-apply" href="<%= whatsappApply %>" target="_blank" rel="noopener"><svg class="i"><use href="#i-whatsapp"/></svg> Or apply on WhatsApp</a><% } %>
-  <p class="muted small form-note">By applying you agree to be contacted by a <%= site.name %> recruiter about this and similar roles<%= quickApply ? ' by phone, WhatsApp or SMS' : '' %>, as described in our <a href="/privacy">Privacy Policy</a>. Applying is always free: we never ask candidates for money.</p>
+  <%# Filled by main.js: everything entered, shown before it is sent. %>
+  <div class="apply-review" data-apply-review hidden tabindex="-1" role="region" aria-labelledby="<%= fid %>-review-h">
+    <h3 id="<%= fid %>-review-h" class="h4"><%= t('apply.reviewTitle') %></h3>
+    <p class="small"><%= t('apply.reviewText') %></p>
+    <dl class="review-list" data-review-list></dl>
+    <button class="btn btn-outline btn-sm" type="button" data-review-edit><%= t('apply.edit') %></button>
+  </div>
+  <button class="btn btn-primary btn-block" type="submit" data-review-label="<%= t('apply.review') %>" data-submit-label="<%= t('apply.submit') %>"><%= t('apply.submit') %></button>
+  <% if (quickApply && whatsappApply) { %><a class="btn btn-outline btn-block wa-apply" href="<%= whatsappApply %>" target="_blank" rel="noopener"><svg class="i" aria-hidden="true"><use href="#i-whatsapp"/></svg> <%= t('apply.whatsapp') %></a><% } %>
+  <p class="muted small form-note"><%- th(quickApply ? 'apply.consentQuick' : 'apply.consent', { site: site.name, privacy: html('<a href="/privacy">' + esc(t('apply.privacy')) + '</a>') }) %></p>
 </form>

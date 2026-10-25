@@ -22,6 +22,7 @@ const employers = require('./employers');
 const candidates = require('./candidates');
 const { SHIFTS, INDIAN_STATES } = require('./candidate-profile');
 const employerHiring = require('./employer-hiring');
+const i18n = require('./i18n');
 const employerAts = require('./employer-ats');
 const placements = require('./placements');
 const teamModule = require('./team');
@@ -357,12 +358,18 @@ function validate(data, required) {
 }
 
 // Forms are enhanced with fetch (JSON response) but still work as plain HTML posts.
+// Messages are shown in the page's language where a translation exists
+// (i18n.js); `fields` names the form fields that need fixing.
+const FIELD_ERROR = /^(\w+) is (?:required|invalid)$/;
 function respond(req, res, errors, message) {
   const wantsJson = (req.get('Accept') || '').includes('application/json');
+  const tm = req.t ? req.t.tm : (x) => x;
   if (errors.length) {
-    if (wantsJson) return res.status(400).json({ ok: false, errors });
-    return res.status(400).render('thanks', { title: 'Please check your details', page: '', ok: false, message: errors.join(', '), noindex: true });
+    const fields = errors.map((e) => (e.match(FIELD_ERROR) || [])[1]).filter(Boolean);
+    if (wantsJson) return res.status(400).json({ ok: false, errors: errors.map(tm), fields });
+    return res.status(400).render('thanks', { title: 'Please check your details', page: '', ok: false, message: errors.map(tm).join(', '), noindex: true });
   }
+  message = tm(message);
   if (wantsJson) return res.json({ ok: true, message });
   return res.render('thanks', { title: 'Thank you', page: '', ok: true, message, noindex: true });
 }
@@ -445,13 +452,16 @@ const CSP = [
   "object-src 'none'",
 ].join('; ');
 const HTTPS = /^https:/.test(BASE_URL);
+const VOICE_INPUT = !/^(off|0|false|no)$/i.test(process.env.VOICE_INPUT || '');
 app.use((req, res, next) => {
   res.set({
     'Content-Security-Policy': CSP,
     'X-Content-Type-Options': 'nosniff',
     'X-Frame-Options': 'DENY',
     'Referrer-Policy': 'strict-origin-when-cross-origin',
-    'Permissions-Policy': 'camera=(), microphone=(), geolocation=(), payment=()',
+    // Speaking instead of typing (VOICE_INPUT, on by default) needs the
+    // microphone on this site's own pages; never in frames or other sites.
+    'Permissions-Policy': `camera=(), microphone=${VOICE_INPUT ? '(self)' : '()'}, geolocation=(), payment=()`,
     'Cross-Origin-Opener-Policy': 'same-origin',
   });
   if (HTTPS) res.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
@@ -481,6 +491,44 @@ app.use(express.static(path.join(__dirname, 'public'), {
   // App icons change rarely; a new version gets a new file name.
   setHeaders: (res, file) => { if (file.includes(`${path.sep}icons${path.sep}`)) res.set('Cache-Control', 'public, max-age=604800'); },
 }));
+
+// The interface language (i18n.js): ?lang=, the hr_lang cookie from the
+// language selector, or the language saved on a candidate's account.
+const i18nDesk = i18n.create({
+  secure: HTTPS, sameOrigin, limit,
+  preferenceOf: (req) => {
+    if (!/(?:^|;\s*)hr_cand=/.test(req.headers.cookie || '')) return '';
+    const email = candidateAccounts.currentEmail(req);
+    const c = email && candidateAccounts.helpers.candidateOf(email);
+    return (c && c.language) || '';
+  },
+  savePreference: (req, code) => {
+    const email = candidateAccounts.currentEmail(req);
+    const c = email && candidateAccounts.helpers.candidateOf(email);
+    if (c && c.language !== code) { c.language = code; candidateAccounts.helpers.saveCandidate(c); }
+  },
+  track: (event, label, req) => siteAnalytics.track(event, label, req),
+});
+app.use(i18nDesk.middleware);
+// Dates, "closes in" and job titles in the page's language.
+app.use((req, res, next) => {
+  const t = req.t;
+  res.locals.closingSoon = (job) => {
+    const left = daysLeft(job);
+    return left === null ? '' : left === 0 ? t.t('time.lastDay') : left === 1 ? t.t('time.tomorrow') : t.t('time.closesIn', { count: left });
+  };
+  res.locals.voiceInput = VOICE_INPUT;
+  // Which languages each job is translated into (the jobs lists link to them).
+  res.locals.translationStatus = (job) => (jobTranslations && job && job.id ? jobTranslations.statusFor(job) : []);
+  // The approved translation of a job's title in this language (job cards).
+  res.locals.jobTitleIn = (job) => {
+    const x = jobTranslations && jobTranslations.publicFor(job, req.locale);
+    return x ? { text: x.title, lang: req.locale } : { text: job.title, lang: '' };
+  };
+  next();
+});
+i18nDesk.register(app);
+let jobTranslations = null;
 
 app.locals.site = site;
 app.locals.catalog = catalog;
@@ -518,10 +566,15 @@ app.locals.assetVersion = crypto
 app.locals.formatDate = (d) =>
   new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
 // "Closes in 3 days" on job cards during a job's last week.
-app.locals.closingSoon = (job) => {
-  if (job.status !== 'open' || !job.closesOn) return '';
+// Days left to apply during a job's last week, else null.
+function daysLeft(job) {
+  if (job.status !== 'open' || !job.closesOn) return null;
   const left = Math.round((Date.parse(job.closesOn) - Date.parse(todayIst())) / 86400000);
-  return left > 7 || left < 0 ? '' : left === 0 ? 'Last day today' : left === 1 ? 'Closes tomorrow' : `Closes in ${left} days`;
+  return left > 7 || left < 0 ? null : left;
+}
+app.locals.closingSoon = (job) => {
+  const left = daysLeft(job);
+  return left === null ? '' : left === 0 ? 'Last day today' : left === 1 ? 'Closes tomorrow' : `Closes in ${left} days`;
 };
 app.locals.daysAgo = (d) => {
   const days = Math.floor((Date.now() - new Date(d)) / 86400000);
@@ -581,7 +634,7 @@ Sitemap: ${BASE_URL}/sitemap.xml
 );
 
 app.get('/sitemap.xml', (req, res) =>
-  res.type('application/xml').send(seo.sitemap(BASE_URL, { jobs: openJobs().filter((j) => !isSample(j)), posts: livePosts(), staticPaths: ['/', '/jobs', ...catalog.WORK_PAGES.map((x) => `/jobs/${x.slug}`), ...catalog.JOB_INDUSTRIES.map((x) => `/jobs/industry/${x.slug}`), '/categories', '/hire', '/services', ...catalog.SERVICES.map((x) => `/services/${x.slug}`), '/industries', ...catalog.INDUSTRIES.map((x) => `/industries/${x.slug}`), '/about', '/blog', '/contact', '/privacy', '/terms', '/job-posting-policy'] }))
+  res.type('application/xml').send(seo.sitemap(BASE_URL, { jobs: openJobs().filter((j) => !isSample(j)), posts: livePosts(), staticPaths: ['/', '/jobs', ...catalog.WORK_PAGES.map((x) => `/jobs/${x.slug}`), ...catalog.JOB_INDUSTRIES.map((x) => `/jobs/industry/${x.slug}`), '/categories', '/hire', '/services', ...catalog.SERVICES.map((x) => `/services/${x.slug}`), '/industries', ...catalog.INDUSTRIES.map((x) => `/industries/${x.slug}`), '/about', '/blog', '/contact', '/privacy', '/terms', '/job-posting-policy', '/help/job-terms', '/accessibility'] }))
 );
 
 // Things a new install still needs before it is ready for visitors, shown to
@@ -696,9 +749,26 @@ function jobFilters(query) {
 const MAX_SKILL_FILTERS = 5;
 // The search itself: live jobs, these filters, the category group and kind of
 // work on top. `skipWork` gives the counts for the kind-of-work tabs.
+// Words typed in Hindi or Telugu are searched as the English words jobs use,
+// and a place, job type, work arrangement or shift named that way becomes a
+// filter (i18n.js). Filters chosen on the page always win.
+function localFilters(f) {
+  if (!f.q) return f;
+  const x = i18n.searchTerms(f.q);
+  if (!x.changed) return f;
+  const cities = jobLocations();
+  const place = x.location && (x.location === 'Remote' || cities.includes(x.location) || search.statesOf(cities).includes(x.location)) ? x.location : '';
+  return {
+    ...f, q: x.q, location: f.location || place,
+    type: f.type || (JOB_TYPES.includes(x.type) ? x.type : ''), mode: f.mode || (modes.includes(x.mode) ? x.mode : ''), shift: f.shift || (SHIFTS.includes(x.shift) ? x.shift : ''),
+  };
+}
 function findJobs(list, f, { skipWork = false } = {}) {
   const group = JOB_GROUPS.find((g) => g.key === f.group);
-  return search.searchJobs(list, f, { extra: (j) => (!group || inGroup(group, j)) && (skipWork || !f.work || workOf(j) === f.work) });
+  return search.searchJobs(list, localFilters(f), {
+    extra: (j) => (!group || inGroup(group, j)) && (skipWork || !f.work || workOf(j) === f.work),
+    moreText: jobTranslations ? (j) => jobTranslations.searchText(j) : null,
+  });
 }
 // Keywords with a typing slip and no results get one more try with the
 // closest words from the live jobs ("devloper" → "developer").
@@ -760,12 +830,13 @@ app.get('/jobs', (req, res) => {
     sort: found.sort,
     active,
     corrected,
+    understood: (() => { const x = localFilters(f); return x !== f ? { q: x.q, place: x.location !== f.location ? x.location : '' } : null; })(),
     canSaveSearch: Boolean(candidateEmail),
     savedSearchQuery: filterQuery(f),
     shifts: SHIFTS,
     companies: [...new Set(live.filter((j) => !isSample(j)).map((j) => j.company))].sort((a, b) => a.localeCompare(b)),
     experienceLevels: search.EXPERIENCE_LEVELS,
-    minPayOptions: search.MIN_PAY_OPTIONS.map((n) => ({ value: n, label: payLabel(n) })),
+    minPayOptions: search.MIN_PAY_OPTIONS.map((n) => ({ value: n, label: req.t.t('jobs.payOption', { amount: n.toLocaleString('en-IN') }) })),
     states: search.statesOf(jobLocations()),
     group,
     categories: jobCategories(),
@@ -843,6 +914,7 @@ app.get('/jobs/:id', (req, res, next) => {
     live: isLive(job),
     verifiedEmployer: verified,
     trustLabels: trustHooks.labelsFor(job),
+    translation: jobTranslations ? jobTranslations.publicFor(job, req.locale) : null,
     stateName: search.stateOf(job.location),
     reportReasons: REPORT_REASONS,
     quick: !resumeNeeded(job),
@@ -921,6 +993,11 @@ app.get('/industries/:slug', (req, res, next) => {
   });
 });
 app.get('/about', (req, res) => res.render('about', { title: 'About Us', page: 'about', metaDescription: `About ${site.name}: a recruitment and staffing company in India hiring for office, skilled and field roles, with pre-screened candidates and one point of contact for employers.` }));
+// Plain-language help with the words on job listings, and the accessibility
+// statement (both in every interface language).
+app.get('/help/job-terms', (req, res) => res.render('help-terms', { title: 'Job words explained', page: 'help', metaDescription: `What CTC, LPA, in-hand salary, PF, notice period, shifts and other words on job listings mean, explained simply by ${site.name}.` }));
+const ACCESSIBILITY_REVIEWED = '2026-10-25';
+app.get('/accessibility', (req, res) => res.render('accessibility', { title: 'Accessibility', page: 'help', reviewedOn: ACCESSIBILITY_REVIEWED, metaDescription: `How ${site.name} works with keyboards, screen readers, voice input, larger text and in Hindi, what is still being improved, and how to tell us about a problem.` }));
 app.get('/contact', (req, res) => res.render('contact', { title: 'Contact Us', page: 'contact', metaDescription: `Contact ${site.name} by phone, WhatsApp or email: questions about jobs, applications, hiring or staffing.` }));
 // Bump LEGAL_UPDATED whenever the wording of either page changes.
 const LEGAL_UPDATED = '2026-10-25';
@@ -1012,9 +1089,14 @@ app.post('/api/apply', limit('apply', 6), (req, res) => {
       if (bad) return respond(req, res, [bad]);
       return saveApplication(data, req.file, job, {}, { announce: true }).then(({ updated }) => {
       if (!updated) siteAnalytics.track('application-submitted', job ? WORK_KINDS.find((w) => w.key === workOf(job)).label : 'General application', req);
+      siteAnalytics.track('application-language', req.locale, req);
       const first = data.name.split(' ')[0];
-      if (updated) return respond(req, res, [], `Thanks ${first}! You'd already applied for this job, so we've updated your application with your new details.`);
-      respond(req, res, [], `Thanks ${first}! Your application is in. A recruiter will ${data.email ? 'contact you' : `call you on ${data.phone}`} within 2 working days.`);
+      // English stays as before; other languages use the locale's messages.
+      const said = (key, en, vars) => (req.locale === i18n.DEFAULT ? en : req.t.t(key, vars));
+      if (updated) return respond(req, res, [], said('messages.applyUpdated', `Thanks ${first}! You'd already applied for this job, so we've updated your application with your new details.`, { first }));
+      respond(req, res, [], data.email
+        ? said('messages.applyEmail', `Thanks ${first}! Your application is in. A recruiter will contact you within 2 working days.`, { first })
+        : said('messages.applyPhone', `Thanks ${first}! Your application is in. A recruiter will call you on ${data.phone} within 2 working days.`, { first, phone: data.phone }));
       });
     }).catch((e) => {
       console.error(e);
@@ -1533,6 +1615,14 @@ const aiDesk = require('./ai-assistant').create({
   adminNav: (req) => ({ roleLabel: (agencyRoles.ROLE_INFO[req.admin.role] || {}).label || req.admin.role, can: (a) => agencyRoles.can(req.admin, a), strong: team.has2fa(req.admin.id) }),
 });
 
+// Reviewed translations of job listings (job-translations.js): drafted by
+// the AI assistant or copied, checked, approved by the employer (or the team
+// for its own jobs), and shown with the original one click away.
+jobTranslations = require('./job-translations').create({
+  db, app, getJobs: () => jobs, hiring, clients, adminAuth, roles: agencyRoles, sameOrigin, limit, site, jobPath, ai: aiDesk, record: trustDesk.record,
+  adminNav: (req) => ({ roleLabel: (agencyRoles.ROLE_INFO[req.admin.role] || {}).label || req.admin.role, can: (a) => agencyRoles.can(req.admin, a), strong: team.has2fa(req.admin.id) }),
+});
+
 // Security alerts, incidents, data requests and retention (security.js,
 // privacy.js), on the trust & safety pages.
 const protectView = (req, res, locals, status = 200) => {
@@ -1950,6 +2040,7 @@ app.post('/admin/jobs/:id/delete', adminAuth, requireAdmin, sameOrigin, (req, re
   if (!job) return next();
   jobs = jobs.filter((j) => j !== job);
   saveJobs();
+  jobTranslations.removeFor(job.id);
   res.redirect(adminUrl('jobs', `Deleted "${job.title}"`));
 });
 

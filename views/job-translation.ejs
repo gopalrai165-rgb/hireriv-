@@ -1,0 +1,123 @@
+<%- include('partials/head') %>
+<%
+  const when = function (d) { return d ? new Date(d).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'medium', timeStyle: 'short' }) : ''; };
+  const d = draft || source;
+  const pub = rec && rec.published;
+  const LIST_LABELS = { responsibilities: 'Responsibilities', qualifications: 'Requirements', benefits: 'Benefits' };
+%>
+<section class="section admin<%= ctx === 'employer' ? ' portal' : '' %>">
+  <div class="container">
+    <% if (ctx === 'employer') { %>
+      <%- include('partials/employer-nav', { heading: 'Translate a job', tab: 'jobs' }) %>
+    <% } else { %>
+      <a href="<%= back %>" class="back-link">← Back to the job</a>
+      <h1>Translate a job</h1>
+    <% } %>
+    <p class="muted"><b><%= job.title %></b> (<%= job.id %>) · <a href="<%= back %>"><%= ctx === 'employer' ? 'All jobs' : 'Edit the job' %></a></p>
+
+    <nav class="filter-chips" aria-label="Languages">
+      <% targets.forEach(function (x) { %><a class="chip<%= x.code === lang ? ' is-active' : '' %>" href="<%= base.replace(/[^/]+$/, x.code) %>" lang="<%= x.code %>"<%- x.code === lang ? ' aria-current="page"' : '' %>><%= x.native %> <span lang="en">(<%= x.name %>: <%= x.status === 'approved' ? 'approved' : x.status === 'draft' ? 'draft' : 'not started' %>)</span></a><% }) %>
+    </nav>
+
+    <% if (msg) { %><p class="notice" role="status"><%= msg %></p><% } %>
+    <% if (errors.length) { %>
+      <div class="notice notice-err" role="alert" tabindex="-1" data-error-summary>
+        <p><b>Not approved yet. Please fix:</b></p>
+        <ul><% errors.forEach(function (e) { %><li><%= e %></li><% }) %></ul>
+      </div>
+    <% } %>
+
+    <div class="dash-card">
+      <h2 class="h4">How this works</h2>
+      <ol class="small">
+        <li>Make a draft<%= aiOn ? ' with the AI assistant, or copy the original and translate it yourself' : ' by copying the original and writing the translation over it' %>.</li>
+        <li>Check it against the original. Pay, place, hours, dates, job type and the other job details are not part of the translation: candidates always see them from your original listing.</li>
+        <li>Approve it. Candidates who use <%= language.name %> then see it, with a link to your original. If you edit the job later, the translation is hidden until you approve it again.</li>
+      </ol>
+      <p class="small">
+        <b>Status:</b>
+        <% if (pub && !stale) { %>Approved, version <%= pub.version %>, by <%= pub.approvedBy %> on <%= when(pub.approvedAt) %>. <a href="<%= publicUrl %>">See it as candidates do</a>.
+        <% } else if (pub && stale) { %><span class="pill st-screening">Needs approval again</span> The job changed after version <%= pub.version %> was approved, so candidates see the original until you approve an updated translation.
+        <% } else if (draft) { %>Draft, not shown to candidates.
+        <% } else { %>Not started.<% } %>
+      </p>
+    </div>
+
+    <% if (canEdit) { %>
+      <form class="form" method="post" action="<%= base %>/draft">
+        <button class="btn btn-outline btn-sm" type="submit"><%= aiOn ? (draft ? 'Make a new draft with AI' : 'Make a draft with AI') : (draft ? 'Start again from the original' : 'Copy the original to translate') %></button>
+        <% if (aiOn) { %><span class="small muted"> The AI drafts; you check and approve. It never publishes anything.</span><% } %>
+      </form>
+    <% } %>
+
+    <% if (rec && rec.flags && rec.flags.length && draft) { %>
+      <div class="dash-card" aria-labelledby="checks-h">
+        <h2 class="h4" id="checks-h">Checks</h2>
+        <ul class="flag-list">
+          <% rec.flags.forEach(function (f) { %><li><span class="pill <%= f.blocking ? 'st-rejected' : 'st-screening' %>"><%= f.blocking ? 'Must fix' : 'Check' %></span> <%= f.text %></li><% }) %>
+        </ul>
+      </div>
+    <% } %>
+    <% if (draftStale) { %><p class="notice">The job changed after this draft was made. Compare it with the original below and save it again before approving.</p><% } %>
+
+    <div class="translate-grid">
+      <section class="dash-card" lang="en" aria-labelledby="orig-h">
+        <h2 class="h4" id="orig-h">Original (English)</h2>
+        <h3 class="h5">Title</h3><p><%= source.title %></p>
+        <h3 class="h5">Description</h3><p class="pre-line"><%= source.description %></p>
+        <% Object.keys(LIST_LABELS).forEach(function (k) { if (!source[k].length) return; %>
+          <h3 class="h5"><%= LIST_LABELS[k] %></h3><ol><% source[k].forEach(function (x) { %><li><%= x %></li><% }) %></ol>
+        <% }) %>
+      </section>
+      <section class="dash-card" aria-labelledby="tr-h">
+        <h2 class="h4" id="tr-h"><%= language.name %> (<span lang="<%= lang %>"><%= language.native %></span>)</h2>
+        <% if (canEdit && draft) { %>
+          <form class="form" method="post" action="<%= base %>">
+            <label>Title<input name="title" lang="<%= lang %>" maxlength="140" required value="<%= d.title %>"></label>
+            <label>Description<textarea name="description" lang="<%= lang %>" rows="6" maxlength="4000"><%= d.description %></textarea></label>
+            <% Object.keys(LIST_LABELS).forEach(function (k) { %>
+              <label><%= LIST_LABELS[k] %> <span class="muted small">(one per line, same order as the original)</span><textarea name="<%= k %>" lang="<%= lang %>" rows="<%= Math.max(2, d[k].length + 1) %>"><%= d[k].join('\n') %></textarea></label>
+            <% }) %>
+            <button class="btn btn-primary btn-sm" type="submit">Save draft</button>
+          </form>
+        <% } else if (draft || pub) { const v = draft || pub.fields; %>
+          <div lang="<%= lang %>">
+            <p><b><%= v.title %></b></p><p class="pre-line"><%= v.description %></p>
+            <% Object.keys(LIST_LABELS).forEach(function (k) { if (!(v[k] || []).length) return; %><ol><% v[k].forEach(function (x) { %><li><%= x %></li><% }) %></ol><% }) %>
+          </div>
+        <% } else { %>
+          <p class="muted small">No translation yet.</p>
+        <% } %>
+      </section>
+    </div>
+
+    <% if (canEdit && draft) { %>
+      <form class="form form-card" method="post" action="<%= base %>/approve">
+        <label class="check-row"><input type="checkbox" name="confirm" value="1" required> <span>I checked this translation against the original. It says the same thing and adds nothing.</span></label>
+        <button class="btn btn-primary" type="submit">Approve and show to candidates</button>
+      </form>
+    <% } %>
+    <% if (canWithdraw && pub) { %>
+      <form class="form" method="post" action="<%= base %>/withdraw" data-confirm="Stop showing this translation to candidates?">
+        <% if (ctx === 'admin') { %><label>Reason (recorded)<input name="reason" required minlength="5" maxlength="300"></label><% } %>
+        <button class="btn btn-outline btn-sm" type="submit">Withdraw the translation</button>
+      </form>
+    <% } %>
+
+    <% if (rec && rec.versions && rec.versions.length) { %>
+      <h2 class="h4">Approved versions</h2>
+      <ul class="plain-list small">
+        <% rec.versions.forEach(function (v) { %><li>Version <%= v.version %>: approved by <%= v.approvedBy %> on <%= when(v.approvedAt) %></li><% }) %>
+      </ul>
+    <% } %>
+    <% if (rec && rec.history && rec.history.length) { %>
+      <details class="small"><summary>History</summary>
+        <ul class="plain-list">
+          <% rec.history.slice(0, 30).forEach(function (h) { %><li><%= when(h.at) %> · <%= h.by %> · <%= ({ 'draft-ai': 'draft made with AI', 'draft-copy': 'original copied to translate', edited: 'draft saved', approved: 'approved', withdrawn: 'withdrawn' })[h.action] || h.action %><%= h.detail ? ' (' + h.detail + ')' : '' %></li><% }) %>
+        </ul>
+      </details>
+    <% } %>
+  </div>
+</section>
+
+<%- include('partials/foot') %>

@@ -1,0 +1,23 @@
+<%- include('partials/head') %>
+
+<section class="page-hero page-hero-sm">
+  <div class="container narrow">
+    <span class="eyebrow"><%= t('terms.eyebrow') %></span>
+    <h1><%= t('terms.title') %></h1>
+    <p class="lead"><%= t('terms.lead') %></p>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container narrow">
+    <dl class="glossary">
+      <% tlist('terms.items').forEach(function (item) { %>
+        <div><dt><%= item[0] %></dt><dd><%= item[1] %></dd></div>
+      <% }) %>
+    </dl>
+    <p class="notice" role="note"><svg class="i" aria-hidden="true"><use href="#i-shield"/></svg> <%= t('terms.warning') %></p>
+    <p><a href="/jobs" class="btn btn-primary"><%= t('nav.findJobs') %></a></p>
+  </div>
+</section>
+
+<%- include('partials/foot') %>

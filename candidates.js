@@ -1063,7 +1063,7 @@ function register(app, deps) {
 
   // What the recommendations and saved searches (job-recommendations.js) build on.
   const helpers = {
-    requireCandidate, requireCandidateApi, candidateOf, ensureCandidate, profileFor, updateProfile, profileContext, shell, page, back, mine, savedOf, activity,
+    requireCandidate, requireCandidateApi, candidateOf, saveCandidate, ensureCandidate, profileFor, updateProfile, profileContext, shell, page, back, mine, savedOf, activity,
   };
   return { requireCandidate, currentEmail, accountForJob, hiddenFromSearch, pruneAccounts, deleteEverything, helpers };
 }

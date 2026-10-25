@@ -574,6 +574,49 @@ Suggested order: 2 → 1 → 3 → 4, which makes Hireriv usable for skilled and
 
   Existing tests were updated where exports and backups now ask for the password, and where sign-up no longer makes a profile visible to recruiters.
 
+## Step 67: multilingual experience and accessibility
+
+- **Audit first.** Already there:
+  - a skip link, focus outlines, labelled forms, `aria-hidden` icons and reduced-motion rules
+  - a resume that is optional for field jobs, and the short quick-apply
+  - Unicode-safe storage, and spelling fixes and synonyms in search (`search.js`)
+  - the AI provider layer (Step 66)
+  - candidate profiles (`candidates.js`)
+
+  Gaps: every word was written into the templates in English, with no language choice, no Hindi, no search in other scripts, no translated listings, and no accessibility statement or tests.
+- **Reused, not duplicated.**
+  - Search terms in other languages are mapped onto the existing filters and keywords, and approved translations go in as extra text for `search.js`.
+  - Job translations are drafted by `ai-assistant.js` with a new feature and task, under the same limits, fallbacks and usage records.
+  - Permissions are the existing `job.edit` and `jobs.moderate`, and records go to the company activity log and `trust.record`.
+  - The language preference is saved through the candidate helpers, and the analytics events are added to `site-analytics.js`.
+- **Design choices.**
+  - Stored values stay English: job type, category and similar fields are translated only for display, so filters, the API, exports and matching are unchanged.
+  - The browser's `Accept-Language` is not used on its own.
+  - Facts on a translated listing always come from the original, and a translation stops showing when the listing changes (source hash).
+  - Blocking checks cover numbers, links and empty fields.
+  - Hindi pages get Devanagari fonts, and script strings are inline JSON with no extra request.
+  - Untranslated workspace pages are marked `lang="en"`.
+- **Not done here.**
+  - Native-speaker review of the Hindi.
+  - Telugu is complete only for the navigation, search and job words. Tamil, Bengali and Marathi have no locale files.
+  - The employer workspace, Admin and emails are not translated.
+  - Manual screen-reader and keyboard checks are listed as not done in docs/ACCESSIBILITY.md.
+- **Adapted from the brief.**
+  - JSON locale files and EJS helpers instead of a React i18n library.
+  - The collection `job-translations` instead of a table.
+  - Browser speech APIs instead of a speech service, so no audio reaches Hireriv.
+- **Tests.**
+  - `test/i18n.test.js` has 7 tests, covering:
+    - locale key and placeholder parity
+    - Telugu fallback, numbers and dates
+    - Hindi and Telugu search
+    - the selector (cookie, profile, safe redirects, same-site, no Accept-Language)
+    - Hindi pages end to end and the offline page
+    - localised apply errors with field names
+    - the translation workflow: an AI draft, blocking numbers, approval, display with the original, search, hiding after an edit, other companies refused, and team withdrawal with a reason
+  - `test/accessibility.test.js` has 4 tests: automated checks on public pages in English and Hindi and on candidate pages.
+  - Existing tests: two assertions in `test/candidate-profile.test.js` needed only to accept `&#39;`, because the text now comes through EJS escaping. Two pages that passed a variable named `t` now use `txn` and `track`.
+
 ## Step 66: AI recruitment assistant and hiring copilot
 
 - **Audit first.** Already there:

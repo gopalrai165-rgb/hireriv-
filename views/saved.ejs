@@ -3,25 +3,25 @@
 <section class="page-hero page-hero-sm">
   <span class="deco deco-spark" aria-hidden="true"></span><span class="deco deco-dots" aria-hidden="true"></span><span class="deco deco-squiggle" aria-hidden="true"></span>
   <div class="container">
-    <span class="eyebrow">Your shortlist</span>
-    <h1>Saved jobs</h1>
-    <p class="lead">Jobs you bookmark are kept on this device, so you can come back and apply when you're ready.</p>
+    <span class="eyebrow"><%= t('saved.eyebrow') %></span>
+    <h1><%= t('saved.title') %></h1>
+    <p class="lead"><%= t('saved.lead') %></p>
   </div>
 </section>
 
 <section class="section">
   <div class="container">
     <div class="results-head">
-      <p id="saved-summary">Loading your saved jobs…</p>
-      <button type="button" class="small link-btn" id="saved-clear" hidden>Clear all</button>
+      <p id="saved-summary" role="status"><%= t('saved.loading') %></p>
+      <button type="button" class="small link-btn" id="saved-clear" hidden><%= t('saved.clear') %></button>
     </div>
     <div class="jobs-grid" id="saved-list"></div>
     <div class="empty" id="saved-empty" hidden>
-      <h3>No saved jobs yet</h3>
-      <p>Tap the bookmark icon on any job to save it here.</p>
-      <a href="/jobs" class="btn btn-primary">Browse jobs</a>
+      <h2 class="h3"><%= t('saved.noneTitle') %></h2>
+      <p><%= t('saved.noneText') %></p>
+      <a href="/jobs" class="btn btn-primary"><%= t('common.browseJobs') %></a>
     </div>
-    <noscript><div class="empty"><p>Saved jobs need JavaScript switched on in your browser.</p></div></noscript>
+    <noscript><div class="empty"><p><%= t('saved.noScript') %></p></div></noscript>
   </div>
 </section>
 

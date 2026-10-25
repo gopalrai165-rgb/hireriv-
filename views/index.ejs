@@ -1,41 +1,43 @@
 <%- include('partials/head') %>
+<%# Sections for employers are in English only for now: lang="en" tells screen readers. %>
+<% const enOnly = locale !== 'en' ? ' lang="en"' : ''; %>
 
 <!-- HERO -->
 <section class="hero">
   <div class="hero-bg" aria-hidden="true"></div>
   <div class="container hero-grid">
     <div class="hero-copy">
-      <span class="eyebrow"><svg class="i"><use href="#i-spark"/></svg> Jobs and staffing across India</span>
-      <h1>Find Your Next Opportunity. <span class="grad">Build Your Future.</span></h1>
-      <p class="lead">Hireriv connects startups, corporates, factories, hospitals, warehouses and stores with pre-screened people, from software engineers and accountants to technicians, drivers and production staff, and helps everyone find work where they can do their best.</p>
+      <span class="eyebrow"><svg class="i" aria-hidden="true"><use href="#i-spark"/></svg> <%= t('home.eyebrow') %></span>
+      <h1><%= t('home.title1') %> <span class="grad"><%= t('home.title2') %></span></h1>
+      <p class="lead"><%= t('home.lead') %></p>
       <div class="hero-ctas">
-        <a href="/jobs" class="btn btn-primary btn-lg">Find Jobs <svg class="i"><use href="#i-arrow"/></svg></a>
-        <a href="/hire" class="btn btn-outline btn-lg">Hire Talent</a>
-        <a href="/hire?service=contract-staffing#requirement" class="btn btn-outline btn-lg">Request Staffing</a>
+        <a href="/jobs" class="btn btn-primary btn-lg"><%= t('home.findJobs') %> <svg class="i" aria-hidden="true"><use href="#i-arrow"/></svg></a>
+        <a href="/hire" class="btn btn-outline btn-lg"><%= t('home.hireTalent') %></a>
+        <a href="/hire?service=contract-staffing#requirement" class="btn btn-outline btn-lg"><%= t('home.requestStaffing') %></a>
       </div>
       <form class="hero-search" action="/jobs" method="get" role="search">
-        <svg class="i"><use href="#i-search"/></svg>
-        <label class="sr-only" for="hero-q">Search jobs</label>
-        <input id="hero-q" name="q" placeholder="Job title or skill">
-        <label class="sr-only" for="hero-loc">Location</label>
+        <svg class="i" aria-hidden="true"><use href="#i-search"/></svg>
+        <label class="sr-only" for="hero-q"><%= t('home.searchLabel') %></label>
+        <input id="hero-q" name="q" type="search" placeholder="<%= t('home.searchPlaceholder') %>" enterkeyhint="search">
+        <label class="sr-only" for="hero-loc"><%= t('jobs.location') %></label>
         <select id="hero-loc" name="location">
-          <option value="">Any location</option>
+          <option value=""><%= t('home.anyLocation') %></option>
           <% locations.forEach(function (l) { %><option><%= l %></option><% }) %>
         </select>
-        <label class="sr-only" for="hero-cat">Job category</label>
+        <label class="sr-only" for="hero-cat"><%= t('home.categoryLabel') %></label>
         <select id="hero-cat" name="category">
-          <option value="">Any category</option>
-          <% categoryGroups.forEach(function (g) { %><optgroup label="<%= g.label %>"><% g.categories.forEach(function (c) { %><option><%= c %></option><% }) %></optgroup><% }) %>
+          <option value=""><%= t('home.anyCategory') %></option>
+          <% categoryGroups.forEach(function (g) { %><optgroup label="<%= tv('work', g.key) === g.key ? g.label : tv('work', g.key) %>"><% g.categories.forEach(function (c) { %><option value="<%= c %>"><%= tv('category', c) %></option><% }) %></optgroup><% }) %>
         </select>
-        <button class="btn btn-accent" type="submit">Search Jobs</button>
+        <button class="btn btn-accent" type="submit"><%= t('home.searchButton') %></button>
       </form>
-      <p class="hero-popular small">Popular:
-        <a href="/jobs?q=developer">Developer</a> <a href="/jobs?q=accountant">Accountant</a> <a href="/jobs?q=sales">Sales</a> <a href="/jobs?q=electrician">Electrician</a> <a href="/jobs?q=driver">Driver</a> <a href="/jobs?q=warehouse">Warehouse</a>
+      <p class="hero-popular small"><%= t('home.popular') %>
+        <a href="/jobs?q=developer"><%= t('home.popularDeveloper') %></a> <a href="/jobs?q=accountant"><%= t('home.popularAccountant') %></a> <a href="/jobs?q=sales"><%= t('home.popularSales') %></a> <a href="/jobs?q=electrician"><%= t('home.popularElectrician') %></a> <a href="/jobs?q=driver"><%= t('home.popularDriver') %></a> <a href="/jobs?q=warehouse"><%= t('home.popularWarehouse') %></a>
       </p>
       <% const placed = site.stats[1] || site.stats[0]; %>
       <div class="trust">
         <div class="trust-avatars" aria-hidden="true"><% [1, 2, 3, 4, 5].forEach(function (n) { %><img src="/img/photos/avatar-<%= n %>.webp" alt="" width="44" height="44"><% }) %></div>
-        <p><span class="stars" aria-hidden="true">★★★★★</span><% if (placed) { %><b><%= placed.value.toLocaleString('en-IN') %><%= placed.suffix %> <%= placed.label.toLowerCase() %></b><% } %>across India's growing companies</p>
+        <p><span class="stars" aria-hidden="true">★★★★★</span><% if (placed) { %><b><%= placed.value.toLocaleString('en-IN') %><%= placed.suffix %> <span<%- enOnly %>><%= placed.label.toLowerCase() %></span></b><% } %> <%= t('home.trustLine') %></p>
       </div>
     </div>
     <div class="hero-visual" aria-hidden="true">
@@ -57,7 +59,7 @@
 </section>
 
 <!-- STATS -->
-<section class="stats">
+<section class="stats"<%- enOnly %>>
   <div class="container stats-grid">
     <% site.stats.forEach(function (s) { %>
       <div class="stat">
@@ -70,7 +72,7 @@
 
 <!-- ROLES WE HIRE FOR (scrolling strip; the copy is for the seamless loop) -->
 <% const marqueeRoles = catalog.INDUSTRIES.flatMap(function (ind) { return ind.roles.slice(0, 2).map(function (r) { return { role: r, icon: ind.icon }; }); }); %>
-<section class="marquee-band" aria-label="Roles we hire for">
+<section class="marquee-band" aria-label="<%= t('home.rolesLabel') %>">
   <div class="marquee">
     <% [false, true].forEach(function (copy) { %>
       <div class="marquee-track"<%- copy ? ' aria-hidden="true"' : '' %>>
@@ -85,18 +87,18 @@
   <div class="container">
     <div class="section-head row">
       <div>
-        <span class="eyebrow">Job categories</span>
-        <h2>Jobs for every kind of work</h2>
-        <p>Office or shop floor, fresher or expert: pick a category to see open jobs.</p>
+        <span class="eyebrow"><%= t('home.catEyebrow') %></span>
+        <h2><%= t('home.catTitle') %></h2>
+        <p><%= t('home.catText') %></p>
       </div>
-      <a href="/categories" class="btn btn-outline">All categories <svg class="i"><use href="#i-arrow"/></svg></a>
+      <a href="/categories" class="btn btn-outline"><%= t('home.allCategories') %> <svg class="i" aria-hidden="true"><use href="#i-arrow"/></svg></a>
     </div>
     <div class="cat-grid">
       <% groups.forEach(function (g) { %>
         <a class="cat-tile<%= ['office', 'skilled-field'].includes(g.key) ? ' cat-tile-wide' : '' %>" href="/jobs?group=<%= g.key %>">
-          <span class="cat-icon"><svg class="i"><use href="#<%= g.icon %>"/></svg></span>
-          <span class="cat-body"><b><%= g.label %></b><% if (g.text) { %><span class="muted small"><%= g.text %></span><% } %></span>
-          <span class="cat-count"><%= g.count %> <%= g.count === 1 ? 'job' : 'jobs' %></span>
+          <span class="cat-icon" aria-hidden="true"><svg class="i"><use href="#<%= g.icon %>"/></svg></span>
+          <span class="cat-body"><b><%= tv('group', g.key) === g.key ? g.label : tv('group', g.key) %></b><% if (g.text) { %><span class="muted small"><%= tv('groupText', g.key) === g.key ? g.text : tv('groupText', g.key) %></span><% } %></span>
+          <span class="cat-count"><%= t('home.jobCount', { count: g.count }) %></span>
         </a>
       <% }) %>
     </div>
@@ -109,10 +111,10 @@
   <div class="container">
     <div class="section-head row">
       <div>
-        <span class="eyebrow">Featured jobs</span>
-        <h2>Jobs hiring right now</h2>
+        <span class="eyebrow"><%= t('home.featuredEyebrow') %></span>
+        <h2><%= t('home.featuredTitle') %></h2>
       </div>
-      <a href="/jobs" class="btn btn-outline">View all jobs <svg class="i"><use href="#i-arrow"/></svg></a>
+      <a href="/jobs" class="btn btn-outline"><%= t('home.viewAll') %> <svg class="i" aria-hidden="true"><use href="#i-arrow"/></svg></a>
     </div>
     <div class="jobs-grid">
       <% jobs.forEach(function (job) { %><%- include('partials/job-card', { job: job }) %><% }) %>
@@ -121,7 +123,7 @@
 </section>
 
 <!-- EMPLOYERS -->
-<section class="section section-dark employer-band" id="employers">
+<section class="section section-dark employer-band" id="employers"<%- enOnly %>>
   <div class="container">
     <div class="section-head">
       <span class="eyebrow">For employers</span>
@@ -148,7 +150,7 @@
 </section>
 
 <!-- INDUSTRIES -->
-<section class="section" id="industries">
+<section class="section" id="industries"<%- enOnly %>>
   <div class="container">
     <div class="section-head">
       <span class="eyebrow">Specialised talent</span>
@@ -183,7 +185,7 @@
 </section>
 
 <!-- PROCESS -->
-<section class="section section-dark" id="process">
+<section class="section section-dark" id="process"<%- enOnly %>>
   <div class="container">
     <div class="section-head light">
       <span class="eyebrow">Our 6-stage filter</span>
@@ -210,7 +212,7 @@
 </section>
 
 <!-- TWO PATHS -->
-<section class="section">
+<section class="section"<%- enOnly %>>
   <div class="container">
     <div class="section-head">
       <span class="eyebrow">How we help</span>
@@ -249,7 +251,7 @@
 </section>
 
 <!-- WHY US -->
-<section class="section">
+<section class="section"<%- enOnly %>>
   <div class="container why-grid">
     <div>
       <span class="eyebrow">Why Hireriv</span>
@@ -280,7 +282,7 @@
 <!-- TESTIMONIALS (edited in Admin → Settings; hidden when there are none) -->
 <% const testimonials = testimonialsFor(site); %>
 <% if (testimonials.length) { %>
-<section class="section section-testimonials">
+<section class="section section-testimonials"<%- enOnly %>>
   <div class="container">
     <div class="section-head">
       <span class="eyebrow">Testimonials</span>
@@ -301,7 +303,7 @@
 <% } %>
 
 <!-- FAQ -->
-<section class="section section-tint" id="faq">
+<section class="section section-tint" id="faq"<%- enOnly %>>
   <div class="container faq-wrap">
     <div class="section-head left">
       <span class="eyebrow">FAQ</span>
@@ -330,7 +332,7 @@
 </section>
 
 <!-- BLOG -->
-<section class="section">
+<section class="section"<%- enOnly %>>
   <div class="container">
     <div class="section-head row">
       <div>
@@ -355,7 +357,7 @@
 </section>
 
 <!-- CTA -->
-<section class="cta-band">
+<section class="cta-band"<%- enOnly %>>
   <div class="container cta-inner">
     <div>
       <h2>Ready to build your dream team?</h2>

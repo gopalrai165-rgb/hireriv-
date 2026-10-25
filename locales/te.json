@@ -1,0 +1,29 @@
+{
+  "meta": { "language": "తెలుగు", "reviewed": "partial draft: navigation and search words only; everything else falls back to English" },
+  "lang": { "label": "భాష", "choose": "భాషను ఎంచుకోండి", "current": "(ప్రస్తుతం)", "translationNote": "ఈ పేజీలో కొన్ని భాగాలు ప్రస్తుతం ఇంగ్లీషులో మాత్రమే ఉన్నాయి." },
+  "common": { "skip": "ముఖ్య విషయానికి వెళ్ళండి", "home": "హోమ్", "menuOpen": "మెనూ తెరవండి", "menuClose": "మెనూ మూసివేయండి" },
+  "nav": {
+    "main": "ముఖ్య", "findJobs": "ఉద్యోగాలు వెతకండి", "categories": "ఉద్యోగ విభాగాలు", "staffing": "స్టాఫింగ్ సేవలు", "employers": "యజమానులు",
+    "resources": "కెరీర్ సలహాలు", "saved": "సేవ్ చేసినవి", "login": "లాగిన్", "myAccount": "నా ఖాతా", "register": "నమోదు చేసుకోండి", "postJob": "ఉద్యోగం పోస్ట్ చేయండి"
+  },
+  "jobs": { "title": "మీ తదుపరి ఉద్యోగాన్ని వెతకండి", "search": "వెతకండి", "keywordHint": "మీరు ఇంగ్లీష్, హిందీ లేదా తెలుగులో టైప్ చేయవచ్చు." },
+  "values": {
+    "type": { "Full-time": "ఫుల్-టైమ్", "Part-time": "పార్ట్-టైమ్", "Contract": "కాంట్రాక్ట్", "Internship": "ఇంటర్న్‌షిప్" },
+    "mode": { "Remote": "రిమోట్ (ఇంటి నుండి)", "On-site": "ఆన్-సైట్" },
+    "shift": { "Night": "రాత్రి", "Day": "పగలు" }
+  },
+  "search": {
+    "ignore": ["ఉద్యోగం", "ఉద్యోగాలు", "జాబ్", "జాబ్స్", "పని", "లో", "కోసం", "కావాలి", "షిఫ్ట్"],
+    "terms": {
+      "డ్రైవర్": "driver", "డెలివరీ": "delivery", "సెక్యూరిటీ గార్డ్": "security guard", "గార్డ్": "guard", "ఎలక్ట్రీషియన్": "electrician", "ప్లంబర్": "plumber",
+      "వెల్డర్": "welder", "మెకానిక్": "mechanic", "టెక్నీషియన్": "technician", "హెల్పర్": "helper", "వంటవాడు": "cook", "కుక్": "cook", "నర్స్": "nurse",
+      "టీచర్": "teacher", "అకౌంటెంట్": "accountant", "డేటా ఎంట్రీ": "data entry", "సేల్స్": "sales", "డెవలపర్": "developer", "ఇంజనీర్": "engineer",
+      "మేనేజర్": "manager", "సూపర్వైజర్": "supervisor", "వేర్‌హౌస్": "warehouse", "గోడౌన్": "warehouse", "ప్యాకింగ్": "packing", "ఫ్యాక్టరీ": "factory",
+      "ఆపరేటర్": "operator", "హౌస్‌కీపింగ్": "housekeeping", "క్యాషియర్": "cashier", "పార్ట్ టైమ్": "type:Part-time", "ఇంటి నుండి పని": "mode:Remote"
+    },
+    "places": {
+      "హైదరాబాద్": "Hyderabad", "విశాఖపట్నం": "Visakhapatnam", "వైజాగ్": "Visakhapatnam", "విజయవాడ": "Andhra Pradesh", "బెంగళూరు": "Bengaluru",
+      "చెన్నై": "Chennai", "ముంబై": "Mumbai", "ఢిల్లీ": "Delhi", "పూణే": "Pune", "తెలంగాణ": "Telangana", "ఆంధ్రప్రదేశ్": "Andhra Pradesh"
+    }
+  }
+}

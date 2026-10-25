@@ -1,17 +1,22 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="<%= locale %>" dir="ltr">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title><%= title %> | <%= site.name %></title>
+  <title><%= tm(title) %> | <%= site.name %></title>
   <meta name="description" content="<%= metaDescription %>">
+  <%# Each language version of a public page has its own address (?lang=hi); English is the default. %>
+  <% const here = locale === 'en' ? canonical : urlIn(canonical, locale); %>
   <% if (noindex) { %><meta name="robots" content="<%= noindex === 'follow' ? 'noindex, follow' : 'noindex, nofollow' %>">
-  <% } else { %><link rel="canonical" href="<%= canonical %>"><% } %>
+  <% } else { %><link rel="canonical" href="<%= here %>">
+  <% languages.forEach(function (l) { %><link rel="alternate" hreflang="<%= l.code %>" href="<%= urlIn(canonical, l.code) %>">
+  <% }) %><link rel="alternate" hreflang="x-default" href="<%= canonical %>"><% } %>
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="<%= site.name %>">
-  <meta property="og:title" content="<%= title %> | <%= site.name %>">
+  <meta property="og:title" content="<%= tm(title) %> | <%= site.name %>">
   <meta property="og:description" content="<%= metaDescription %>">
-  <meta property="og:url" content="<%= canonical %>">
+  <meta property="og:url" content="<%= here %>">
+  <meta property="og:locale" content="<%= langInfo.tag.replace('-', '_') %>">
   <meta property="og:image" content="<%= ogImage %>">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
@@ -23,42 +28,52 @@
   <meta name="theme-color" content="#123B70">
   <link rel="apple-touch-icon" href="/img/icons/apple-touch-icon.png">
   <meta name="apple-mobile-web-app-title" content="<%= site.name %>">
+  <%# Slow connections (Save-Data) skip web fonts; Hindi and Telugu fall back to the phone's own fonts. %>
   <% if (typeof saveData === 'undefined' || !saveData) { %><link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"><% } %>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800<%= langInfo.font ? '&family=' + langInfo.font : '' %>&display=swap" rel="stylesheet"><% } %>
   <link rel="stylesheet" href="/css/style.css?v=<%= assetVersion %>">
 </head>
 <body class="page-<%= page || 'misc' %>"<%- typeof candidateSignedIn !== 'undefined' && candidateSignedIn ? ' data-account="1"' : '' %>>
-<a class="skip-link" href="#main">Skip to content</a>
+<a class="skip-link" href="#main"><%= t('common.skip') %></a>
 <%- include('icons') %>
 <header class="site-header" id="top">
   <div class="container nav-wrap">
-    <a href="/" class="logo" aria-label="<%= site.name %> home">
+    <a href="/" class="logo" aria-label="<%= t('nav.homeLink', { site: site.name }) %>">
       <img src="/img/logo.svg" alt="" width="36" height="36">
       <span class="logo-text"><span>Hire<b>riv</b></span><small>by Raigozen</small></span>
     </a>
-    <nav class="main-nav" id="main-nav" aria-label="Main">
-      <a href="/jobs" class="<%= page === 'jobs' ? 'active' : '' %>">Find Jobs</a>
-      <a href="/categories" class="<%= page === 'categories' ? 'active' : '' %>">Job Categories</a>
-      <a href="/services" class="<%= page === 'services' || page === 'industries' ? 'active' : '' %>">Staffing Solutions</a>
-      <a href="/hire" class="<%= page === 'hire' ? 'active' : '' %>">Employers</a>
-      <a href="/blog" class="<%= page === 'blog' ? 'active' : '' %>">Career Resources</a>
-      <a href="/saved" class="nav-saved <%= page === 'saved' ? 'active' : '' %>"><svg class="i"><use href="#i-bookmark"/></svg>Saved<span class="saved-count" hidden></span></a>
+    <nav class="main-nav" id="main-nav" aria-label="<%= t('nav.main') %>">
+      <a href="/jobs" class="<%= page === 'jobs' ? 'active' : '' %>"><%= t('nav.findJobs') %></a>
+      <a href="/categories" class="<%= page === 'categories' ? 'active' : '' %>"><%= t('nav.categories') %></a>
+      <a href="/services" class="<%= page === 'services' || page === 'industries' ? 'active' : '' %>"><%= t('nav.staffing') %></a>
+      <a href="/hire" class="<%= page === 'hire' ? 'active' : '' %>"><%= t('nav.employers') %></a>
+      <a href="/blog" class="<%= page === 'blog' ? 'active' : '' %>"><%= t('nav.resources') %></a>
+      <a href="/saved" class="nav-saved <%= page === 'saved' ? 'active' : '' %>"><svg class="i" aria-hidden="true"><use href="#i-bookmark"/></svg><%= t('nav.saved') %><span class="saved-count" hidden></span></a>
       <details class="nav-login">
-        <summary>Login</summary>
+        <summary><%= t('nav.login') %></summary>
         <div class="nav-login-menu">
-          <a href="/account/login"><b>Job seekers</b><span>Your profile, applications and alerts</span></a>
-          <a href="/employer/login"><b>Employers</b><span>Post jobs, see candidates and invoices</span></a>
-          <a href="/employer/register" class="nav-login-extra">New employer? Create an account</a>
+          <a href="/account/login"><b><%= t('nav.loginSeekers') %></b><span><%= t('nav.loginSeekersText') %></span></a>
+          <a href="/employer/login"><b><%= t('nav.loginEmployers') %></b><span><%= t('nav.loginEmployersText') %></span></a>
+          <a href="/employer/register" class="nav-login-extra"><%= t('nav.newEmployer') %></a>
         </div>
       </details>
-      <% if (typeof candidateSignedIn !== 'undefined' && candidateSignedIn) { %><%- include('notification-bell', { as: 'candidate', bellQuery: '?as=candidate' }) %><a href="/account" class="nav-register <%= page === 'account' ? 'active' : '' %>">My account</a><% } else { %><a href="/account/register" class="nav-register <%= page === 'account' ? 'active' : '' %>">Register</a><% } %>
-      <a href="/post-a-job" class="btn btn-primary btn-sm nav-cta">Post a Job</a>
+      <% if (typeof candidateSignedIn !== 'undefined' && candidateSignedIn) { %><%- include('notification-bell', { as: 'candidate', bellQuery: '?as=candidate' }) %><a href="/account" class="nav-register <%= page === 'account' ? 'active' : '' %>"><%= t('nav.myAccount') %></a><% } else { %><a href="/account/register" class="nav-register <%= page === 'account' ? 'active' : '' %>"><%= t('nav.register') %></a><% } %>
+      <a href="/post-a-job" class="btn btn-primary btn-sm nav-cta"><%= t('nav.postJob') %></a>
+      <% if (languages.length > 1) { %>
+      <%# The language selector: a form, so it works without JavaScript. Each language is named in itself. %>
+      <form class="lang-switch" method="post" action="/language" role="group" aria-labelledby="lang-label">
+        <input type="hidden" name="back" value="<%= currentPath %>">
+        <span class="lang-label" id="lang-label"><svg class="i" aria-hidden="true"><use href="#i-globe"/></svg><span class="sr-only"><%= t('lang.choose') %></span></span>
+        <% languages.forEach(function (l) { %><button type="submit" name="lang" value="<%= l.code %>" lang="<%= l.code %>"<%- l.code === locale ? ' aria-current="true"' : '' %>><%= l.native %><% if (l.code === locale) { %><span class="sr-only"> <%= t('lang.current') %></span><% } %></button><% }) %>
+      </form>
+      <% } %>
     </nav>
-    <a href="/saved" class="mobile-saved" aria-label="Saved jobs"><svg class="i"><use href="#i-bookmark"/></svg><span class="saved-count" hidden></span></a>
-    <button class="nav-toggle" aria-label="Open menu" aria-expanded="false" aria-controls="main-nav">
-      <svg class="i"><use href="#i-menu"/></svg>
+    <a href="/saved" class="mobile-saved" aria-label="<%= t('common.savedJobs') %>"><svg class="i" aria-hidden="true"><use href="#i-bookmark"/></svg><span class="saved-count" hidden></span></a>
+    <button class="nav-toggle" type="button" aria-label="<%= t('common.menuOpen') %>" aria-expanded="false" aria-controls="main-nav">
+      <svg class="i" aria-hidden="true"><use href="#i-menu"/></svg>
     </button>
   </div>
 </header>
-<main id="main" tabindex="-1">
+<%# Signed-in areas not yet translated stay in English, marked for screen readers. %>
+<main id="main" tabindex="-1"<%- locale !== 'en' && workspace && !locals.translated ? ' lang="en"' : '' %>>

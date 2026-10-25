@@ -104,6 +104,11 @@
       </div>
       <button class="btn btn-primary" type="submit"><%= job.id ? 'Save changes' : 'Publish job' %></button>
       <a class="btn btn-outline" href="/admin?tab=jobs">Cancel</a>
+      <% if (job.id && translationStatus(job).length) { %>
+        <p class="small muted">Translations (shown to candidates only once approved, next to the original):
+          <% translationStatus(job).forEach(function (tr) { %><a href="/admin/jobs/<%= job.id %>/translations/<%= tr.code %>"><span lang="<%= tr.code %>"><%= tr.native %></span></a> <span class="pill"><%= { approved: 'Approved', outdated: 'Needs checking', draft: 'Draft', none: 'Not translated' }[tr.state] %></span> <% }) %>
+        </p>
+      <% } %>
     </form>
   </div>
 </section>

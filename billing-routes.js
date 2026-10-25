@@ -719,7 +719,7 @@ function register(app, deps) {
     const t = find(TXNS, 'id', req.params.id);
     if (!t || t.employerId !== req.employer.id || !SETTLED.includes(t.status)) return next();
     res.set('Cache-Control', 'no-store');
-    res.render('receipt', { title: `Receipt ${t.paymentId}`, page: 'invoice', noindex: true, t, inv: t.resultInvoiceId ? find(INVOICES, 'id', t.resultInvoiceId) : null, seller: store.seller(), company: req.employer, inr, back: '/employer/billing' });
+    res.render('receipt', { title: `Receipt ${t.paymentId}`, page: 'invoice', noindex: true, txn: t, inv: t.resultInvoiceId ? find(INVOICES, 'id', t.resultInvoiceId) : null, seller: store.seller(), company: req.employer, inr, back: '/employer/billing' });
   });
 
   // ---------- the team's billing desk ----------

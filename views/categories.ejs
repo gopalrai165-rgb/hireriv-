@@ -15,7 +15,7 @@
         <a class="cat-tile<%= ['office', 'skilled-field'].includes(g.key) ? ' cat-tile-wide' : '' %>" href="/jobs?group=<%= g.key %>">
           <span class="cat-icon"><svg class="i"><use href="#<%= g.icon %>"/></svg></span>
           <span class="cat-body"><b><%= g.label %></b><% if (g.text) { %><span class="muted small"><%= g.text %></span><% } %></span>
-          <span class="cat-count"><%= g.count %> <%= g.count === 1 ? 'job' : 'jobs' %></span>
+          <span class="cat-count"><%= t('home.jobCount', { count: g.count }) %></span>
         </a>
       <% }) %>
     </div>

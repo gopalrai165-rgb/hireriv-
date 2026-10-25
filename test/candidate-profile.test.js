@@ -123,9 +123,9 @@ test('setting a password, signing in with it, and the lock-out', async () => {
 test('forgot password: a one-time link sets a new password and signs out everywhere', async () => {
   const seen = srv.emails().length;
   const res = await post('/account/forgot', { email: 'kavya@example.in' });
-  assert.match(await res.text(), /If there's an account for that address/);
+  assert.match(await res.text(), /If there(?:'|&#39;)s an account for that address/);
   const strangerReply = await (await post('/account/forgot', { email: 'stranger@example.in' })).text();
-  assert.match(strangerReply, /If there's an account for that address/);
+  assert.match(strangerReply, /If there(?:'|&#39;)s an account for that address/);
   const mail = await nextEmail((e) => e.includes('To: kavya@example.in') && e.includes('Reset your'), seen);
   const link = linkIn(mail, /\/account\/reset\/[a-f0-9]{64}/);
   assert.match(await (await srv.request(link)).text(), /Choose a new password/);
