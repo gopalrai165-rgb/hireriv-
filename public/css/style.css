@@ -1527,3 +1527,16 @@ form.inline { display: inline; }
 
 /* Security & privacy pages (Step 62) */
 .narrow-card { max-width: 30rem; }
+
+/* Plans and billing (Step 63) */
+.plan-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); gap: 14px; margin: 8px 0 16px; }
+.plan-card { border: 1px solid var(--line); border-radius: 16px; padding: 16px; background: #fff; display: flex; flex-direction: column; gap: 6px; }
+.plan-card.is-current { border-color: var(--primary); box-shadow: 0 0 0 2px var(--primary) inset; }
+.plan-card h3 { margin: 0; }
+.plan-card ul { margin: 0 0 6px; padding-left: 1.1rem; }
+.plan-card .btn, .plan-card form { margin-top: auto; align-self: flex-start; }
+.plan-price { font-family: var(--font-display); font-size: 1.4rem; margin: 0; }
+.big-number { font-family: var(--font-display); font-size: 1.3rem; margin: 4px 0 8px; }
+.inline-details summary { list-style: none; cursor: pointer; }
+.inline-details summary::-webkit-details-marker { display: none; }
+.inline-details[open] form { margin-top: 10px; }

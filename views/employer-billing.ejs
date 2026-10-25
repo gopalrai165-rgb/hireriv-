@@ -1,0 +1,169 @@
+<%- include('partials/head') %>
+<%
+  const day = function (d) { return d ? formatDate(d) : '–'; };
+  const statusLabel = { active: 'Active', past_due: 'Renewal overdue', cancelled: 'Cancelled', expired: 'Ended', managed: 'Managed by your account manager' };
+  const txnLabel = { pending: 'Pending', paid: 'Paid', failed: 'Failed', review: 'Being checked', expired: 'Not completed', refunded: 'Refunded', partially_refunded: 'Part refunded' };
+  const current = sub.plan;
+  const openStaffing = staffing.flatMap(function (p) { return p.invoices.filter(function (i) { return ['Unpaid', 'Part paid'].includes(i.status) && i.balance > 0; }).map(function (i) { return { p: p, i: i }; }); });
+  const openOwn = invoices.filter(function (i) { return ['Unpaid', 'Part paid'].includes(i.status); });
+%>
+<section class="section admin portal">
+  <div class="container">
+    <%- include('partials/employer-nav', { heading: 'Billing' }) %>
+    <p id="pay-status" class="sr-only" role="status" aria-live="polite"></p>
+
+    <% if (gateway.sandbox) { %><p class="notice">Payments here use the payment provider's <b>test mode</b>: no real money moves.</p><% } %>
+    <% if (manage && !gateway.ready) { %><p class="muted small">Online payment isn't switched on yet. To upgrade or pay an invoice, contact us at <a href="mailto:<%= site.email %>"><%= site.email %></a> and we'll send bank details.</p><% } %>
+
+    <div class="dash-grid">
+      <section class="dash-card" id="plan">
+        <div class="dash-head"><h2>Your plan</h2><span class="pill <%= sub.status === 'active' || sub.status === 'managed' ? 'st-hired' : 'st-rejected' %>"><%= statusLabel[sub.status] || sub.status %></span></div>
+        <% if (sub.managed && !current) { %>
+          <p>Your account is looked after by the <%= site.name %> team: jobs and placements are billed on your agreement, without a plan.</p>
+        <% } else if (current) { %>
+          <p class="big-number"><%= current.name %><% if (current.price && current.price.amountPaise > 0) { %> · <%= current.price.display %> <span class="muted small">+ GST, <%= current.intervalLabel.toLowerCase() %></span><% } %></p>
+          <% if (sub.renewsOn) { %><p class="small">Renews on <b><%= day(sub.renewsOn) %></b><% if (sub.nextPlan) { %>, moving to <b><%= sub.nextPlan.name %></b><% } %>.</p><% } %>
+          <% if (sub.endsOn) { %><p class="small">Cancelled: stays until <b><%= day(sub.endsOn) %></b>, then your company moves to the free plan.</p><% } %>
+          <% if (sub.graceEnds) { %><p class="notice notice-err small">The renewal is overdue. Pay by <b><%= day(sub.graceEnds) %></b> to keep this plan.</p><% } %>
+        <% } %>
+        <dl class="account-lines">
+          <dt>Jobs live, paused or in review</dt><dd><b><%= sub.usage.jobs %></b> of <%= sub.limits.jobs %></dd>
+          <dt>Team members</dt><dd><b><%= sub.usage.seats %></b> of <%= sub.limits.seats %></dd>
+        </dl>
+        <% if (sub.usage.jobs > sub.limits.jobs || sub.usage.seats > sub.limits.seats) { %><p class="muted small">You are above this plan's limits: everything you have stays, but new jobs and team members need room first.</p><% } %>
+        <% if (manage) { %>
+          <div class="row-actions">
+            <% if (sub.renewal && gateway.ready) { %><button class="btn btn-primary btn-sm" type="button" data-pay='<%= JSON.stringify({ purpose: "renewal" }) %>'>Pay renewal · <%= sub.renewal.display %></button><% } %>
+            <% if (sub.cancelAtPeriodEnd) { %>
+              <form method="post" action="/employer/billing/resume"><button class="btn btn-outline btn-sm" type="submit">Keep my plan</button></form>
+            <% } else if (current && current.price && current.price.amountPaise > 0 && (sub.renewsOn || sub.graceEnds)) { %>
+              <details class="inline-details"><summary class="btn btn-outline btn-sm">Cancel plan</summary>
+                <form class="form" method="post" action="/employer/billing/cancel">
+                  <label>Why are you cancelling? (optional)<input name="reason" maxlength="300"></label>
+                  <p class="muted small"><%= sub.graceEnds ? 'The renewal is unpaid, so your company moves to the free plan now.' : 'Your plan stays until the end of the period you paid for. There is no refund for the rest of the period.' %></p>
+                  <button class="btn btn-outline btn-sm" type="submit">Cancel plan</button>
+                </form>
+              </details>
+            <% } %>
+          </div>
+        <% } %>
+      </section>
+
+      <section class="dash-card">
+        <div class="dash-head"><h2>To pay</h2></div>
+        <% if (!openOwn.length && !openStaffing.length && !sub.renewal) { %><p class="muted small">Nothing is due.</p><% } %>
+        <ul class="plain-list">
+          <% if (sub.renewal) { %><li>Plan renewal: <b><%= sub.renewal.display %></b> <span class="muted small">(GST included) for the period from <%= day(sub.renewal.from) %></span></li><% } %>
+          <% openOwn.forEach(function (i) { %><li><a href="/employer/billing/invoices/<%= i.id %>"><b><%= i.number %></b></a> · <%= inr(balanceOf(i)) %> due by <%= day(i.dueDate) %>
+            <% if (manage && gateway.ready) { %><button class="btn btn-outline btn-sm" type="button" data-pay='<%= JSON.stringify({ invoiceId: i.id }) %>'>Pay</button><% } %></li><% }) %>
+          <% openStaffing.forEach(function (x) { %><li><a href="/employer/invoices/<%= x.p.id %><%= x.i.key === 'main' ? '' : '?inv=' + x.i.key %>"><b><%= x.i.number %></b></a> · <%= x.p.candidateName %> · <%= new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(x.i.balance) %> due by <%= day(x.i.dueDate) %><%= x.i.overdue ? ' · overdue' : '' %>
+            <% if (manage && gateway.ready) { %><button class="btn btn-outline btn-sm" type="button" data-pay='<%= JSON.stringify({ placementId: x.p.id, invoice: x.i.key }) %>'>Pay</button><% } %></li><% }) %>
+        </ul>
+      </section>
+    </div>
+
+    <% if (!sub.managed || current) { %>
+    <section class="dash-card" id="plans">
+      <div class="dash-head"><h2>Plans</h2><span class="muted small">Prices exclude GST</span></div>
+      <div class="plan-grid">
+        <% plans.forEach(function (p) { const mine = current && current.id === p.id; %>
+          <article class="plan-card<%= mine ? ' is-current' : '' %>">
+            <h3><%= p.name %></h3>
+            <p class="plan-price"><%= p.custom ? 'Custom quote' : p.price.amountPaise === 0 ? 'Free' : p.price.display %><% if (!p.custom && p.price.amountPaise > 0) { %><span class="muted small"> / <%= p.interval === 'year' ? 'year' : 'month' %></span><% } %></p>
+            <p class="muted small"><%= p.summary %></p>
+            <ul class="small"><% p.features.forEach(function (f) { %><li><%= f %></li><% }) %></ul>
+            <% if (mine) { %><p class="pill st-hired">Your plan</p>
+            <% } else if (!manage) { %>
+            <% } else if (p.custom) { %><a class="btn btn-outline btn-sm" href="/hire">Ask for a quote</a>
+            <% } else if (sub.nextPlan && sub.nextPlan.id === p.id) { %><p class="muted small">Starts on <%= day(sub.renewsOn) %></p>
+            <% } else { const bigger = p.price.amountPaise > 0 && (!current || !current.price || (p.price.amountPaise / (p.interval === 'year' ? 12 : 1)) > ((current.price.amountPaise || 0) / (current.interval === 'year' ? 12 : 1))); %>
+              <% if (bigger) { %>
+                <% if (gateway.ready) { %><button class="btn btn-primary btn-sm" type="button" data-pay='<%= JSON.stringify({ planId: p.id }) %>'>Upgrade</button>
+                <% } else { %><a class="btn btn-outline btn-sm" href="mailto:<%= site.email %>?subject=<%= encodeURIComponent('Upgrade to ' + p.name) %>">Ask to upgrade</a><% } %>
+                <% if (current && current.price && current.price.amountPaise > 0 && sub.renewsOn) { %><p class="muted small">Starts today; unused days on your current plan come off the price.</p><% } %>
+              <% } else { %>
+                <form method="post" action="/employer/billing/change"><input type="hidden" name="planId" value="<%= p.id %>"><button class="btn btn-outline btn-sm" type="submit"><%= sub.renewsOn ? 'Switch at renewal' : 'Switch' %></button></form>
+              <% } %>
+            <% } %>
+          </article>
+        <% }) %>
+      </div>
+      <% if (packages.length) { %>
+        <h3>Recruitment services</h3>
+        <div class="plan-grid">
+          <% packages.forEach(function (p) { %>
+            <article class="plan-card"><h3><%= p.name %></h3><p class="plan-price"><%= p.price.display %> <span class="muted small">one time</span></p><p class="muted small"><%= p.summary %></p>
+              <ul class="small"><% p.features.forEach(function (f) { %><li><%= f %></li><% }) %></ul>
+              <% if (manage && gateway.ready) { %><button class="btn btn-outline btn-sm" type="button" data-pay='<%= JSON.stringify({ planId: p.id }) %>'>Buy</button><% } %>
+            </article>
+          <% }) %>
+        </div>
+      <% } %>
+      <p class="muted small">Applying for jobs is always free for job seekers. Your card, UPI or bank details are entered on the payment provider's secure window; <%= site.name %> never sees or stores them.</p>
+    </section>
+    <% } %>
+
+    <section class="dash-card" id="invoices">
+      <div class="dash-head"><h2>Invoices</h2></div>
+      <% if (!invoices.length) { %><p class="muted small">No plan or service invoices yet.<% if (staffing.length) { %> Placement and staffing invoices are under <a href="/employer/invoices">Staffing invoices</a>.<% } %></p><% } else { %>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Invoice</th><th>For</th><th>Date</th><th class="num">Total</th><th class="num">Balance</th><th>Status</th></tr></thead>
+          <tbody><% invoices.forEach(function (i) { %>
+            <tr>
+              <td><a href="/employer/billing/invoices/<%= i.id %>"><b><%= i.number %></b></a><% (i.creditNotes || []).forEach(function (c) { %><br><a class="small" href="/employer/billing/invoices/<%= i.id %>/credit-notes/<%= c.id %>">Credit note <%= c.number %></a><% }) %></td>
+              <td><%= i.lines[0] ? i.lines[0].text : '' %></td>
+              <td><%= day(i.date) %></td>
+              <td class="num"><%= inr(i.totalPaise) %></td>
+              <td class="num"><%= inr(balanceOf(i)) %></td>
+              <td><%= i.status %></td>
+            </tr>
+          <% }) %></tbody>
+        </table></div>
+      <% } %>
+    </section>
+
+    <section class="dash-card" id="payments">
+      <div class="dash-head"><h2>Payment history</h2></div>
+      <% if (!payments.length) { %><p class="muted small">No online payments yet.</p><% } else { %>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Date</th><th>For</th><th class="num">Amount</th><th>Status</th><th>Reference</th></tr></thead>
+          <tbody><% payments.forEach(function (t) { %>
+            <tr>
+              <td><%= day(t.paidAt || t.createdAt) %></td>
+              <td><%= t.label %></td>
+              <td class="num"><%= inr(t.amountPaise) %><% if (t.refundedPaise) { %><br><span class="muted small">refunded <%= inr(t.refundedPaise) %></span><% } %></td>
+              <td><%= txnLabel[t.status] || t.status %><% if (t.status === 'failed' && t.failure) { %><br><span class="muted small"><%= t.failure %></span><% } %></td>
+              <td><% if (['paid', 'refunded', 'partially_refunded'].includes(t.status)) { %><a href="/employer/billing/receipts/<%= t.id %>"><%= t.paymentId %></a><% } else { %><span class="muted small"><%= t.paymentId || t.orderId %></span><% } %></td>
+            </tr>
+          <% }) %></tbody>
+        </table></div>
+      <% } %>
+    </section>
+
+    <section class="dash-card" id="details">
+      <div class="dash-head"><h2>Billing details</h2></div>
+      <p class="muted small">Used on new invoices. Invoices already issued keep the details they were issued with.</p>
+      <% if (manage) { %>
+        <form class="form" method="post" action="/employer/billing/profile">
+          <div class="form-grid">
+            <label class="span-2">Legal name*<input name="legalName" required maxlength="160" value="<%= profile.legalName %>"></label>
+            <label>GSTIN<input name="gstin" maxlength="15" value="<%= profile.gstin %>" autocapitalize="characters"></label>
+            <label>State (place of supply)<select name="stateName"><option value="">Choose</option><% states.forEach(function (s) { %><option<%= profile.stateName === s ? ' selected' : '' %>><%= s %></option><% }) %></select></label>
+            <label class="span-2">Billing address<textarea name="address" rows="2" maxlength="400"><%= profile.address %></textarea></label>
+            <label>Billing contact<input name="contactName" maxlength="120" value="<%= profile.contactName %>"></label>
+            <label>Billing email<input type="email" name="contactEmail" maxlength="160" value="<%= profile.contactEmail %>"></label>
+          </div>
+          <button class="btn btn-primary" type="submit">Save billing details</button>
+        </form>
+      <% } else { %>
+        <dl class="account-lines"><dt>Legal name</dt><dd><%= profile.legalName %></dd><dt>GSTIN</dt><dd><%= profile.gstin || '–' %></dd><dt>State</dt><dd><%= profile.stateName || '–' %></dd><dt>Billing email</dt><dd><%= profile.contactEmail || '–' %></dd></dl>
+      <% } %>
+    </section>
+  </div>
+</section>
+<% if (manage && gateway.ready) { %>
+  <script src="<%= gateway.script %>" defer></script>
+  <script src="/js/billing.js?v=<%= assetVersion %>" defer></script>
+<% } %>
+
+<%- include('partials/foot') %>

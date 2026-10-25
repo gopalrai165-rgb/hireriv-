@@ -1,0 +1,257 @@
+<%- include('partials/head') %>
+<%
+  const when = function (d) { return d ? new Date(d).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'medium', timeStyle: 'short' }) : '–'; };
+  const day = function (d) { return d ? formatYmd(String(d).slice(0, 10)) : '–'; };
+  const planName = Object.fromEntries(plans.map(function (p) { return [p.id, p.name]; }));
+  const tabs = [['overview', 'Overview'], ['plans', 'Plans'], ['subscriptions', 'Subscriptions'], ['payments', 'Payments'], ['invoices', 'Invoices'], ['refunds', 'Refunds'], ['events', 'Webhooks'], ['settings', 'Settings']];
+  const pillFor = function (s) { return ['paid', 'Paid', 'processed', 'active'].includes(s) ? 'st-hired' : ['failed', 'review', 'past_due', 'error', 'rejected'].includes(s) ? 'st-rejected' : 'st-screening'; };
+  const rupeesOf = function (paise) { return paise == null ? '' : (paise / 100).toFixed(2).replace(/\.00$/, ''); };
+%>
+<section class="section admin">
+  <div class="container">
+    <div class="admin-userbar">
+      <span>Signed in as <b><%= admin.name %></b> · <%= roleLabel %></span>
+      <a class="small" href="/admin">Back</a>
+      <form method="post" action="/admin/logout"><button class="link-btn small" type="submit">Sign out</button></form>
+    </div>
+    <div class="admin-head"><div><span class="eyebrow">Money</span><h1>Plans &amp; payments</h1></div></div>
+    <nav class="account-tabs" aria-label="Billing">
+      <% tabs.forEach(function (t) { %><a href="/admin/billing?view=<%= t[0] %>"<%- view === t[0] ? ' aria-current="page" class="active"' : '' %>><%= t[1] %></a><% }) %>
+    </nav>
+    <% if (msg) { %><p class="notice" role="status"><%= msg %></p><% } %>
+    <% if (errors.length) { %><div class="notice notice-err" role="alert"><% errors.forEach(function (e) { %><p><%= e %></p><% }) %></div><% } %>
+
+    <% if (view === 'overview') { %>
+      <div class="mini-stats">
+        <div><b><%= inr(mrr) %></b> monthly recurring revenue from paid plans</div>
+        <div><b><%= inr(recon.totals.collectedPaise) %></b> collected online · <%= inr(recon.totals.refundedPaise) %> refunded</div>
+        <div><b><%= inr(recon.totals.invoicedPaise) %></b> invoiced for plans and services · GST <%= inr(recon.totals.gstPaise) %></div>
+        <div><b><%= inr(recon.totals.outstandingPaise) %></b> outstanding on team-issued invoices</div>
+      </div>
+      <section class="dash-card">
+        <div class="dash-head"><h2>Payment provider</h2><span class="pill <%= gateway.ready ? 'st-hired' : 'st-rejected' %>"><%= gateway.ready ? gateway.label + (gateway.sandbox ? ' · test mode' : ' · live') : 'Not set up' %></span></div>
+        <p class="small"><%= gateway.ready ? (gateway.webhooks ? 'Signed webhooks are on: payments are recorded even if the buyer closes the page.' : 'Set the webhook secret: without it, a payment is recorded only when the buyer comes back to the page or the next check runs.') : 'Add the provider keys to the server settings (see docs/BILLING.md). Until then companies can see plans and invoices but not pay online.' %></p>
+        <% if (gateway.ready) { %><form method="post" action="/admin/billing/reconcile"><button class="btn btn-outline btn-sm" type="submit">Check open payments with the provider now</button></form><% } %>
+      </section>
+      <section class="dash-card">
+        <div class="dash-head"><h2>Reconciliation</h2><span class="pill <%= recon.issues.length ? 'st-rejected' : 'st-hired' %>"><%= recon.issues.length ? recon.issues.length + ' to look at' : 'Everything matches' %></span></div>
+        <p class="muted small">Every settled payment has one invoice for the same amount, refunds match their payments and credit notes, and no webhook failed. Compare the monthly totals with the provider's settlement report.</p>
+        <% if (recon.issues.length) { %><div class="table-wrap"><table><thead><tr><th>What</th><th>Reference</th><th>Details</th></tr></thead><tbody>
+          <% recon.issues.forEach(function (i) { %><tr><td><%= i.kind %></td><td class="small"><%= i.ref %></td><td class="small"><%= i.detail %></td></tr><% }) %>
+        </tbody></table></div><% } %>
+        <% if (recon.months.length) { %><div class="table-wrap"><table><thead><tr><th>Month</th><th class="num">Payments</th><th class="num">Collected</th><th class="num">Refunded</th><th class="num">Net</th></tr></thead><tbody>
+          <% recon.months.forEach(function (m) { %><tr><td><%= m.month %></td><td class="num"><%= m.count %></td><td class="num"><%= inr(m.collectedPaise) %></td><td class="num"><%= inr(m.refundedPaise) %></td><td class="num"><%= inr(m.collectedPaise - m.refundedPaise) %></td></tr><% }) %>
+        </tbody></table></div><% } %>
+        <p><a class="small" href="/admin/billing/payments.csv">Download payments (CSV)</a></p>
+      </section>
+    <% } %>
+
+    <% if (view === 'plans') { %>
+      <% if (typeof editing !== 'undefined' && editing) { const e = editing; %>
+        <section class="dash-card">
+          <div class="dash-head"><h2><%= e.id ? 'Edit ' + e.name : e.kind === 'package' ? 'New service package' : 'New plan' %></h2></div>
+          <form class="form" method="post" action="/admin/billing/plans<%= e.id ? '/' + e.id : '' %>">
+            <input type="hidden" name="kind" value="<%= e.kind %>">
+            <div class="form-grid">
+              <label>Name*<input name="name" required maxlength="80" value="<%= e.name || '' %>"></label>
+              <label>Code*<input name="code" maxlength="40" value="<%= e.code || '' %>"<%= e.id ? ' disabled' : ' required' %> pattern="[a-z0-9][a-z0-9-]{1,39}"></label>
+              <label class="span-2">Summary<input name="summary" maxlength="200" value="<%= e.summary || '' %>"></label>
+              <% if (e.kind !== 'package') { %><label><input type="checkbox" name="custom" value="1"<%= e.custom ? ' checked' : '' %>> Custom quote (Enterprise: no online price)</label><% } %>
+              <label>Price in ₹, without GST<input name="price" inputmode="decimal" maxlength="14" value="<%= rupeesOf(e.pricePaise) %>"></label>
+              <% if (e.kind !== 'package') { %><label>Billing<select name="interval"><% Object.keys(intervals).forEach(function (k) { %><option value="<%= k %>"<%= e.interval === k ? ' selected' : '' %>><%= intervals[k] %></option><% }) %></select></label><% } %>
+              <label>GST rate %*<input name="gstPercent" inputmode="decimal" maxlength="6" required value="<%= e.gstPercent != null ? e.gstPercent : '' %>"></label>
+              <label>SAC<input name="sac" inputmode="numeric" maxlength="8" value="<%= e.sac || '' %>"></label>
+              <% if (e.kind !== 'package') { %>
+                <label>Jobs live at a time (blank: no limit, up to 50)<input name="jobLimit" inputmode="numeric" maxlength="3" value="<%= e.jobLimit != null ? e.jobLimit : '' %>"></label>
+                <label>Team seats (blank: no limit, up to 50)<input name="seatLimit" inputmode="numeric" maxlength="3" value="<%= e.seatLimit != null ? e.seatLimit : '' %>"></label>
+              <% } %>
+              <label class="span-2">Features (one per line)<textarea name="features" rows="4"><%= (e.features || []).join('\n') %></textarea></label>
+              <label>Order on the page<input name="sort" inputmode="numeric" maxlength="3" value="<%= e.sort != null ? e.sort : 50 %>"></label>
+              <label><input type="checkbox" name="active" value="1"<%= e.active ? ' checked' : '' %>> Offered to companies</label>
+              <% if (e.id) { %><label class="span-2">Why the change (for the audit history)<input name="reason" maxlength="200"></label><% } %>
+            </div>
+            <p class="muted small">Confirm the GST rate and SAC for each service with your accountant. A new price applies to new purchases and renewals; limits apply to subscribers straight away.</p>
+            <button class="btn btn-primary" type="submit">Save</button> <a class="btn btn-outline" href="/admin/billing?view=plans">Cancel</a>
+          </form>
+        </section>
+      <% } %>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Plan</th><th class="num">Price</th><th>Billing</th><th class="num">Jobs</th><th class="num">Seats</th><th>GST · SAC</th><th>Offered</th><th></th></tr></thead>
+        <tbody><% plans.forEach(function (p) { %>
+          <tr>
+            <td><b><%= p.name %></b><br><span class="muted small"><%= p.code %> · <%= p.kind === 'package' ? 'service package' : 'subscription' %></span></td>
+            <td class="num"><%= p.custom ? 'Quote' : inr(p.pricePaise) %></td>
+            <td><%= p.kind === 'package' ? 'One time' : intervals[p.interval] %></td>
+            <td class="num"><%= p.jobLimit != null ? p.jobLimit : '–' %></td>
+            <td class="num"><%= p.seatLimit != null ? p.seatLimit : '–' %></td>
+            <td><%= p.gstPercent %>% · <%= p.sac || '' %><% if (!p.sac && !p.custom && p.pricePaise) { %><span class="pill st-rejected">SAC missing</span><% } %></td>
+            <td><%= p.active ? 'Yes' : 'No' %></td>
+            <td><% if (can('plans.manage')) { %><a class="small" href="/admin/billing/plans/<%= p.id %>">Edit</a><% } %></td>
+          </tr>
+        <% }) %></tbody>
+      </table></div>
+      <% if (can('plans.manage')) { %><p><a class="btn btn-outline btn-sm" href="/admin/billing/plans/new">New plan</a> <a class="btn btn-outline btn-sm" href="/admin/billing/plans/new?kind=package">New service package</a></p><% } %>
+    <% } %>
+
+    <% if (view === 'subscriptions') { %>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Company</th><th>Plan</th><th>Status</th><th>Period</th><th>Next</th></tr></thead>
+        <tbody><% subs.forEach(function (s) { %>
+          <tr>
+            <td><%= empName[s.employerId] || s.employerId %></td>
+            <td><%= planName[s.planId] || (s.plan && s.plan.name) || '–' %><% if (s.overrides && (s.overrides.jobLimit != null || s.overrides.seatLimit != null)) { %><br><span class="muted small">agreed: jobs <%= s.overrides.jobLimit != null ? s.overrides.jobLimit : 'plan' %>, seats <%= s.overrides.seatLimit != null ? s.overrides.seatLimit : 'plan' %></span><% } %></td>
+            <td><span class="pill <%= pillFor(s.status) %>"><%= s.status %></span><% if (s.graceEnds) { %><br><span class="muted small">grace to <%= day(s.graceEnds) %></span><% } %></td>
+            <td class="small"><%= day(s.periodStart) %> – <%= s.periodEnd ? day(s.periodEnd) : 'open' %></td>
+            <td class="small"><%= s.cancelAtPeriodEnd ? 'Ends' : s.nextPlanId ? 'Moves to ' + (planName[s.nextPlanId] || '') : s.periodEnd ? 'Renews' : '' %></td>
+          </tr>
+        <% }) %></tbody>
+      </table></div>
+      <% if (!subs.length) { %><p class="muted small">No company has chosen a plan yet. Self-registered companies are on the free plan; companies the team set up have no plan limits.</p><% } %>
+      <% if (can('subscriptions.manage')) { %>
+        <section class="dash-card">
+          <div class="dash-head"><h2>Set a company's plan</h2></div>
+          <p class="muted small">For an agreed Enterprise quote or a correction. Payment for it is a separate invoice (Invoices tab).</p>
+          <form class="form" method="post" action="/admin/billing/company-plan">
+            <div class="form-grid">
+              <label>Company<select name="company" required><option value="">Choose</option><% companies.forEach(function (c) { %><option value="<%= c.id %>"><%= c.company %></option><% }) %></select></label>
+              <label>Plan<select name="planId" required><% plans.filter(function (p) { return p.kind === 'subscription'; }).forEach(function (p) { %><option value="<%= p.id %>"><%= p.name %></option><% }) %></select></label>
+              <label>Jobs (blank: the plan's)<input name="jobLimit" inputmode="numeric" maxlength="3"></label>
+              <label>Seats (blank: the plan's)<input name="seatLimit" inputmode="numeric" maxlength="3"></label>
+              <label>Until (optional)<input type="date" name="until"></label>
+              <label class="span-2">Reason*<input name="reason" required maxlength="300"></label>
+            </div>
+            <button class="btn btn-primary btn-sm" type="submit">Set plan</button>
+          </form>
+        </section>
+      <% } %>
+    <% } %>
+
+    <% if (view === 'payments') { %>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Date</th><th>Company</th><th>For</th><th class="num">Amount</th><th>Status</th><th>Provider reference</th><th></th></tr></thead>
+        <tbody><% txns.forEach(function (t) { %>
+          <tr>
+            <td class="small"><%= when(t.paidAt || t.createdAt) %></td>
+            <td><%= empName[t.employerId] || t.employerId %></td>
+            <td><%= t.label %></td>
+            <td class="num"><%= inr(t.amountPaise) %><% if (t.refundedPaise) { %><br><span class="muted small">refunded <%= inr(t.refundedPaise) %></span><% } %></td>
+            <td><span class="pill <%= pillFor(t.status) %>"><%= t.status %></span><% if (t.dispute) { %><br><span class="pill st-rejected">dispute <%= t.dispute.status %></span><% } %><% if (t.failure) { %><br><span class="muted small"><%= t.failure %></span><% } %></td>
+            <td class="small"><%= t.orderId %><br><%= t.paymentId || '' %></td>
+            <td>
+              <% if (can('billing.refund') && ['paid', 'partially_refunded'].includes(t.status) && t.purpose !== 'placement-invoice' && refundable(t) > 0) { %>
+                <details><summary class="small">Refund</summary>
+                  <form class="form" method="post" action="/admin/billing/refunds">
+                    <input type="hidden" name="transactionId" value="<%= t.id %>">
+                    <label>Amount in ₹ (up to <%= inr(refundable(t)) %>)<input name="amount" inputmode="decimal" required maxlength="14"></label>
+                    <label>Reason<select name="reason" required><% reasons.forEach(function (r) { %><option><%= r %></option><% }) %></select></label>
+                    <label>Note<input name="note" maxlength="500"></label>
+                    <% if (['plan', 'renewal'].includes(t.purpose)) { %><label><input type="checkbox" name="endPlan" value="1"> Also end the plan now (back to the free plan)</label><% } %>
+                    <button class="btn btn-outline btn-sm" type="submit">Ask for refund</button>
+                    <p class="muted small">Someone else with refund rights approves it. You'll confirm your password first.</p>
+                  </form>
+                </details>
+              <% } %>
+            </td>
+          </tr>
+        <% }) %></tbody>
+      </table></div>
+      <% if (!txns.length) { %><p class="muted small">No online payments yet.</p><% } %>
+    <% } %>
+
+    <% if (view === 'invoices') { %>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Invoice</th><th>Company</th><th>Date</th><th class="num">Total</th><th class="num">GST</th><th class="num">Balance</th><th>Status</th><th></th></tr></thead>
+        <tbody><% invoices.forEach(function (i) { %>
+          <tr>
+            <td><a href="/admin/billing/invoices/<%= i.id %>"><b><%= i.number %></b></a><br><span class="muted small"><%= i.kind %></span><% (i.creditNotes || []).forEach(function (c) { %><br><a class="small" href="/admin/billing/invoices/<%= i.id %>/credit-notes/<%= c.id %>"><%= c.number %></a><% }) %></td>
+            <td><%= empName[i.employerId] || i.employerId %></td>
+            <td class="small"><%= day(i.date) %></td>
+            <td class="num"><%= inr(i.totalPaise) %></td>
+            <td class="num"><%= inr(i.taxPaise) %></td>
+            <td class="num"><%= inr(balanceOf(i)) %></td>
+            <td><span class="pill <%= pillFor(i.status) %>"><%= i.status %></span></td>
+            <td>
+              <% if (can('invoices.issue') && !i.transactionId && balanceOf(i) > 0) { %>
+                <details><summary class="small">Record payment</summary>
+                  <form class="form" method="post" action="/admin/billing/invoices/<%= i.id %>/payments">
+                    <label>Amount in ₹<input name="amount" inputmode="decimal" required maxlength="14" value="<%= rupeesOf(balanceOf(i)) %>"></label>
+                    <label>Date<input type="date" name="date" required></label>
+                    <label>How<select name="mode"><% modes.forEach(function (m) { %><option><%= m %></option><% }) %></select></label>
+                    <label>Reference<input name="reference" required maxlength="120"></label>
+                    <button class="btn btn-outline btn-sm" type="submit">Record</button>
+                  </form>
+                </details>
+              <% } %>
+            </td>
+          </tr>
+        <% }) %></tbody>
+      </table></div>
+      <% if (!invoices.length) { %><p class="muted small">No plan or service invoices yet. Placement and staffing invoices are on the Placements tab.</p><% } %>
+      <% if (can('invoices.issue')) { %>
+        <section class="dash-card">
+          <div class="dash-head"><h2>Issue an invoice</h2></div>
+          <p class="muted small">For an agreed fee such as an Enterprise plan. The company can pay it online or by transfer. The number continues the same INV series as placement invoices.</p>
+          <form class="form" method="post" action="/admin/billing/company-invoices">
+            <div class="form-grid">
+              <label>Company<select name="company" required><option value="">Choose</option><% companies.forEach(function (c) { %><option value="<%= c.id %>"><%= c.company %></option><% }) %></select></label>
+              <label class="span-2">Service<input name="description" required maxlength="200"></label>
+              <label>Amount in ₹, without GST<input name="amount" inputmode="decimal" required maxlength="14"></label>
+              <label>GST rate %<input name="gstPercent" inputmode="decimal" required maxlength="6"></label>
+              <label>SAC<input name="sac" inputmode="numeric" required maxlength="8"></label>
+              <label>Due in (days)<input name="dueDays" inputmode="numeric" required maxlength="2" value="15"></label>
+            </div>
+            <button class="btn btn-primary btn-sm" type="submit">Issue invoice</button>
+          </form>
+        </section>
+      <% } %>
+    <% } %>
+
+    <% if (view === 'refunds') { %>
+      <p class="muted small">A refund is asked for by one person and approved by another. Approving sends it to the payment provider and issues a credit note for the same amount, with GST in the same proportion as the invoice.</p>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Asked</th><th>Company</th><th class="num">Amount</th><th>Reason</th><th>Status</th><th>By</th><th></th></tr></thead>
+        <tbody><% refunds.forEach(function (r) { %>
+          <tr>
+            <td class="small"><%= when(r.createdAt) %></td>
+            <td><%= empName[r.employerId] || r.employerId %></td>
+            <td class="num"><%= inr(r.amountPaise) %></td>
+            <td><%= r.reason %><% if (r.note) { %><br><span class="muted small"><%= r.note %></span><% } %><% if (r.endPlan) { %><br><span class="muted small">ends the plan</span><% } %></td>
+            <td><span class="pill <%= pillFor(r.status) %>"><%= r.status %></span><% if (r.creditNoteNumber) { %><br><span class="small"><%= r.creditNoteNumber %></span><% } %><% if (r.error) { %><br><span class="muted small"><%= r.error %></span><% } %></td>
+            <td class="small"><%= r.requestedBy ? r.requestedBy.name : 'provider' %><% if (r.approvedBy) { %><br>decided: <%= r.approvedBy.name %><% } %></td>
+            <td>
+              <% if (r.status === 'requested' && can('billing.refund') && (!r.requestedBy || r.requestedBy.id !== me.id)) { %>
+                <form method="post" action="/admin/billing/refunds/<%= r.id %>/approve"><button class="btn btn-primary btn-sm" type="submit">Approve &amp; refund</button></form>
+                <form class="form" method="post" action="/admin/billing/refunds/<%= r.id %>/reject"><input name="note" maxlength="300" placeholder="Why not" aria-label="Why not"><button class="btn btn-outline btn-sm" type="submit">Reject</button></form>
+              <% } else if (r.status === 'requested') { %><span class="muted small">Waiting for someone else</span><% } %>
+            </td>
+          </tr>
+        <% }) %></tbody>
+      </table></div>
+      <% if (!refunds.length) { %><p class="muted small">No refunds yet.</p><% } %>
+    <% } %>
+
+    <% if (view === 'events') { %>
+      <p class="muted small">Every signed webhook from the payment provider, once per event id. Repeats are acknowledged without doing anything twice. Only references and amounts are kept, never the buyer's contact or card details.</p>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Received</th><th>Event</th><th>References</th><th class="num">Amount</th><th>Result</th></tr></thead>
+        <tbody><% events.forEach(function (e) { %>
+          <tr><td class="small"><%= when(e.receivedAt) %></td><td><%= e.type %><br><span class="muted small"><%= e.eventId %></span></td><td class="small"><%= [e.orderId, e.paymentId, e.refundId].filter(Boolean).join(' · ') %></td><td class="num"><%= e.amountPaise != null ? inr(e.amountPaise) : '' %></td><td><span class="pill <%= pillFor(e.status) %>"><%= e.status %></span><br><span class="muted small"><%= e.result || '' %><%= e.tries > 1 ? ' · tries ' + e.tries : '' %></span></td></tr>
+        <% }) %></tbody>
+      </table></div>
+      <% if (!events.length) { %><p class="muted small">No webhooks received yet.</p><% } %>
+    <% } %>
+
+    <% if (view === 'settings') { %>
+      <section class="dash-card narrow-card">
+        <div class="dash-head"><h2>Renewals</h2></div>
+        <form class="form" method="post" action="/admin/billing/settings">
+          <label>Grace period after a missed renewal (days)<input name="graceDays" inputmode="numeric" maxlength="2" value="<%= settings.graceDays %>"<%= can('plans.manage') ? '' : ' disabled' %>></label>
+          <label>Reminders before renewal (days, e.g. 7, 3, 1)<input name="reminderDays" maxlength="20" value="<%= settings.reminderDays.join(', ') %>"<%= can('plans.manage') ? '' : ' disabled' %>></label>
+          <% if (can('plans.manage')) { %><button class="btn btn-primary btn-sm" type="submit">Save</button><% } %>
+        </form>
+        <p class="muted small">Renewals are paid each period from the reminder; automatic charging (mandates) is not switched on. During the grace period the company keeps its plan; after it, the company moves to the free plan and keeps everything already live.</p>
+      </section>
+    <% } %>
+  </div>
+</section>
+<%- include('partials/foot') %>

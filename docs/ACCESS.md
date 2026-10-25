@@ -9,13 +9,61 @@ Every route the app serves, and who may use it. **This table is checked by `test
 | candidate | A candidate signed in with an emailed link or their password (`hr_cand` session: HttpOnly, SameSite=Lax, Secure on https) | `requireCandidate`; data is limited to applications made with their email |
 | employer | A person signed in to the employer portal, working in one of their companies (`hr_emp` session) | `requireEmployer` + their role in that company (owner, hiring manager, recruiter, viewer), checked on the server for every action; other companies' jobs and applicants are "not found" |
 | account | Anyone signed in: a candidate, an employer person or the team | `anyAccount` / `anyAccountApi`: the recipient comes from the session, never from the request, and each person sees only their own notifications. On `/api/staffing/*` (workforce) the handler then checks the record: the worker's own, the client's assignments (site supervisors: only those they supervise), or the team role |
-| team | Anyone on the team (Admin, Recruitment Manager, Recruiter, Account Manager, Staffing Manager, Finance Manager, Sales Manager, Business Development Representative, Verification Reviewer, Job Moderator, Support Agent, Trust & Safety Manager, Operations Admin, Auditor) | `adminAuth` or `teamApi` (+ two-step sign-in when the team requires it, always for the trust & safety and operations roles, and for Admins on the live site; the password again before exports with personal data, backups, erasing accounts, retention changes and incident containment), then the role's permission in `agency-roles.js` (403 otherwise). A Finance Manager can open only billing pages (and the sales reports); the sales roles only the CRM; the trust & safety and operations roles only their own pages |
+| team | Anyone on the team (Admin, Recruitment Manager, Recruiter, Account Manager, Staffing Manager, Finance Manager, Sales Manager, Business Development Representative, Verification Reviewer, Job Moderator, Support Agent, Trust & Safety Manager, Operations Admin, Auditor) | `adminAuth` or `teamApi` (+ two-step sign-in when the team requires it, always for the trust & safety and operations roles, and for Admins on the live site; the password again before exports with personal data, backups, erasing accounts, retention changes, incident containment and refunds), then the role's permission in `agency-roles.js` (403 otherwise). A Finance Manager can open only billing pages (and the sales reports); the sales roles only the CRM; the trust & safety and operations roles only their own pages |
 | admin | Team members with the Admin (Super Admin) role | `adminAuth` + `requireAdmin` (403 for everyone else) |
 | billing | Admins and Finance Managers | `adminAuth` + `requireBilling` (403 for everyone else) |
 
 Every state-changing team, candidate and client form also passes `sameOrigin` (cross-site posts are refused).
 
-Total: 615 routes.
+Total: 658 routes.
+
+## Plans, payments and billing: public prices, the employer billing page and API, the payment provider webhook, and the team billing desk with refunds
+
+| Method | Path | Policy | Notes |
+| --- | --- | --- | --- |
+| POST | `/api/webhooks/payments/:provider` | public | The payment provider only: HMAC signature of the exact body with the webhook secret checked first (400 otherwise); each event id processed once; 600 per 10 minutes |
+| GET | `/api/billing/plans` | public | Active plans and packages with prices in paise, limits and features; no secrets or internal fields; 300 per 10 minutes |
+| GET | `/api/billing/subscription` | employer | Owners and billing administrators of the current company only (403 for other roles); plan, status, limits and usage |
+| POST | `/api/billing/checkout` | employer | Owners and billing administrators of the current company only (403 for other roles). The server works out the amount and creates the order; plans, renewals, packages and invoices of this company only (404 otherwise); 20 per 10 minutes |
+| POST | `/api/billing/checkout/verify` | employer | Owners and billing administrators of the current company only (403 for other roles). Signature checked, then the payment confirmed with the provider; orders of other companies are not found; repeats change nothing |
+| POST | `/api/billing/subscription/change` | employer | Owners and billing administrators of the current company only (403 for other roles); smaller or free plans, at the end of a paid period |
+| POST | `/api/billing/subscription/cancel` | employer | Owners and billing administrators of the current company only (403 for other roles); audited |
+| POST | `/api/billing/subscription/resume` | employer | Owners and billing administrators of the current company only (403 for other roles); audited |
+| GET | `/api/billing/invoices` | employer | Owners and billing administrators of the current company only (403 for other roles); this company only |
+| GET | `/api/billing/invoices/:id` | employer | Owners and billing administrators of the current company only (403 for other roles); another company’s invoice is not found |
+| GET | `/api/billing/payments` | employer | Owners and billing administrators of the current company only (403 for other roles); this company only |
+| GET | `/api/billing/profile` | employer | Owners and billing administrators of the current company only (403 for other roles) |
+| PUT | `/api/billing/profile` | employer | Owners and billing administrators of the current company only (403 for other roles); validated GSTIN and state; audited |
+| GET | `/employer/billing` | employer | Owners and billing administrators of the current company only (403 for other roles); no-store |
+| POST | `/employer/billing/change` | employer | Owners and billing administrators of the current company only (403 for other roles) |
+| POST | `/employer/billing/cancel` | employer | Owners and billing administrators of the current company only (403 for other roles); audited |
+| POST | `/employer/billing/resume` | employer | Owners and billing administrators of the current company only (403 for other roles) |
+| POST | `/employer/billing/profile` | employer | Owners and billing administrators of the current company only (403 for other roles); audited |
+| GET | `/employer/billing/invoices/:id` | employer | Owners and billing administrators of the current company only (403 for other roles); this company only (404 otherwise) |
+| GET | `/employer/billing/invoices/:id/credit-notes/:cnId` | employer | Owners and billing administrators of the current company only (403 for other roles); this company only (404 otherwise) |
+| GET | `/employer/billing/receipts/:id` | employer | Owners and billing administrators of the current company only (403 for other roles); settled payments of this company only |
+| GET | `/admin/billing` | team | subscriptions.view (Admins, Account Managers, Finance Managers); no-store |
+| GET | `/admin/billing/payments.csv` | team | subscriptions.view; company names and payment references only; logged |
+| GET | `/admin/billing/plans/new` | team | plans.manage (Admins) |
+| GET | `/admin/billing/plans/:id` | team | plans.manage (Admins) |
+| POST | `/admin/billing/plans` | team | plans.manage (Admins); validated; in the hash-chained audit history |
+| POST | `/admin/billing/plans/:id` | team | plans.manage (Admins); validated; versioned; in the hash-chained audit history |
+| POST | `/admin/billing/settings` | team | plans.manage (Admins); grace period and reminders; audited |
+| POST | `/admin/billing/company-plan` | team | subscriptions.manage (Admins, Finance Managers); reason required; audited |
+| POST | `/admin/billing/companies/:id/plan` | team | subscriptions.manage (Admins, Finance Managers); reason required; audited |
+| POST | `/admin/billing/company-invoices` | team | invoices.issue (Admins, Finance Managers); GST rate and SAC required; audited |
+| POST | `/admin/billing/companies/:id/invoices` | team | invoices.issue (Admins, Finance Managers); GST rate and SAC required; audited |
+| GET | `/admin/billing/invoices/:id` | team | subscriptions.view |
+| GET | `/admin/billing/invoices/:id/credit-notes/:cnId` | team | subscriptions.view |
+| POST | `/admin/billing/invoices/:id/payments` | team | invoices.issue; bank transfers and cheques for team-issued invoices; audited |
+| POST | `/admin/billing/reconcile` | team | subscriptions.view; asks the provider about open orders; logged |
+| POST | `/api/admin/billing/refunds` | team | billing.refund (Admins, Finance Managers) and the password again within 10 minutes; never candidates or employers; audited |
+| POST | `/api/admin/billing/refunds/:id/approve` | team | billing.refund and the password again; someone other than the person who asked; sent to the provider, then a credit note; audited |
+| POST | `/api/admin/billing/refunds/:id/reject` | team | billing.refund and the password again; someone other than the person who asked; audited |
+| POST | `/admin/billing/refunds` | team | As POST /api/admin/billing/refunds, from the billing desk |
+| POST | `/admin/billing/refunds/:id/approve` | team | As the API: a second person, the password again; audited |
+| POST | `/admin/billing/refunds/:id/reject` | team | As the API: a second person, the password again; audited |
+| GET | `/api/admin/billing/refunds` | team | subscriptions.view; no-store |
 
 ## Security and privacy: identity confirmation, the security log and alerts, incidents, data-rights requests, consent records and retention
 

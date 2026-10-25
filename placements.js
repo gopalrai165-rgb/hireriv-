@@ -789,6 +789,26 @@ function register(app, deps) {
         })),
       }));
 
+  // ----- paying online (billing-routes.js) -----
+  // One of this company's open invoices and what is left to pay, in paise.
+  function clientInvoice(emp, placementId, key) {
+    const p = read().find((x) => x.id === placementId && x.employerId === emp.id);
+    const inv = pickInvoice(p, key);
+    if (!inv || !OPEN.includes(inv.status)) return null;
+    return { placementId: p.id, key: invKey(inv), number: inv.number, balancePaise: Math.round(accountOf(inv).balance * 100) };
+  }
+  // A payment confirmed by the payment provider; recorded once per transaction.
+  function onlinePayment(placementId, key, { amountPaise, reference, transactionId, date }) {
+    const { list, p } = findPlacement(placementId);
+    const inv = pickInvoice(p, key);
+    if (!inv) throw new Error(`invoice ${key} of placement ${placementId} not found`);
+    if ((inv.payments || []).some((x) => x.transactionId === transactionId)) return inv;
+    inv.payments = [...(inv.payments || []), { id: crypto.randomUUID(), date, amount: round2(amountPaise / 100), tds: 0, mode: 'Online payment', reference, transactionId, recordedAt: new Date().toISOString() }];
+    refreshStatus(inv);
+    write(list);
+    return inv;
+  }
+
   // ----- admin tab & dashboard numbers -----
   // Joined with an unbilled one-time fee, or a contract with a finished month to bill.
   const needsInvoice = (p) => (p.feeMode === 'monthly' ? p.monthsDue.length > 0 : p.feeMode === 'assignment' ? false : p.status === 'Joined' && !p.invoice && p.fee > 0);
@@ -871,7 +891,7 @@ function register(app, deps) {
     return out;
   }
 
-  return { read, write, describe, summary, followUps, forClient, csvRows, byClient, autoRemind, needsInvoice, monthLabel, issueFee, issueStaffing, invoicesOf, STATUSES, TYPES, inr };
+  return { read, write, describe, summary, followUps, forClient, csvRows, byClient, autoRemind, needsInvoice, monthLabel, issueFee, issueStaffing, invoicesOf, clientInvoice, onlinePayment, STATUSES, TYPES, inr };
 }
 
 const formatYmd = (ymd) => (ymd ? new Date(`${ymd}T00:00:00Z`).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' }) : '');

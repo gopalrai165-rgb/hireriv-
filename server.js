@@ -12,6 +12,9 @@ const uploadSafety = require('./uploads');
 const vault = require('./vault');
 const privacyModule = require('./privacy');
 const securityModule = require('./security');
+const subscriptions = require('./subscriptions');
+const billingRoutes = require('./billing-routes');
+const paymentGateway = require('./payment-gateway');
 const pgMirror = require('./pg');
 const { jobSlug, jobPath, findJobBySlug, parsePost, parseSettings, SOCIAL, DEFAULT_JOB_CATEGORIES, DEFAULT_JOB_LOCATIONS, SAMPLE_TESTIMONIALS, MAX_TESTIMONIALS, WORK_KINDS, WORK_KEYS, CATEGORY_WORK, workOf, workOfCategory, RESUME_OPTIONS, resumeNeeded, JOB_GROUPS, inGroup } = require('./content');
 const interviews = require('./interviews');
@@ -425,8 +428,8 @@ app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 app.disable('x-powered-by');
 app.use(express.urlencoded({ extended: false, limit: '100kb' }));
-// The email webhook's signature covers the exact bytes sent, so keep them.
-app.use(express.json({ limit: '100kb', verify: (req, res, buf) => { if (req.url.startsWith('/webhooks/')) req.rawBody = Buffer.from(buf); } }));
+// Webhook signatures (email and payments) cover the exact bytes sent, so keep them.
+app.use(express.json({ limit: '100kb', verify: (req, res, buf) => { if (req.url.startsWith('/webhooks/') || req.url.startsWith('/api/webhooks/')) req.rawBody = Buffer.from(buf); } }));
 // Security headers. The CSP only allows our own scripts (no inline JS), Google
 // Fonts for type, and never lets another site frame these pages.
 const CSP = [
@@ -1523,6 +1526,24 @@ privacyModule.register(app, {
   const replayed = privacy.replayErasures((email) => candidateAccounts.deleteEverything(email));
   if (replayed) console.log(`Applied ${replayed} earlier account deletion${replayed === 1 ? '' : 's'} again after a restore`);
 }
+
+// Employer plans, online payments, invoices, refunds and reconciliation
+// (subscriptions.js, billing-routes.js). The gateway's keys come only from the
+// environment and stay on the server.
+const gateway = paymentGateway.fromEnv(process.env);
+const plansStore = subscriptions.create({ db, site, gateway, validGstin: employers.validGstin });
+plansStore.seedPlans();
+hiring.hooks.jobLimit = (emp) => plansStore.limitsOf(emp).jobs;
+clients.hooks.seatLimit = (emp) => plansStore.limitsOf(emp).seats;
+const billingDesk = billingRoutes.register(app, {
+  db, site, mailer, notify, store: plansStore, gateway, team, clients, placements: billing, getJobs: () => jobs, adminAuth, sameOrigin, limit, requireConfirmed,
+  trust: trustDesk, baseUrl: BASE_URL, sendCsv, ops,
+});
+if (gateway.ready && process.env.NODE_ENV === 'production' && gateway.sandbox) console.warn('Payments: using the provider sandbox (test keys) on the live site');
+if (gateway.ready && !gateway.webhooks) console.warn('Payments: set the webhook secret so payments confirmed by the provider are recorded even if the browser closes');
+const runBilling = ops.track('billing-renewals', () => billingDesk.daily(), 6 * 60 * 60 * 1000);
+setTimeout(() => runBilling().catch((e) => console.error('Billing renewals:', e.message)), Number(process.env.BILLING_DELAY_MS) || 30000).unref();
+setInterval(() => runBilling().catch((e) => console.error('Billing renewals:', e.message)), Number(process.env.BILLING_EVERY_MS) || 6 * 60 * 60 * 1000).unref();
 
 // Recruitment analytics: dashboards for the team and for each employer, the
 // /api/analytics/* reports and their CSV exports (analytics.js).

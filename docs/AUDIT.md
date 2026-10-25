@@ -573,3 +573,50 @@ Suggested order: 2 → 1 → 3 → 4, which makes Hireriv usable for skilled and
   - deletions applied again after a restore
 
   Existing tests were updated where exports and backups now ask for the password, and where sign-up no longer makes a profile visible to recruiters.
+
+## Step 63: payments, subscriptions and billing
+
+- **Audit first.** Already there:
+  - placement invoices with GST (CGST + SGST or IGST), numbered per financial year, with snapshots, payments, TDS, credit notes, refunds and reminders (`placements.js`)
+  - staffing invoices from approved timesheets, with drafts approved by Finance (`agency.js`, `timesheets.js`)
+  - the client portal's invoice list and printable invoices for owners only (`billing.view`)
+  - billing settings: legal name, GSTIN, PAN, state, bank, fee, GST rate, payment days, TDS
+  - fixed limits: 50 jobs live, paused or in review, and 50 team members per company
+  - CRM proposals and contracts (no billing is created from a won lead)
+
+  Gaps found:
+  - no plans or subscriptions, and no way for employers to pay online
+  - no payment gateway, signatures, webhooks or idempotent payment records
+  - limits were fixed in code, not per plan
+  - no role for someone who only handles billing at the employer
+  - no refunds through a provider, and no reconciliation of online payments
+- **Reused, not duplicated.**
+  - The invoice and credit-note number series, the billing settings (seller details, default GST rate), the invoice and credit-note page, amounts in words and the financial year all come from `placements.js`.
+  - Placement invoices stay where they are. Paying one online adds a payment through `placements.onlinePayment`.
+  - Employer roles and sessions stay in `employer-team.js` and `employers.js`; the Billing administrator is one more role there.
+  - Limits plug into the existing checks for sending a job for review and inviting a member.
+  - The password confirmation before sensitive actions is the one from Step 62. Audit entries go to the hash-chained history, the company's audit log and the team activity log.
+  - In-app notifications and emails go through `notify.js` and `mailer.notice`. The scheduled job is tracked in Operations health.
+- **Changed behaviour:**
+  - Companies that registered themselves are on the free Starter plan: 3 jobs live, paused or in review, and 3 team members, until they upgrade. Companies the team set up are not limited by a plan.
+  - The employer portal's Invoices tab is now **Billing**, with placement invoices under **Staffing invoices**.
+- **Not done here.**
+  - No test against Razorpay's own sandbox yet (the tests use an imitation of its API with real signatures).
+  - No automatic charging (mandates). No Cashfree.
+  - No e-invoicing (IRN). GST rates and SAC codes still need an accountant's confirmation (docs/BILLING.md section 8).
+  - Subscription revenue is not yet in the analytics dashboards (it is on the billing desk).
+- **Adapted from the brief.**
+  - Express, EJS and SQLite collections instead of React and PostgreSQL tables. Invoice items are the `lines` of each invoice.
+  - "Reuse existing invoices": plan invoices share the number series, settings and printable page, but are stored in paise in their own collection, because placement invoices are kept in rupees inside each placement.
+- **Tests.** `test/billing.test.js` has 11 tests, covering:
+  - paise parsing, GST splits and month ends
+  - public plans without secrets, and plan changes by Admins only, audited
+  - billing access for owners and billing administrators only
+  - job and seat limits from the plan, on the server
+  - checkout: server-made orders, forged signatures refused, failed payments changing nothing, the provider asked, one invoice, repeated callbacks and webhooks, other companies refused
+  - webhook signatures, mismatched payments held for review, and payments settled by the webhook alone
+  - refunds by two different people after the password again, with a credit note, and reconciled totals
+  - cancelling, undoing, downgrades at renewal and Enterprise as a quote
+  - paying placement invoices online
+  - every billing desk tab and the billing pages rendering without secrets, and an agreed Enterprise plan with its own limits
+  - renewals: reminders, the grace period, cancelled plans ending, and overdue renewals

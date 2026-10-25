@@ -11,6 +11,7 @@ const ROLES = {
   recruiter: { label: 'Recruiter', text: 'Reviews applicants and books interviews for assigned jobs' },
   viewer: { label: 'Viewer', text: 'Sees all jobs and applicant progress, without contact details or changes' },
   supervisor: { label: 'Site supervisor', text: 'Reviews attendance and timesheets of the Hireriv workers they supervise; no jobs or applicants' },
+  billing: { label: 'Billing administrator', text: 'The plan, payments, invoices and billing details; no jobs or applicants' },
 };
 const ROLE_KEYS = Object.keys(ROLES);
 
@@ -23,6 +24,8 @@ function can(m, action, job = null) {
   if (job && job.employerId !== m.employerId) return false;
   const { role } = m;
   if (role === 'owner') return true;
+  // Billing administrators see and manage billing, and nothing else.
+  if (role === 'billing') return ['billing.view', 'billing.manage'].includes(action);
   switch (action) {
     case 'jobs.create': case 'requirements.send': case 'timesheets.review': return role === 'manager';
     case 'job.edit': return role === 'manager' && assigned(m, job);
@@ -44,7 +47,7 @@ function can(m, action, job = null) {
     case 'contracts.view': return role === 'manager';
     case 'reports.view': return ['manager', 'viewer'].includes(role);
     case 'dashboard.view': case 'analytics.view': return role !== 'supervisor';
-    // company.edit, team.manage, billing.view, company.verify, contracts.sign and stage.correct
+    // company.edit, team.manage, billing.view, billing.manage, company.verify, contracts.sign and stage.correct
     // (moving an application outside the workflow): owners only.
     default: return false;
   }

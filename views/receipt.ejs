@@ -1,0 +1,44 @@
+<%- include('partials/head') %>
+<%# A payment receipt: proof that money was received. The tax document is the invoice. %>
+<section class="section invoice-page">
+  <div class="container narrow">
+    <div class="invoice-tools no-print">
+      <a href="<%= back %>" class="back-link">← Back</a>
+      <button class="btn btn-primary btn-sm" type="button" data-print>Print / Save as PDF</button>
+    </div>
+    <article class="invoice">
+      <header class="invoice-head">
+        <div>
+          <p class="invoice-brand">Hire<b>riv</b></p>
+          <p><b><%= seller.name %></b><br><%= seller.address %></p>
+          <p class="small"><% if (seller.gstin) { %>GSTIN: <%= seller.gstin %><br><% } %><%= seller.email %></p>
+        </div>
+        <div class="invoice-meta">
+          <h1>Payment receipt</h1>
+          <dl>
+            <dt>Received</dt><dd><%= new Date(t.paidAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'medium', timeStyle: 'short' }) %></dd>
+            <dt>Payment reference</dt><dd><%= t.paymentId %></dd>
+            <dt>Order</dt><dd><%= t.orderId %></dd>
+            <% if (t.method) { %><dt>Paid by</dt><dd><%= t.method.toUpperCase() %></dd><% } %>
+          </dl>
+        </div>
+      </header>
+      <section class="invoice-to">
+        <p class="eyebrow">Received from</p>
+        <p><b><%= (t.quote && t.quote.buyer && t.quote.buyer.name) || company.company %></b></p>
+      </section>
+      <div class="scroll-x">
+        <table class="invoice-lines">
+          <thead><tr><th>For</th><th class="num">Amount</th></tr></thead>
+          <tbody><tr><td><%= t.label %><% if (inv) { %><br><span class="muted small">Invoice <a href="/employer/billing/invoices/<%= inv.id %>"><%= inv.number %></a></span><% } %></td><td class="num"><%= inr(t.amountPaise) %></td></tr></tbody>
+          <tfoot>
+            <% if (t.refundedPaise) { %><tr><td>Refunded</td><td class="num">− <%= inr(t.refundedPaise) %></td></tr><% } %>
+            <tr class="invoice-total"><td>Total received</td><td class="num"><%= inr(t.amountPaise - (t.refundedPaise || 0)) %></td></tr>
+          </tfoot>
+        </table>
+      </div>
+      <p class="muted small invoice-foot">Payment received online through <%= t.provider === 'razorpay' ? 'Razorpay' : t.provider %>. This receipt is not a tax invoice<%= inv ? '; the tax invoice is ' + inv.number : '' %>.</p>
+    </article>
+  </div>
+</section>
+<%- include('partials/foot') %>

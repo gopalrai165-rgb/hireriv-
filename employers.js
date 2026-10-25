@@ -688,7 +688,9 @@ function register(app, deps) {
     if (!name) errors.push('Enter their name.');
     if (!EMAIL_RE.test(email)) errors.push('Enter a valid email.');
     if (!ROLE_KEYS.includes(role)) errors.push('Choose a role.');
-    if (team.membersOf(req.employer.id).length >= 50) errors.push('A company can have up to 50 team members.');
+    // The plan's team seats (subscriptions.js), never more than 50.
+    const seats = hooks.seatLimit ? hooks.seatLimit(req.employer) : 50;
+    if (team.membersOf(req.employer.id).length >= seats) errors.push(seats < 50 ? `Your plan includes ${seats} team member${seats === 1 ? '' : 's'}. Upgrade under Billing, or remove someone first.` : 'A company can have up to 50 team members.');
     if (errors.length) return teamPage(req, res, { errors, values: { name, email, role } }, 400);
     let user = team.userByEmail(email);
     if (user && team.membership(user.id, req.employer.id)) return toTeam(res, `${email} is already in your team.`);
@@ -825,6 +827,7 @@ function register(app, deps) {
   app.get('/employer', requireEmployer, (req, res) => {
     // Site supervisors work only with the workers they supervise.
     if (req.member.role === 'supervisor') return res.redirect('/employer/workforce');
+    if (req.member.role === 'billing') return res.redirect('/employer/billing');
     const emp = req.employer;
     const apps = readSubmissions('applications').filter((a) => !a.duplicateOf);
     const statusOf = (a) => a.status || 'New';

@@ -54,10 +54,10 @@
         <thead><tr><th>Description</th><th>SAC</th><th class="num">Amount</th></tr></thead>
         <tbody>
           <% if (cn) { %>
-            <tr><td>Credit against invoice <%= inv.number %>: <%= cn.reason %><%= cn.note ? ' (' + cn.note + ')' : '' %><br><span class="muted small">Original service: <%= inv.item %></span></td><td><%= inv.sac || '998512' %></td><td class="num"><%= inr(cn.subtotal) %></td></tr>
+            <tr><td>Credit against invoice <%= inv.number %>: <%= cn.reason %><%= cn.note ? ' (' + cn.note + ')' : '' %><br><span class="muted small">Original service: <%= inv.item %></span></td><td><%= inv.footNote ? (inv.sac || '–') : (inv.sac || '998512') %></td><td class="num"><%= inr(cn.subtotal) %></td></tr>
           <% } else { %>
             <% (inv.lines || [{ text: inv.item, amount: inv.subtotal }]).forEach(function (l) { %>
-              <tr><td><%= l.text %></td><td><%= inv.sac || '998512' %></td><td class="num"><%= inr(l.amount) %></td></tr>
+              <tr><td><%= l.text %></td><td><%= l.sac !== undefined ? (l.sac || '–') : (inv.sac || '998512') %></td><td class="num"><%= inr(l.amount) %></td></tr>
             <% }) %>
           <% } %>
         </tbody>
@@ -77,7 +77,8 @@
           <p class="small">Please quote <b><%= inv.number %></b> with your payment.</p>
         </section>
       <% } %>
-      <p class="muted small invoice-foot">This is a computer-generated <%= cn ? 'credit note' : 'invoice' %>. SAC <%= inv.sac || '998512' %>: <%= inv.sac === '998513' ? 'contract staffing' : 'permanent placement' %> services.</p>
+      <% if (inv.footNote) { %><p class="muted small invoice-foot"><%= cn ? 'This is a computer-generated credit note.' : inv.footNote %></p>
+      <% } else { %><p class="muted small invoice-foot">This is a computer-generated <%= cn ? 'credit note' : 'invoice' %>. SAC <%= inv.sac || '998512' %>: <%= inv.sac === '998513' ? 'contract staffing' : 'permanent placement' %> services.</p><% } %>
     </article>
 
     <% if (!cn && inv.status !== 'Cancelled' && ((inv.payments || []).length || (inv.creditNotes || []).length)) { %>

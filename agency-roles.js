@@ -95,6 +95,14 @@ const PERMS = {
   'privacy.erase': ['Admin', 'Trust & Safety Manager'],
   'retention.view': ['Admin', 'Trust & Safety Manager', 'Auditor'],
   'retention.manage': ['Admin'],
+  // Employer plans and online payments (subscriptions.js, billing-routes.js).
+  'subscriptions.view': ['Admin', 'Account Manager', 'Finance Manager'],
+  // Setting a company's plan by hand (an agreed Enterprise quote).
+  'subscriptions.manage': ['Admin', 'Finance Manager'],
+  // Prices, limits, features, tax rates and renewal settings of plans.
+  'plans.manage': ['Admin'],
+  // Asking for and approving refunds: two different people.
+  'billing.refund': ['Admin', 'Finance Manager'],
 };
 
 const can = (user, action) => Boolean(user && user.active !== false && (PERMS[action] || []).includes(user.role));
@@ -106,6 +114,7 @@ const canBill = (user) => can(user, 'invoices.issue');
 const FINANCE_PAGES = [
   /^\/admin\/?$/, /^\/admin\/(login|logout|security|confirm)(\/|$)/, /^\/admin\/placements\/[^/]+\/(invoice|bill|payments|refunds|remind|credit-notes)(\/|$)/,
   /^\/admin\/invoice-drafts(\/|$)/, /^\/admin\/workforce\/(payroll|payroll\.csv)$/, /^\/admin\/crm\/reports\/?$/, /^\/admin\/clients\/[^/]+$/, /^\/admin\/recruitment-reports\/?$/, /^\/admin\/analytics\/?$/, /^\/admin\/staffing\/?$/, /^\/admin\/agency-audit\/?$/,
+  /^\/admin\/billing(\/|$|\.)/, /^\/api\/admin\/billing(\/|$)/,
 ];
 const FINANCE_TABS = ['placements', 'clients', 'reports'];
 // Sales roles work in the CRM only: no candidates, jobs or billing pages.

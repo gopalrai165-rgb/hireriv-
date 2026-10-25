@@ -108,7 +108,11 @@ function register(app, deps) {
     const emp = req.employer;
     if (emp.selfSignup && !req.employerUser.phoneVerifiedAt) return 'verify your mobile number in Settings before sending jobs for review';
     const mine = getJobs().filter((j) => j.employerId === emp.id && j.id !== job.id);
-    if (mine.filter((j) => ACTIVE.includes(j.status)).length >= MAX_ACTIVE_JOBS) return `a company can have up to ${MAX_ACTIVE_JOBS} jobs live, paused or waiting for review; close one first`;
+    // The plan's job limit (subscriptions.js), never more than MAX_ACTIVE_JOBS.
+    const allowed = hooks.jobLimit ? Math.min(hooks.jobLimit(emp), MAX_ACTIVE_JOBS) : MAX_ACTIVE_JOBS;
+    if (mine.filter((j) => ACTIVE.includes(j.status)).length >= allowed) {
+      return allowed < MAX_ACTIVE_JOBS ? `your plan allows ${allowed} job${allowed === 1 ? '' : 's'} live, paused or waiting for review at a time; close one, or upgrade under Billing` : `a company can have up to ${MAX_ACTIVE_JOBS} jobs live, paused or waiting for review; close one first`;
+    }
     const most = waitingLimit();
     if (!clients.isApproved(emp) && mine.filter((j) => j.status === 'pending').length >= most) return most ? `until your company is verified, up to ${most} job${most === 1 ? '' : 's'} can wait for review` : 'jobs can be sent for review once your company is verified';
     return '';
