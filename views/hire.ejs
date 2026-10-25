@@ -23,6 +23,7 @@
     <div class="form-card" id="requirement">
       <h2>Tell us what you need</h2>
       <form class="form js-form" action="/api/hire" method="post">
+        <% if (typeof from !== 'undefined' && from) { %><input type="hidden" name="from" value="<%= from %>"><% } %>
   <%- include('partials/honeypot') %>
         <div class="form-grid">
           <label>Company name*<input name="company" required autocomplete="organization"></label>

@@ -188,8 +188,15 @@ function proposalText(site, p, v, lead) {
 
 function register(app, deps) {
   const {
-    team, clients, billing, agency, notify, mailer, site, limit, sameOrigin, adminAuth, readSubmissions, writeSubmissions, saveSubmission, baseUrl, secret,
+    team, clients, billing, agency, notify, mailer, site, limit, sameOrigin, adminAuth, readSubmissions, writeSubmissions, saveSubmission, baseUrl, secret, analytics,
   } = deps;
+  // An inquiry from the website counts once as qualified in the website analytics.
+  const WEB_SOURCES = ['Website inquiry', 'Employer registration'];
+  const markQualified = (l) => {
+    if (l.qualifiedAt || !WEB_SOURCES.includes(l.source)) return;
+    l.qualifiedAt = iso();
+    if (analytics) analytics.track('inquiry-qualified', l.source);
+  };
   const leads = () => readSubmissions('crm-leads');
   const opps = () => readSubmissions('crm-opportunities');
   const activities = () => readSubmissions('crm-activities');
@@ -374,6 +381,7 @@ function register(app, deps) {
       Object.assign(x, keysOf(x));
       if (l.possibleDuplicates) x.possibleDuplicates = l.possibleDuplicates;
       if (values.status !== undefined && values.status !== l.status) history(x, user, `Status ${LEAD_LABEL[l.status]} → ${LEAD_LABEL[values.status]}${values.reason ? `: ${values.reason}` : ''}`);
+      if (values.status === 'qualified') markQualified(x);
       else if (changed.length) history(x, user, `Changed ${changed.join(', ')}`);
     });
     if (values.status !== undefined && values.status !== l.status) audit(user, 'lead-status', 'lead', id, `${l.companyName}: ${l.status} → ${values.status}${values.reason ? ` (${values.reason})` : ''}`);
@@ -621,6 +629,7 @@ function register(app, deps) {
       else if (reached('Contacted') && ['new', 'lost'].includes(l.status)) next = 'contacted';
       else if (l.status === 'lost' && os.some((o) => OPEN_STAGES.includes(o.stage))) next = 'new';
       if (next !== l.status) { history(l, user, `Status ${LEAD_LABEL[l.status]} → ${LEAD_LABEL[next]} (pipeline)`); l.status = next; }
+      if (next === 'qualified') markQualified(l);
       l.lastActivityAt = iso();
     });
   }

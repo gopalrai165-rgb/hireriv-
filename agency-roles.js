@@ -50,6 +50,8 @@ const PERMS = {
   'crm.approve': ['Admin', 'Sales Manager'],
   'crm.convert': ['Admin', 'Sales Manager'],
   'crm.reports': ['Admin', 'Sales Manager', 'Business Development', 'Finance Manager'],
+  // Website conversion counts (site-analytics.js): no personal data.
+  'site.analytics': ['Admin', 'Recruitment Manager', 'Account Manager', 'Sales Manager', 'Business Development'],
   // Revenue from paid invoices in the CRM reports.
   'crm.revenue': ['Admin', 'Sales Manager', 'Finance Manager'],
 };
@@ -67,7 +69,7 @@ const FINANCE_PAGES = [
 const FINANCE_TABS = ['placements', 'clients', 'reports'];
 // Sales roles work in the CRM only: no candidates, jobs or billing pages.
 const SALES_ROLES = ['Sales Manager', 'Business Development'];
-const SALES_PAGES = [/^\/admin\/?$/, /^\/admin\/(login|logout|security)(\/|$)/, /^\/admin\/crm(\/|$)/];
+const SALES_PAGES = [/^\/admin\/?$/, /^\/admin\/(login|logout|security)(\/|$)/, /^\/admin\/crm(\/|$)/, /^\/admin\/site-analytics\/?$/];
 const SALES_TABS = [];
 function pathAllowed(user, path) {
   if (user && SALES_ROLES.includes(user.role)) return SALES_PAGES.some((re) => re.test(path));

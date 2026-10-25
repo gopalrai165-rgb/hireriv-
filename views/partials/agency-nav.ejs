@@ -12,7 +12,7 @@
   <% if (typeof actions !== 'undefined' && actions) { %><div class="admin-actions"><%- actions %></div><% } %>
 </div>
 <nav class="account-tabs" aria-label="Agency and staffing">
-  <% [['workspace', '/admin/workspace', 'My workspace', 'requisitions.view'], ['requisitions', '/admin/requisitions', 'Requisitions', 'requisitions.view'], ['staffing', '/admin/staffing', 'Staffing', 'staffing.view'], ['workforce', '/admin/workforce', 'Workforce', 'workforce.view'], ['drafts', '/admin/invoice-drafts', 'Invoice drafts', 'invoices.draft'], ['reports', '/admin/recruitment-reports', 'Reports', 'reports.view'], ['audit', '/admin/agency-audit', 'Audit log', 'audit.view'], ['clients', '/admin?tab=clients', 'Clients', 'clients.view']].filter(function (t) { return can(t[3]); }).forEach(function (t) { %>
+  <% [['workspace', '/admin/workspace', 'My workspace', 'requisitions.view'], ['requisitions', '/admin/requisitions', 'Requisitions', 'requisitions.view'], ['staffing', '/admin/staffing', 'Staffing', 'staffing.view'], ['workforce', '/admin/workforce', 'Workforce', 'workforce.view'], ['drafts', '/admin/invoice-drafts', 'Invoice drafts', 'invoices.draft'], ['reports', '/admin/recruitment-reports', 'Reports', 'reports.view'], ['audit', '/admin/agency-audit', 'Audit log', 'audit.view'], ['website', '/admin/site-analytics', 'Website', 'site.analytics'], ['clients', '/admin?tab=clients', 'Clients', 'clients.view']].filter(function (t) { return can(t[3]); }).forEach(function (t) { %>
     <a href="<%= t[1] %>"<%- tab === t[0] ? ' aria-current="page" class="active"' : '' %>><%= t[2] %></a>
   <% }) %>
 </nav>

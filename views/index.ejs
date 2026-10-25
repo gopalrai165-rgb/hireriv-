@@ -10,7 +10,8 @@
       <p class="lead">Hireriv connects startups, corporates, factories, hospitals, warehouses and stores with pre-screened people, from software engineers and accountants to technicians, drivers and production staff, and helps everyone find work where they can do their best.</p>
       <div class="hero-ctas">
         <a href="/jobs" class="btn btn-primary btn-lg">Find Jobs <svg class="i"><use href="#i-arrow"/></svg></a>
-        <a href="/post-a-job" class="btn btn-outline btn-lg">Post a Job</a>
+        <a href="/hire" class="btn btn-outline btn-lg">Hire Talent</a>
+        <a href="/hire?service=contract-staffing#requirement" class="btn btn-outline btn-lg">Request Staffing</a>
       </div>
       <form class="hero-search" action="/jobs" method="get" role="search">
         <svg class="i"><use href="#i-search"/></svg>
@@ -99,6 +100,7 @@
         </a>
       <% }) %>
     </div>
+    <%- include('partials/job-landing-links') %>
   </div>
 </section>
 
@@ -151,7 +153,7 @@
     <div class="section-head">
       <span class="eyebrow">Specialised talent</span>
       <h2>Recruiters who know your industry</h2>
-      <p>Specialist desks for ten industries, plus HR, education, legal, admin, construction and hospitality roles.</p>
+      <p>Specialist desks for twelve industries, plus HR, education, legal and admin roles.</p>
     </div>
     <div class="tabs" role="tablist">
       <% const industries = catalog.INDUSTRIES %>
@@ -310,7 +312,7 @@
     <div class="faq">
       <% [
         ['What makes Hireriv different from other staffing agencies?', 'We combine AI-assisted matching with a six-stage human screening process, specialist recruiters for each industry, and a dedicated account manager, so you get fewer, better profiles and a faster hire.'],
-        ['Which industries do you specialise in?', 'Technology, Finance & Accounting, Banking & Insurance, Sales, Marketing & Creative, Healthcare & Pharma, Engineering & Manufacturing, Customer Support & BPO, Retail & E-commerce, and Logistics & Operations, plus HR, education, legal, admin, construction and hospitality roles.'],
+        ['Which industries do you specialise in?', 'Technology, Finance & Accounting, Banking & Insurance, Sales, Marketing & Creative, Healthcare & Pharma, Engineering & Manufacturing, Customer Support & BPO, Retail & E-commerce, Logistics & Operations, Construction & Facility Management, and Hospitality & Travel, plus HR, education, legal and admin roles.'],
         ['How quickly can you share candidates?', 'For most roles we share a first shortlist within 72 hours of the brief. Niche and leadership roles typically take one to two weeks.'],
         ['Do you only help with hiring, or offer end-to-end HR support?', 'Both. Beyond recruitment we offer contract staffing with payroll, background verification, onboarding and corporate training, so we can act as your extended HR team.'],
         ['What is the six-stage filter?', 'Need analysis, sourcing, candidate evaluation, interview presentation, background checks, and offer negotiation & closure. Every candidate passes all six before joining.'],

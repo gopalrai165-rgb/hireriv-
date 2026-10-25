@@ -1,0 +1,52 @@
+<%- include('partials/head') %>
+
+<section class="section admin">
+  <div class="container">
+    <div class="admin-userbar">
+      <span>Signed in as <b><%= admin.name %></b> · <%= roleLabel %></span>
+      <a class="small" href="<%= ['Sales Manager', 'Business Development'].includes(admin.role) ? '/admin/crm' : '/admin' %>">Back</a>
+      <form method="post" action="/admin/logout"><button class="link-btn small" type="submit">Sign out</button></form>
+    </div>
+    <div class="admin-head"><div><span class="eyebrow">Website</span><h1>Website analytics</h1></div></div>
+    <p class="muted small">Counts per day only: no cookies, no IP addresses and nothing about who did what. Search-engine bots and browsers that ask not to be tracked (Global Privacy Control or Do Not Track) are not counted.</p>
+
+    <form class="form filters" method="get" action="/admin/site-analytics">
+      <div class="form-grid">
+        <label>From<input type="date" name="from" value="<%= report.period.from %>"></label>
+        <label>To<input type="date" name="to" value="<%= report.period.to %>"></label>
+      </div>
+      <button class="btn btn-outline btn-sm" type="submit">Show</button>
+    </form>
+
+    <% const r = report.rates; const pct = function (v) { return v === null ? '–' : v + '%'; }; %>
+    <div class="mini-stats">
+      <div><b><%= pct(r.viewToApplicationPercent) %></b> of job page views led to an application</div>
+      <div><b><%= pct(r.serviceViewToInquiryPercent) %></b> service page views to employer inquiries · <%= pct(r.inquiryToQualifiedPercent) %> qualified by sales</div>
+      <div><b><%= pct(r.searchesWithNoResultsPercent) %></b> of searches found nothing · <%= pct(r.startedToSubmittedPercent) %> of started applications sent</div>
+    </div>
+
+    <section class="dash-card dash-wide">
+      <h2>Events</h2>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Event</th><th class="num">Count</th><th>Top</th></tr></thead>
+        <tbody><% report.events.forEach(function (e) { %>
+          <tr><td><%= e.label %></td><td class="num"><%= e.count.toLocaleString('en-IN') %></td><td class="small"><%= e.labels.slice(0, 4).map(function (l) { return l.name + ' (' + l.count + ')'; }).join(', ') %></td></tr>
+        <% }) %></tbody>
+      </table></div>
+    </section>
+
+    <% if (report.days.length) { %>
+      <section class="dash-card dash-wide">
+        <h2>By day</h2>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Day</th><th class="num">Searches</th><th class="num">Job views</th><th class="num">Applications</th><th class="num">Registrations</th><th class="num">Service views</th><th class="num">Inquiries</th><th class="num">Errors</th></tr></thead>
+          <tbody><% report.days.slice().reverse().forEach(function (d) { %>
+            <tr><td><%= d.day %></td><td class="num"><%= d['job-search'] %></td><td class="num"><%= d['job-view'] %></td><td class="num"><%= d['application-submitted'] %></td><td class="num"><%= d['candidate-registration'] %></td><td class="num"><%= d['service-view'] %></td><td class="num"><%= d['employer-inquiry'] %></td><td class="num"><%= d['server-error'] %></td></tr>
+          <% }) %></tbody>
+        </table></div>
+      </section>
+    <% } %>
+  </div>
+</section>
+
+<%- include('partials/foot') %>

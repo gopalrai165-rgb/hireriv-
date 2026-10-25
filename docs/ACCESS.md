@@ -15,7 +15,7 @@ Every route the app serves, and who may use it. **This table is checked by `test
 
 Every state-changing team, candidate and client form also passes `sameOrigin` (cross-site posts are refused).
 
-Total: 519 routes.
+Total: 535 routes.
 
 ## Sales CRM: the sales team (Sales Managers, Business Development Representatives, Admins), and the client's proposal and unsubscribe links
 
@@ -132,6 +132,7 @@ Total: 519 routes.
 | GET | `/recruiter/placements` | public | Short link to /admin/workspace |
 | GET | `/client/requisitions` | public | Short link to /employer/requisitions |
 | GET | `/client/candidates` | public | Short link to the shortlist on the client's dashboard |
+| POST | `/api/public/candidate-registrations` | public | Same as POST /api/auth/register |
 | GET | `/client/dashboard` | public | Short link to /employer |
 | GET | `/client/company-profile` | public | Short link to /employer/company |
 | GET | `/client/hiring-requests` | public | Short link to /employer/requisitions |
@@ -149,10 +150,17 @@ Total: 519 routes.
 | GET | `/` | public |  |
 | GET | `/categories` | public | Job category groups with open-job counts |
 | GET | `/jobs` | public |  |
+| GET | `/jobs/office-professional` | public | Landing page for job seekers: live office and professional jobs, 20 a page, with advice |
+| GET | `/jobs/skilled-technical` | public | Landing page for job seekers: live skilled and technical jobs |
+| GET | `/jobs/industrial-field-service` | public | Landing page for job seekers: live industrial, field and service jobs |
+| GET | `/jobs/industry/:slug` | public | Landing page for job seekers by industry (catalog.js); 404 for unknown industries |
 | GET | `/jobs/:id` | public |  |
 | GET | `/saved` | public |  |
 | GET | `/saved/cards` | public |  |
 | GET | `/hire` | public |  |
+| GET | `/services/recruitment` | public | Moved (301) to /services/permanent-staffing |
+| GET | `/services/staffing` | public | Moved (301) to /services/contract-staffing |
+| GET | `/services/bulk-hiring` | public | Moved (301) to /services/bulk-rpo-hiring |
 | GET | `/services` | public |  |
 | GET | `/services/:slug` | public |  |
 | GET | `/industries` | public |  |
@@ -167,8 +175,14 @@ Total: 519 routes.
 | POST | `/api/apply` | public |  |
 | POST | `/api/resume-parse` | public |  |
 | POST | `/api/hire` | public |  |
+| POST | `/api/public/employer-inquiries` | public | Bot trap, 5 per 10 minutes per IP, validated; kept as a hire request and added to the sales CRM (a repeat goes to the existing lead) |
 | POST | `/api/contact` | public |  |
 | GET | `/api/jobs` | public | Open, published jobs only (no samples); validated filters; 120 a minute per IP |
+| GET | `/api/public/jobs` | public | Same as GET /api/jobs: live, real jobs only |
+| GET | `/api/public/jobs/:slug` | public | One live job by its address or id; 410 once it has closed; never applications or employer details |
+| GET | `/api/public/industries` | public | Kinds of work, industries and recruitment desks with open-job counts |
+| GET | `/api/public/site-config` | public | Public settings only: name, contact numbers, social links, services, filters; never billing or settings behind sign-in |
+| POST | `/api/public/events` | public | Counts an application form being opened; only events a browser may report; no personal data; 60 per 10 minutes |
 | GET | `/api/jobs/:id` | public | Open, published jobs only |
 | POST | `/api/jobs/:id/report` | public | 5 per 10 minutes per IP |
 | POST | `/api/job-alerts` | public | Bot trap, per-IP limit. Signed out: confirmed by an emailed link, same reply either way. Signed in as a candidate (own email): on at once |
@@ -415,6 +429,7 @@ Total: 519 routes.
 | POST | `/employer/candidates/:appId/feedback` | employer | Candidates shared with this company; owners, managers and recruiters |
 | GET | `/employer/invoices/:id` | employer | Company owners only; this company's invoices |
 | GET | `/employer/invoices/:id/credit-notes/:cnId` | employer | Company owners only; this company's invoices |
+| GET | `/employers/contact` | public | Moved (301) to /hire |
 | POST | `/employer/timesheets/:pid/:tsId/approve` | employer | Owners and hiring managers; this company's placements |
 | POST | `/employer/timesheets/:pid/:tsId/reject` | employer | Owners and hiring managers; this company's placements |
 | GET | `/employer/workforce` | employer | The company's workers on assignment; site supervisors only those they supervise; no pay rates, emails or documents |
@@ -515,6 +530,7 @@ Total: 519 routes.
 | POST | `/admin/placements/:id` | team |  |
 | POST | `/admin/placements/:id/status` | team |  |
 | GET | `/admin/placements/:id/replacement` | team |  |
+| GET | `/admin/site-analytics` | team | site.analytics (Admins, recruitment, account and sales managers, business development); daily counts only |
 | GET | `/admin/applications/new` | team | Add someone who applied by WhatsApp, phone, walk-in or referral |
 | POST | `/admin/applications/new` | team | Add someone who applied by WhatsApp, phone, walk-in or referral |
 | GET | `/admin` | team | Recruiters never get the Settings, Team or Activity tabs, and see Reports without money |

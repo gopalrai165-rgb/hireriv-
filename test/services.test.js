@@ -15,8 +15,8 @@ test('catalog: unique slugs, real job categories and valid cross-links', () => {
     assert.ok(s.includes.length && s.idealFor.length && s.steps.length && s.faqs.length, s.slug);
   }
   for (const ind of catalog.INDUSTRIES) {
-    // Industry pages list live jobs by category name, so the names must match.
-    assert.ok(DEFAULT_JOB_CATEGORIES.includes(ind.name), `${ind.name} is a job category`);
+    // Industry pages list live jobs by category, so the categories must exist.
+    for (const c of catalog.deskCategories(ind)) assert.ok(DEFAULT_JOB_CATEGORIES.includes(c), `${c} is a job category`);
     for (const s of ind.services) assert.ok(catalog.serviceBySlug(s), `${ind.slug} → ${s}`);
     assert.ok(ind.roles.length && ind.screen.length && ind.intro);
   }

@@ -61,6 +61,9 @@ fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 // fresh install, and old data/submissions/*.json files are imported once.
 const DB_FILE = process.env.DB_FILE ? path.resolve(process.env.DB_FILE) : path.join(DATA_DIR, 'hireriv.db');
 const db = openDb(DB_FILE);
+// Conversion counts for the website (no personal data; see site-analytics.js).
+const siteAnalytics = require('./site-analytics').create({ db });
+setInterval(() => { try { siteAnalytics.flush(); } catch (e) { console.error('Analytics flush failed:', e.message); } }, Number(process.env.ANALYTICS_FLUSH_MS) || 60 * 1000).unref();
 const FORM_TYPES = ['applications', 'hire-requests', 'contacts', 'newsletter', 'job-alerts', 'job-reports'];
 for (const type of [...FORM_TYPES, 'employers']) {
   const n = db.importOnce(type, path.join(SUBMISSIONS_DIR, `${type}.json`));
@@ -502,7 +505,16 @@ app.get('/robots.txt', (req, res) =>
 Disallow: /admin
 Disallow: /api/
 Disallow: /account
+Disallow: /candidate
 Disallow: /employer
+Disallow: /client
+Disallow: /crm/
+Disallow: /feedback
+Disallow: /notifications
+Disallow: /saved
+Disallow: /staffing
+Disallow: /worker
+Disallow: /job-alerts/
 Disallow: /healthz
 
 Sitemap: ${BASE_URL}/sitemap.xml
@@ -510,7 +522,7 @@ Sitemap: ${BASE_URL}/sitemap.xml
 );
 
 app.get('/sitemap.xml', (req, res) =>
-  res.type('application/xml').send(seo.sitemap(BASE_URL, { jobs: openJobs().filter((j) => !isSample(j)), posts: livePosts(), staticPaths: ['/', '/jobs', '/categories', '/hire', '/services', ...catalog.SERVICES.map((x) => `/services/${x.slug}`), '/industries', ...catalog.INDUSTRIES.map((x) => `/industries/${x.slug}`), '/about', '/blog', '/contact', '/privacy', '/terms', '/job-posting-policy'] }))
+  res.type('application/xml').send(seo.sitemap(BASE_URL, { jobs: openJobs().filter((j) => !isSample(j)), posts: livePosts(), staticPaths: ['/', '/jobs', ...catalog.WORK_PAGES.map((x) => `/jobs/${x.slug}`), ...catalog.JOB_INDUSTRIES.map((x) => `/jobs/industry/${x.slug}`), '/categories', '/hire', '/services', ...catalog.SERVICES.map((x) => `/services/${x.slug}`), '/industries', ...catalog.INDUSTRIES.map((x) => `/industries/${x.slug}`), '/about', '/blog', '/contact', '/privacy', '/terms', '/job-posting-policy'] }))
 );
 
 // Things a new install still needs before it is ready for visitors, shown to
@@ -671,13 +683,18 @@ app.get('/jobs', (req, res) => {
   // Signed-in candidates can save this search and get alerts for it.
   const candidateEmail = candidateAccounts.currentEmail(req);
   if (candidateEmail) res.set('Cache-Control', 'private, no-store');
+  if (hasFilters(f) && pager.page === 1) siteAnalytics.track(found.jobs.length ? 'job-search' : 'job-search-empty', f.work ? WORK_KINDS.find((w) => w.key === f.work).label : '', req);
+  if (hasFilters(f) && !found.jobs.length) siteAnalytics.track('job-search', '', req);
   res.render('jobs', {
     title: pager.page > 1 ? `Find Jobs – page ${pager.page}` : 'Find Jobs',
     page: 'jobs',
     results: rows,
     pager,
-    // Pages of the unfiltered list are canonical; filtered views point to /jobs.
+    // Pages of the unfiltered list are canonical; filtered views (internal
+    // search results) stay out of search engines but their links are followed.
     canonical: `${BASE_URL}/jobs${pager.page > 1 && !hasFilters(f) ? `?page=${pager.page}` : ''}`,
+    noindex: hasFilters(f) ? 'follow' : false,
+    metaDescription: `Find jobs across India on ${site.name}: ${live.length} open roles in office, IT, finance and sales work, and skilled, factory, warehouse, delivery, retail and hospitality jobs. Salary, location and job type on every listing.`,
     filters: { ...f, category: f.categories[0] || '' },
     sort: found.sort,
     active,
@@ -711,6 +728,32 @@ const realWhatsapp = () => /^\d{10,15}$/.test(site.whatsapp || '') && !/^\d{2}0+
 const whatsappApplyLink = (job) =>
   realWhatsapp() ? `https://wa.me/${site.whatsapp}?text=${encodeURIComponent(`Hi ${site.name}, I want to apply for ${job.title} in ${job.location} (job ${job.id}). My name is `)}` : '';
 
+// Landing pages for job seekers: a kind of work, or an industry (catalog.js).
+function jobLanding(req, res, landing, kind) {
+  const live = openJobs();
+  const list = (kind === 'work' ? live.filter((j) => workOf(j) === landing.work) : live.filter((j) => landing.categories.includes(j.category)))
+    .sort((a, b) => Number(isSample(a)) - Number(isSample(b)) || String(b.posted).localeCompare(String(a.posted)));
+  const path = kind === 'work' ? `/jobs/${landing.slug}` : `/jobs/industry/${landing.slug}`;
+  const { rows, pager } = paginate(list, { page: req.query.page, size: JOBS_PAGE_SIZE, query: {}, path });
+  const desk = kind === 'industry' ? catalog.industryBySlug(landing.desk) : null;
+  const searchHref = kind === 'work' ? `/jobs?work=${landing.work}` : `/jobs?${landing.categories.map((c) => `category=${encodeURIComponent(c)}`).join('&')}`;
+  const trail = [['Home', '/'], ['Jobs', '/jobs'], ...(kind === 'industry' ? [['Industries', '/categories']] : []), [landing.name, path]];
+  siteAnalytics.track('landing-view', landing.name, req);
+  res.render('jobs-landing', {
+    title: `${landing.name} in India${pager.page > 1 ? ` – page ${pager.page}` : ''}`, page: 'jobs', landing, kind, results: rows, pager, openCount: list.length, desk, searchHref,
+    metaDescription: landing.description, canonical: `${BASE_URL}${path}${pager.page > 1 ? `?page=${pager.page}` : ''}`,
+    jsonLd: seo.jobLandingPage(landing, path, trail, BASE_URL, rows.filter((j) => !isSample(j))),
+  });
+}
+app.get('/jobs/office-professional', (req, res) => jobLanding(req, res, catalog.workPageBySlug('office-professional'), 'work'));
+app.get('/jobs/skilled-technical', (req, res) => jobLanding(req, res, catalog.workPageBySlug('skilled-technical'), 'work'));
+app.get('/jobs/industrial-field-service', (req, res) => jobLanding(req, res, catalog.workPageBySlug('industrial-field-service'), 'work'));
+app.get('/jobs/industry/:slug', (req, res, next) => {
+  const landing = catalog.jobIndustryBySlug(req.params.slug);
+  if (!landing) return next();
+  jobLanding(req, res, landing, 'industry');
+});
+
 app.get('/jobs/:id', (req, res, next) => {
   const job = findJobBySlug(jobs.filter(isPublicJob), req.params.id);
   if (!job) return next();
@@ -724,6 +767,8 @@ app.get('/jobs/:id', (req, res, next) => {
   // Signed-in candidates get one-click applying with their profile.
   const account = candidateAccounts.accountForJob(req, job);
   if (account) res.set('Cache-Control', 'private, no-store');
+  if (open) siteAnalytics.track('job-view', WORK_KINDS.find((w) => w.key === workOf(job)).label, req);
+  const verified = verifiedEmployer(job);
   res.render('job', {
     title: `${job.title} – ${job.location}`,
     page: 'jobs',
@@ -733,14 +778,15 @@ app.get('/jobs/:id', (req, res, next) => {
     match: account && open && !isSample(job) ? recommendations.matchFor(account.email, job) : null,
     msg: account ? String(req.query.msg || '').slice(0, 200) : '',
     live: isLive(job),
-    verifiedEmployer: verifiedEmployer(job),
+    verifiedEmployer: verified,
     stateName: search.stateOf(job.location),
     reportReasons: REPORT_REASONS,
     quick: !resumeNeeded(job),
     whatsappApply: whatsappApplyLink(job),
     metaDescription: `${job.title} (${job.type}, ${job.mode}) in ${job.location}${job.experience ? `, ${job.experience}` : ''}${job.salary ? `, ${job.salary}` : ''}. ${job.description}`.slice(0, 300),
     // Google requires expired postings to drop their JobPosting markup.
-    jsonLd: open && !isSample(job) ? seo.jobPosting(job, site, BASE_URL) : null,
+    // A verified employer's own job names that employer; agency jobs name Hireriv.
+    jsonLd: open && !isSample(job) ? [seo.jobPosting(job, site, BASE_URL, { employer: verified ? { name: job.company } : null }), seo.jobBreadcrumbs(job, BASE_URL)] : seo.jobBreadcrumbs(job, BASE_URL),
     ogImage: `${BASE_URL}/og/jobs/${job.id}.png?v=${og.jobVersion(job)}`,
     canonical: BASE_URL + jobPath(job),
     ogImageAlt: `${job.title} at ${job.company}, ${job.location}`,
@@ -761,8 +807,18 @@ app.get('/saved/cards', (req, res) => {
 // ?service=<slug> (from a service page) pre-selects that service on the form.
 app.get('/hire', (req, res) => {
   const chosen = catalog.serviceBySlug(String(req.query.service || ''));
-  res.render('hire', { title: 'Hire a Team', page: 'hire', hireOptions: catalog.HIRE_OPTIONS, selectedService: chosen ? chosen.hiringType : '' });
+  const desk = catalog.industryBySlug(String(req.query.desk || ''));
+  res.render('hire', {
+    title: 'Hire a Team', page: 'hire', hireOptions: catalog.HIRE_OPTIONS, selectedService: chosen ? chosen.hiringType : '',
+    from: chosen ? `service:${chosen.slug}` : desk ? `desk:${desk.slug}` : '',
+    metaDescription: `Tell ${site.name} who you need to hire: permanent, contract, bulk or executive roles. A recruiter calls you back within one working day.`,
+  });
 });
+// The service and contact addresses from the website plan, kept as short links.
+app.get('/services/recruitment', (req, res) => res.redirect(301, '/services/permanent-staffing'));
+app.get('/services/staffing', (req, res) => res.redirect(301, '/services/contract-staffing'));
+app.get('/services/bulk-hiring', (req, res) => res.redirect(301, '/services/bulk-rpo-hiring'));
+app.get('/employers/contact', (req, res) => res.redirect(301, '/hire'));
 
 // ---------- services and industry desks (content in catalog.js) ----------
 const guaranteeDays = () => (site.billing && Number.isInteger(site.billing.guaranteeDays) ? site.billing.guaranteeDays : placements.BILLING_DEFAULTS.guaranteeDays);
@@ -772,6 +828,7 @@ app.get('/services', (req, res) =>
 app.get('/services/:slug', (req, res, next) => {
   const service = catalog.serviceBySlug(req.params.slug);
   if (!service) return next();
+  siteAnalytics.track('service-view', service.name, req);
   res.render('service', {
     title: service.name, page: 'services', service, industries: catalog.INDUSTRIES, others: catalog.SERVICES.filter((s) => s !== service).slice(0, 3),
     guaranteeDays: guaranteeDays(), metaDescription: `${service.name} from ${site.name}: ${service.card}`, jsonLd: seo.servicePage(service, site, BASE_URL),
@@ -779,8 +836,8 @@ app.get('/services/:slug', (req, res, next) => {
 });
 app.get('/industries', (req, res) => {
   const open = openJobs();
-  const openCounts = open.reduce((n, j) => ({ ...n, [j.category]: (n[j.category] || 0) + 1 }), {});
-  const desks = new Set(catalog.INDUSTRIES.map((i) => i.name));
+  const openCounts = Object.fromEntries(catalog.INDUSTRIES.map((i) => [i.name, open.filter((j) => catalog.deskCategories(i).includes(j.category)).length]));
+  const desks = new Set(catalog.INDUSTRIES.flatMap(catalog.deskCategories));
   res.render('industries', {
     title: 'Industries', page: 'industries', industries: catalog.INDUSTRIES, openCounts, otherCategories: jobCategories().filter((c) => !desks.has(c)),
     metaDescription: `Specialist recruitment desks at ${site.name}: ${catalog.INDUSTRIES.map((i) => i.name).join(', ')}.`,
@@ -789,20 +846,24 @@ app.get('/industries', (req, res) => {
 app.get('/industries/:slug', (req, res, next) => {
   const industry = catalog.industryBySlug(req.params.slug);
   if (!industry) return next();
-  const open = openJobs().filter((j) => j.category === industry.name);
+  const cats = catalog.deskCategories(industry);
+  const open = openJobs().filter((j) => cats.includes(j.category));
+  const forSeekers = catalog.JOB_INDUSTRIES.find((x) => x.desk === industry.slug);
+  siteAnalytics.track('industry-view', industry.name, req);
   res.render('industry', {
     title: `${industry.name} Recruitment`, page: 'industries', industry, jobs: open.slice(0, 6), openCount: open.length,
+    jobsHref: forSeekers ? `/jobs/industry/${forSeekers.slug}` : `/jobs?${cats.map((c) => `category=${encodeURIComponent(c)}`).join('&')}`,
     related: industry.services.map(catalog.serviceBySlug).filter(Boolean), metaDescription: `${industry.name} recruitment by ${site.name}. ${industry.text}`, jsonLd: seo.industryPage(industry, BASE_URL),
   });
 });
-app.get('/about', (req, res) => res.render('about', { title: 'About Us', page: 'about' }));
-app.get('/contact', (req, res) => res.render('contact', { title: 'Contact Us', page: 'contact' }));
+app.get('/about', (req, res) => res.render('about', { title: 'About Us', page: 'about', metaDescription: `About ${site.name}: a recruitment and staffing company in India hiring for office, skilled and field roles, with pre-screened candidates and one point of contact for employers.` }));
+app.get('/contact', (req, res) => res.render('contact', { title: 'Contact Us', page: 'contact', metaDescription: `Contact ${site.name} by phone, WhatsApp or email: questions about jobs, applications, hiring or staffing.` }));
 // Bump LEGAL_UPDATED whenever the wording of either page changes.
 const LEGAL_UPDATED = '2026-10-25';
 app.get('/privacy', (req, res) => res.render('privacy', { title: 'Privacy Policy', page: 'legal', updated: LEGAL_UPDATED, metaDescription: `How ${site.name} collects, uses and protects the personal data of candidates, clients and visitors.` }));
 app.get('/job-posting-policy', (req, res) => res.render('job-posting-policy', { title: 'Job posting rules', page: 'legal', updated: LEGAL_UPDATED, metaDescription: `What employers may and may not post on ${site.name}: real vacancies, honest pay, no fees from candidates.` }));
 app.get('/terms', (req, res) => res.render('terms', { title: 'Terms of Use', page: 'legal', updated: LEGAL_UPDATED, metaDescription: `The terms for using the ${site.name} website as a job seeker or employer.` }));
-app.get('/blog', (req, res) => res.render('blog', { title: 'Career Resources', page: 'blog', posts: livePosts() }));
+app.get('/blog', (req, res) => res.render('blog', { title: 'Career Resources', page: 'blog', posts: livePosts(), metaDescription: `Career and hiring advice from ${site.name}: resumes, interviews, salaries and building teams in India.` }));
 app.get('/blog/:slug', (req, res, next) => {
   const post = livePosts().find((p) => p.slug === req.params.slug);
   if (!post) return next();
@@ -880,11 +941,13 @@ app.post('/api/apply', limit('apply', 6), (req, res) => {
     else if (job && isSample(job)) errors.push('this is a sample listing, not a real vacancy. Send us your details with a general application instead');
     if (errors.length) {
       if (req.file) fs.unlink(req.file.path, () => {});
+      siteAnalytics.track('form-rejected', 'Application', req);
       return respond(req, res, errors);
     }
     resumeCheck.vet(req.file).then((bad) => {
       if (bad) return respond(req, res, [bad]);
       return saveApplication(data, req.file, job, {}, { announce: true }).then(({ updated }) => {
+      if (!updated) siteAnalytics.track('application-submitted', job ? WORK_KINDS.find((w) => w.key === workOf(job)).label : 'General application', req);
       const first = data.name.split(' ')[0];
       if (updated) return respond(req, res, [], `Thanks ${first}! You'd already applied for this job, so we've updated your application with your new details.`);
       respond(req, res, [], `Thanks ${first}! Your application is in. A recruiter will ${data.email ? 'contact you' : `call you on ${data.phone}`} within 2 working days.`);
@@ -915,17 +978,36 @@ app.post('/api/resume-parse', limit('resume-parse', 20), (req, res) => {
   });
 });
 
+// An employer's inquiry from the "Hire with us" form or POST
+// /api/public/employer-inquiries: kept, emailed to the team and added to the
+// sales CRM (a repeat from the same person goes to their existing lead).
+const INQUIRY_THANKS = 'Thank you! Our client partner will call you within one working day to understand your hiring needs.';
+function employerInquiry(req, body) {
+  const data = clean(body, ['company', 'name', 'email', 'phone', 'roles', 'headcount', 'hiringType', 'location', 'timeline', 'message']);
+  const errors = validate(data, ['company', 'name', 'email', 'phone', 'roles']);
+  if (data.hiringType && !catalog.HIRE_OPTIONS.includes(data.hiringType)) errors.push('hiringType is not one we offer');
+  if (errors.length) { siteAnalytics.track('form-rejected', 'Employer inquiry', req); return errors; }
+  const from = String(body.from || '');
+  const service = /^service:/.test(from) && catalog.serviceBySlug(from.slice(8));
+  const desk = /^desk:/.test(from) && catalog.industryBySlug(from.slice(5));
+  const page = service ? `service page: ${service.name}` : desk ? `industry page: ${desk.name}` : '';
+  const entry = saveSubmission('hire-requests', { ...data, ...(page ? { fromPage: page } : {}) });
+  mailer.hireRequestReceived(entry);
+  events.staffingRequest(entry);
+  leadCapture.capture('Website inquiry', data, { sourceRef: entry.id, sourceDetail: `Hire with us form${page ? `, ${page}` : ''}` });
+  siteAnalytics.track('employer-inquiry', service ? service.name : desk ? desk.name : data.hiringType || 'Hire page', req);
+  return [];
+}
 app.post('/api/hire', limit('hire', 5), (req, res) => {
   if (isBot(req.body)) return respond(req, res, [], 'Thank you! Our client partner will be in touch.');
-  const data = clean(req.body, ['company', 'name', 'email', 'phone', 'roles', 'headcount', 'hiringType', 'location', 'timeline', 'message']);
-  const errors = validate(data, ['company', 'name', 'email', 'phone', 'roles']);
-  if (!errors.length) {
-    const entry = saveSubmission('hire-requests', data);
-    mailer.hireRequestReceived(entry);
-    events.staffingRequest(entry);
-    leadCapture.capture('Website inquiry', data, { sourceRef: entry.id, sourceDetail: 'Hire with us form' });
-  }
-  respond(req, res, errors, 'Thank you! Our client partner will call you within one working day to understand your hiring needs.');
+  respond(req, res, employerInquiry(req, req.body || {}), INQUIRY_THANKS);
+});
+app.post('/api/public/employer-inquiries', limit('hire', 5), sameOrigin, (req, res) => {
+  const body = req.body && typeof req.body === 'object' ? req.body : {};
+  if (isBot(body)) return res.status(202).json({ ok: true, message: INQUIRY_THANKS });
+  const errors = employerInquiry(req, body);
+  if (errors.length) return res.status(400).json({ ok: false, errors });
+  res.status(202).json({ ok: true, message: INQUIRY_THANKS });
 });
 
 app.post('/api/contact', limit('contact', 5), (req, res) => {
@@ -978,7 +1060,8 @@ const publicJob = (j) => ({
   url: `${BASE_URL}${jobPath(j)}`,
 });
 
-app.get('/api/jobs', limit('job-search', 120, 60 * 1000), async (req, res) => {
+// Also answers GET /api/public/jobs.
+async function jobsApi(req, res) {
   const { filters: f, errors } = jobFilters(req.query);
   const int = (k, def, max) => {
     const v = req.query[k];
@@ -1020,6 +1103,49 @@ app.get('/api/jobs', limit('job-search', 120, 60 * 1000), async (req, res) => {
     if (retry && retry.total) { r = retry; corrected = better.q; }
   }
   send(r.total, r.sort, r.list, corrected);
+}
+app.get('/api/jobs', limit('job-search', 120, 60 * 1000), (req, res) => jobsApi(req, res));
+
+// ---------- public website API (/api/public/*) ----------
+// The same data the public pages show; never applications, candidates,
+// clients' private details or anything behind a sign-in.
+app.get('/api/public/jobs', limit('job-search', 120, 60 * 1000), (req, res) => jobsApi(req, res));
+app.get('/api/public/jobs/:slug', limit('job-search', 120, 60 * 1000), (req, res) => {
+  const job = findJobBySlug(jobs.filter(isPublicJob), String(req.params.slug).slice(0, 200));
+  if (!job || isSample(job)) return res.status(404).json({ ok: false, errors: ['job not found'] });
+  if (!isLive(job)) return res.status(410).json({ ok: false, status: 'closed', errors: ['this job is no longer open'] });
+  res.json({ ok: true, job: { ...publicJob(job), slug: jobPath(job).slice(6) } });
+});
+app.get('/api/public/industries', limit('public-api', 120, 60 * 1000), (req, res) => {
+  const live = openJobs().filter((j) => !isSample(j));
+  res.json({
+    ok: true,
+    kindsOfWork: catalog.WORK_PAGES.map((w) => ({ slug: w.slug, name: w.name, url: `${BASE_URL}/jobs/${w.slug}`, openJobs: live.filter((j) => workOf(j) === w.work).length })),
+    industries: catalog.JOB_INDUSTRIES.map((i) => ({ slug: i.slug, name: i.name, categories: i.categories, url: `${BASE_URL}/jobs/industry/${i.slug}`, openJobs: live.filter((j) => i.categories.includes(j.category)).length })),
+    recruitmentDesks: catalog.INDUSTRIES.map((i) => ({ slug: i.slug, name: i.name, url: `${BASE_URL}/industries/${i.slug}` })),
+    categories: jobCategories(),
+  });
+});
+app.get('/api/public/site-config', limit('public-api', 120, 60 * 1000), (req, res) => {
+  res.json({
+    ok: true,
+    site: {
+      name: site.name, tagline: site.tagline, url: BASE_URL, email: site.email, phone: /0{5}/.test(site.phone) ? null : site.phone, whatsapp: realWhatsapp() ? site.whatsapp : null,
+      social: Object.fromEntries(Object.entries(site.social || {}).filter(([, u]) => /^https?:\/\//.test(u))),
+    },
+    services: catalog.SERVICES.map((s) => ({ slug: s.slug, name: s.name, url: `${BASE_URL}/services/${s.slug}` })),
+    hiringTypes: catalog.HIRE_OPTIONS, locations: jobLocations(), employmentTypes: JOB_TYPES, workArrangements: modes, kindsOfWork: WORK_KINDS.map(({ key, label }) => ({ key, label })),
+    analytics: { cookies: false, personalData: false, honoursGlobalPrivacyControl: true },
+  });
+});
+// What a browser may report itself (an application form opened). Counted, never stored per person.
+app.post('/api/public/events', limit('public-events', 60), sameOrigin, (req, res) => {
+  const body = req.body && typeof req.body === 'object' ? req.body : {};
+  const event = String(body.event || '');
+  if (!siteAnalytics.CLIENT_EVENTS.includes(event)) return res.status(400).json({ ok: false, errors: ['unknown event'] });
+  const job = /^[A-Za-z0-9_-]{1,40}$/.test(String(body.jobId || '')) ? jobs.find((j) => j.id === body.jobId && isLive(j)) : null;
+  siteAnalytics.track(event, job ? WORK_KINDS.find((w) => w.key === workOf(job)).label : 'General application', req);
+  res.status(204).end();
 });
 
 app.get('/api/jobs/:id', limit('job-search', 120, 60 * 1000), (req, res) => {
@@ -1224,7 +1350,7 @@ const candidateAccounts = candidates.register(app, {
   upload, saveApplication, isBot, isSample, isLive, resumeNeeded, skillMatch, saveSubmission, jobCategories, jobLocations,
   vetUpload: resumeCheck.vet, downloadLinks, linkExpired, jobTypes: JOB_TYPES, modes, stateOf: search.stateOf,
   interviewResponded: (...args) => atsDesk.interviewResponded(...args), events, notify,
-  recommendFor: (...args) => recommendations.recommend(...args),
+  recommendFor: (...args) => recommendations.recommend(...args), analytics: siteAnalytics,
 });
 
 // Recommended jobs with match explanations, saved searches with daily or
@@ -1276,9 +1402,15 @@ clientPortal.register(app, {
 // hand-over of won clients to recruitment.
 const crmDesk = crm.register(app, {
   team, clients, billing, agency: agencyDesk, notify, mailer, site, limit, sameOrigin, adminAuth, readSubmissions, writeSubmissions, saveSubmission,
-  baseUrl: BASE_URL, secret: db.metaGet('secret:links'),
+  baseUrl: BASE_URL, secret: db.metaGet('secret:links'), analytics: siteAnalytics,
 });
 leadCapture.capture = crmDesk.capture;
+
+// Website conversion counts for the team (Admins, recruitment and sales managers).
+app.get('/admin/site-analytics', adminAuth, (req, res) => {
+  if (!agencyRoles.can(req.admin, 'site.analytics')) return res.status(403).render('thanks', { title: 'Not part of your role', page: '', ok: false, message: 'Your role does not include website analytics.', noindex: true });
+  res.render('admin-site-analytics', { title: 'Website analytics', page: 'admin', noindex: true, admin: req.admin, report: siteAnalytics.report(req.query), roleLabel: (agencyRoles.ROLE_INFO[req.admin.role] || {}).label || req.admin.role, can: (a) => agencyRoles.can(req.admin, a) });
+});
 
 // The notification center, its API, preferences, job alerts and delivery reports.
 const center = notificationCenter.register(app, {
@@ -1836,12 +1968,14 @@ app.get('/admin/resume/:file', adminAuth, (req, res) => {
 app.use((req, res) => res.status(404).render('404', { title: 'Page not found', page: '', noindex: true }));
 app.use((err, req, res, next) => {
   console.error(err);
+  siteAnalytics.track('server-error', `/${String(req.path).split('/')[1] || ''}`);
   res.status(500).render('thanks', { title: 'Something went wrong', page: '', ok: false, message: 'Something went wrong on our side. Please try again.', noindex: true });
 });
 
 // Flush and close the database cleanly on shutdown.
 for (const signal of ['SIGINT', 'SIGTERM']) {
   process.on(signal, () => {
+    try { siteAnalytics.flush(); } catch (e) { console.error(e.message); }
     db.close();
     process.exit(0);
   });

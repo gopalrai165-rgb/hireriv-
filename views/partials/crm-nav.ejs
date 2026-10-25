@@ -11,7 +11,7 @@
   </div>
 </div>
 <nav class="account-tabs" aria-label="Sales CRM">
-  <% [['dashboard', '/admin/crm', 'Dashboard', 'crm.view'], ['leads', '/admin/crm/leads', 'Leads', 'crm.view'], ['pipeline', '/admin/crm/pipeline', 'Pipeline', 'crm.view'], ['activities', '/admin/crm/activities', 'Activities', 'crm.view'], ['proposals', '/admin/crm/proposals', 'Proposals', 'crm.view'], ['companies', '/admin/crm/companies', 'Companies', 'crm.view'], ['reports', '/admin/crm/reports', 'Reports', 'crm.reports'], ['import', '/admin/crm/import', 'Import', 'crm.import']].filter(function (t) { return can(t[3]); }).forEach(function (t) { %>
+  <% [['dashboard', '/admin/crm', 'Dashboard', 'crm.view'], ['leads', '/admin/crm/leads', 'Leads', 'crm.view'], ['pipeline', '/admin/crm/pipeline', 'Pipeline', 'crm.view'], ['activities', '/admin/crm/activities', 'Activities', 'crm.view'], ['proposals', '/admin/crm/proposals', 'Proposals', 'crm.view'], ['companies', '/admin/crm/companies', 'Companies', 'crm.view'], ['reports', '/admin/crm/reports', 'Reports', 'crm.reports'], ['import', '/admin/crm/import', 'Import', 'crm.import'], ['website', '/admin/site-analytics', 'Website', 'site.analytics']].filter(function (t) { return can(t[3]); }).forEach(function (t) { %>
     <a href="<%= t[1] %>"<%- tab === t[0] ? ' aria-current="page" class="active"' : '' %>><%= t[2] %></a>
   <% }) %>
 </nav>

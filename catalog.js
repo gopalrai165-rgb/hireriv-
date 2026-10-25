@@ -250,7 +250,84 @@ const INDUSTRIES = [
     screen: ['Store, category or marketplace experience in a similar format', 'Sales and inventory numbers they were responsible for', 'Customer handling for store roles', 'Availability for festive and sale peaks'],
     roles: ['Store Manager', 'Category Manager', 'Visual Merchandiser', 'E-commerce Executive', 'Catalogue Specialist', 'Retail Sales Associate', 'Inventory Controller'],
     services: ['permanent-staffing', 'contract-staffing', 'bulk-rpo-hiring'] },
+  { slug: 'construction-facility-management', key: 'build', icon: 'i-hardhat', photo: 'ind-eng', name: 'Construction & Facility Management', categories: ['Construction & Real Estate', 'Construction & Site Work', 'Housekeeping & Facility Services', 'Security Services'],
+    text: 'Site engineers, supervisors, crews, housekeeping and security teams for projects and running buildings.',
+    intro: 'Building projects and the buildings they leave behind both depend on people turning up, working safely and following the plan. We hire site engineers, supervisors and skilled crews for construction, and housekeeping, maintenance and security teams for offices, malls, hospitals, campuses and residential societies.',
+    screen: ['Site, trade or facility experience matched to the work, checked with a past supervisor', 'Safety awareness: PPE, working at height and site rules', 'Licences and certificates the role needs, such as electrical or security guard training', 'Shift, location and accommodation needs settled before joining'],
+    roles: ['Site Engineer', 'Site Supervisor', 'Quantity Surveyor', 'Facility Manager', 'Housekeeping Supervisor', 'Security Guard', 'Electrician', 'Plumber', 'Mason'],
+    services: ['permanent-staffing', 'contract-staffing', 'bulk-rpo-hiring'] },
+  { slug: 'hospitality-travel', key: 'hosp', icon: 'i-utensils', photo: 'ind-retail', name: 'Hospitality & Travel', categories: ['Hospitality & Travel', 'Hotel & Restaurant Staff'],
+    text: 'Front office, kitchen, service and travel teams for hotels, restaurants, cloud kitchens and travel companies.',
+    intro: 'Guests remember the people who served them. We hire front office, food and beverage, kitchen, housekeeping and travel staff, from a single chef to the full team for a new property, and seasonal staff for weddings, events and peak travel months.',
+    screen: ['Guest-facing manners and language checked in a conversation, not just on the CV', 'Kitchen and food safety experience for cooks and stewards', 'Grooming and uniform standards explained before joining', 'Availability for split shifts, weekends and festival peaks'],
+    roles: ['Front Office Executive', 'Chef de Partie', 'Commis Chef', 'Steward', 'Restaurant Manager', 'Housekeeping Attendant', 'Travel Consultant', 'Banquet Captain'],
+    services: ['permanent-staffing', 'contract-staffing', 'bulk-rpo-hiring'] },
 ];
+
+// The categories an industry desk lists jobs from (its own name unless it covers several).
+const deskCategories = (ind) => ind.categories || [ind.name];
+
+// Landing pages for job seekers, by kind of work (/jobs/<slug>) and by
+// industry (/jobs/industry/<slug>). Each has its own advice; the vacancies
+// come from the live jobs in its categories.
+const WORK_PAGES = [
+  { slug: 'office-professional', work: 'office', name: 'Office & professional jobs',
+    description: 'Office and professional jobs across India: software, finance, sales, marketing, HR, operations and management roles with salary, location and job type on every listing.',
+    intro: ['Office and professional roles are the jobs where your skills, tools and track record carry the conversation: writing code, closing the books, managing accounts, running campaigns, leading a team.', 'Every opening here is reviewed by a Hireriv recruiter before it goes live, shows the salary range when the employer shares it, and says whether it is on-site, hybrid or remote.'],
+    tips: ['Put the tools you use every day (Excel, Tally, SAP, Salesforce, Python, Figma…) in your key skills: recruiters search for them.', 'Mention your notice period. Many employers want people who can join within 30 days.', 'Numbers help: targets met, accounts handled, systems you ran, team size.', 'Upload a resume in PDF or Word; we read it to suggest jobs that match.'] },
+  { slug: 'skilled-technical', work: 'skilled', name: 'Skilled & technical jobs',
+    description: 'Skilled and technical jobs in India: electricians, welders, CNC operators, field technicians, lab and nursing staff. Quick applications with your name and phone.',
+    intro: ['Skilled and technical work needs hands-on ability: wiring a panel, setting a CNC machine, servicing equipment at a customer site, running a lab test, caring for patients.', 'Most of these jobs take a quick application: your name and phone number are enough, and a recruiter calls you to talk about your experience. A resume is welcome but not required.'],
+    tips: ['Say which machines, tools or equipment you have worked on, and for how many years.', 'Mention your ITI, diploma, licence or registration (for example an electrical licence or nursing registration).', 'Tell us which shifts you can work and whether you can travel or relocate.', 'Keep your phone on: recruiters usually call within two working days.'] },
+  { slug: 'industrial-field-service', work: 'field', name: 'Industrial, field & service jobs',
+    description: 'Factory, warehouse, delivery, driving, security, housekeeping, kitchen and store jobs across India. Apply with your name and phone; pay and shift shown on every listing.',
+    intro: ['Factory lines, warehouses, delivery routes, security posts, hotel kitchens and shop counters run on reliable people. These jobs are often hiring many people at once and can start within days.', 'Apply with just your name and phone number. Each listing shows the pay, the shift and the location, and many include benefits such as PF, ESI, meals, transport or accommodation.'],
+    tips: ['You never pay to get a job through Hireriv: not for the offer, joining, training or a uniform.', 'You do not need to share Aadhaar or bank details to apply. Employers ask for joining documents only after an offer.', 'Say which shifts you can do and how far you can travel each day.', 'If you have a driving licence, a two-wheeler or a forklift certificate, mention it: many jobs need them.'] },
+];
+const JOB_INDUSTRIES = [
+  { slug: 'it-software', name: 'IT & software jobs', categories: ['Technology'], desk: 'technology',
+    description: 'IT and software jobs in India: developers, cloud and DevOps engineers, data scientists, QA and designers, with salary and work arrangement on every listing.',
+    intro: ['Software teams hire all year round, from start-ups building their first product to large companies modernising core systems. Remote and hybrid roles are common, and hiring moves quickly for people who can show what they have built.', 'Openings here include developers, cloud, DevOps and security engineers, data and machine learning roles, QA and designers.'],
+    roles: ['Full-Stack Developer', 'Cloud Engineer', 'DevOps Engineer', 'Data Scientist', 'QA Analyst', 'UI/UX Designer'],
+    tips: ['Link a portfolio, GitHub or project write-up if you have one.', 'Be specific about your stack and the versions you used in production.', 'Expect a technical conversation or test early in the process.'] },
+  { slug: 'finance-accounting', name: 'Finance & accounting jobs', categories: ['Finance & Accounting', 'Banking & Insurance'], desk: 'finance-accounting',
+    description: 'Finance, accounting, banking and insurance jobs in India: accountants, analysts, auditors, credit and relationship managers, with salary and location shown.',
+    intro: ['Every business needs people who keep its money in order. Finance and accounting roles range from accounts executives and payroll to analysts, auditors and controllers; banking and insurance add branch, credit, risk and sales roles.', 'Employers usually look for working knowledge of GST and TDS, tools such as Tally, SAP or Excel, and a clean record they can verify.'],
+    roles: ['Accounts Executive', 'Senior Accountant', 'Financial Analyst', 'Internal Auditor', 'Relationship Manager', 'Credit Analyst'],
+    tips: ['List the accounting software and ERP systems you have used.', 'Mention qualifications such as CA, CMA, CS or an MBA, finished or in progress.', 'Banking roles often include background verification before joining.'] },
+  { slug: 'sales-marketing', name: 'Sales & marketing jobs', categories: ['Sales & Business Development', 'Marketing & Creative'], desk: 'sales-business-development',
+    description: 'Sales and marketing jobs in India: field and inside sales, key accounts, business development, digital marketing, content and design roles.',
+    intro: ['Sales and marketing roles reward people who can show results. Field and inside sales, key account and business development roles are open in most cities; marketing roles cover brand, content, design and performance marketing.', 'Many sales roles pay a fixed salary plus incentives, and field roles may include travel or fuel allowances.'],
+    roles: ['Business Development Executive', 'Inside Sales Executive', 'Key Account Manager', 'Area Sales Manager', 'Digital Marketing Specialist', 'Content Writer'],
+    tips: ['Share your targets and what you achieved over the last year or two.', 'For marketing roles, a portfolio or campaign results says more than a title.', 'Say which territory you know and whether you have a two-wheeler for field work.'] },
+  { slug: 'manufacturing-production', name: 'Manufacturing & production jobs', categories: ['Engineering & Manufacturing', 'Factory & Production', 'Skilled Trades'], desk: 'engineering-manufacturing',
+    description: 'Manufacturing and production jobs in India: production and quality engineers, machine operators, fitters, welders, electricians and factory staff, with pay and shifts shown.',
+    intro: ['Plants need engineers who know their processes and the operators, technicians and helpers who keep the lines running. Openings range from production and quality engineers to CNC and machine operators, fitters, welders, electricians and assembly staff.', 'Factory jobs usually work in shifts and many include PF, ESI, canteen meals and company transport.'],
+    roles: ['Production Engineer', 'Quality Inspector', 'CNC Operator', 'Machine Operator', 'Fitter', 'Welder', 'Assembly Line Worker'],
+    tips: ['Say which machines and processes you have worked on.', 'Mention your ITI trade or diploma.', 'Safety matters: say if you have training in PPE, lockout or first aid.'] },
+  { slug: 'warehousing-logistics', name: 'Warehousing & logistics jobs', categories: ['Logistics & Operations', 'Warehouse & Packing', 'Delivery & Driving'], desk: 'logistics-operations',
+    description: 'Warehouse, logistics, delivery and driving jobs in India: pickers, packers, loaders, forklift operators, supervisors, delivery partners and drivers.',
+    intro: ['E-commerce, quick commerce and manufacturing all depend on warehouses and delivery networks. These jobs often hire in large numbers, especially before festive sales, and can start within days.', 'Openings include pickers, packers and loaders, inventory and forklift operators, shift supervisors, delivery partners and drivers, plus planning and operations roles.'],
+    roles: ['Picker / Packer', 'Loader', 'Forklift Operator', 'Inventory Associate', 'Warehouse Supervisor', 'Delivery Partner', 'Driver'],
+    tips: ['Mention a driving licence, a two-wheeler or a forklift certificate if you have one.', 'Say which shifts you can work, including nights.', 'Warehouse experience with a scanner or WMS is a plus.'] },
+  { slug: 'retail-hospitality', name: 'Retail & hospitality jobs', categories: ['Retail & E-commerce', 'Store & Counter Staff', 'Hospitality & Travel', 'Hotel & Restaurant Staff'], desk: 'retail-ecommerce',
+    description: 'Retail, store, hotel, restaurant and travel jobs in India: sales associates, cashiers, store managers, chefs, stewards and front office staff.',
+    intro: ['Stores, malls, hotels, restaurants and cloud kitchens hire people who enjoy working with customers. Roles include sales associates, cashiers and store managers, chefs, cooks and stewards, front office and housekeeping, and travel consultants.', 'Hiring rises before festivals, weddings and holiday seasons, and many roles offer meals, uniforms or accommodation.'],
+    roles: ['Retail Sales Associate', 'Cashier', 'Store Manager', 'Commis Chef', 'Steward', 'Front Office Executive'],
+    tips: ['Say which languages you speak with customers.', 'Mention any food safety or hospitality course.', 'Weekend and festival availability helps you get hired.'] },
+  { slug: 'construction-facility-management', name: 'Construction & facility management jobs', categories: ['Construction & Real Estate', 'Construction & Site Work', 'Housekeeping & Facility Services', 'Security Services'], desk: 'construction-facility-management',
+    description: 'Construction, site, housekeeping, maintenance and security jobs in India: site engineers, supervisors, masons, electricians, facility staff and security guards.',
+    intro: ['Construction projects hire site engineers, supervisors, surveyors and skilled crews; finished buildings need housekeeping, maintenance and security teams to keep them running.', 'Site jobs may move with the project, and facility and security jobs usually work fixed shifts at one location.'],
+    roles: ['Site Engineer', 'Site Supervisor', 'Mason', 'Electrician', 'Housekeeping Staff', 'Security Guard', 'Facility Executive'],
+    tips: ['Say which trade you work in and for how many years.', 'Security roles may ask for guard training and a police verification after the offer.', 'Mention if you can stay near a project site.'] },
+  { slug: 'healthcare', name: 'Healthcare jobs', categories: ['Healthcare & Pharma', 'Healthcare Technicians & Nursing'], desk: 'healthcare-pharma',
+    description: 'Healthcare jobs in India: nurses, lab and radiology technicians, pharmacists, medical representatives and hospital staff, with shifts and pay shown.',
+    intro: ['Hospitals, clinics, labs, pharmacies and pharmaceutical companies hire clinical, technical and support staff all year.', 'Openings include staff nurses, lab, radiology and dialysis technicians, pharmacists, medical representatives and hospital administration.'],
+    roles: ['Staff Nurse', 'Lab Technician', 'Pharmacist', 'Medical Representative', 'Dialysis Technician', 'Patient Care Assistant'],
+    tips: ['Have your registration or certificate details ready: employers check them before joining.', 'Say which departments you have worked in.', 'Mention night-shift availability for hospital roles.'] },
+];
+const workPageBySlug = (slug) => WORK_PAGES.find((w) => w.slug === slug) || null;
+const jobIndustryBySlug = (slug) => JOB_INDUSTRIES.find((i) => i.slug === slug) || null;
 
 const serviceBySlug = (slug) => SERVICES.find((s) => s.slug === slug) || null;
 const industryBySlug = (slug) => INDUSTRIES.find((i) => i.slug === slug) || null;
@@ -258,4 +335,4 @@ const industryBySlug = (slug) => INDUSTRIES.find((i) => i.slug === slug) || null
 // Options for the hire form's "Service needed" field.
 const HIRE_OPTIONS = ['Permanent', 'Contract', 'Contract-to-hire', 'Executive search', 'Bulk / RPO', 'Background verification', 'Corporate training', 'Not sure yet'];
 
-module.exports = { SERVICES, INDUSTRIES, serviceBySlug, industryBySlug, HIRE_OPTIONS };
+module.exports = { SERVICES, INDUSTRIES, WORK_PAGES, JOB_INDUSTRIES, serviceBySlug, industryBySlug, workPageBySlug, jobIndustryBySlug, deskCategories, HIRE_OPTIONS };

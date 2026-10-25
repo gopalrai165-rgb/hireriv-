@@ -8,14 +8,14 @@
       <h1><%= industry.text.replace(/\.$/, '') %></h1>
       <p class="lead"><%= industry.intro %></p>
       <div class="hero-ctas">
-        <a href="/hire#requirement" class="btn btn-primary btn-lg">Hire for this desk <svg class="i"><use href="#i-arrow"/></svg></a>
-        <a href="/jobs?category=<%= encodeURIComponent(industry.name) %>" class="btn btn-outline btn-lg">See open roles</a>
+        <a href="/hire?desk=<%= industry.slug %>#requirement" class="btn btn-primary btn-lg">Hire for this desk <svg class="i"><use href="#i-arrow"/></svg></a>
+        <a href="<%= jobsHref %>" class="btn btn-outline btn-lg">See open roles</a>
       </div>
     </div>
     <div class="hero-media">
       <span class="deco deco-ring" aria-hidden="true"></span>
       <span class="deco deco-spark" aria-hidden="true"></span>
-      <figure class="photo-arch"><img src="/img/photos/ind-<%= industry.key %>.webp" alt="" width="900" height="1000"></figure>
+      <figure class="photo-arch"><img src="/img/photos/<%= industry.photo || 'ind-' + industry.key %>.webp" alt="" width="900" height="1000"></figure>
       <div class="float-card">
         <h2>Roles we hire</h2>
         <div class="chips"><% industry.roles.forEach(function (r) { %><span class="chip"><%= r %></span><% }) %></div>
@@ -55,7 +55,7 @@
         <span class="eyebrow">Hiring now</span>
         <h2>Open <%= industry.name %> roles</h2>
       </div>
-      <% if (openCount) { %><a href="/jobs?category=<%= encodeURIComponent(industry.name) %>" class="btn btn-outline">All <%= openCount %> role<%= openCount === 1 ? '' : 's' %> <svg class="i"><use href="#i-arrow"/></svg></a><% } %>
+      <% if (openCount) { %><a href="<%= jobsHref %>" class="btn btn-outline">All <%= openCount %> role<%= openCount === 1 ? '' : 's' %> <svg class="i"><use href="#i-arrow"/></svg></a><% } %>
     </div>
     <% if (jobs.length) { %>
       <div class="jobs-grid">

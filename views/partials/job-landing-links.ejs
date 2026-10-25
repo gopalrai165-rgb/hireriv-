@@ -1,0 +1,8 @@
+<%# Links to the job seekers' landing pages: kinds of work, then industries. `current` is skipped. %>
+<% const here = typeof current === 'undefined' ? '' : current; %>
+<div class="landing-links">
+  <p class="small"><b>By kind of work</b></p>
+  <div class="chips"><% catalog.WORK_PAGES.filter(function (w) { return w.slug !== here; }).forEach(function (w) { %><a class="chip chip-link" href="/jobs/<%= w.slug %>"><%= w.name %></a><% }) %></div>
+  <p class="small"><b>By industry</b></p>
+  <div class="chips"><% catalog.JOB_INDUSTRIES.filter(function (i) { return i.slug !== here; }).forEach(function (i) { %><a class="chip chip-link" href="/jobs/industry/<%= i.slug %>"><%= i.name %></a><% }) %></div>
+</div>

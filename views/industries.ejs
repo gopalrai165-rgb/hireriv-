@@ -16,7 +16,7 @@
     <div class="services-grid">
       <% industries.forEach(function (ind) { %>
         <a class="service-card service-link reveal" href="/industries/<%= ind.slug %>">
-          <figure class="card-photo"><img src="/img/photos/ind-<%= ind.key %>.webp" alt="" width="900" height="1000" loading="lazy" decoding="async"></figure>
+          <figure class="card-photo"><img src="/img/photos/<%= ind.photo || 'ind-' + ind.key %>.webp" alt="" width="900" height="1000" loading="lazy" decoding="async"></figure>
           <span class="service-icon"><svg class="i"><use href="#<%= ind.icon %>"/></svg></span>
           <h2 class="h3"><%= ind.name %></h2>
           <p><%= ind.text %></p>

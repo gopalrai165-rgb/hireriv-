@@ -77,6 +77,7 @@ function register(app, deps) {
   const { db, mailer, baseUrl, sameOrigin, limit, readSubmissions, writeSubmissions, uploadsDir, getJobs, interviewIcs, site, contractsFor } = deps;
   const { upload, saveApplication, isBot, isSample, isLive, resumeNeeded, skillMatch, saveSubmission, jobCategories, jobLocations, vetUpload, downloadLinks, linkExpired } = deps;
   const { jobTypes, modes, stateOf, interviewResponded, events, notify, recommendFor } = deps;
+  const track = (event, label, req) => { if (deps.analytics) deps.analytics.track(event, label, req); };
   const secureCookie = /^https:/.test(baseUrl);
 
   const mine = (email) => readSubmissions('applications').filter((a) => String(a.email).toLowerCase() === email);
@@ -277,7 +278,7 @@ function register(app, deps) {
     if (!(body.agree === true || body.agree === '1' || body.agree === 'on' || body.agree === 'true')) errors.push('Please agree to the Privacy Policy and Terms of Use.');
     return { values, errors };
   }
-  async function createAccount(values, file, { next = '', whatsapp = false } = {}) {
+  async function createAccount(values, file, { next = '', whatsapp = false, req = null } = {}) {
     const { app: a, updated } = await saveApplication({ jobId: 'general', ...values, source: 'account' }, file, null, { registeredAt: nowIso() });
     const c = ensureCandidate(values.email);
     // Consent is recorded for new accounts; an existing account keeps its settings.
@@ -286,6 +287,7 @@ function register(app, deps) {
       c.comms.whatsapp = Boolean(whatsapp);
       saveCandidate(c);
       activity(values.email, 'registered');
+      track('candidate-registration', file ? 'With resume' : 'Without resume', req);
     }
     // The welcome email carries a sign-in link, so only the owner of the
     // address can open the account. Someone who already has one gets the same
@@ -309,7 +311,7 @@ function register(app, deps) {
       if (errors.length) { drop(); return registerPage(res, { values, errors, next }, 400); }
       vetUpload(req.file).then((bad) => {
         if (bad) return registerPage(res, { values, errors: [bad], next }, 400);
-        return createAccount(values, req.file, { next, whatsapp: req.body.whatsapp === '1' }).then(() => registerPage(res, { done: true, title: 'Check your email' }));
+        return createAccount(values, req.file, { next, whatsapp: req.body.whatsapp === '1', req }).then(() => registerPage(res, { done: true, title: 'Check your email' }));
       }).catch((e) => {
         console.error(e);
         drop();
@@ -394,6 +396,7 @@ function register(app, deps) {
   app.post('/account/verify/:token', sameOrigin, (req, res) => {
     const l = signInWithLink(req.params.token, res);
     if (!l) return expiredLink(res);
+    if (l.welcome) track('candidate-verified', '', req);
     sendToNext(res, l.next, l.welcome ? '/account?welcome=1' : '/account');
   });
 
@@ -642,7 +645,8 @@ function register(app, deps) {
       }
     }
     saveApplication(data, file, job, { oneClick: true }, { announce: true })
-      .then(() => {
+      .then(({ updated }) => {
+        if (!updated) track('application-submitted', 'One-click', req);
         back(res, `Applied for ${job.title}. A recruiter will be in touch within 2 working days.`);
       })
       .catch((e) => {
@@ -911,17 +915,20 @@ function register(app, deps) {
   };
   const jsonErrors = (res, status, errors) => res.status(status).json({ ok: false, errors: [].concat(errors) });
 
-  app.post('/api/auth/register', limit('account-register', 5), sameOrigin, (req, res) => {
+  // Also POST /api/public/candidate-registrations.
+  function registerApi(req, res) {
     const body = req.body || {};
     const reply = () => res.status(202).json({ ok: true, message: 'Check your email: we sent you a link to open your account.' });
     if (isBot(body)) return reply();
     const { values, errors } = registerValues(body);
     if (errors.length) return jsonErrors(res, 400, errors);
-    createAccount(values, null, { whatsapp: body.whatsapp === true }).then(reply).catch((e) => {
+    createAccount(values, null, { whatsapp: body.whatsapp === true, req }).then(reply).catch((e) => {
       console.error(e);
       jsonErrors(res, 500, 'Could not create your account. Please try again.');
     });
-  });
+  }
+  app.post('/api/auth/register', limit('account-register', 5), sameOrigin, (req, res) => registerApi(req, res));
+  app.post('/api/public/candidate-registrations', limit('account-register', 5), sameOrigin, (req, res) => registerApi(req, res));
   app.post('/api/auth/login', limit('account-login', 10), sameOrigin, (req, res) => {
     const body = req.body || {};
     const r = passwordSignIn(body.email, typeof body.password === 'string' ? body.password : '');

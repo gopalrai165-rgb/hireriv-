@@ -1,0 +1,56 @@
+<%- include('partials/head') %>
+
+<section class="page-hero">
+  <div class="container">
+    <nav class="breadcrumbs small" aria-label="Breadcrumb"><a href="/">Home</a> › <a href="/jobs">Jobs</a><% if (kind === 'industry') { %> › <a href="/categories">Industries</a><% } %> › <span aria-current="page"><%= landing.name %></span></nav>
+    <span class="eyebrow"><%= openCount %> open <%= openCount === 1 ? 'job' : 'jobs' %></span>
+    <h1><%= landing.name %> in India</h1>
+    <% landing.intro.forEach(function (p, i) { %><p class="<%= i === 0 ? 'lead' : '' %>"><%= p %></p><% }) %>
+    <div class="hero-ctas">
+      <a href="<%= searchHref %>" class="btn btn-primary btn-lg">Search and filter these jobs <svg class="i"><use href="#i-arrow"/></svg></a>
+      <a href="/account/register" class="btn btn-outline btn-lg">Create a free account</a>
+    </div>
+    <% if (landing.roles) { %><div class="chips" aria-label="Common roles"><% landing.roles.forEach(function (r) { %><a class="chip chip-link" href="/jobs?q=<%= encodeURIComponent(r) %>"><%= r %></a><% }) %></div><% } %>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container">
+    <div class="section-head row">
+      <div>
+        <h2><%= pager.page > 1 ? 'Open jobs, page ' + pager.page : 'Open jobs right now' %></h2>
+        <p class="muted">Salary, location and job type on every listing. Reviewed by our team before it goes live.</p>
+      </div>
+    </div>
+    <% if (!results.length) { %>
+      <div class="dash-card">
+        <p>There are no open <%= landing.name.toLowerCase() %> right now. New jobs are added every week.</p>
+        <p><a href="/jobs#alerts">Set up a job alert</a>, or <a href="/jobs#register">send us your details</a> and a recruiter will call you when something suitable opens.</p>
+      </div>
+    <% } else { %>
+      <div class="jobs-grid"><% results.forEach(function (job) { %><%- include('partials/job-card', { job: job }) %><% }) %></div>
+      <%- include('partials/pager', { pager: pager, pagerLabel: landing.name + ' pages' }) %>
+    <% } %>
+  </div>
+</section>
+
+<section class="section section-tint">
+  <div class="container split">
+    <div>
+      <h2>Tips for your application</h2>
+      <ul class="checks"><% landing.tips.forEach(function (t) { %><li><%= t %></li><% }) %></ul>
+      <p class="small muted">You never pay to get a job through <%= site.name %>, and you don't need Aadhaar or bank details to apply.</p>
+    </div>
+    <div>
+      <h2>More ways to find work</h2>
+      <%- include('partials/job-landing-links', { current: landing.slug }) %>
+    </div>
+  </div>
+</section>
+
+<% if (desk) { %>
+  <%- include('partials/cta-band', { heading: 'Hiring for ' + desk.name.toLowerCase() + '?', text: 'Our ' + desk.name + ' desk shortlists pre-screened people for permanent, contract and bulk hiring.', href: '/industries/' + desk.slug, label: 'See how we hire' }) %>
+<% } else { %>
+  <%- include('partials/cta-band', { heading: 'Hiring?', text: 'Share the role and a recruiter will call you within one working day.', href: '/hire#requirement', label: 'Hire talent' }) %>
+<% } %>
+<%- include('partials/foot') %>

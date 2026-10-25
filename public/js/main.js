@@ -105,6 +105,20 @@ document.querySelectorAll('form.js-form').forEach((form) => {
   });
 });
 
+// Website analytics: count an application form once it is first used (no
+// personal data: only that it happened, and for which job).
+document.querySelectorAll('form[action="/api/apply"]').forEach((form) => {
+  form.addEventListener('focusin', () => {
+    const jobId = (form.querySelector('[name="jobId"]') || {}).value || '';
+    const body = JSON.stringify({ event: 'application-started', jobId });
+    try {
+      if (!(navigator.sendBeacon && navigator.sendBeacon('/api/public/events', new Blob([body], { type: 'application/json' })))) {
+        fetch('/api/public/events', { method: 'POST', body, headers: { 'Content-Type': 'application/json' }, keepalive: true }).catch(() => {});
+      }
+    } catch { /* counting is best-effort */ }
+  }, { once: true });
+});
+
 // Admin: ask before destructive actions.
 document.querySelectorAll('form[data-confirm]').forEach((form) => {
   form.addEventListener('submit', (e) => {

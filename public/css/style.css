@@ -1459,3 +1459,8 @@ form.inline { display: inline; }
 .crm-card.dragging { opacity: .5; }
 .crm-move { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
 .crm-move select { max-width: 100%; font-size: .85rem; }
+
+/* Job seekers' landing-page links (kinds of work and industries). */
+.landing-links { margin-top: 20px; }
+.landing-links .chips { margin-bottom: 12px; }
+.breadcrumbs { margin-bottom: 8px; color: var(--muted, #6b7690); }

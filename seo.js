@@ -35,7 +35,9 @@ function organization(site, baseUrl) {
   };
 }
 
-function jobPosting(job, site, baseUrl) {
+// `employer`: a verified employer's own job names that employer; otherwise
+// Hireriv is the hiring organisation of record (client names stay confidential).
+function jobPosting(job, site, baseUrl, { employer = null } = {}) {
   const assumed = new Date(new Date(job.posted).getTime() + VALID_DAYS * 86400000).toISOString().slice(0, 10);
   const validThrough = job.closesOn ? `${job.closesOn}T23:59:59+05:30` : (assumed >= new Date().toISOString().slice(0, 10) ? assumed : null);
   const remote = job.mode === 'Remote';
@@ -65,8 +67,7 @@ function jobPosting(job, site, baseUrl) {
     datePosted: job.posted,
     ...(validThrough ? { validThrough } : {}),
     employmentType: EMPLOYMENT_TYPES[job.type] || 'OTHER',
-    // Client names are confidential, so Hireriv is the hiring organisation of record.
-    hiringOrganization: organization(site, baseUrl),
+    hiringOrganization: employer ? { '@type': 'Organization', name: employer.name, ...(employer.url ? { sameAs: employer.url } : {}) } : organization(site, baseUrl),
     ...(remote
       ? { jobLocationType: 'TELECOMMUTE', applicantLocationRequirements: { '@type': 'Country', name: 'India' } }
       : { jobLocation: { '@type': 'Place', address: { '@type': 'PostalAddress', addressLocality: job.location, ...(job.address ? { streetAddress: job.address } : {}), addressCountry: 'IN' } } }),
@@ -124,7 +125,7 @@ function sitemap(baseUrl, { jobs, posts, staticPaths }) {
     '<?xml version="1.0" encoding="UTF-8"?>',
     '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
     ...staticPaths.map((p) => url(p, today)),
-    ...jobs.map((j) => url(jobPath(j), j.posted)),
+    ...jobs.map((j) => url(jobPath(j), String(j.updatedAt || j.posted).slice(0, 10))),
     ...posts.map((p) => url(`/blog/${p.slug}`, p.date)),
     '</urlset>',
   ].join('\n');
@@ -149,8 +150,21 @@ function servicePage(service, site, baseUrl) {
   };
 }
 
+// A list of jobs for job seekers (a kind of work or an industry).
+function jobLandingPage(page, path, trail, baseUrl, jobs) {
+  return {
+    '@context': 'https://schema.org',
+    '@graph': [
+      { '@type': 'CollectionPage', name: page.name, description: page.description, url: baseUrl + path,
+        ...(jobs.length ? { mainEntity: { '@type': 'ItemList', itemListElement: jobs.map((j, i) => ({ '@type': 'ListItem', position: i + 1, url: `${baseUrl}${jobPath(j)}`, name: j.title })) } } : {}) },
+      breadcrumbs(baseUrl, trail),
+    ],
+  };
+}
+const jobBreadcrumbs = (job, baseUrl) => ({ '@context': 'https://schema.org', ...breadcrumbs(baseUrl, [['Home', '/'], ['Jobs', '/jobs'], [job.title, jobPath(job)]]) });
+
 function industryPage(industry, baseUrl) {
   return { '@context': 'https://schema.org', ...breadcrumbs(baseUrl, [['Home', '/'], ['Industries', '/industries'], [industry.name, `/industries/${industry.slug}`]]) };
 }
 
-module.exports = { jobPosting, article, homePage, toJsonLd, sitemap, parseSalary, servicePage, industryPage };
+module.exports = { jobPosting, article, homePage, toJsonLd, sitemap, parseSalary, servicePage, industryPage, jobLandingPage, jobBreadcrumbs, breadcrumbs };
