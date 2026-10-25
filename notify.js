@@ -71,6 +71,9 @@ const TYPES = {
   'work-timesheet': { category: 'work', optional: true, label: 'Timesheets to approve or sent back' },
   'work-document': { category: 'work', optional: true, label: 'Documents expiring' },
   'work-assignment': { category: 'work', optional: true, label: 'Assignment changes, ends and replacements' },
+  // the sales team (crm.js)
+  'crm-lead': { category: 'jobs', optional: true, label: 'Sales leads: new, assigned to you, answers and conversions' },
+  'crm-follow-up': { category: 'jobs', optional: true, label: 'Sales follow-ups due and overdue' },
 };
 
 const sha = (s) => crypto.createHash('sha256').update(String(s)).digest('hex');

@@ -30,6 +30,9 @@ const employerDiscovery = require('./employer-discovery');
 const agency = require('./agency');
 const workforce = require('./workforce');
 const clientPortal = require('./client-portal');
+const crm = require('./crm');
+// Set once the CRM is registered; website inquiries and sign-ups become leads.
+const leadCapture = { capture: () => null };
 const { can: employerCan } = require('./employer-team');
 const jobMatch = require('./job-match');
 const { interviewIcs } = require('./ics');
@@ -920,6 +923,7 @@ app.post('/api/hire', limit('hire', 5), (req, res) => {
     const entry = saveSubmission('hire-requests', data);
     mailer.hireRequestReceived(entry);
     events.staffingRequest(entry);
+    leadCapture.capture('Website inquiry', data, { sourceRef: entry.id, sourceDetail: 'Hire with us form' });
   }
   respond(req, res, errors, 'Thank you! Our client partner will call you within one working day to understand your hiring needs.');
 });
@@ -1180,7 +1184,7 @@ const clients = employers.register(app, {
   db, site, mailer, baseUrl: BASE_URL, adminAuth, sameOrigin, adminUrl, limit, downloadLinks, linkExpired,
   readSubmissions, saveSubmission, getJobs: () => jobs, appStatuses: APP_STATUSES,
   writeSubmissions, uploadsDir: UPLOADS_DIR, skillMatch, placementsFor: (emp) => billing.forClient(emp), timesheetsFor: (emp) => timesheets.forClient(emp),
-  sms: require('./sms'), companyContext: () => ({ cities: jobLocations().filter((l) => l !== 'Remote'), states: INDIAN_STATES }), events, notify,
+  sms: require('./sms'), companyContext: () => ({ cities: jobLocations().filter((l) => l !== 'Remote'), states: INDIAN_STATES }), events, notify, leadCapture,
 });
 
 // "Post a Job": signed-in clients go to their portal's requirement form;
@@ -1268,6 +1272,13 @@ clientPortal.register(app, {
   team, clients, billing, agency: agencyDesk, workforce: workforceDesk, readSubmissions, writeSubmissions, saveSubmission, adminAuth, sameOrigin, limit, site, mailer, baseUrl: BASE_URL,
   requireEmployer: clients.requireEmployer, requireEmployerApi: clients.requireEmployerApi, can: employerCan, getJobs: () => jobs, secret: db.metaGet('secret:links'),
 });
+// Hireriv's own sales CRM: leads, pipeline, follow-ups, proposals and the
+// hand-over of won clients to recruitment.
+const crmDesk = crm.register(app, {
+  team, clients, billing, agency: agencyDesk, notify, mailer, site, limit, sameOrigin, adminAuth, readSubmissions, writeSubmissions, saveSubmission,
+  baseUrl: BASE_URL, secret: db.metaGet('secret:links'),
+});
+leadCapture.capture = crmDesk.capture;
 
 // The notification center, its API, preferences, job alerts and delivery reports.
 const center = notificationCenter.register(app, {
@@ -1334,6 +1345,7 @@ app.post('/admin/applications/new', adminAuth, sameOrigin, (req, res) => {
 });
 
 app.get('/admin', adminAuth, (req, res) => {
+  if (agencyRoles.SALES_ROLES.includes(req.admin.role)) return res.redirect('/admin/crm');
   const tabs = tabsFor(req.admin);
   const tab = tabs.includes(req.query.tab) ? req.query.tab : tabs.includes('dashboard') ? 'dashboard' : tabs[0];
   const applications = readSubmissions('applications');

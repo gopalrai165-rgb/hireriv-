@@ -30,7 +30,7 @@ const PREF_TEXT = {
   team: {
     applications: 'Applicants assigned to you',
     interviews: 'Candidates answering interview invitations and feedback that is due',
-    jobs: 'Jobs waiting for review and staffing requests',
+    jobs: 'Jobs waiting for review, staffing requests, and sales leads and follow-ups',
     work: 'Documents to review, timesheets waiting, assignments and contracts ending, replacement requests',
   },
 };

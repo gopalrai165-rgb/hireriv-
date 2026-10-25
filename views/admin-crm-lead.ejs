@@ -1,0 +1,205 @@
+<%- include('partials/head') %>
+
+<section class="section admin">
+  <div class="container">
+    <%- include('partials/crm-nav', { heading: l.companyName, tab: 'leads' }) %>
+    <% const manage = can('crm.manage'); const money = function (p) { return p === null || p === undefined ? '' : inr(p); }; const editable = !l.anonymizedAt; %>
+    <p><a href="/admin/crm/leads">← Leads</a></p>
+
+    <section class="dash-card dash-wide">
+      <h2><%= l.contactName %><%= l.designation ? ', ' + l.designation : '' %> <span class="pill"><%= LEAD_LABEL[l.status] %></span></h2>
+      <ul class="plain-list">
+        <% if (l.email) { %><li>Email: <a href="mailto:<%= l.email %>"><%= l.email %></a><%= l.unsubscribedAt ? ' · unsubscribed from sales emails' : '' %></li><% } %>
+        <% if (l.phone) { %><li>Phone: <a href="tel:<%= l.phone.replace(/[^+\d]/g, '') %>"><%= l.phone %></a></li><% } %>
+        <li><%= [l.industry, l.location, l.headcount ? l.headcount + ' people' : ''].filter(Boolean).join(' · ') || 'No industry or location yet' %></li>
+        <li>Source: <%= l.source %><%= l.sourceDetail ? ' (' + l.sourceDetail + ')' : '' %> · why we hold it: <%= l.lawfulBasis || 'not recorded' %> · sales emails: <%= l.consent && l.consent.marketing ? 'agreed' : 'not agreed' %></li>
+        <li>Owner: <b><%= l.ownerId ? nameOf(l.ownerId) : 'Unassigned' %></b></li>
+        <% if (l.employerId) { %><li>Client account linked<%= l.status === 'converted' ? ' (converted)' : '' %></li><% } %>
+        <% if (l.anonymizedAt) { %><li class="muted">Contact details removed under the retention rules on <%= istText(l.anonymizedAt) %>.</li><% } %>
+      </ul>
+      <% if (l.hiringNeeds) { %><p class="small" style="white-space:pre-wrap"><b>Hiring needs:</b> <%= l.hiringNeeds %></p><% } %>
+      <% if (l.notes) { %><p class="small" style="white-space:pre-wrap"><b>Private notes:</b> <%= l.notes %></p><% } %>
+      <% if (duplicates.leads.length || duplicates.clients.length) { %>
+        <div class="notice"><p>Possible duplicates:</p><ul><% duplicates.leads.forEach(function (x) { %><li>Lead <a href="/admin/crm/leads/<%= x.id %>"><%= x.companyName %></a> (<%= LEAD_LABEL[x.status] %>): <%= x.why.join(', ') %></li><% }) %><% duplicates.clients.forEach(function (x) { %><li>Client <b><%= x.company %></b>: <%= x.why.join(', ') %></li><% }) %></ul></div>
+      <% } %>
+      <% if (manage) { %>
+        <form class="row-actions" method="post" action="/admin/crm/leads/<%= l.id %>/assign">
+          <label>Assign to <select name="ownerId"><% people.forEach(function (u) { %><option value="<%= u.id %>"<%= l.ownerId === u.id ? ' selected' : '' %>><%= u.name %></option><% }) %></select></label>
+          <button class="btn btn-outline btn-sm" type="submit">Assign</button>
+        </form>
+      <% } %>
+    </section>
+
+    <% if (editable) { %>
+      <details class="dash-card dash-wide">
+        <summary><b>Edit lead or change status</b></summary>
+        <form class="form" method="post" action="/admin/crm/leads/<%= l.id %>">
+          <input type="hidden" name="consentField" value="1">
+          <div class="form-grid">
+            <label>Company<input name="companyName" required maxlength="120" value="<%= l.companyName %>"></label>
+            <label>Contact name<input name="contactName" required maxlength="120" value="<%= l.contactName %>"></label>
+            <label>Designation<input name="designation" maxlength="80" value="<%= l.designation %>"></label>
+            <label>Email<input type="email" name="email" maxlength="160" value="<%= l.email %>"></label>
+            <label>Phone<input name="phone" maxlength="20" value="<%= l.phone %>"></label>
+            <label>Industry<input name="industry" maxlength="80" value="<%= l.industry %>"></label>
+            <label>Location<input name="location" maxlength="120" value="<%= l.location %>"></label>
+            <label>Headcount<input name="headcount" inputmode="numeric" maxlength="6" value="<%= l.headcount || '' %>"></label>
+            <% if (l.status !== 'converted') { %>
+              <label>Status<select name="status"><% ['new', 'contacted', 'qualified', 'unqualified', 'lost'].forEach(function (s) { %><option value="<%= s %>"<%= l.status === s ? ' selected' : '' %>><%= LEAD_LABEL[s] %></option><% }) %></select></label>
+              <label>Reason <span class="muted small">(for unqualified or lost)</span><input name="reason" maxlength="300"></label>
+            <% } %>
+          </div>
+          <label>Hiring needs<textarea name="hiringNeeds" rows="3" maxlength="1000"><%= l.hiringNeeds %></textarea></label>
+          <label>Private notes<textarea name="notes" rows="2" maxlength="2000"><%= l.notes %></textarea></label>
+          <label class="check"><input type="checkbox" name="marketingConsent" value="1"<%= l.consent && l.consent.marketing ? ' checked' : '' %><%= l.unsubscribedAt ? ' disabled' : '' %>> They agreed to receive sales emails from us</label>
+          <button class="btn btn-primary btn-sm" type="submit">Save</button>
+        </form>
+      </details>
+    <% } %>
+
+    <section class="dash-card dash-wide">
+      <h2>Opportunities</h2>
+      <% if (!os.length) { %><p class="muted">None yet.</p><% } %>
+      <% os.forEach(function (o) { const oProps = ps.filter(function (p) { return p.opportunityId === o.id; }); const busy = oProps.some(function (p) { return ['draft', 'approved', 'sent'].includes(p.status); }); %>
+        <details<%= ['Won', 'Lost'].includes(o.stage) && !(o.stage === 'Won' && (!o.conversion || o.conversion.status !== 'done')) ? '' : ' open' %>>
+          <summary><b><%= o.title %></b> · <span class="pill"><%= o.stage %></span> <span class="muted small"><%= money(o.valuePaise) %><%= o.expectedCloseOn ? ' · close by ' + o.expectedCloseOn : '' %> · <%= nameOf(o.ownerId) %></span></summary>
+          <% if (o.services && o.services.length) { %><p class="small">Services: <%= o.services.join(', ') %></p><% } %>
+          <% if (o.nextAction) { %><p class="small">Next action: <%= o.nextAction %><%= o.nextActionOn ? ' by ' + o.nextActionOn : '' %></p><% } %>
+          <% if (o.stage === 'Lost') { %><p class="small">Lost: <%= o.lostReason %><%= o.lostDetail ? ' (' + o.lostDetail + ')' : '' %></p><% } %>
+          <ul class="plain-list small"><% o.stageHistory.forEach(function (h) { %><li><%= h.at.slice(0, 16).replace('T', ' ') %> · <%= h.by %>: <%= h.from ? h.from + ' → ' : '' %><%= h.to %><%= h.reason ? ' (' + h.reason + ')' : '' %><%= h.detail ? ' · ' + h.detail : '' %></li><% }) %></ul>
+
+          <% if (MOVES[o.stage].length && (o.stage !== 'Lost' || manage)) { %>
+            <form class="row-actions" method="post" action="/admin/crm/opportunities/<%= o.id %>/stage">
+              <label>Move to <select name="stage"><% MOVES[o.stage].forEach(function (m) { %><option><%= m %></option><% }) %></select></label>
+              <label>Reason if lost <select name="reason"><option value=""></option><% LOST_REASONS.forEach(function (r) { %><option><%= r %></option><% }) %></select></label>
+              <input name="detail" maxlength="300" placeholder="Detail" aria-label="Detail">
+              <button class="btn btn-outline btn-sm" type="submit">Move</button>
+            </form>
+          <% } %>
+
+          <% if (!['Won', 'Lost'].includes(o.stage)) { %>
+            <details>
+              <summary>Edit value, close date and next action</summary>
+              <form class="form" method="post" action="/admin/crm/opportunities/<%= o.id %>">
+                <div class="form-grid">
+                  <label>Title<input name="title" required maxlength="120" value="<%= o.title %>"></label>
+                  <label>Estimated value (₹)<input name="estimatedValue" inputmode="decimal" value="<%= o.valuePaise === null ? '' : (o.valuePaise / 100).toFixed(2) %>"></label>
+                  <label>Expected close<input type="date" name="expectedCloseOn" value="<%= o.expectedCloseOn || '' %>"></label>
+                  <label>Next action<input name="nextAction" maxlength="200" value="<%= o.nextAction %>"></label>
+                  <label>Next action by<input type="date" name="nextActionOn" value="<%= o.nextActionOn || '' %>"></label>
+                </div>
+                <button class="btn btn-outline btn-sm" type="submit">Save</button>
+              </form>
+            </details>
+          <% } %>
+
+          <% oProps.forEach(function (p) { %><p class="small">Proposal <a href="/admin/crm/proposals/<%= p.id %>"><b><%= p.number %></b></a> · version <%= p.versions.length %> · <span class="pill"><%= PROPOSAL_LABEL[p.status] %></span></p><% }) %>
+          <% if (!busy && !['Won', 'Lost'].includes(o.stage)) { %>
+            <details>
+              <summary>+ Write a proposal</summary>
+              <form class="form" method="post" action="/admin/crm/proposals">
+                <input type="hidden" name="opportunityId" value="<%= o.id %>">
+                <%- include('partials/crm-proposal-fields', { form: { title: o.title, services: o.services || [], kind: 'Permanent recruitment', feeMode: 'percent', paymentDays: '30', validUntil: '' } }) %>
+                <button class="btn btn-primary btn-sm" type="submit">Save draft</button>
+              </form>
+            </details>
+          <% } %>
+
+          <% if (o.stage === 'Won') { %>
+            <% if (o.conversion && o.conversion.status === 'done') { %>
+              <p class="notice">Converted by <%= o.conversion.byName %> on <%= istText(o.conversion.at) %>: <%= o.conversion.createdClient ? 'new client account' : 'linked to' %> <b><%= o.conversion.company %></b><%= o.conversion.contractId ? ', with a draft contract' : '' %>. Recruitment takes it from the client page: account manager, contract for signature, requisitions.</p>
+            <% } else if (!can('crm.convert')) { %>
+              <% if (o.conversion && o.conversion.status === 'requested') { %><p class="muted small">You asked a Sales Manager to convert it on <%= istText(o.conversion.requestedAt) %>.</p><% } else { %>
+                <form class="row-actions" method="post" action="/admin/crm/opportunities/<%= o.id %>/convert"><input name="note" maxlength="300" placeholder="Note for the Sales Manager" aria-label="Note"><button class="btn btn-primary btn-sm" type="submit">Ask a Sales Manager to convert</button></form>
+              <% } %>
+            <% } else { const accepted = oProps.find(function (p) { return p.status === 'accepted'; }); %>
+              <form class="form" method="post" action="/admin/crm/opportunities/<%= o.id %>/convert">
+                <input type="hidden" name="idempotencyKey" value="<%= o.id %>-<%= Date.now() %>">
+                <p class="small"><b>Hand over to recruitment.</b> This links the client account or creates one (its owner gets the usual invitation). It never activates a contract or issues an invoice.</p>
+                <% if (matches.length) { %>
+                  <fieldset><legend class="small">Matching client accounts</legend>
+                    <% matches.forEach(function (m, i) { %><label class="check"><input type="radio" name="employerId" value="<%= m.id %>"<%= i === 0 ? ' checked' : '' %>> Link <b><%= m.company %></b> (<%= m.contact %>)<%= m.active ? '' : ', inactive' %></label><% }) %>
+                    <label class="check"><input type="radio" name="employerId" value=""> None of these: create a new client account</label>
+                  </fieldset>
+                  <input type="hidden" name="createNew" value="1">
+                <% } else { %>
+                  <p class="small">No client account matches <%= l.companyName %>. A new one is created for <%= l.contactName %> (<%= l.email || 'no email: add one first' %>).</p>
+                  <input type="hidden" name="createNew" value="1">
+                <% } %>
+                <% if (accepted) { %>
+                  <label class="check"><input type="checkbox" name="contract" value="1" checked> Add the accepted terms of <%= accepted.number %> as a <b>Draft</b> contract (it applies once the client signs it)</label>
+                  <div class="form-grid">
+                    <label>Contract reference<input name="contractReference" maxlength="60" placeholder="MSA-2026-01"></label>
+                    <label>Starts on<input type="date" name="startsOn" value="<%= today %>"></label>
+                    <label>Ends on<input type="date" name="endsOn"></label>
+                  </div>
+                <% } else { %><p class="muted small">No accepted proposal, so no contract terms to hand over; add the contract on the client page.</p><% } %>
+                <button class="btn btn-primary btn-sm" type="submit">Convert</button>
+              </form>
+            <% } %>
+          <% } %>
+        </details>
+      <% }) %>
+      <% if (editable && !['converted', 'lost', 'unqualified'].includes(l.status)) { %>
+        <details>
+          <summary><b>+ New opportunity</b></summary>
+          <form class="form" method="post" action="/admin/crm/opportunities">
+            <input type="hidden" name="leadId" value="<%= l.id %>">
+            <div class="form-grid">
+              <label>Title<input name="title" required maxlength="120" placeholder="e.g. 40 warehouse associates, Chakan"></label>
+              <label>Estimated value (₹)<input name="estimatedValue" inputmode="decimal"></label>
+              <label>Expected close<input type="date" name="expectedCloseOn"></label>
+              <label>Next action<input name="nextAction" maxlength="200"></label>
+              <label>Next action by<input type="date" name="nextActionOn"></label>
+            </div>
+            <fieldset><legend class="small">Services</legend><% SERVICES.forEach(function (s) { %><label class="check"><input type="checkbox" name="services" value="<%= s %>"> <%= s %></label><% }) %></fieldset>
+            <button class="btn btn-primary btn-sm" type="submit">Add opportunity</button>
+          </form>
+        </details>
+      <% } %>
+    </section>
+
+    <section class="dash-card dash-wide">
+      <h2>Activities and follow-ups</h2>
+      <% if (editable) { %>
+        <form class="form" method="post" action="/admin/crm/leads/<%= l.id %>/activities">
+          <div class="form-grid">
+            <label>Kind<select name="kind"><% ACTIVITY_KINDS.forEach(function (k) { %><option value="<%= k %>"><%= ACTIVITY_LABEL[k] %></option><% }) %></select></label>
+            <label>Subject<input name="subject" required maxlength="160"></label>
+            <label>Status<select name="status"><option value="open">To do</option><option value="done">Done already</option></select></label>
+            <label>Due<input type="datetime-local" name="dueAt"></label>
+            <% if (os.length) { %><label>Opportunity<select name="opportunityId"><option value="">None</option><% os.forEach(function (o) { %><option value="<%= o.id %>"><%= o.title %></option><% }) %></select></label><% } %>
+          </div>
+          <label>Notes <span class="muted small">(private to the sales team)</span><textarea name="notes" rows="2" maxlength="2000"></textarea></label>
+          <button class="btn btn-primary btn-sm" type="submit">Add</button>
+          <p class="muted small">A follow-up still to do needs a due time; its owner is reminded a day before and when it is overdue.</p>
+        </form>
+      <% } %>
+      <ul class="plain-list">
+        <% acts.forEach(function (a) { const late = a.status === 'open' && a.dueAt && a.dueAt < new Date().toISOString(); %>
+          <li>
+            <span class="pill"><%= ACTIVITY_LABEL[a.kind] %></span> <b><%= a.subject %></b> · <%= nameOf(a.ownerId) || 'System' %> ·
+            <%= a.status === 'done' ? 'done ' + istText(a.completedAt) : a.status === 'cancelled' ? 'cancelled' : (late ? 'overdue since ' : 'due ') + istText(a.dueAt) %>
+            <% if (a.notes) { %><div class="small muted" style="white-space:pre-wrap"><%= a.notes %></div><% } %>
+            <% if (a.outcome) { %><div class="small">Outcome: <%= a.outcome %></div><% } %>
+            <% if (a.status === 'open' && (a.ownerId === me || manage)) { %>
+              <form class="row-actions" method="post" action="/admin/crm/activities/<%= a.id %>">
+                <input type="hidden" name="back" value="/admin/crm/leads/<%= l.id %>">
+                <input name="outcome" maxlength="300" placeholder="Outcome" aria-label="Outcome">
+                <button class="btn btn-primary btn-sm" name="status" value="done">Done</button>
+                <button class="btn btn-outline btn-sm" name="status" value="cancelled">Cancel</button>
+              </form>
+            <% } %>
+          </li>
+        <% }) %>
+      </ul>
+    </section>
+
+    <section class="dash-card dash-wide">
+      <h2>History</h2>
+      <ul class="plain-list small"><% (l.history || []).slice().reverse().forEach(function (h) { %><li><%= h.at.slice(0, 16).replace('T', ' ') %> · <%= h.by %>: <%= h.text %></li><% }) %></ul>
+    </section>
+  </div>
+</section>
+
+<%- include('partials/foot') %>

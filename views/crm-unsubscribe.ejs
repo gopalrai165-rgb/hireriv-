@@ -1,0 +1,17 @@
+<%- include('partials/head') %>
+
+<section class="section">
+  <div class="container narrow center status-page">
+    <% if (done) { %>
+      <span class="status-icon ok"><svg class="i"><use href="#i-check"/></svg></span>
+      <h1>You won't get sales emails from us</h1>
+      <p class="lead">We have noted it against your company's contact record. If you write to us again, we will still answer you.</p>
+    <% } else { %>
+      <h1>Stop sales emails from Hireriv?</h1>
+      <p class="lead">We will stop emailing you about our recruitment and staffing services.</p>
+      <form method="post" action="/crm/unsubscribe/<%= token %>"><button class="btn btn-primary" type="submit">Stop the emails</button></form>
+    <% } %>
+  </div>
+</section>
+
+<%- include('partials/foot') %>

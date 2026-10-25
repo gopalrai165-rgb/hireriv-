@@ -248,29 +248,36 @@ function register(app, deps) {
   const ctx = () => companyContext();
 
   // ---------- admin: manage clients ----------
-  app.post('/admin/clients', adminAuth, sameOrigin, (req, res) => {
-    const company = String(req.body.company || '').trim().slice(0, 120);
-    const name = String(req.body.name || '').trim().slice(0, 120);
-    const email = String(req.body.email || '').trim().toLowerCase().slice(0, 160);
+  // A client added by the team (also from a won sales opportunity, crm.js):
+  // the contact becomes the company's owner. Someone who already has a login
+  // (e.g. they work with another client) simply gets access to this one too.
+  function createClient({ company: c, name: n, email: e, extra = {} }, byName) {
+    const company = String(c || '').trim().slice(0, 120);
+    const name = String(n || '').trim().slice(0, 120);
+    const email = String(e || '').trim().toLowerCase().slice(0, 160);
     const list = read();
     const errors = [];
     if (!company) errors.push('company is required');
     if (!name) errors.push('contact name is required');
     if (!EMAIL_RE.test(email)) errors.push('email is invalid');
-    if (list.some((e) => e.email === email && e.company.toLowerCase() === company.toLowerCase())) errors.push('this client already exists');
-    if (errors.length) return res.redirect(adminUrl('clients', `Could not add client: ${errors.join(', ')}`));
-    const emp = { id: crypto.randomUUID(), company, name, email, active: true, createdAt: now() };
+    if (list.some((x) => x.email === email && x.company.toLowerCase() === company.toLowerCase())) errors.push('this client already exists');
+    if (errors.length) return { errors };
+    const emp = { id: crypto.randomUUID(), company, name, email, active: true, createdAt: now(), ...extra };
     list.push(emp);
     write(list);
-    // The contact becomes the company's owner. Someone who already has a login
-    // (e.g. they work with another client) simply gets access to this one too.
     const existing = team.userByEmail(email);
     const user = existing || team.newUser({ email, name });
-    team.addMember(emp.id, user.id, 'owner', { by: req.admin.name });
-    team.audit(emp.id, null, 'company-created', `by ${req.admin.name}`);
-    if (existing && existing.passwordHash) mailer.employerMemberAdded(addressed(emp, user), ROLES.owner.label, `${baseUrl}/employer/login`, null);
+    team.addMember(emp.id, user.id, 'owner', { by: byName });
+    team.audit(emp.id, null, 'company-created', `by ${byName}`);
+    const joined = Boolean(existing && existing.passwordHash);
+    if (joined) mailer.employerMemberAdded(addressed(emp, user), ROLES.owner.label, `${baseUrl}/employer/login`, null);
     else mailer.employerInvite(addressed(emp, user), issueLink(user, 'invite', INVITE_HOURS), INVITE_HOURS);
-    res.redirect(adminUrl('clients', `Invited ${name} (${company}) · ${existing && existing.passwordHash ? 'added to their existing login' : 'setup link emailed'}`));
+    return { errors: [], employer: emp, joined };
+  }
+  app.post('/admin/clients', adminAuth, sameOrigin, (req, res) => {
+    const r = createClient(req.body, req.admin.name);
+    if (r.errors.length) return res.redirect(adminUrl('clients', `Could not add client: ${r.errors.join(', ')}`));
+    res.redirect(adminUrl('clients', `Invited ${r.employer.name} (${r.employer.company}) · ${r.joined ? 'added to their existing login' : 'setup link emailed'}`));
   });
 
   // A new set-up or reset link for the company's owners.
@@ -380,6 +387,7 @@ function register(app, deps) {
     const user = team.newUser({ ...person, passwordHash: hashPassword(String(body.password)) });
     team.addMember(emp.id, user.id, 'owner', { by: 'sign-up' });
     team.audit(emp.id, user, 'company-registered');
+    if (deps.leadCapture) deps.leadCapture.capture('Employer registration', { company: emp.company, name: person.name, email: person.email, phone: person.phone, industry: emp.industry, city: emp.city }, { employerId: emp.id, sourceDetail: 'Employer sign-up' });
     mailer.employerVerify(addressed(emp, user), issueLink(user, 'verify', VERIFY_HOURS), VERIFY_HOURS);
     return { errors: [] };
   }
@@ -842,7 +850,7 @@ function register(app, deps) {
     return { status: 200, name: a.name, feedback: a.shared.feedback };
   }
 
-  return { read, write, team, context, currentEmployer, requireEmployer, requireEmployerApi, allow, forbid, shortlistFor, shortlistFeedback, clientView, DECISIONS, isApproved, verificationOf, addressed, membersWith: (employerId, action, job) => team.membersOf(employerId).filter((m) => can(m, action, job)) };
+  return { read, write, team, context, currentEmployer, requireEmployer, requireEmployerApi, allow, forbid, shortlistFor, shortlistFeedback, clientView, createClient, DECISIONS, isApproved, verificationOf, addressed, membersWith: (employerId, action, job) => team.membersOf(employerId).filter((m) => can(m, action, job)) };
 }
 
 module.exports = { register, hashPassword, checkPassword, validGstin, gstinCheckChar, isFreeEmail, isApproved, parseCompany, verificationOf, INDUSTRIES, COMPANY_SIZES };

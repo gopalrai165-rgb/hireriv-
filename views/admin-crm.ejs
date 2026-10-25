@@ -1,0 +1,263 @@
+<%- include('partials/head') %>
+
+<section class="section admin">
+  <div class="container">
+    <%- include('partials/crm-nav', { heading: title, tab: section }) %>
+    <% const manage = can('crm.manage'); const money = function (p) { return p === null || p === undefined ? '' : inr(p); }; %>
+
+    <% if (section === 'dashboard') { const r = d.report; %>
+      <div class="mini-stats">
+        <div><b><%= d.followUps.length %></b> open follow-ups for you<%= d.overdue ? ' · ' + d.overdue + ' overdue' : '' %></div>
+        <div><b><%= r.leads.received %></b> leads in the last 90 days · <%= r.leads.qualified %> qualified</div>
+        <div><b><%= r.leads.conversionRatePercent === null ? '–' : r.leads.conversionRatePercent + '%' %></b> lead-to-client conversion</div>
+      </div>
+      <% if (manage && d.unassigned) { %><p class="notice"><a href="/admin/crm/leads?owner=none"><%= d.unassigned %> open <%= d.unassigned === 1 ? 'lead has' : 'leads have' %> no owner</a>: assign them to a representative.</p><% } %>
+      <% if (d.conversionRequests.length) { %>
+        <section class="dash-card dash-wide">
+          <h2>Won clients waiting for conversion</h2>
+          <ul class="plain-list"><% d.conversionRequests.forEach(function (o) { const l = leadById(o.leadId) || {}; %><li><a href="/admin/crm/leads/<%= o.leadId %>"><b><%= l.companyName %></b></a> · <%= o.title %> · asked by <%= o.conversion.requestedByName %></li><% }) %></ul>
+        </section>
+      <% } %>
+      <% if (d.toApprove.length) { %>
+        <section class="dash-card dash-wide">
+          <h2>Proposals to approve</h2>
+          <ul class="plain-list"><% d.toApprove.forEach(function (p) { %><li><a href="/admin/crm/proposals/<%= p.id %>"><b><%= p.number %></b></a> · <%= p.versions[p.versions.length - 1].title %> · version <%= p.versions.length %> by <%= p.versions[p.versions.length - 1].createdByName %></li><% }) %></ul>
+        </section>
+      <% } %>
+      <section class="dash-card dash-wide">
+        <h2>Your follow-ups</h2>
+        <% if (!d.followUps.length) { %><p class="muted">Nothing open. Add follow-ups from a lead's page.</p><% } else { %>
+          <ul class="plain-list"><% d.followUps.forEach(function (a) { const l = leadById(a.leadId) || {}; const late = a.dueAt && a.dueAt < new Date().toISOString(); %>
+            <li><span class="pill"><%= ACTIVITY_LABEL[a.kind] %></span> <a href="/admin/crm/leads/<%= a.leadId %>"><b><%= a.subject %></b></a> · <%= l.companyName %> · <%= late ? 'overdue since' : 'due' %> <%= istText(a.dueAt) %></li>
+          <% }) %></ul>
+        <% } %>
+      </section>
+      <section class="dash-card dash-wide">
+        <h2>Open pipeline</h2>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Stage</th><th class="num">Opportunities</th><th class="num">Estimated value</th></tr></thead>
+          <tbody><% r.pipeline.forEach(function (s) { %><tr><td><%= s.stage %></td><td class="num"><%= s.count %></td><td class="num"><%= inr(s.valuePaise) %></td></tr><% }) %></tbody>
+        </table></div>
+        <p class="muted small">Estimates from open opportunities. Revenue in the reports comes from payments recorded in billing.</p>
+      </section>
+      <% if (d.newLeads.length) { %>
+        <section class="dash-card dash-wide">
+          <h2>New leads</h2>
+          <ul class="plain-list"><% d.newLeads.forEach(function (l) { %><li><a href="/admin/crm/leads/<%= l.id %>"><b><%= l.companyName %></b></a> · <%= l.source %> · <%= l.ownerId ? nameOf(l.ownerId) : 'unassigned' %></li><% }) %></ul>
+        </section>
+      <% } %>
+    <% } %>
+
+    <% if (section === 'leads') { %>
+      <form class="form filters" method="get" action="/admin/crm/leads" role="search">
+        <div class="form-grid">
+          <label>Search<input name="q" maxlength="80" value="<%= q.q || '' %>" placeholder="Company, contact, email, phone"></label>
+          <label>Status<select name="status"><option value="">Any</option><% LEAD_STATUSES.forEach(function (s) { %><option value="<%= s %>"<%= q.status === s ? ' selected' : '' %>><%= LEAD_LABEL[s] %></option><% }) %></select></label>
+          <label>Source<select name="source"><option value="">Any</option><% SOURCES.forEach(function (s) { %><option<%= q.source === s ? ' selected' : '' %>><%= s %></option><% }) %></select></label>
+          <% if (manage) { %><label>Owner<select name="owner"><option value="">Anyone</option><option value="none"<%= q.owner === 'none' ? ' selected' : '' %>>Unassigned</option><% people.forEach(function (u) { %><option value="<%= u.id %>"<%= q.owner === u.id ? ' selected' : '' %>><%= u.name %></option><% }) %></select></label><% } %>
+        </div>
+        <button class="btn btn-outline btn-sm" type="submit">Search</button>
+      </form>
+      <% if (!rows.length) { %><p class="muted dash-empty">No leads match.</p><% } else { %>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Company</th><th>Contact</th><th>Status</th><th>Source</th><th>Owner</th><th>Last activity</th></tr></thead>
+          <tbody><% rows.forEach(function (l) { %>
+            <tr>
+              <td><a href="/admin/crm/leads/<%= l.id %>"><b><%= l.companyName %></b></a><%= l.location ? ' · ' + l.location : '' %><% if ((l.possibleDuplicates || []).length || (l.matchingClients || []).length) { %> <span class="pill">possible duplicate</span><% } %></td>
+              <td><%= l.contactName %></td>
+              <td><span class="pill"><%= LEAD_LABEL[l.status] %></span></td>
+              <td><%= l.source %></td>
+              <td><%= l.ownerId ? nameOf(l.ownerId) : 'Unassigned' %></td>
+              <td><%= istText(l.lastActivityAt || l.createdAt) %></td>
+            </tr>
+          <% }) %></tbody>
+        </table></div>
+      <% } %>
+      <details class="dash-card dash-wide"<%= (errors.length || duplicates) ? ' open' : '' %> id="add">
+        <summary><b>+ Add a lead</b></summary>
+        <% if (duplicates) { %>
+          <div class="notice" role="alert">
+            <p>We may already have this company:</p>
+            <ul><% duplicates.leads.forEach(function (x) { %><li>Lead <a href="/admin/crm/leads/<%= x.id %>"><%= x.companyName %></a> (<%= x.contactName ? x.contactName + ", " : "" %><%= LEAD_LABEL[x.status] %><%= x.ownerName ? ", " + x.ownerName : "" %>): <%= x.why.join(', ') %></li><% }) %><% duplicates.clients.forEach(function (x) { %><li>Client <b><%= x.company %></b>: <%= x.why.join(', ') %></li><% }) %></ul>
+          </div>
+        <% } %>
+        <form class="form" method="post" action="/admin/crm/leads">
+          <div class="form-grid">
+            <label>Company<input name="companyName" required maxlength="120" value="<%= f.companyName || '' %>"></label>
+            <label>Contact name<input name="contactName" required maxlength="120" value="<%= f.contactName || '' %>"></label>
+            <label>Designation<input name="designation" maxlength="80" value="<%= f.designation || '' %>"></label>
+            <label>Work email<input type="email" name="email" maxlength="160" value="<%= f.email || '' %>"></label>
+            <label>Phone<input name="phone" maxlength="20" value="<%= f.phone || '' %>"></label>
+            <label>Industry<input name="industry" maxlength="80" value="<%= f.industry || '' %>"></label>
+            <label>Location<input name="location" maxlength="120" value="<%= f.location || '' %>"></label>
+            <label>Headcount<input name="headcount" inputmode="numeric" maxlength="6" value="<%= f.headcount || '' %>"></label>
+            <label>Source<select name="source"><% SOURCES.filter(function (s) { return !['Website inquiry', 'Employer registration', 'Import'].includes(s); }).forEach(function (s) { %><option<%= f.source === s ? ' selected' : '' %>><%= s %></option><% }) %></select></label>
+            <label>Source detail<input name="sourceDetail" maxlength="120" value="<%= f.sourceDetail || '' %>" placeholder="e.g. who referred them"></label>
+            <label>Why we may hold this contact<select name="lawfulBasis" required><option value="">Choose…</option><% BASES.forEach(function (b) { %><option<%= f.lawfulBasis === b ? ' selected' : '' %>><%= b %></option><% }) %></select></label>
+            <% if (manage) { %><label>Owner<select name="ownerId"><option value="">Unassigned</option><% people.forEach(function (u) { %><option value="<%= u.id %>"<%= f.ownerId === u.id ? ' selected' : '' %>><%= u.name %></option><% }) %></select></label><% } %>
+          </div>
+          <label>Hiring needs<textarea name="hiringNeeds" rows="3" maxlength="1000"><%= f.hiringNeeds || '' %></textarea></label>
+          <label>Private notes <span class="muted small">(the sales team only)</span><textarea name="notes" rows="2" maxlength="2000"><%= f.notes || '' %></textarea></label>
+          <label class="check"><input type="checkbox" name="marketingConsent" value="1"<%= f.marketingConsent ? ' checked' : '' %>> They agreed to receive sales emails from us</label>
+          <% if (duplicates) { %><label class="check"><input type="checkbox" name="confirmDuplicate" value="1"> I checked: this is a different lead</label><% } %>
+          <button class="btn btn-primary btn-sm" type="submit">Add lead</button>
+          <p class="muted small">An email or a phone number is required. Website inquiries and employer sign-ups arrive here on their own.</p>
+        </form>
+      </details>
+    <% } %>
+
+    <% if (section === 'pipeline') { %>
+      <p class="muted small">Drag a card to another column, or use the form on the card. A lost opportunity needs a reason; a won one needs a proposal that was sent.</p>
+      <div class="crm-board" data-crm-board>
+        <% STAGES.forEach(function (s) { const list = rows.filter(function (o) { return o.stage === s; }); const total = list.reduce(function (n, o) { return n + (o.valuePaise || 0); }, 0); %>
+          <section class="crm-col" data-stage="<%= s %>" aria-label="<%= s %>">
+            <h2><%= s %> <span class="muted small">· <%= list.length %><%= total ? ' · ' + inr(total) : '' %></span></h2>
+            <% list.forEach(function (o) { %>
+              <article class="crm-card" draggable="<%= MOVES[o.stage].length ? 'true' : 'false' %>" data-id="<%= o.id %>" data-moves="<%= MOVES[o.stage].join('|') %>">
+                <a href="/admin/crm/leads/<%= o.leadId %>"><b><%= o.companyName %></b></a>
+                <div class="small"><%= o.title %></div>
+                <div class="muted small"><%= money(o.valuePaise) %><%= o.expectedCloseOn ? ' · close by ' + o.expectedCloseOn : '' %><%= o.ownerName ? ' · ' + o.ownerName : '' %></div>
+                <% if (o.nextAction) { %><div class="small">Next: <%= o.nextAction %><%= o.nextActionOn ? ' (' + o.nextActionOn + ')' : '' %></div><% } %>
+                <% if (o.stage === 'Lost') { %><div class="muted small">Lost: <%= o.lostReason %><%= o.lostDetail ? ' (' + o.lostDetail + ')' : '' %></div><% } %>
+                <% if (o.conversion) { %><div class="small"><span class="pill"><%= o.conversion.status === 'done' ? 'Converted' : 'Conversion asked' %></span></div><% } %>
+                <% if (MOVES[o.stage].length && (o.stage !== 'Lost' || manage)) { %>
+                  <form class="crm-move" method="post" action="/admin/crm/opportunities/<%= o.id %>/stage">
+                    <input type="hidden" name="back" value="/admin/crm/pipeline">
+                    <label class="sr-only" for="st-<%= o.id %>">Move to</label>
+                    <select id="st-<%= o.id %>" name="stage"><% MOVES[o.stage].forEach(function (m) { %><option><%= m %></option><% }) %></select>
+                    <label class="sr-only" for="rs-<%= o.id %>">Reason if lost</label>
+                    <select id="rs-<%= o.id %>" name="reason"><option value="">Reason if lost</option><% LOST_REASONS.forEach(function (r) { %><option><%= r %></option><% }) %></select>
+                    <button class="btn btn-outline btn-sm" type="submit">Move</button>
+                  </form>
+                <% } %>
+              </article>
+            <% }) %>
+          </section>
+        <% }) %>
+      </div>
+      <p class="crm-live muted small" role="status" aria-live="polite" data-crm-status></p>
+      <script src="/js/crm-pipeline.js" defer></script>
+    <% } %>
+
+    <% if (section === 'activities') { %>
+      <nav class="account-tabs" aria-label="Which activities">
+        <% [['open', 'Open'], ['mine', 'Mine'], ['overdue', 'Overdue'], ['all', 'All']].forEach(function (t) { %><a href="/admin/crm/activities?view=<%= t[0] %>"<%- (q.view || 'open') === t[0] ? ' aria-current="page" class="active"' : '' %>><%= t[1] %></a><% }) %>
+      </nav>
+      <% if (!rows.length) { %><p class="muted dash-empty">Nothing here.</p><% } else { %>
+        <div class="table-wrap"><table>
+          <thead><tr><th>What</th><th>Company</th><th>Owner</th><th>Due</th><th>Status</th><th></th></tr></thead>
+          <tbody><% rows.forEach(function (a) { const l = leadById(a.leadId) || {}; const late = a.status === 'open' && a.dueAt && a.dueAt < new Date().toISOString(); %>
+            <tr>
+              <td><span class="pill"><%= ACTIVITY_LABEL[a.kind] %></span> <%= a.subject %></td>
+              <td><a href="/admin/crm/leads/<%= a.leadId %>"><%= l.companyName %></a></td>
+              <td><%= nameOf(a.ownerId) %></td>
+              <td><%= a.dueAt ? istText(a.dueAt) : '' %><%= late ? ' · overdue' : '' %></td>
+              <td><%= a.status === 'done' ? 'Done ' + istText(a.completedAt) : a.status === 'cancelled' ? 'Cancelled' : 'Open' %></td>
+              <td><% if (a.status === 'open' && (a.ownerId === me || manage)) { %><form method="post" action="/admin/crm/activities/<%= a.id %>" class="row-actions"><input type="hidden" name="back" value="/admin/crm/activities?view=<%= q.view || 'open' %>"><input name="outcome" maxlength="300" placeholder="Outcome" aria-label="Outcome"><button class="btn btn-primary btn-sm" name="status" value="done">Done</button></form><% } %></td>
+            </tr>
+          <% }) %></tbody>
+        </table></div>
+      <% } %>
+    <% } %>
+
+    <% if (section === 'proposals') { %>
+      <% if (!rows.length) { %><p class="muted dash-empty">No proposals yet. Write one from a lead's opportunity.</p><% } else { %>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Number</th><th>Company</th><th>Title</th><th>Status</th><th class="num">Version</th><th>Valid until</th></tr></thead>
+          <tbody><% rows.forEach(function (p) { const v = latest(p); const l = leadById(p.leadId) || {}; %>
+            <tr><td><a href="/admin/crm/proposals/<%= p.id %>"><b><%= p.number %></b></a></td><td><%= l.companyName %></td><td><%= v.title %></td><td><span class="pill"><%= PROPOSAL_LABEL[p.status] %></span></td><td class="num"><%= v.version %></td><td><%= v.validUntil %></td></tr>
+          <% }) %></tbody>
+        </table></div>
+      <% } %>
+    <% } %>
+
+    <% if (section === 'companies') { %>
+      <p class="muted small">Client accounts in the employer portal<%= manage ? '' : ' that came from your leads' %>. A won lead is linked to one of these or creates one when it is converted; the client's contacts and contracts are kept with the account.</p>
+      <% if (!rows.length) { %><p class="muted dash-empty">No client accounts yet.</p><% } else { %>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Company</th><th>Industry</th><th>Account</th><th>Account manager</th><th>From leads</th></tr></thead>
+          <tbody><% rows.forEach(function (c) { %>
+            <tr><td><b><%= c.company %></b></td><td><%= c.industry %></td><td><%= !c.active ? 'Inactive' : c.approved ? 'Verified' : 'Not yet verified' %></td><td><%= c.accountManager || 'Not assigned' %></td><td><% c.leads.forEach(function (l, i) { %><%= i ? ', ' : '' %><a href="/admin/crm/leads/<%= l.id %>"><%= l.source %> (<%= LEAD_LABEL[l.status] %>)</a><% }) %></td></tr>
+          <% }) %></tbody>
+        </table></div>
+      <% } %>
+    <% } %>
+
+    <% if (section === 'reports') { const r = report; %>
+      <form class="form filters" method="get" action="/admin/crm/reports">
+        <div class="form-grid">
+          <label>From<input type="date" name="from" value="<%= r.period.from %>"></label>
+          <label>To<input type="date" name="to" value="<%= r.period.to %>"></label>
+        </div>
+        <button class="btn btn-outline btn-sm" type="submit">Show</button>
+        <span class="muted small"><%= r.scope === 'yours' ? 'Your leads and opportunities.' : 'The whole sales team.' %></span>
+      </form>
+      <div class="mini-stats">
+        <div><b><%= r.leads.received %></b> leads received · <%= r.leads.qualified %> qualified</div>
+        <div><b><%= r.meetingsDone %></b> meetings held · <%= r.proposals.sent %> proposals sent, <%= r.proposals.accepted %> accepted</div>
+        <div><b><%= r.leads.conversionRatePercent === null ? '–' : r.leads.conversionRatePercent + '%' %></b> lead-to-client · median cycle <%= r.opportunities.medianSalesCycleDays === null ? '–' : r.opportunities.medianSalesCycleDays + ' days' %></div>
+      </div>
+      <section class="dash-card dash-wide">
+        <h2>Pipeline and results</h2>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Stage</th><th class="num">Open</th><th class="num">Estimated value</th></tr></thead>
+          <tbody><% r.pipeline.forEach(function (s) { %><tr><td><%= s.stage %></td><td class="num"><%= s.count %></td><td class="num"><%= inr(s.valuePaise) %></td></tr><% }) %>
+            <tr><td>Won in the period</td><td class="num"><%= r.opportunities.won %></td><td class="num"><%= inr(r.opportunities.wonValuePaise) %></td></tr>
+            <tr><td>Lost in the period</td><td class="num"><%= r.opportunities.lost %></td><td></td></tr>
+          </tbody>
+        </table></div>
+        <% if (r.lostReasons.length) { %><p class="small">Why we lost: <%= r.lostReasons.map(function (x) { return x.reason + ' (' + x.count + ')'; }).join(', ') %></p><% } %>
+        <p class="muted small"><%= r.followUpsOverdue %> follow-ups overdue now.</p>
+      </section>
+      <% if (r.revenue) { %>
+        <section class="dash-card dash-wide">
+          <h2>Revenue from clients won through sales: <%= inr(r.revenue.receivedPaise) %></h2>
+          <p class="muted small">From <%= r.revenue.basis %>. Estimates and unpaid invoices are not counted.</p>
+          <% if (r.revenue.byClient.length) { %>
+            <div class="table-wrap"><table>
+              <thead><tr><th>Client</th><th>Lead source</th><th class="num">Invoices paid into</th><th class="num">Received</th></tr></thead>
+              <tbody><% r.revenue.byClient.forEach(function (c) { %><tr><td><%= c.company %></td><td><%= c.source %></td><td class="num"><%= c.invoices %></td><td class="num"><%= inr(c.receivedPaise) %></td></tr><% }) %></tbody>
+            </table></div>
+          <% } %>
+        </section>
+      <% } %>
+      <section class="dash-card dash-wide">
+        <h2>By representative</h2>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Representative</th><th class="num">Leads</th><th class="num">Converted</th><th class="num">Open value</th><th class="num">Won</th><th class="num">Won value</th><th class="num">Activities done</th><th class="num">Overdue</th></tr></thead>
+          <tbody><% r.byRepresentative.forEach(function (p) { %><tr><td><%= p.name %></td><td class="num"><%= p.leads %></td><td class="num"><%= p.converted %></td><td class="num"><%= inr(p.openValuePaise) %></td><td class="num"><%= p.won %></td><td class="num"><%= inr(p.wonValuePaise) %></td><td class="num"><%= p.activitiesDone %></td><td class="num"><%= p.overdue %></td></tr><% }) %></tbody>
+        </table></div>
+      </section>
+      <section class="dash-card dash-wide">
+        <h2>By lead source</h2>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Source</th><th class="num">Leads</th><th class="num">Converted</th><th class="num">Conversion</th></tr></thead>
+          <tbody><% r.bySource.forEach(function (s) { %><tr><td><%= s.source %></td><td class="num"><%= s.leads %></td><td class="num"><%= s.converted %></td><td class="num"><%= s.conversionRatePercent === null ? '–' : s.conversionRatePercent + '%' %></td></tr><% }) %></tbody>
+        </table></div>
+      </section>
+    <% } %>
+
+    <% if (section === 'import') { %>
+      <% if (result) { %>
+        <section class="dash-card dash-wide" role="status">
+          <h2><%= result.created.length %> imported · <%= result.skipped.length %> skipped · <%= result.failed.length %> with errors</h2>
+          <% if (result.skipped.length) { %><p class="small"><b>Skipped:</b></p><ul class="plain-list small"><% result.skipped.forEach(function (x) { %><li>Row <%= x.row %>: <%= x.reason %></li><% }) %></ul><% } %>
+          <% if (result.failed.length) { %><p class="small"><b>Not imported:</b></p><ul class="plain-list small"><% result.failed.forEach(function (x) { %><li>Row <%= x.row %>: <%= x.errors.join('; ') %></li><% }) %></ul><% } %>
+        </section>
+      <% } %>
+      <form class="form dash-card dash-wide" method="post" action="/admin/crm/import">
+        <p class="small">Paste CSV with a first line naming the columns: <code>companyName, contactName, designation, email, phone, industry, location, hiringNeeds, headcount</code> (also <code>company</code>, <code>name</code>, <code>mobile</code>, <code>city</code>). Up to 500 rows. Emails and phone numbers are checked, names trimmed, and anything matching an existing lead or client is skipped.</p>
+        <label>CSV<textarea name="csv" rows="10" required maxlength="500000"><%= f.csv || '' %></textarea></label>
+        <div class="form-grid">
+          <label>Why we may hold these contacts<select name="lawfulBasis" required><option value="">Choose…</option><% BASES.forEach(function (b) { %><option<%= f.lawfulBasis === b ? ' selected' : '' %>><%= b %></option><% }) %></select></label>
+          <label>Where the list came from<input name="sourceDetail" maxlength="120" value="<%= f.sourceDetail || '' %>" placeholder="e.g. HR summit Pune, Oct 2026"></label>
+          <label>Owner<select name="ownerId"><option value="">Unassigned</option><% people.forEach(function (u) { %><option value="<%= u.id %>"><%= u.name %></option><% }) %></select></label>
+        </div>
+        <p class="muted small">Only import business contacts we are allowed to hold. Imported contacts don't get sales emails unless they agree or we send a proposal they asked for.</p>
+        <button class="btn btn-primary btn-sm" type="submit">Import</button>
+      </form>
+    <% } %>
+  </div>
+</section>
+
+<%- include('partials/foot') %>

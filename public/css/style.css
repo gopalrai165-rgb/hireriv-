@@ -1448,3 +1448,14 @@ form.inline { display: inline; }
   .rec-item, .search-head, .cand-head { flex-direction: column; }
   .filter-skills, .filter-skills input { width: 100%; min-width: 0; }
 }
+
+/* Sales CRM pipeline board (crm.js): columns scroll inside the board, never the page. */
+.crm-board { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(220px, 1fr); gap: 12px; overflow-x: auto; padding: 4px 2px 12px; max-width: 100%; }
+.crm-col { background: var(--primary-50); border-radius: 14px; padding: 10px; min-height: 160px; }
+.crm-col.over { outline: 2px dashed var(--primary); outline-offset: -4px; }
+.crm-col h2 { font-size: 1rem; margin: 0 0 8px; }
+.crm-card { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 10px; margin-bottom: 8px; cursor: grab; }
+.crm-card[draggable="false"] { cursor: default; }
+.crm-card.dragging { opacity: .5; }
+.crm-move { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+.crm-move select { max-width: 100%; font-size: .85rem; }

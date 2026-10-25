@@ -9,13 +9,77 @@ Every route the app serves, and who may use it. **This table is checked by `test
 | candidate | A candidate signed in with an emailed link or their password (`hr_cand` session: HttpOnly, SameSite=Lax, Secure on https) | `requireCandidate`; data is limited to applications made with their email |
 | employer | A person signed in to the employer portal, working in one of their companies (`hr_emp` session) | `requireEmployer` + their role in that company (owner, hiring manager, recruiter, viewer), checked on the server for every action; other companies' jobs and applicants are "not found" |
 | account | Anyone signed in: a candidate, an employer person or the team | `anyAccount` / `anyAccountApi`: the recipient comes from the session, never from the request, and each person sees only their own notifications. On `/api/staffing/*` (workforce) the handler then checks the record: the worker's own, the client's assignments (site supervisors: only those they supervise), or the team role |
-| team | Anyone on the team (Admin, Recruitment Manager, Recruiter, Account Manager, Staffing Manager, Finance Manager) | `adminAuth` or `teamApi` (+ two-step sign-in when the team requires it), then the role's permission in `agency-roles.js` (403 otherwise). A Finance Manager can open only billing pages |
+| team | Anyone on the team (Admin, Recruitment Manager, Recruiter, Account Manager, Staffing Manager, Finance Manager, Sales Manager, Business Development Representative) | `adminAuth` or `teamApi` (+ two-step sign-in when the team requires it), then the role's permission in `agency-roles.js` (403 otherwise). A Finance Manager can open only billing pages (and the sales reports); the sales roles only the CRM |
 | admin | Team members with the Admin (Super Admin) role | `adminAuth` + `requireAdmin` (403 for everyone else) |
 | billing | Admins and Finance Managers | `adminAuth` + `requireBilling` (403 for everyone else) |
 
 Every state-changing team, candidate and client form also passes `sameOrigin` (cross-site posts are refused).
 
-Total: 460 routes.
+Total: 519 routes.
+
+## Sales CRM: the sales team (Sales Managers, Business Development Representatives, Admins), and the client's proposal and unsubscribe links
+
+| Method | Path | Policy | Notes |
+| --- | --- | --- | --- |
+| GET | `/api/crm/leads` | team | JSON; crm.view; representatives get the leads they own or added, managers all; search by q, status, source, owner |
+| POST | `/api/crm/leads` | team | JSON; crm.view; validated, a lawful basis required, likely duplicates (email, phone, company domain or name, existing clients) answered 409 until confirmed |
+| POST | `/api/crm/leads/import` | team | JSON; crm.import (Sales Managers, Admins); up to 500 rows or CSV, a lawful basis, normalised, duplicates skipped; 10 per 10 minutes |
+| GET | `/api/crm/leads/:id` | team | JSON; 404 for leads the person may not see; another representative's duplicates show without contact details |
+| PATCH | `/api/crm/leads/:id` | team | JSON; status changes need reasons; converted only through a conversion |
+| POST | `/api/crm/leads/:id/assign` | team | JSON; crm.manage; to active sales team members only; open opportunities and follow-ups move too; audited |
+| POST | `/api/crm/leads/:id/activities` | team | JSON; a follow-up still to do needs a due time; reps give them only to themselves |
+| GET | `/api/crm/activities` | team | JSON; view=open, mine, overdue or all, within what the person may see |
+| POST | `/api/crm/activities` | team | JSON; same as POST /api/crm/leads/:id/activities with leadId |
+| PATCH | `/api/crm/activities/:id` | team | JSON; its owner, its author or a manager; done, cancelled, outcome, due time |
+| GET | `/api/crm/opportunities` | team | JSON; within what the person may see; filter by stage |
+| POST | `/api/crm/opportunities` | team | JSON; on a lead the person may see; starts at New Lead |
+| PATCH | `/api/crm/opportunities/:id` | team | JSON; value, expected close, next action; value changes audited |
+| PATCH | `/api/crm/opportunities/:id/stage` | team | JSON; only allowed moves; Lost needs a reason; Won needs a sent or accepted proposal; reopening Lost needs a manager; audited |
+| POST | `/api/crm/opportunities/:id/convert` | team | JSON; won only; representatives ask (202), crm.convert links an existing client or creates one, once (Idempotency-Key); accepted terms become a Draft contract; never invoices |
+| GET | `/api/crm/proposals` | team | JSON; never the link token |
+| POST | `/api/crm/proposals` | team | JSON; one in progress per opportunity; terms validated like contracts |
+| GET | `/api/crm/proposals/:id` | team | JSON; 404 for proposals the person may not see |
+| PATCH | `/api/crm/proposals/:id` | team | JSON; every change is a new version; back to draft, approval and link cleared |
+| POST | `/api/crm/proposals/:id/:action` | team | JSON; approve (crm.approve, not the author of the version), send (approved, contact not unsubscribed), withdraw, response (acceptances by crm.approve) |
+| GET | `/api/crm/companies` | team | JSON; client accounts (company only); representatives see those from their leads |
+| GET | `/api/crm/reports` | team | JSON; crm.reports; representatives get their own numbers; revenue from recorded payments only with crm.revenue |
+| GET | `/admin/crm` | team | Sales team (crm.view); sales roles land here from /admin |
+| GET | `/admin/crm/leads` | team | crm.view |
+| POST | `/admin/crm/leads` | team | crm.view; shows likely duplicates to confirm |
+| GET | `/admin/crm/leads/:id` | team | 404 for leads the person may not see |
+| POST | `/admin/crm/leads/:id` | team | Same rules as PATCH /api/crm/leads/:id |
+| POST | `/admin/crm/leads/:id/assign` | team | crm.manage |
+| POST | `/admin/crm/leads/:id/activities` | team | Same rules as the JSON API |
+| GET | `/admin/crm/activities` | team | crm.view |
+| POST | `/admin/crm/activities/:id` | team | Same rules as the JSON API |
+| GET | `/admin/crm/pipeline` | team | crm.view; drag-and-drop with a form on every card |
+| POST | `/admin/crm/opportunities` | team | Same rules as the JSON API |
+| POST | `/admin/crm/opportunities/:id` | team | Same rules as the JSON API |
+| POST | `/admin/crm/opportunities/:id/stage` | team | Same rules as the JSON API; returns only to CRM pages |
+| POST | `/admin/crm/opportunities/:id/convert` | team | Same rules as the JSON API |
+| GET | `/admin/crm/proposals` | team | crm.view |
+| GET | `/admin/crm/proposals/:id` | team | 404 for proposals the person may not see |
+| POST | `/admin/crm/proposals` | team | Same rules as the JSON API |
+| POST | `/admin/crm/proposals/:id` | team | A new version |
+| POST | `/admin/crm/proposals/:id/:action` | team | Same rules as the JSON API |
+| GET | `/admin/crm/companies` | team | crm.view |
+| GET | `/admin/crm/reports` | team | crm.reports (also Finance Managers) |
+| GET | `/admin/crm/import` | team | crm.import |
+| POST | `/admin/crm/import` | team | crm.import; 10 per 10 minutes |
+| GET | `/crm` | public | Short link to /admin/crm |
+| GET | `/crm/dashboard` | public | Short link to /admin/crm |
+| GET | `/crm/leads` | public | Short link to /admin/crm/leads |
+| GET | `/crm/leads/:id` | public | Short link to the lead (signed-in sales team only) |
+| GET | `/crm/pipeline` | public | Short link to /admin/crm/pipeline |
+| GET | `/crm/activities` | public | Short link to /admin/crm/activities |
+| GET | `/crm/proposals` | public | Short link to /admin/crm/proposals |
+| GET | `/crm/companies` | public | Short link to /admin/crm/companies |
+| GET | `/crm/reports` | public | Short link to /admin/crm/reports |
+| GET | `/crm/proposal/:token` | link | The emailed proposal link (random, stored hashed); dead once answered, withdrawn, expired or replaced by a new version; no internal notes |
+| POST | `/crm/proposal/:token/accept` | link | Typed name, designation, agreement and the SHA-256 of the version shown; evidence keeps a keyed hash of the connection, not the address |
+| POST | `/crm/proposal/:token/decline` | link | Name and an optional comment |
+| GET | `/crm/unsubscribe/:token` | link | Signed (HMAC) per contact; shows a button |
+| POST | `/crm/unsubscribe/:token` | link | Stops sales emails to the contact; also the one-click List-Unsubscribe target |
 
 ## Workforce: workers, client supervisors and the staffing team
 

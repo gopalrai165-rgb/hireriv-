@@ -141,7 +141,7 @@ function create({ db, mailer, baseUrl, ownerUser, ownerPass, site = {}, resetOwn
     res.locals.roleLabel = (agencyRoles.ROLE_INFO[user.role] || { label: user.role }).label;
     if (!agencyRoles.pathAllowed(user, req.path)) {
       if (!wantsHtml(req)) return res.status(403).send('Your role does not include this page.');
-      return res.status(403).render('thanks', { title: 'Not part of your role', page: '', ok: false, message: 'Your role covers billing only. Ask an Admin on your team if you need this page.', noindex: true });
+      return res.status(403).render('thanks', { title: 'Not part of your role', page: '', ok: false, message: `Your role covers ${agencyRoles.SALES_ROLES.includes(user.role) ? 'the sales CRM' : 'billing'} only. Ask an Admin on your team if you need this page.`, noindex: true });
     }
     // When the team requires two-step sign-in, people without it can only set it up.
     if (requires2fa() && !has2fa(user.id) && !req.path.startsWith('/admin/security')) {

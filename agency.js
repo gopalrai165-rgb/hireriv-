@@ -379,6 +379,19 @@ function register(app, deps) {
     audit(user, 'contract-added', 'contract', c.id, `${client.company}: ${c.reference} (${c.status})`, employerId);
     return { status: 201, contract: c };
   }
+  // A won sales opportunity hands its accepted terms over as a Draft contract
+  // (crm.js). It applies only once the client signs it (client-portal.js).
+  function handoverContract(user, employerId, input, source) {
+    const client = clientById(employerId);
+    if (!client) return { status: 404, errors: ['client not found'] };
+    if (!roles.can(user, 'crm.convert')) return { status: 403, errors: ['only an Admin or a Sales Manager converts won opportunities'] };
+    const { errors, values } = parseContract({ ...input, status: 'Draft' }, { strict: true });
+    if (contracts().some((c) => c.employerId === employerId && c.reference.toLowerCase() === String(values.reference || '').toLowerCase())) errors.push('this client already has a contract with that reference');
+    if (errors.length) return { status: 400, errors };
+    const c = saveSubmission('client-contracts', { employerId, ...values, status: 'Draft', createdBy: user.id, source, updatedAt: now() });
+    audit(user, 'contract-added', 'contract', c.id, `${client.company}: ${c.reference} (Draft, from ${source})`, employerId);
+    return { status: 201, contract: c };
+  }
   function changeContract(user, id, input, strict) {
     const c = contracts().find((x) => x.id === id);
     if (!c) return { status: 404, errors: ['contract not found'] };
@@ -1186,7 +1199,7 @@ function register(app, deps) {
     res.status(201).json({ ok: true, requisition: clientReqView(r.requisition, req.member) });
   });
 
-  return { report, requisitions, contracts, assignments, drafts, createDraft, issueDraft, describeReq, clientRequisition, clientReqView, CLIENT_REQ_FIELDS };
+  return { report, requisitions, contracts, assignments, drafts, createDraft, issueDraft, describeReq, clientRequisition, clientReqView, CLIENT_REQ_FIELDS, handoverContract };
 }
 
 module.exports = { register, paiseFrom, bpFrom, qtyFrom, percentOf, timesQty, parseContract, parseRequisition, parseAssignment, REQ_MOVES, ASSIGN_MOVES, REQ_STATUSES };

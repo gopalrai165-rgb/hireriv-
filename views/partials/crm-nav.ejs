@@ -1,0 +1,19 @@
+<%# Header and links shared by the sales CRM pages; each link shows only to roles that may open it. %>
+<div class="admin-userbar">
+  <span>Signed in as <b><%= admin.name %></b> · <%= roleLabel %></span>
+  <% if (!['Sales Manager', 'Business Development'].includes(admin.role)) { %><a class="small" href="/admin">Back to admin</a><% } %>
+  <form method="post" action="/admin/logout"><button class="link-btn small" type="submit">Sign out</button></form>
+</div>
+<div class="admin-head">
+  <div>
+    <span class="eyebrow">Sales CRM</span>
+    <h1><%= heading %></h1>
+  </div>
+</div>
+<nav class="account-tabs" aria-label="Sales CRM">
+  <% [['dashboard', '/admin/crm', 'Dashboard', 'crm.view'], ['leads', '/admin/crm/leads', 'Leads', 'crm.view'], ['pipeline', '/admin/crm/pipeline', 'Pipeline', 'crm.view'], ['activities', '/admin/crm/activities', 'Activities', 'crm.view'], ['proposals', '/admin/crm/proposals', 'Proposals', 'crm.view'], ['companies', '/admin/crm/companies', 'Companies', 'crm.view'], ['reports', '/admin/crm/reports', 'Reports', 'crm.reports'], ['import', '/admin/crm/import', 'Import', 'crm.import']].filter(function (t) { return can(t[3]); }).forEach(function (t) { %>
+    <a href="<%= t[1] %>"<%- tab === t[0] ? ' aria-current="page" class="active"' : '' %>><%= t[2] %></a>
+  <% }) %>
+</nav>
+<% if (typeof msg !== 'undefined' && msg) { %><p class="notice" role="status"><%= msg %></p><% } %>
+<% if (typeof errors !== 'undefined' && errors.length) { %><div class="notice notice-err" role="alert"><p>Please fix:</p><ul><% errors.forEach(function (e) { %><li><%= e %></li><% }) %></ul></div><% } %>

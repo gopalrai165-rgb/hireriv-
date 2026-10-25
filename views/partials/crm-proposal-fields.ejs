@@ -1,0 +1,16 @@
+<%# The fields of a proposal version; `form` holds the current values. %>
+<div class="form-grid">
+  <label>Title<input name="title" required maxlength="120" value="<%= form.title || '' %>"></label>
+  <label>Engagement<select name="kind"><% ['Permanent recruitment', 'Temporary & contract staffing', 'Both'].forEach(function (k) { %><option<%= form.kind === k ? ' selected' : '' %>><%= k %></option><% }) %></select></label>
+  <label>Fee basis<select name="feeMode"><option value="percent"<%= form.feeMode !== 'flat' ? ' selected' : '' %>>% of annual CTC</option><option value="flat"<%= form.feeMode === 'flat' ? ' selected' : '' %>>Fixed fee per hire</option></select></label>
+  <label>Fee %<input name="feePercent" inputmode="decimal" maxlength="6" value="<%= form.feePercent || '' %>"></label>
+  <label>Fixed fee (₹)<input name="flatFee" inputmode="decimal" maxlength="14" value="<%= form.flatFee || '' %>"></label>
+  <label>Guarantee (days)<input name="guaranteeDays" inputmode="numeric" maxlength="3" value="<%= form.guaranteeDays || '' %>"></label>
+  <label>Markup on pay %<input name="markupPercent" inputmode="decimal" maxlength="6" value="<%= form.markupPercent || '' %>"></label>
+  <label>Payment within (days)<input name="paymentDays" inputmode="numeric" maxlength="3" required value="<%= form.paymentDays || '' %>"></label>
+  <label>Valid until<input type="date" name="validUntil" required value="<%= form.validUntil || '' %>"></label>
+  <label>Estimated value (₹)<input name="estimatedValue" inputmode="decimal" maxlength="14" value="<%= form.estimatedValue || '' %>"></label>
+</div>
+<fieldset><legend class="small">Services</legend><% SERVICES.forEach(function (s) { %><label class="check"><input type="checkbox" name="services" value="<%= s %>"<%= (form.services || []).includes(s) ? ' checked' : '' %>> <%= s %></label><% }) %></fieldset>
+<label>Scope and terms the client reads<textarea name="scope" rows="6" maxlength="5000"><%= form.scope || '' %></textarea></label>
+<label>Internal notes <span class="muted small">(never shown to the client)</span><textarea name="internalNotes" rows="2" maxlength="2000"><%= form.internalNotes || '' %></textarea></label>

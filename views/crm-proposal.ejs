@@ -1,0 +1,33 @@
+<%- include('partials/head') %>
+
+<section class="section">
+  <div class="container narrow">
+    <span class="eyebrow">Proposal <%= p.number %> · version <%= v.version %></span>
+    <h1><%= v.title %></h1>
+    <p class="muted">Valid until <%= v.validUntil %>.</p>
+    <% if (errors.length) { %><div class="notice notice-err" role="alert"><p>Please fix:</p><ul><% errors.forEach(function (e) { %><li><%= e %></li><% }) %></ul></div><% } %>
+    <article class="dash-card">
+      <pre style="white-space:pre-wrap;font:inherit"><%= v.text %></pre>
+      <p class="muted small">Document fingerprint (SHA-256): <code><%= v.sha256 %></code></p>
+    </article>
+
+    <form class="form dash-card" method="post" action="/crm/proposal/<%= token %>/accept">
+      <h2>Accept for your company</h2>
+      <input type="hidden" name="sha256" value="<%= v.sha256 %>">
+      <label>Your full name<input name="name" required maxlength="120" autocomplete="name" value="<%= f.name || '' %>"></label>
+      <label>Your designation<input name="designation" required maxlength="80" autocomplete="organization-title" value="<%= f.designation || '' %>"></label>
+      <label class="check"><input type="checkbox" name="agree" value="1" required> I am authorised to accept these commercial terms for my company, and I accept them.</label>
+      <p class="muted small">We record your name, designation, the time, your browser and a one-way fingerprint of your connection (not the address itself) with this exact version, as evidence of your answer. Services start under a client agreement you sign in the client portal.</p>
+      <button class="btn btn-primary" type="submit">Accept proposal</button>
+    </form>
+
+    <form class="form dash-card" method="post" action="/crm/proposal/<%= token %>/decline">
+      <h2>Not right for you?</h2>
+      <label>Your name<input name="name" required maxlength="120" autocomplete="name"></label>
+      <label>What would you change? <span class="muted small">(optional)</span><textarea name="comment" rows="3" maxlength="1000"></textarea></label>
+      <button class="btn btn-outline" type="submit">Decline</button>
+    </form>
+  </div>
+</section>
+
+<%- include('partials/foot') %>

@@ -543,6 +543,25 @@ function createMailer(site) {
       });
     },
 
+    // A sales proposal to a business contact (crm.js): only once it has been
+    // approved, never to anyone who unsubscribed, always with a way to stop.
+    crmProposal(to, { number, title, validUntil, link, unsubscribe, owner }) {
+      return send(site, {
+        to: to.email,
+        replyTo: owner && owner.email ? owner.email : teamInbox,
+        subject: `${site.name} proposal ${number}: ${title}`,
+        heading: 'Your proposal from Hireriv',
+        preheader: `Valid until ${validUntil}`,
+        headers: { 'List-Unsubscribe': `<${unsubscribe}>`, 'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click' },
+        html:
+          p(`Hi ${first(to.name)}, thank you for your time. Here is our proposal <b>${esc(number)}</b> for ${esc(title)}. It is valid until ${esc(validUntil)}.`) +
+          p('You can read it, accept it or tell us it is not right for you on the page below.') +
+          button(link, 'Read the proposal') +
+          (owner ? p(`<span style="color:#6b7690;font-size:13px">Questions? Reply to this email to reach ${esc(owner.name)}.</span>`) : ''),
+        footer: `You're getting this because you discussed hiring with ${esc(site.name)}. <a href="${esc(unsubscribe)}" style="color:#6b7690">Don't email me about this again</a>`,
+      });
+    },
+
     // Confirms a privacy request: the candidate's data was deleted.
     accountDeleted(email) {
       return send(site, {

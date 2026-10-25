@@ -1,0 +1,59 @@
+<%- include('partials/head') %>
+
+<section class="section admin">
+  <div class="container">
+    <%- include('partials/crm-nav', { heading: 'Proposal ' + p.number, tab: 'proposals' }) %>
+    <p><a href="/admin/crm/leads/<%= p.leadId %>">← <%= l ? l.companyName : 'Lead' %></a></p>
+
+    <section class="dash-card dash-wide">
+      <h2><%= v.title %> <span class="pill"><%= PROPOSAL_LABEL[p.status] %></span></h2>
+      <p class="muted small">Version <%= v.version %> by <%= v.createdByName %><%= p.approvedBy ? ', approved by ' + nameOf(p.approvedBy) : '' %> · valid until <%= v.validUntil %><%= v.valuePaise ? ' · estimated ' + inr(v.valuePaise) : '' %><%= o ? ' · opportunity: ' + o.title + ' (' + o.stage + ')' : '' %></p>
+      <pre style="white-space:pre-wrap;font:inherit"><%= v.text %></pre>
+      <p class="muted small">SHA-256 <code><%= v.sha256 %></code></p>
+      <% if (p.internalNotes) { %><p class="small"><b>Internal notes:</b> <%= p.internalNotes %></p><% } %>
+      <% if (p.response) { const r = p.response; %>
+        <p class="notice"><%= r.decision === 'accepted' ? 'Accepted' : 'Rejected' %> (version <%= r.version %>) on <%= istText(r.at) %>
+          <% if (r.online) { %>online by <b><%= r.name %></b><%= r.designation ? ', ' + r.designation : '' %> · connection <%= r.ipHash %> · <%= r.userAgent %><%= r.comment ? ' · “' + r.comment + '”' : '' %><% } else { %>recorded by <%= r.recordedByName %> (<%= r.channel %>): <%= r.note %><% } %>
+        </p>
+      <% } %>
+      <div class="row-actions">
+        <% if (p.status === 'draft' && can('crm.approve') && v.createdBy !== me) { %><form method="post" action="/admin/crm/proposals/<%= p.id %>/approve"><button class="btn btn-primary btn-sm">Approve version <%= v.version %></button></form><% } %>
+        <% if (p.status === 'draft' && v.createdBy === me) { %><span class="muted small">Someone other than you (a Sales Manager or an Admin) approves it.</span><% } %>
+        <% if (p.status === 'approved') { %><form method="post" action="/admin/crm/proposals/<%= p.id %>/send"><button class="btn btn-primary btn-sm"<%= l && (!l.email || l.unsubscribedAt) ? ' disabled' : '' %>>Email it to <%= l && l.email ? l.email : 'the contact' %></button></form><% if (l && l.unsubscribedAt) { %><span class="muted small">The contact unsubscribed from sales emails.</span><% } %><% } %>
+        <% if (!['accepted', 'rejected', 'expired', 'withdrawn'].includes(p.status)) { %><form method="post" action="/admin/crm/proposals/<%= p.id %>/withdraw"><input name="reason" required maxlength="300" placeholder="Reason" aria-label="Reason for withdrawing"><button class="btn btn-outline btn-sm">Withdraw</button></form><% } %>
+      </div>
+      <% if (p.status === 'sent') { %>
+        <form class="form" method="post" action="/admin/crm/proposals/<%= p.id %>/response">
+          <p class="small"><b>The client answered another way?</b> Record it<%= can('crm.approve') ? '' : ' (a Sales Manager records an acceptance)' %>.</p>
+          <div class="form-grid">
+            <label>Answer<select name="decision"><% if (can('crm.approve')) { %><option value="accepted">Accepted</option><% } %><option value="rejected">Rejected</option></select></label>
+            <label>How<select name="channel"><option>Email</option><option>Phone</option><option>Meeting</option><option>Letter</option></select></label>
+            <label>What they said, and who<input name="note" required maxlength="500"></label>
+          </div>
+          <button class="btn btn-outline btn-sm" type="submit">Record answer</button>
+        </form>
+      <% } %>
+    </section>
+
+    <% if (!['accepted', 'rejected', 'expired', 'withdrawn'].includes(p.status)) { %>
+      <details class="dash-card dash-wide">
+        <summary><b>Change it (saves version <%= p.versions.length + 1 %>)</b></summary>
+        <% if (p.status !== 'draft') { %><p class="muted small">It goes back to draft and needs approving again; the link already sent stops working.</p><% } %>
+        <form class="form" method="post" action="/admin/crm/proposals/<%= p.id %>">
+          <%- include('partials/crm-proposal-fields', { form: Object.assign({}, form, { internalNotes: p.internalNotes }) }) %>
+          <button class="btn btn-primary btn-sm" type="submit">Save new version</button>
+        </form>
+      </details>
+    <% } %>
+
+    <section class="dash-card dash-wide">
+      <h2>Versions and history</h2>
+      <% p.versions.slice().reverse().forEach(function (x) { %>
+        <details><summary>Version <%= x.version %> · <%= x.title %> · <%= x.createdByName %> · <%= istText(x.at) %></summary><pre style="white-space:pre-wrap;font:inherit"><%= x.text %></pre><p class="muted small">SHA-256 <code><%= x.sha256 %></code></p></details>
+      <% }) %>
+      <ul class="plain-list small"><% p.history.slice().reverse().forEach(function (h) { %><li><%= h.at.slice(0, 16).replace('T', ' ') %> · <%= h.by %>: <%= h.text %></li><% }) %></ul>
+    </section>
+  </div>
+</section>
+
+<%- include('partials/foot') %>
