@@ -519,6 +519,7 @@ function register(app, deps) {
     if (!data.roles) return res.redirect('/employer?msg=' + encodeURIComponent('Please describe the role(s) you need.'));
     const entry = saveSubmission('hire-requests', { company: emp.company, name: req.employerUser.name, email: req.employerUser.email, phone: req.employerUser.phone || '', ...data, employerId: emp.id, source: 'Client portal', status: 'Received' });
     mailer.hireRequestReceived(entry);
+    deps.events.staffingRequest(entry);
     team.audit(emp.id, req.employerUser, 'requirement-sent', data.roles);
     res.redirect('/employer?msg=' + encodeURIComponent('Requirement sent. Your account manager will be in touch within one working day.'));
   });
@@ -629,6 +630,8 @@ function register(app, deps) {
     if (lastOwner(m)) return toTeam(res, 'A company needs at least one owner. Make someone else an owner first.');
     team.removeMember(m.id);
     db.sessions.deleteSubject('employer', subjectOf(m.userId, req.employer.id));
+    // They keep nothing from this company, notifications included.
+    deps.notify.forgetCompany(`e:${m.userId}`, req.employer.id);
     const u = team.userById(m.userId) || {};
     team.audit(req.employer.id, req.employerUser, 'member-removed', u.email);
     if (m.userId === req.employerUser.id) { res.clearCookie(COOKIE, { path: '/' }); return res.redirect('/employer/login'); }
@@ -818,7 +821,7 @@ function register(app, deps) {
     res.redirect('/employer?msg=' + encodeURIComponent(`Thanks! Your feedback on ${a.name} was sent to your account manager.`) + '#shortlist');
   });
 
-  return { read, write, team, currentEmployer, requireEmployer, requireEmployerApi, allow, forbid, shortlistFor, DECISIONS, isApproved, verificationOf, addressed, membersWith: (employerId, action, job) => team.membersOf(employerId).filter((m) => can(m, action, job)) };
+  return { read, write, team, context, currentEmployer, requireEmployer, requireEmployerApi, allow, forbid, shortlistFor, DECISIONS, isApproved, verificationOf, addressed, membersWith: (employerId, action, job) => team.membersOf(employerId).filter((m) => can(m, action, job)) };
 }
 
 module.exports = { register, hashPassword, checkPassword, validGstin, gstinCheckChar, isFreeEmail, isApproved, parseCompany, verificationOf, INDUSTRIES, COMPANY_SIZES };

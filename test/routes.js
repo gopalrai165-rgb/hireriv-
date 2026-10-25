@@ -21,6 +21,8 @@ function policyOf(args, p) {
   if (args.includes('adminAuth')) return 'team';
   if (args.includes('requireCandidate')) return 'candidate';
   if (args.includes('requireEmployer')) return 'employer';
+  // Any signed-in account (candidate, employer or team): the notification center.
+  if (args.includes('anyAccount')) return 'account';
   if (p.includes(':token')) return 'link';
   return 'public';
 }

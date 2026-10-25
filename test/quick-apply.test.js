@@ -51,7 +51,7 @@ test('field jobs: name and phone are enough, and the recruiter will call', async
   const [a] = byName('Ravi Kumar');
   assert.equal(a.email, '');
   assert.equal(a.resume, '');
-  const mail = await srv.waitForEmail((e) => e.includes('New application: Ravi Kumar'));
+  const mail = await srv.waitForEmail((e) => e.includes('New application for') && e.includes('Ravi Kumar'));
   assert.match(mail, /Not given: call or WhatsApp them/);
 
   // Same person, number written differently: updated, not added twice.

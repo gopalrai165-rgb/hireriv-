@@ -1384,3 +1384,27 @@ details.more-fields .form-grid { margin-top: 12px; }
 .resume-list li > div:first-child, .entry-list li > div:first-child { min-width: 0; overflow-wrap: anywhere; }
 .entry-list p { margin: 4px 0 0; }
 @media (max-width: 560px) { .resume-list li { flex-direction: column; } .check-grid { grid-template-columns: minmax(0, 1fr); } }
+
+
+/* ---------- notifications ---------- */
+.nav-bell { position: relative; display: inline-flex; align-items: center; gap: 6px; }
+.nav-bell .i { width: 18px; height: 18px; }
+.main-nav .nav-bell .nav-bell-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+.bell-count { min-width: 1.4em; padding: 0 .4em; border-radius: 999px; background: #C2410C; color: #fff; font-size: .72rem; font-weight: 700; line-height: 1.5; text-align: center; }
+.notif-filters { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10px; margin: 0 0 14px; }
+.chip-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip-row .chip { font-size: .86rem; padding: .4em .95em; background: #fff; }
+.chip-row .chip-on { background: var(--primary); border-color: var(--primary); color: #fff; }
+.notif-list { list-style: none; margin: 0; padding: 0; }
+.notif { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; padding: 14px 0; border-bottom: 1px solid var(--line); }
+.notif:last-child { border-bottom: 0; }
+.notif-main { display: flex; flex-direction: column; gap: 3px; min-width: 0; overflow-wrap: anywhere; position: relative; padding-left: 16px; }
+.notif-unread .notif-main b { color: var(--ink); }
+.notif:not(.notif-unread) .notif-main { color: var(--muted, #5b6680); }
+.notif-dot { position: absolute; left: 0; top: .45em; width: 8px; height: 8px; border-radius: 50%; background: #C2410C; }
+.notif-body { font-size: .95rem; }
+.pref-list { border: 0; padding: 0; margin: 0 0 16px; display: grid; gap: 14px; }
+form.inline { display: inline; }
+@media (max-width: 560px) { .notif { flex-direction: column; } }
+.iv-move { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 4px 0; }
+.iv-move input { width: auto; padding: 6px 8px; }

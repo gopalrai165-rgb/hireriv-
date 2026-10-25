@@ -1,0 +1,70 @@
+<%- include('partials/head') %>
+
+<section class="section admin">
+  <div class="container">
+    <div class="admin-head">
+      <div>
+        <h1>Email delivery</h1>
+        <p class="muted"><a href="/admin">Back to admin</a> · Notification emails queue here and are retried up to 5 times (after 1, 5, 30 and 120 minutes).</p>
+      </div>
+    </div>
+    <% if (msg) { %><p class="notice" role="status"><%= msg %></p><% } %>
+    <% if (problems.length) { %><div class="notice notice-err" role="alert"><% problems.forEach(function (p) { %><p><%= p %></p><% }) %></div><% } %>
+
+    <div class="kpis">
+      <% [['Waiting to send', stats.queued, stats.queued ? 'oldest ' + stats.oldestQueuedMinutes + ' min' : 'none waiting', 'queued'], ['Retrying', stats.retrying, 'after a failed try', 'queued'], ['Failed, last day', stats.failed24h, 'gave up after 5 tries', 'failed'], ['Sent, 7 days', stats.sent7d, stats.delivered7d + ' confirmed delivered', 'sent'], ['Bounced or spam, 7 days', stats.bounced7d + stats.complained7d, stats.bounceRate + '% of sent', 'bounced'], ['Skipped, 7 days', stats.skipped7d, 'record gone, settings or bounced address', 'skipped']].forEach(function (k) { %>
+        <a class="kpi" href="/admin/notifications?status=<%= k[3] %>">
+          <span class="kpi-label"><%= k[0] %></span>
+          <span class="kpi-value"><%= k[1] %></span>
+          <span class="kpi-note"><%= k[2] %></span>
+        </a>
+      <% }) %>
+    </div>
+
+    <section class="dash-card dash-wide">
+      <div class="dash-head">
+        <h2><%= status ? status.charAt(0).toUpperCase() + status.slice(1) : 'Latest' %> emails</h2>
+        <% if (status) { %><a class="small" href="/admin/notifications">Show all</a><% } %>
+      </div>
+      <% if (!deliveries.length) { %>
+        <p class="muted dash-empty">Nothing here.</p>
+      <% } else { %>
+        <div class="table-wrap">
+          <table class="table">
+            <thead><tr><th>Created</th><th>What</th><th>To</th><th>Status</th><th>Tries</th><th>Last error</th><th></th></tr></thead>
+            <tbody>
+              <% deliveries.forEach(function (d) { %>
+                <tr>
+                  <td><%= formatIst(new Date(d.createdAt)) %></td>
+                  <td><%= (types[d.type] || {}).label || d.template %></td>
+                  <td><%= d.to ? { candidate: 'Candidate', employer: 'Employer', team: 'Team member', inbox: 'Team inbox', interviewer: 'Interviewer' }[d.to.kind] : '' %></td>
+                  <td><span class="pill"><%= d.status %></span></td>
+                  <td><%= d.attempts || 0 %></td>
+                  <td class="small"><%= d.lastError || '' %></td>
+                  <td><% if (d.status === 'failed') { %><form method="post" action="/admin/notifications/<%= d.id %>/retry"><button class="link-btn small" type="submit">Try again</button></form><% } %></td>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+      <% } %>
+    </section>
+
+    <section class="dash-card dash-wide">
+      <h2>Addresses we no longer email</h2>
+      <p class="muted small">After a bounce or a spam report from the email provider, notification emails to that address stop. Only a fingerprint of the address is kept. Sign-in links still go out when someone asks for one.</p>
+      <% if (!suppressions.length) { %>
+        <p class="muted">None.</p>
+      <% } else { %>
+        <ul>
+          <% suppressions.forEach(function (s) { %>
+            <li><%= s.reason === 'complained' ? 'Reported as spam' : 'Bounced' %> on <%= formatIst(new Date(s.createdAt)) %>
+              <form class="inline" method="post" action="/admin/notifications/suppressions/<%= s.id %>/delete"><button class="link-btn small" type="submit">Allow again</button></form></li>
+          <% }) %>
+        </ul>
+      <% } %>
+    </section>
+  </div>
+</section>
+
+<%- include('partials/foot') %>

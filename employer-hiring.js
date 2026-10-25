@@ -26,9 +26,7 @@ function register(app, deps) {
   const { site, mailer, baseUrl, limit, sameOrigin, adminAuth, adminUrl, clients, readSubmissions, writeSubmissions, uploadsDir, downloadLinks, linkExpired } = deps;
   const { getJobs, saveJobs, parseJob, nextJobId, todayIst, publicJob, jobPath, sendJobAlerts, alertedNote, appStatuses, moveStage, interviewDesk, parseInterview, interviewModes, interviewDurations, formatIst, skillMatch, jobFormLocals } = deps;
   const { requireEmployer, requireEmployerApi, team, addressed } = clients;
-  const ledger = ats.notifier({ readSubmissions, writeSubmissions, saveSubmission: deps.saveSubmission });
-  ledger.prune();
-  setInterval(ledger.prune, 24 * 3600000).unref();
+  const { events } = deps;
   const actorOf = (req) => ({ label: byLine(req), kind: 'employer', userId: req.employerUser.id });
   const now = () => new Date().toISOString();
   const page = (res, view, locals, status = 200) => res.status(status).render(view, { page: 'employer', noindex: true, errors: [], msg: '', ...locals });
@@ -87,6 +85,7 @@ function register(app, deps) {
     if (status === 'pending') {
       job.submittedAt = job.updatedAt;
       mailer.employerJobSubmitted(job, addressed(req.employer, req.employerUser), clients.isApproved(req.employer), true);
+      events.jobSubmitted(job);
     }
     saveJobs();
     team.audit(req.employer.id, req.employerUser, 'job-updated', `${job.title} (${job.id})`);
@@ -117,6 +116,7 @@ function register(app, deps) {
     if (reopening && job.closesOn && job.closesOn < todayIst()) job.closesOn = null;
     saveJobs();
     mailer.employerJobSubmitted(job, addressed(req.employer, req.employerUser), clients.isApproved(req.employer), reopening);
+    events.jobSubmitted(job);
     team.audit(req.employer.id, req.employerUser, 'job-submitted', `${job.title} (${job.id})`);
     return { job, errors: [] };
   }
@@ -315,12 +315,8 @@ function register(app, deps) {
       if (problem) errors.push(problem);
     }
     if (errors.length) return { status: 400, errors, f };
-    const { iv, delivered } = interviewDesk.book(req.applications, a, f, at, `${byLine(req)} (interview booked)`);
-    const h = a.history && a.history[a.history.length - 1];
-    if (h && h.to === 'Interview' && h.at === iv.createdAt) Object.assign(h, { actor: 'employer', userId: req.employerUser.id });
     if (!a.assignedTo && can(req.member, 'applicants.manage', req.job)) a.assignedTo = req.employerUser.id;
-    writeSubmissions('applications', req.applications);
-    ledger.once(`interview-invite:${iv.id}`, { audience: 'candidate', template: 'interview-scheduled', employerId: req.employer.id, applicationId: a.id }, () => delivered);
+    const { iv } = interviewDesk.book(req.applications, a, f, at, `${byLine(req)} (interview booked)`, { actor: 'employer', userId: req.employerUser.id });
     team.audit(req.employer.id, req.employerUser, 'interview-scheduled', `${a.name} on ${formatIst(at)} (${req.job.title})`);
     return { iv, at, errors: [] };
   }
@@ -339,16 +335,6 @@ function register(app, deps) {
     page(res, 'employer-interviews', { title: 'Interviews', tab: 'interviews', upcoming, past });
   });
 
-  // ---------- new applicants: tell the people working on the job ----------
-  function applied(a, job) {
-    if (!selfManaged(job)) return;
-    const emp = clients.read().find((e) => e.id === job.employerId && e.active);
-    if (!emp) return;
-    for (const m of team.membersOf(emp.id).filter((x) => can(x, 'applicants.manage', job))) {
-      const u = team.userById(m.userId);
-      if (u && u.emailVerifiedAt) ledger.once(`new-application:${a.id}:${u.id}`, { audience: 'employer', template: 'new-application', employerId: emp.id, applicationId: a.id }, () => mailer.employerNewApplication(addressed(emp, u), a, `${baseUrl}/employer/applicants/${a.id}`));
-    }
-  }
 
   // ---------- JSON API ----------
   const fail = (res, status, errors) => res.status(status).json({ ok: false, errors: [].concat(errors) });
@@ -403,14 +389,7 @@ function register(app, deps) {
   app.post('/api/jobs/:id/publish', requireEmployerApi, withJob('job.edit', { api: true }), limit('employer-jobs', 30), sameOrigin, submitJson);
 
   // ---------- the team's decision on a job sent for review ----------
-  // Tells the person who posted it and the company's owners.
-  function tellJobTeam(emp, job, approved, reason, link) {
-    const ids = new Set([job.createdByUser, ...team.owners(emp.id).map((m) => m.userId)].filter(Boolean));
-    for (const id of ids) {
-      const u = team.userById(id);
-      if (u && team.membership(u.id, emp.id)) mailer.employerJobDecision(addressed(emp, u), job, approved, reason, link);
-    }
-  }
+  // The person who posted it and the company's owners hear about it (notify-events.js).
   app.post('/admin/jobs/:id/approve', adminAuth, sameOrigin, (req, res, next) => {
     const job = getJobs().find((j) => j.id === req.params.id && j.status === 'pending');
     if (!job) return next();
@@ -421,7 +400,7 @@ function register(app, deps) {
     saveJobs();
     if (emp) {
       team.audit(emp.id, null, 'job-published', `${job.title} (${job.id}) by ${req.admin.name}`);
-      tellJobTeam(emp, job, true, '', `${baseUrl}${jobPath(job)}`);
+      events.jobDecision(job, emp, true, '');
     }
     res.redirect(adminUrl('jobs', `"${job.title}" is live${alertedNote(alerted)}`));
   });
@@ -435,12 +414,12 @@ function register(app, deps) {
     const emp = clients.read().find((c) => c.id === job.employerId);
     if (emp) {
       team.audit(emp.id, null, 'job-sent-back', `${job.title} (${job.id}): ${reason}`);
-      tellJobTeam(emp, job, false, reason, `${baseUrl}/employer/jobs/${job.id}/edit`);
+      events.jobDecision(job, emp, false, reason);
     }
     res.redirect(adminUrl('jobs', `"${job.title}" was sent back to the employer`));
   });
 
-  return { applied, selfManaged, STATUS_LABELS, ledger, applicantView, applicationsFor, withApplicant, withJob, visibleJobs, companyJob, changeStatus, bookInterview, actorOf, byLine };
+  return { selfManaged, STATUS_LABELS, applicantView, applicationsFor, withApplicant, withJob, visibleJobs, companyJob, changeStatus, bookInterview, actorOf, byLine };
 }
 
 module.exports = { register, selfManaged, STATUS_LABELS, MAX_ACTIVE_JOBS, MAX_WAITING_UNVERIFIED };

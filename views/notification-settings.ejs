@@ -1,0 +1,63 @@
+<%- include('partials/head') %>
+
+<section class="section admin portal">
+  <div class="container narrow">
+    <div class="admin-head">
+      <div>
+        <span class="eyebrow"><%= viewer.label %></span>
+        <h1>Notification settings</h1>
+        <p class="muted"><a href="/notifications<%= viewers.length > 1 ? '?as=' + viewer.as : '' %>">Back to notifications</a></p>
+      </div>
+    </div>
+    <% if (viewers.length > 1) { %>
+      <nav class="account-tabs" aria-label="Account">
+        <% viewers.forEach(function (v) { %><a href="/notifications/settings?as=<%= v.as %>"<%- v.as === viewer.as ? ' aria-current="page" class="active"' : '' %>><%= v.label %></a><% }) %>
+      </nav>
+    <% } %>
+    <% if (msg) { %><p class="notice" role="status"><%= msg %></p><% } %>
+
+    <form class="form dash-card" method="post" action="/notifications/settings">
+      <% if (viewers.length > 1) { %><input type="hidden" name="as" value="<%= viewer.as %>"><% } %>
+      <h2>Email</h2>
+      <p class="muted small">Everything also appears in your notifications here, whatever you choose for email.</p>
+      <fieldset class="pref-list">
+        <legend class="sr-only">Send me emails about</legend>
+        <% prefs.categories.forEach(function (c) { %>
+          <label class="check-row">
+            <input type="checkbox" name="email_<%= c.key %>" value="1"<%= c.on ? ' checked' : '' %>>
+            <span><b><%= c.label %></b><br><span class="muted small"><%= c.text %></span></span>
+          </label>
+        <% }) %>
+      </fieldset>
+      <button class="btn btn-primary" type="submit">Save settings</button>
+    </form>
+
+    <section class="dash-card">
+      <h2>Always sent</h2>
+      <p class="muted small">These are part of something you asked for, so they can't be switched off.</p>
+      <ul><% prefs.essential.forEach(function (t) { %><li><%= t %></li><% }) %></ul>
+    </section>
+
+    <section class="dash-card">
+      <h2>Other channels</h2>
+      <ul>
+        <li><b>Text message and WhatsApp:</b> not used for notifications yet. <% if (viewer.as === 'candidate') { %>Whether recruiters may contact you this way is under <a href="/account/settings">Account settings</a>.<% } %></li>
+        <li><b>Browser notifications:</b> not available yet.</li>
+      </ul>
+    </section>
+
+    <% if (viewer.as === 'candidate') { %>
+      <section class="dash-card">
+        <div class="dash-head"><h2>Your job alerts</h2><a class="small" href="/account#alerts">Add or remove alerts</a></div>
+        <% if (!alerts.length) { %>
+          <p class="muted">No job alerts yet.</p>
+        <% } else { %>
+          <ul><% alerts.forEach(function (s) { %><li><%= s.category || 'All' %> jobs<%= s.location ? ' in ' + s.location : '' %></li><% }) %></ul>
+          <p class="muted small">You get at most one email per job, however many alerts it matches, and at most 10 job emails a day.</p>
+        <% } %>
+      </section>
+    <% } %>
+  </div>
+</section>
+
+<%- include('partials/foot') %>

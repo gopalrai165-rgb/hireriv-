@@ -64,7 +64,7 @@ test('registering creates a profile the team can see, and the welcome email open
   assert.equal(profile.source, 'account');
   assert.ok(profile.resume);
   assert.ok(profile.registeredAt);
-  await srv.waitForEmail((e) => e.includes('New candidate account: Neha Gupta'));
+  await srv.waitForEmail((e) => e.includes('Subject: New candidate account') && e.includes('Neha Gupta'));
 
   const cookie = await useLink(await nextEmail((e) => e.includes('To: neha@example.in') && e.includes('Welcome to'), seen));
   const html = await (await srv.request('/account', { cookie })).text();
@@ -98,7 +98,7 @@ test('one-click apply sends the saved profile and a copy of the resume', async (
   assert.equal(a.source, 'account');
   assert.ok(a.resume);
   assert.notEqual(a.resume, general('neha@example.in')[0].resume);
-  await srv.waitForEmail((e) => e.includes('New application: Neha Gupta for Full-Stack Developer'));
+  await srv.waitForEmail((e) => e.includes('New application for Full-Stack Developer') && e.includes('Neha Gupta'));
 
   // Applying twice is refused, and the job page says they've applied.
   const again = await srv.request('/account/apply/hr-101', { method: 'POST', cookie, form: {} });

@@ -30,6 +30,9 @@ const retentionModule = require('./retention');
 const backupsModule = require('./backups');
 const { paginate } = require('./paginate');
 const catalog = require('./catalog');
+const notifyModule = require('./notify');
+const notifyEvents = require('./notify-events');
+const notificationCenter = require('./notification-center');
 
 const PORT = process.env.PORT || 3004;
 const ADMIN_USER = process.env.ADMIN_USER || 'admin';
@@ -107,6 +110,19 @@ if (!db.metaGet('upgraded:categories-v2')) {
   db.metaSet('upgraded:categories-v2', new Date().toISOString());
 }
 const mailer = createMailer(site);
+
+// ---------- notifications ----------
+// One service for in-app notifications and email delivery (notify.js); which
+// events notify whom lives in notify-events.js. Its lookups run when an event
+// happens, so the modules registered further down are ready by then.
+const notify = notifyModule.create({ db });
+const events = notifyEvents.create({
+  notify, mailer, site, baseUrl: BASE_URL, db, readSubmissions: (t) => db.all(t), getJobs: () => jobs, formatIst: interviews.formatIst, interviewIcs, jobPath,
+  appOwner: (a) => appOwner(a), team: { byId: (id) => team.byId(id), members: () => team.members() }, clients: () => clients,
+  hasAccount: (email) => db.all('candidates').some((c) => c.email === String(email).toLowerCase()),
+});
+// Every stage move, from any screen, goes through history.moveStage.
+history.onMove((a, entry) => events.stageMoved(a, entry));
 
 // Posts are edited from /admin. The array is mutated in place so every route
 // keeps seeing the same list; savePosts() writes it back to the database.
@@ -210,9 +226,10 @@ function closeExpiredJobs() {
   const expired = jobs.filter((j) => j.status === 'open' && j.closesOn && j.closesOn < today);
   for (const j of expired) Object.assign(j, { status: 'closed', closedAt: new Date().toISOString(), closedReason: 'Closing date passed' });
   if (expired.length) saveJobs();
+  for (const j of expired) events.jobExpired(j);
   return expired.length;
 }
-closeExpiredJobs();
+setImmediate(closeExpiredJobs);
 setInterval(closeExpiredJobs, 60 * 60 * 1000).unref();
 const categoriesOf = (list) => [...new Set(list.map((j) => j.category))];
 // The category list from Settings, plus any older category a job still uses.
@@ -341,6 +358,8 @@ const upload = multer({
 
 // ---------- app ----------
 const app = express();
+// Unread notification counts for the header bells (notification-center.js).
+app.use((req, res, next) => center.locals(req, res, next));
 // Lets the header show "My account" and the page script keep saved jobs in the account.
 app.use((req, res, next) => {
   res.locals.candidateSignedIn = /(?:^|;\s*)hr_cand=/.test(req.headers.cookie || '') && Boolean(candidateAccounts.currentEmail(req));
@@ -352,7 +371,8 @@ app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 app.disable('x-powered-by');
 app.use(express.urlencoded({ extended: false, limit: '100kb' }));
-app.use(express.json({ limit: '100kb' }));
+// The email webhook's signature covers the exact bytes sent, so keep them.
+app.use(express.json({ limit: '100kb', verify: (req, res, buf) => { if (req.url.startsWith('/webhooks/')) req.rawBody = Buffer.from(buf); } }));
 // Security headers. The CSP only allows our own scripts (no inline JS), Google
 // Fonts for type, and never lets another site frame these pages.
 const CSP = [
@@ -442,7 +462,7 @@ app.use((req, res, next) => {
   Object.assign(res.locals, {
     canonical: BASE_URL + req.path,
     // Signed-in areas skip the public-site extras (newsletter band, WhatsApp button).
-    workspace: /^\/(admin|employer|account|feedback)(\/|$)/.test(req.path),
+    workspace: /^\/(admin|employer|account|feedback|notifications)(\/|$)/.test(req.path),
     ogImage: `${BASE_URL}/og/site.png?v=${og.siteVersion(site)}`,
     ogImageAlt: `${site.name}: ${site.tagline}`,
     metaDescription: `${site.name} – ${site.tagline}. Permanent, contract and executive staffing across Technology, Finance, BFSI, Sales, Marketing, Healthcare, Manufacturing, Logistics and more.`,
@@ -494,6 +514,7 @@ function setupTodo() {
   if (!b.legalName || !b.gstin || !b.bank) todo.push({ text: 'Add your legal name, GSTIN and bank details for invoices', href: settings });
   if (!process.env.SMTP_HOST) todo.push({ text: 'Set up email sending (SMTP_HOST). Until then emails are only saved to data/outbox' });
   if (process.env.NODE_ENV === 'production' && !process.env.SITE_URL) todo.push({ text: 'Set SITE_URL to your live https:// address' });
+  for (const problem of notify.problems()) todo.push({ text: `Email delivery: ${problem}`, href: '/admin/notifications' });
   const waitingJobs = jobs.filter((j) => j.status === 'pending').length;
   if (waitingJobs) todo.push({ text: `${waitingJobs} employer job${waitingJobs === 1 ? ' is' : 's are'} waiting for your review`, href: '/admin?tab=jobs' });
   const waitingClients = clients.read().filter((c) => c.active && c.selfSignup && c.emailVerifiedAt && !c.approvedAt).length;
@@ -745,7 +766,9 @@ app.get('/blog/:slug', (req, res, next) => {
 // phone when either application has no email. Someone who withdrew and comes
 // back gets a fresh application.
 const APPLICATION_FIELDS = ['name', 'email', 'phone', 'skills', 'experience', 'location', 'noticePeriod', 'linkedin', 'message'];
-async function saveApplication(data, file, job, extra = {}) {
+// `announce` sends the candidate's confirmation and the team's copy (forms the
+// candidate filled in themselves); the people working on a job always hear.
+async function saveApplication(data, file, job, extra = {}, { announce = false } = {}) {
   // Keep the resume text for searching, and its skills for matching. If the
   // candidate left "Key skills" empty, the skills found in the resume fill it.
   const resumeText = file ? await resumes.extractText(file.path, file.originalname) : '';
@@ -765,14 +788,20 @@ async function saveApplication(data, file, job, extra = {}) {
     }
     const now = new Date().toISOString();
     Object.assign(prev, { updatedAt: now, reapplied: [...(prev.reapplied || []), now].slice(-20) });
-    writeSubmissions('applications', list);
+    db.transaction(() => {
+      writeSubmissions('applications', list);
+      if (announce) events.applicationSubmitted(prev, job, { updated: true });
+    });
     return { app: prev, updated: true };
   }
   const record = { ...data, jobTitle: job ? job.title : 'General application', resume: file ? file.filename : '', resumeText, resumeSkills: found.skills, status: 'New', notes: '', ...extra };
   try {
-    const saved = saveSubmission('applications', record);
-    // The company's own job: tell the people working on it.
-    if (job) hiring.applied(saved, job);
+    const saved = db.transaction(() => {
+      const s = saveSubmission('applications', record);
+      if (announce) events.applicationSubmitted(s, job);
+      if (job) events.newApplication(s, job, (skillMatch(s, job) || {}).score);
+      return s;
+    });
     return { app: saved, updated: false };
   } catch (err) {
     // The database's one-application-per-person rule caught a duplicate the
@@ -806,13 +835,9 @@ app.post('/api/apply', limit('apply', 6), (req, res) => {
     }
     resumeCheck.vet(req.file).then((bad) => {
       if (bad) return respond(req, res, [bad]);
-      return saveApplication(data, req.file, job).then(({ app, updated }) => {
+      return saveApplication(data, req.file, job, {}, { announce: true }).then(({ updated }) => {
       const first = data.name.split(' ')[0];
-      if (updated) {
-        mailer.applicationUpdated(app);
-        return respond(req, res, [], `Thanks ${first}! You'd already applied for this job, so we've updated your application with your new details.`);
-      }
-      mailer.applicationReceived(app);
+      if (updated) return respond(req, res, [], `Thanks ${first}! You'd already applied for this job, so we've updated your application with your new details.`);
       respond(req, res, [], `Thanks ${first}! Your application is in. A recruiter will ${data.email ? 'contact you' : `call you on ${data.phone}`} within 2 working days.`);
       });
     }).catch((e) => {
@@ -845,7 +870,11 @@ app.post('/api/hire', limit('hire', 5), (req, res) => {
   if (isBot(req.body)) return respond(req, res, [], 'Thank you! Our client partner will be in touch.');
   const data = clean(req.body, ['company', 'name', 'email', 'phone', 'roles', 'headcount', 'hiringType', 'location', 'timeline', 'message']);
   const errors = validate(data, ['company', 'name', 'email', 'phone', 'roles']);
-  if (!errors.length) mailer.hireRequestReceived(saveSubmission('hire-requests', data));
+  if (!errors.length) {
+    const entry = saveSubmission('hire-requests', data);
+    mailer.hireRequestReceived(entry);
+    events.staffingRequest(entry);
+  }
   respond(req, res, errors, 'Thank you! Our client partner will call you within one working day to understand your hiring needs.');
 });
 
@@ -960,9 +989,7 @@ const alertMatches = (sub, job) =>
 function sendJobAlerts(job) {
   if (job.status !== 'open' || job.alertsSentAt || isSample(job)) return 0;
   job.alertsSentAt = new Date().toISOString();
-  const subs = readSubmissions('job-alerts').filter((s) => alertMatches(s, job));
-  for (const sub of subs) mailer.jobAlert(sub, job);
-  return subs.length;
+  return events.jobAlerts(job, readSubmissions('job-alerts').filter((s) => alertMatches(s, job)));
 }
 
 app.post('/api/job-alerts', limit('job-alerts', 5), (req, res) => {
@@ -971,6 +998,15 @@ app.post('/api/job-alerts', limit('job-alerts', 5), (req, res) => {
   const errors = validate(data, ['email']);
   if (data.category && !jobCategories().includes(data.category)) errors.push('category is invalid');
   if (data.location && !jobLocations().includes(data.location)) errors.push('location is invalid');
+  // Signed in as a candidate (and it's their own email): the alert is on at
+  // once, and the JSON reply includes it.
+  const own = candidateAccounts.currentEmail(req);
+  if (own && !errors.filter((e) => !/email/.test(e)).length && (!data.email || data.email.toLowerCase() === own)) {
+    const r = center.createAlert(own, data.category, data.location);
+    if (r.errors) return respond(req, res, r.errors);
+    if ((req.get('Accept') || '').includes('application/json')) return res.status(r.status).json({ ok: true, alert: { id: r.alert.id, category: r.alert.category || null, location: r.alert.location || null }, existed: Boolean(r.existed) });
+    return respond(req, res, [], r.existed ? 'You already have that job alert.' : 'Job alert on. Manage it in your account.');
+  }
   if (!errors.length) {
     const email = data.email.toLowerCase();
     const existing = readSubmissions('job-alerts').find((s) => s.email === email && s.category === data.category && s.location === data.location);
@@ -1076,12 +1112,12 @@ const ownerFilter = (req) => (['me', 'none'].includes(req.query.owner) ? req.que
 const matchesOwner = (ownerId, filter, user) => (filter === 'me' ? ownerId === user.id : filter === 'none' ? !ownerId : ownerId === filter);
 const validOwner = (id) => (team.members().some((u) => u.id === id) ? id : '');
 
-const interviewDesk = interviews.register(app, { adminAuth, sameOrigin, readSubmissions, writeSubmissions, mailer, site, adminUrl, baseUrl: BASE_URL, limit });
+const interviewDesk = interviews.register(app, { adminAuth, sameOrigin, readSubmissions, writeSubmissions, mailer, site, adminUrl, baseUrl: BASE_URL, limit, db, events });
 const clients = employers.register(app, {
   db, site, mailer, baseUrl: BASE_URL, adminAuth, sameOrigin, adminUrl, limit, downloadLinks, linkExpired,
   readSubmissions, saveSubmission, getJobs: () => jobs, appStatuses: APP_STATUSES,
   writeSubmissions, uploadsDir: UPLOADS_DIR, skillMatch, placementsFor: (emp) => billing.forClient(emp), timesheetsFor: (emp) => timesheets.forClient(emp),
-  sms: require('./sms'), companyContext: () => ({ cities: jobLocations().filter((l) => l !== 'Remote'), states: INDIAN_STATES }),
+  sms: require('./sms'), companyContext: () => ({ cities: jobLocations().filter((l) => l !== 'Remote'), states: INDIAN_STATES }), events, notify,
 });
 
 // "Post a Job": signed-in clients go to their portal's requirement form;
@@ -1095,13 +1131,13 @@ const hiring = employerHiring.register(app, {
   site, mailer, baseUrl: BASE_URL, limit, sameOrigin, adminAuth, adminUrl, clients, readSubmissions, writeSubmissions, saveSubmission, uploadsDir: UPLOADS_DIR, downloadLinks, linkExpired,
   getJobs: () => jobs, saveJobs, parseJob, nextJobId, todayIst, publicJob, jobPath, sendJobAlerts, alertedNote: (n) => alertedNote(n),
   appStatuses: APP_STATUSES, moveStage: history.moveStage, interviewDesk, parseInterview: interviews.parseInterview, interviewModes: interviews.MODES, interviewDurations: interviews.DURATIONS,
-  formatIst: interviews.formatIst, skillMatch,
+  formatIst: interviews.formatIst, skillMatch, events,
   jobFormLocals: (job, errors) => ({ job, errors, modes, jobTypes: JOB_TYPES, categoryGroups: groupCategories(jobCategories()), workKinds: WORK_KINDS, jobLocations: jobLocations() }),
 });
 // The applicant tracking on top of it: pipeline, notes, offers, scorecards, metrics.
 const atsDesk = employerAts.register(app, {
   site, mailer, baseUrl: BASE_URL, limit, sameOrigin, clients, hiring, readSubmissions, writeSubmissions, getJobs: () => jobs,
-  interviewDesk, moveStage: history.moveStage, formatIst: interviews.formatIst, todayIst,
+  interviewDesk, moveStage: history.moveStage, formatIst: interviews.formatIst, todayIst, events, db,
 });
 const billing = placements.register(app, {
   db, site, mailer, baseUrl: BASE_URL, adminAuth, requireAdmin, sameOrigin, adminUrl, readSubmissions, writeSubmissions,
@@ -1109,7 +1145,7 @@ const billing = placements.register(app, {
 });
 const templates = bulk.register(app, {
   db, site, mailer, adminAuth, requireAdmin, sameOrigin, adminUrl, readSubmissions, writeSubmissions,
-  getJobs: () => jobs, team, appStatuses: APP_STATUSES, uploadsDir: UPLOADS_DIR,
+  getJobs: () => jobs, team, appStatuses: APP_STATUSES, uploadsDir: UPLOADS_DIR, events,
 });
 const reports = reportsModule.create({ readSubmissions, getJobs: () => jobs, getPlacements: () => billing.read(), team, appOwner });
 const candidateAccounts = candidates.register(app, {
@@ -1118,8 +1154,21 @@ const candidateAccounts = candidates.register(app, {
   contractsFor: (email) => timesheets.forCandidate(email),
   upload, saveApplication, isBot, isSample, isLive, resumeNeeded, skillMatch, saveSubmission, jobCategories, jobLocations,
   vetUpload: resumeCheck.vet, downloadLinks, linkExpired, jobTypes: JOB_TYPES, modes, stateOf: search.stateOf,
-  interviewResponded: (...args) => atsDesk.interviewResponded(...args),
+  interviewResponded: (...args) => atsDesk.interviewResponded(...args), events, notify,
 });
+
+// The notification center, its API, preferences, job alerts and delivery reports.
+const center = notificationCenter.register(app, {
+  notify, team, clients: () => clients, candidates: () => candidateAccounts, getJobs: () => jobs, sameOrigin, limit, readSubmissions, writeSubmissions, saveSubmission,
+  jobCategories, jobLocations, adminAuth, requireAdmin, siteName: site.name,
+});
+// The worker sends queued emails (and retries failed ones); scheduled checks
+// find feedback that is due and offers about to expire; old records go.
+if (process.env.NOTIFY_WORKER !== 'off') notify.start();
+notify.prune();
+setInterval(notify.prune, 24 * 3600000).unref();
+setTimeout(() => events.scan(todayIst), 60 * 1000).unref();
+setInterval(() => events.scan(todayIst), 60 * 60 * 1000).unref();
 // Candidates who turned off "let recruiters find me" stay out of the Talent pool.
 const searchableApplications = (list) => {
   const hidden = candidateAccounts.hiddenFromSearch();
@@ -1514,14 +1563,20 @@ app.post('/admin/applications/:id/status', adminAuth, sameOrigin, (req, res, nex
   if (!entry) return next();
   const { status, notes, notify, ownerId } = clean(req.body, ['status', 'notes', 'notify', 'ownerId']);
   if (!APP_STATUSES.includes(status)) return res.status(400).send('Invalid status');
-  const changed = history.moveStage(entry, status, req.admin.name);
+  const changed = history.moveStage(entry, status, req.admin.name, undefined, { actor: 'team', userId: req.admin.id });
   Object.assign(entry, { notes, updatedAt: new Date().toISOString() });
   // "job" means follow the job's owner; otherwise a named team member.
+  const before = entry.ownerId || '';
   if (ownerId !== undefined && req.body.ownerId !== undefined) entry.ownerId = ownerId === 'job' ? '' : validOwner(ownerId) || entry.ownerId || '';
-  // Email the candidate only on a real stage change the recruiter opted into.
-  const emailed = changed && notify === '1' && mailer.statusChanged(entry);
-  if (emailed) entry.lastEmailedStatus = status;
-  writeSubmissions('applications', list);
+  let emailed = false;
+  db.transaction(() => {
+    // Email the candidate only on a real stage change the recruiter opted into.
+    emailed = changed && notify === '1' && events.statusEmail(entry);
+    if (emailed) entry.lastEmailedStatus = status;
+    writeSubmissions('applications', list);
+    const job = jobs.find((j) => j.id === entry.jobId);
+    if (job && entry.ownerId && entry.ownerId !== before) events.assigned(entry, job, entry.ownerId, req.admin.id);
+  });
   const back = req.body.filter && APP_STATUSES.includes(req.body.filter) ? `&status=${encodeURIComponent(req.body.filter)}` : '';
   res.redirect(adminUrl('applications', `${entry.name} moved to ${status}${emailed ? ' (candidate emailed)' : ''}`) + back);
 });

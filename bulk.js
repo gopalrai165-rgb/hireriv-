@@ -44,7 +44,7 @@ const DEFAULT_TEMPLATES = [
 ];
 
 function register(app, deps) {
-  const { db, site, mailer, adminAuth, requireAdmin, sameOrigin, adminUrl, readSubmissions, writeSubmissions, getJobs, team, appStatuses, uploadsDir } = deps;
+  const { db, site, mailer, adminAuth, requireAdmin, sameOrigin, adminUrl, readSubmissions, writeSubmissions, getJobs, team, appStatuses, uploadsDir, events } = deps;
 
   // ---------- templates ----------
   const read = () => {
@@ -138,15 +138,17 @@ function register(app, deps) {
       if (!appStatuses.includes(value)) return res.redirect(backTo(req, 'Choose a stage'));
       let moved = 0;
       let emailed = 0;
-      for (const a of chosen) {
-        if (!moveStage(a, value, req.admin.name, now)) continue;
-        moved++;
-        if (req.body.notify === '1' && !a.withdrawnAt && mailer.statusChanged(a)) {
-          a.lastEmailedStatus = value;
-          emailed++;
+      db.transaction(() => {
+        for (const a of chosen) {
+          if (!moveStage(a, value, req.admin.name, now, { actor: 'team', userId: req.admin.id })) continue;
+          moved++;
+          if (req.body.notify === '1' && events.statusEmail(a)) {
+            a.lastEmailedStatus = value;
+            emailed++;
+          }
         }
-      }
-      writeSubmissions('applications', list);
+        writeSubmissions('applications', list);
+      });
       const skipped = chosen.length - moved;
       return res.redirect(backTo(req, `Moved ${moved} to ${value}${emailed ? ` · ${emailed} emailed` : ''}${skipped ? ` · ${skipped} already there` : ''}`));
     }
@@ -155,7 +157,10 @@ function register(app, deps) {
       const member = team.members().find((u) => u.id === value);
       if (value !== 'job' && !member) return res.redirect(backTo(req, 'Choose a team member'));
       for (const a of chosen) Object.assign(a, { ownerId: member ? member.id : '', updatedAt: now });
-      writeSubmissions('applications', list);
+      db.transaction(() => {
+        writeSubmissions('applications', list);
+        if (member) for (const a of chosen) { const job = getJobs().find((j) => j.id === a.jobId); if (job) events.assigned(a, job, member.id, req.admin.id); }
+      });
       return res.redirect(backTo(req, member ? `Assigned ${chosen.length} to ${member.name}` : `${chosen.length} now follow their job's recruiter`));
     }
 

@@ -29,8 +29,7 @@ const PROFILE_FIELDS = ['name', 'phone', 'skills', 'experience', 'location', 'no
 const { EXPERIENCE, NOTICE } = cp;
 
 // What candidates see instead of internal pipeline names.
-// What candidates see. Shortlisted and On hold are internal decisions, shown as "Under review".
-const CANDIDATE_STAGE = { New: 'Received', Screening: 'Under review', Shortlisted: 'Under review', 'On hold': 'Under review', Interview: 'Interview', Offered: 'Offer', Hired: 'Hired', Rejected: 'Not selected' };
+const CANDIDATE_STAGE = require('./ats').CANDIDATE_LABELS;
 const STEPS = ['Received', 'Under review', 'Interview', 'Offer', 'Hired'];
 // Shown in Settings → Recent activity.
 const ACTIVITY_LABELS = {
@@ -54,7 +53,7 @@ function parseCookies(header) {
 
 // Where to go after signing in: only pages on this site that a candidate uses.
 // Anything else (other sites, "//host", backslashes, sign-in pages) is dropped.
-const NEXT_PREFIXES = ['/account', '/jobs', '/saved', '/candidate'];
+const NEXT_PREFIXES = ['/account', '/jobs', '/saved', '/candidate', '/notifications'];
 function safeNext(value) {
   const s = String(value || '');
   if (!s || s.length > 300 || s[0] !== '/' || s.startsWith('//') || /[\\\s\x00-\x1f]/.test(s)) return '';
@@ -76,7 +75,7 @@ function passwordProblem(pw, confirm) {
 function register(app, deps) {
   const { db, mailer, baseUrl, sameOrigin, limit, readSubmissions, writeSubmissions, uploadsDir, getJobs, interviewIcs, site, contractsFor } = deps;
   const { upload, saveApplication, isBot, isSample, isLive, resumeNeeded, skillMatch, saveSubmission, jobCategories, jobLocations, vetUpload, downloadLinks, linkExpired } = deps;
-  const { jobTypes, modes, stateOf, interviewResponded } = deps;
+  const { jobTypes, modes, stateOf, interviewResponded, events, notify } = deps;
   const secureCookie = /^https:/.test(baseUrl);
 
   const mine = (email) => readSubmissions('applications').filter((a) => String(a.email).toLowerCase() === email);
@@ -438,6 +437,7 @@ function register(app, deps) {
     startSession(res, c.email);
     activity(c.email, 'password-reset');
     mailer.candidatePasswordChanged(c.email, 'reset');
+    events.accountSecurity(c.email, 'Password reset', 'Your password was reset with an email link. Wasn\'t you? Reset it again and tell us.');
     back(res, 'New password saved. You are signed in.');
   });
 
@@ -660,9 +660,8 @@ function register(app, deps) {
         if (resumeNeeded(job)) return toJob("We couldn't find your resume. Upload it again in My account.");
       }
     }
-    saveApplication(data, file, job, { oneClick: true })
-      .then(({ app: a }) => {
-        mailer.applicationReceived(a);
+    saveApplication(data, file, job, { oneClick: true }, { announce: true })
+      .then(() => {
         back(res, `Applied for ${job.title}. A recruiter will be in touch within 2 working days.`);
       })
       .catch((e) => {
@@ -770,6 +769,7 @@ function register(app, deps) {
     startSession(res, c.email);
     activity(c.email, `password-${what}`);
     mailer.candidatePasswordChanged(c.email, what);
+    events.accountSecurity(c.email, `Password ${what}`, 'You were signed out on your other devices. Wasn\'t you? Reset your password straight away.');
     back(res, what === 'set' ? 'Password saved. You can now sign in with it, or keep using email links.' : 'Password changed. You were signed out on your other devices.', '/account/settings');
   });
   app.post('/account/settings', requireCandidate, limit('account-settings', 20), sameOrigin, (req, res) => {
@@ -836,6 +836,8 @@ function register(app, deps) {
       savedJobs: savedOf(email).map((s) => ({ jobId: s.jobId, savedAt: s.createdAt })),
       jobAlerts: subs('job-alerts').map((s) => ({ category: s.category || 'Any', location: s.location || 'Any', confirmed: Boolean(s.confirmed), since: s.createdAt })),
       newsletter: subs('newsletter').map((s) => ({ since: s.createdAt })),
+      notifications: notify.list({ rk: notify.candidateRk(email) }, { limit: 1000 }).items.map((n) => ({ at: n.createdAt, title: n.title, text: n.body, readAt: n.readAt })),
+      notificationSettings: notify.prefsOf(notify.candidateRk(email)),
       accountActivity: readSubmissions('candidate-activity').filter((e) => e.email === email).map((e) => ({ at: e.createdAt, event: ACTIVITY_LABELS[e.event] || e.event })),
     };
     res.set('Cache-Control', 'no-store').attachment(`my-data-${new Date().toISOString().slice(0, 10)}.json`).type('application/json').send(JSON.stringify(data, null, 2));
@@ -878,10 +880,14 @@ function register(app, deps) {
     }
     for (const kind of ['candidate', 'candidate-link', 'candidate-reset']) db.sessions.deleteSubject(kind, email);
     failures.delete(email);
+    notify.forget(notify.candidateRk(email));
   }
   app.post('/account/delete', requireCandidate, limit('account-delete', 5), sameOrigin, (req, res) => {
     if (String(req.body.confirm || '').trim().toUpperCase() !== 'DELETE') return back(res, 'Type DELETE to confirm deleting your data.', '/account/settings');
-    deleteEverything(req.candidateEmail);
+    const email = req.candidateEmail;
+    deleteEverything(email);
+    // The confirmation goes straight out: nothing about them is kept to queue it.
+    mailer.accountDeleted(email);
     res.clearCookie(COOKIE, { path: '/' });
     loginPage(res, { title: 'Your data has been deleted', deleted: true });
   });

@@ -48,7 +48,7 @@
           <a href="/employer/register" class="nav-login-extra">New employer? Create an account</a>
         </div>
       </details>
-      <% if (typeof candidateSignedIn !== 'undefined' && candidateSignedIn) { %><a href="/account" class="nav-register <%= page === 'account' ? 'active' : '' %>">My account</a><% } else { %><a href="/account/register" class="nav-register <%= page === 'account' ? 'active' : '' %>">Register</a><% } %>
+      <% if (typeof candidateSignedIn !== 'undefined' && candidateSignedIn) { %><%- include('notification-bell', { as: 'candidate', bellQuery: '?as=candidate' }) %><a href="/account" class="nav-register <%= page === 'account' ? 'active' : '' %>">My account</a><% } else { %><a href="/account/register" class="nav-register <%= page === 'account' ? 'active' : '' %>">Register</a><% } %>
       <a href="/post-a-job" class="btn btn-primary btn-sm nav-cta">Post a Job</a>
     </nav>
     <a href="/saved" class="mobile-saved" aria-label="Saved jobs"><svg class="i"><use href="#i-bookmark"/></svg><span class="saved-count" hidden></span></a>

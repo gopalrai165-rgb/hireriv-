@@ -21,8 +21,13 @@ const mode = SMTP_HOST ? `SMTP (${SMTP_HOST})` : 'outbox (data/outbox, set SMTP_
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
-function layout(site, heading, bodyHtml) {
-  return `<!doctype html><html><body style="margin:0;background:#f3f7fb;font-family:Arial,Helvetica,sans-serif;color:#16243d">
+// One responsive layout for every email: a single 560px column that shrinks to
+// the screen on phones, the Hireriv header, and the footer. `preheader` is the
+// preview line mail apps show after the subject; `footer` says why the person
+// got the email and where to change their settings.
+function layout(site, heading, bodyHtml, { preheader = '', footer = '' } = {}) {
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="x-apple-disable-message-reformatting"><title>${esc(heading)}</title></head><body style="margin:0;background:#f3f7fb;font-family:Arial,Helvetica,sans-serif;color:#16243d">
+<div style="display:none;max-height:0;overflow:hidden;mso-hide:all">${esc(preheader || heading)}</div>
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:28px 12px">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#fff;border-radius:14px;overflow:hidden">
 <tr><td style="background:#0b1b34;padding:18px 28px;color:#fff;font-size:20px;font-weight:bold">Hire<span style="color:#2dd4bf">riv</span></td></tr>
@@ -30,7 +35,8 @@ function layout(site, heading, bodyHtml) {
 <h1 style="font-size:20px;margin:0 0 16px">${esc(heading)}</h1>
 ${bodyHtml}
 </td></tr>
-<tr><td style="padding:16px 28px;background:#f3f7fb;color:#6b7690;font-size:12px">${esc(site.name)} · ${esc(site.phone)} · ${esc(site.email)}</td></tr>
+${footer ? `<tr><td style="padding:14px 28px 0;color:#6b7690;font-size:12px;line-height:1.5">${footer}</td></tr>` : ''}
+<tr><td style="padding:16px 28px;background:#f3f7fb;color:#6b7690;font-size:12px">${esc(site.name)} by Raigozen · ${esc(site.phone)} · ${esc(site.email)}</td></tr>
 </table></td></tr></table></body></html>`;
 }
 
@@ -52,8 +58,8 @@ const button = (href, label) =>
 // Plain-text version of an email body, sent alongside the HTML. Text-only mail
 // apps show it, and spam filters treat HTML-only mail with more suspicion.
 const ENTITIES = { '&amp;': '&', '&lt;': '<', '&gt;': '>', '&quot;': '"', '&#39;': "'", '&nbsp;': ' ' };
-function toText(site, heading, html) {
-  const body = String(html)
+function htmlToText(html) {
+  return String(html)
     .replace(/<tr>\s*<td[^>]*>([\s\S]*?)<\/td>\s*<td[^>]*>([\s\S]*?)<\/td>\s*<\/tr>/g, '$1: $2\n') // details rows
     .replace(/<a\b[^>]*href="([^"]*)"[^>]*>([\s\S]*?)<\/a>/g, (m, href, label) => {
       const text = label.replace(/<[^>]+>/g, '').trim();
@@ -66,7 +72,10 @@ function toText(site, heading, html) {
     .replace(/[ \t]+\n/g, '\n')
     .replace(/\n{3,}/g, '\n\n')
     .trim();
-  return `${heading}\n\n${body}\n\n--\n${site.name} · ${site.phone} · ${site.email}\n`;
+}
+function toText(site, heading, html, footer = '') {
+  const foot = footer ? `\n\n${htmlToText(footer)}` : '';
+  return `${heading}\n\n${htmlToText(html)}${foot}\n\n--\n${site.name} · ${site.phone} · ${site.email}\n`;
 }
 
 // Outbox files are named in the order emails were sent (not the order the
@@ -74,9 +83,10 @@ function toText(site, heading, html) {
 let sent = 0;
 
 // Never let a mail failure break a form submission; log it and move on.
-// Resolves true once the email is handed over (or saved to the outbox), false
-// when there is no address or sending failed.
-async function send(site, { to, subject, heading, html, replyTo, headers, icalEvent }) {
+// Resolves to the message id once the email is handed over (or saved to the
+// outbox), so delivery reports can be matched to it; false when there is no
+// address or sending failed.
+async function send(site, { to, subject, heading, html, replyTo, headers, icalEvent, preheader, footer }) {
   if (!to) return false;
   const order = `${Date.now()}-${String(++sent).padStart(6, '0')}`;
   try {
@@ -85,8 +95,8 @@ async function send(site, { to, subject, heading, html, replyTo, headers, icalEv
       to,
       replyTo,
       subject: subject.replace(/[\r\n]+/g, ' '),
-      html: layout(site, heading, html),
-      text: toText(site, heading, html),
+      html: layout(site, heading, html, { preheader, footer }),
+      text: toText(site, heading, html, footer),
       headers,
       icalEvent,
     });
@@ -95,7 +105,7 @@ async function send(site, { to, subject, heading, html, replyTo, headers, icalEv
       const safe = subject.replace(/[^a-z0-9]+/gi, '-').slice(0, 50).toLowerCase();
       fs.writeFileSync(path.join(OUTBOX_DIR, `${order}-${safe}.eml`), info.message);
     }
-    return true;
+    return info.messageId || true;
   } catch (err) {
     console.error(`Email "${subject}" to ${to} failed:`, err.message);
     return false;
@@ -106,15 +116,19 @@ function createMailer(site) {
   const teamInbox = NOTIFY_EMAIL || site.email;
   const baseUrl = (SITE_URL || `http://localhost:${process.env.PORT || 3004}`).replace(/\/$/, '');
   const first = (name) => esc(String(name).split(' ')[0]);
+  // "You're getting this because…" with a link to notification settings.
+  const manageFooter = (what, account = true) =>
+    `You're getting this email about ${esc(what)}${account ? ` because of your notification settings. <a href="${esc(baseUrl)}/notifications/settings" style="color:#6b7690">Change what we email you</a>.` : '.'}`;
 
   return {
     mode,
 
-    applicationReceived(a) {
-      send(site, {
+    // The team's copy of a new application.
+    applicationToTeam(a) {
+      return send(site, {
         to: teamInbox,
         replyTo: a.email,
-        subject: `New application: ${a.name} for ${a.jobTitle}`,
+        subject: `New application for ${a.jobTitle}`,
         heading: 'New job application',
         html:
           detailsTable([
@@ -123,7 +137,11 @@ function createMailer(site) {
             ['LinkedIn', a.linkedin], ['Message', a.message],
           ]) + button(`${baseUrl}/admin?tab=applications`, 'Review in admin'),
       });
-      send(site, {
+    },
+
+    // The candidate's confirmation.
+    applicationConfirmation(a) {
+      return send(site, {
         to: a.email,
         subject: `We've received your application: ${a.jobTitle}`,
         heading: `Thanks for applying, ${String(a.name).split(' ')[0]}!`,
@@ -136,18 +154,21 @@ function createMailer(site) {
     },
 
     // The same person applied for the same job again; their application was updated.
-    applicationUpdated(a) {
-      send(site, {
+    applicationUpdatedToTeam(a) {
+      return send(site, {
         to: teamInbox,
         replyTo: a.email,
-        subject: `Updated application: ${a.name} for ${a.jobTitle}`,
+        subject: `Updated application for ${a.jobTitle}`,
         heading: 'A candidate updated their application',
         html:
           p(`${esc(a.name)} applied again for <b>${esc(a.jobTitle)}</b>, so their existing application now has the new resume and details. Its stage (<b>${esc(a.status || 'New')}</b>), notes and history are unchanged.`) +
           detailsTable([['Phone', a.phone], ['Skills', a.skills], ['Experience', a.experience], ['Location', a.location], ['Notice period', a.noticePeriod], ['Message', a.message]]) +
           button(`${baseUrl}/admin?tab=applications`, 'Review in admin'),
       });
-      send(site, {
+    },
+
+    applicationUpdatedConfirmation(a) {
+      return send(site, {
         to: a.email,
         subject: `We've updated your application: ${a.jobTitle}`,
         heading: `Thanks, ${first(a.name)}`,
@@ -158,7 +179,7 @@ function createMailer(site) {
     },
 
     hireRequestReceived(h) {
-      send(site, {
+      return send(site, {
         to: teamInbox,
         replyTo: h.email,
         subject: `New hiring request: ${h.company} (${h.roles})`,
@@ -173,7 +194,7 @@ function createMailer(site) {
     },
 
     contactReceived(c) {
-      send(site, {
+      return send(site, {
         to: teamInbox,
         replyTo: c.email,
         subject: `New message${c.subject ? `: ${c.subject}` : ''} from ${c.name}`,
@@ -204,10 +225,10 @@ function createMailer(site) {
 
     // The interviewer's briefing: what, when, and their private scorecard link.
     interviewerBriefing(email, a, iv, when, link) {
-      send(site, {
+      return send(site, {
         to: email,
         replyTo: teamInbox,
-        subject: `Interview: ${a.name} for ${a.jobTitle}, ${when}`,
+        subject: `Interview for ${a.jobTitle}, ${when}`,
         heading: `You're interviewing ${String(a.name).split(' ')[0]}`,
         html:
           p(`Thanks for interviewing for <b>${esc(a.jobTitle)}</b>. Here are the details. Afterwards, please share your feedback using the button below. It takes about a minute.`) +
@@ -221,7 +242,7 @@ function createMailer(site) {
     interviewReminder(a, iv, when, kind) {
       const joinLink = /^https?:\/\//.test(iv.where) ? iv.where : '';
       const soon = kind === 'hour';
-      send(site, {
+      return send(site, {
         to: a.email,
         replyTo: teamInbox,
         subject: `${soon ? 'Starting soon' : 'Tomorrow'}: your interview for ${a.jobTitle}, ${when}`,
@@ -236,10 +257,10 @@ function createMailer(site) {
 
     interviewerReminder(email, a, iv, when, kind) {
       const joinLink = /^https?:\/\//.test(iv.where) ? iv.where : '';
-      send(site, {
+      return send(site, {
         to: email,
         replyTo: teamInbox,
-        subject: `${kind === 'hour' ? 'Starting soon' : 'Tomorrow'}: interview with ${a.name} for ${a.jobTitle}, ${when}`,
+        subject: `${kind === 'hour' ? 'Starting soon' : 'Tomorrow'}: interview for ${a.jobTitle}, ${when}`,
         heading: kind === 'hour' ? 'Your interview starts in about an hour' : 'A reminder about your interview',
         html:
           detailsTable([['Candidate', a.name], ['Role', a.jobTitle], ['When', when], ['Duration', `${iv.duration} minutes`], ['Format', iv.mode], [iv.mode === 'In person' ? 'Address' : iv.mode === 'Phone' ? 'Phone' : 'Link', iv.where]]) +
@@ -249,9 +270,9 @@ function createMailer(site) {
     },
 
     interviewFeedbackReceived(a, iv, fb, by, link) {
-      send(site, {
+      return send(site, {
         to: teamInbox,
-        subject: `Interview feedback: ${a.name} – ${fb.recommendation} (${fb.rating}/5)`,
+        subject: `Interview feedback for ${a.jobTitle}`,
         heading: `Feedback on ${a.name}`,
         html:
           detailsTable([['Candidate', `${a.name} (${a.jobTitle})`], ['Interviewer', by], ['Rating', `${fb.rating} / 5`], ['Recommendation', fb.recommendation], ['Strengths', fb.strengths], ['Concerns', fb.concerns]]) +
@@ -274,7 +295,7 @@ function createMailer(site) {
 
     teamInvite(user, by, link, hours) {
       const reset = Boolean(user.passwordHash);
-      send(site, {
+      return send(site, {
         to: user.email,
         replyTo: teamInbox,
         subject: reset ? `Reset your ${site.name} team password` : `${by.name} invited you to the ${site.name} team`,
@@ -290,7 +311,7 @@ function createMailer(site) {
 
     // Two-step sign-in changes, so someone notices if it wasn't them.
     teamSecurityNotice(user, subject, message) {
-      send(site, {
+      return send(site, {
         to: user.email,
         replyTo: teamInbox,
         subject: `${site.name}: ${subject}`,
@@ -301,7 +322,7 @@ function createMailer(site) {
 
     // ---------- employer self-signup ----------
     employerVerify(emp, link, hours) {
-      send(site, {
+      return send(site, {
         to: emp.email,
         replyTo: teamInbox,
         subject: `Confirm your email for ${site.name}`,
@@ -316,7 +337,7 @@ function createMailer(site) {
 
     // Someone tried to register an email that already has an employer account.
     employerAlreadyRegistered(emp) {
-      send(site, {
+      return send(site, {
         to: emp.email,
         replyTo: teamInbox,
         subject: `You already have a ${site.name} employer account`,
@@ -329,7 +350,7 @@ function createMailer(site) {
     },
 
     employerSignedUp(emp, adminLink) {
-      send(site, {
+      return send(site, {
         to: teamInbox,
         replyTo: emp.email,
         subject: `New employer sign-up to approve: ${emp.company}`,
@@ -343,7 +364,7 @@ function createMailer(site) {
     },
 
     employerApproved(emp) {
-      send(site, {
+      return send(site, {
         to: emp.email,
         replyTo: teamInbox,
         subject: `${emp.company} is approved on ${site.name}`,
@@ -355,7 +376,7 @@ function createMailer(site) {
     },
 
     employerRejected(emp, reason) {
-      send(site, {
+      return send(site, {
         to: emp.email,
         replyTo: teamInbox,
         subject: `About your ${site.name} employer account`,
@@ -368,7 +389,7 @@ function createMailer(site) {
     },
 
     employerJobSubmitted(job, emp, approved, isChange) {
-      send(site, {
+      return send(site, {
         to: teamInbox,
         replyTo: emp.email,
         subject: `${isChange ? 'Changed job' : 'Job'} to review: ${job.title} (${emp.company})`,
@@ -381,7 +402,7 @@ function createMailer(site) {
     },
 
     employerJobDecision(emp, job, approved, reason, link) {
-      send(site, {
+      return send(site, {
         to: emp.email,
         replyTo: teamInbox,
         subject: approved ? `Your job is live: ${job.title}` : `Changes needed: ${job.title}`,
@@ -394,7 +415,7 @@ function createMailer(site) {
 
     // Someone with a login was given access to another company.
     employerMemberAdded(who, role, link, by) {
-      send(site, {
+      return send(site, {
         to: who.email,
         replyTo: teamInbox,
         subject: `You now have access to ${who.company} on ${site.name}`,
@@ -407,7 +428,7 @@ function createMailer(site) {
 
     // A company owner invited a new team member.
     employerTeamInvite(who, role, by, link, hours) {
-      send(site, {
+      return send(site, {
         to: who.email,
         replyTo: teamInbox,
         subject: `${by} invited you to ${who.company} on ${site.name}`,
@@ -420,7 +441,7 @@ function createMailer(site) {
     },
 
     employerVerificationRequested(emp, user, adminLink) {
-      send(site, {
+      return send(site, {
         to: teamInbox,
         replyTo: user.email,
         subject: `Company to verify: ${emp.company}`,
@@ -435,7 +456,7 @@ function createMailer(site) {
 
     // A verified company changed its name or registration numbers.
     employerDetailsChanged(emp, user, fields, adminLink) {
-      send(site, {
+      return send(site, {
         to: teamInbox,
         replyTo: user.email,
         subject: `Verified company changed its details: ${emp.company}`,
@@ -450,6 +471,7 @@ function createMailer(site) {
     // Someone applied to a job the employer manages themselves.
     employerNewApplication(who, a, link) {
       return send(site, {
+        footer: manageFooter('new applications', true),
         to: who.email,
         replyTo: teamInbox,
         subject: `New applicant for ${a.jobTitle}`,
@@ -463,15 +485,74 @@ function createMailer(site) {
     // The candidate confirmed an interview or asked for another time.
     interviewResponse(who, a, iv, when, confirmed, note, link) {
       return send(site, {
+        footer: who.inbox ? '' : manageFooter('answers to interview invitations', true),
         to: who.email,
         replyTo: teamInbox,
-        subject: `${confirmed ? 'Interview confirmed' : 'New time requested'}: ${a.name} for ${a.jobTitle}`,
+        subject: `${confirmed ? 'Interview confirmed' : 'New time requested'} for ${a.jobTitle}`,
         heading: confirmed ? 'Interview confirmed' : 'The candidate asked for another time',
         html:
           p(`Hi ${first(who.name)}, <b>${esc(a.name)}</b> ${confirmed ? 'confirmed' : "can't make"} the interview for <b>${esc(a.jobTitle)}</b> on <b>${esc(when)}</b>.`) +
           (note ? p(`Their note: “${esc(note)}”`) : '') +
           (confirmed ? '' : p('Cancel it and book a new time that suits them.')) +
           button(link, 'Open the applicant'),
+      });
+    },
+
+    // The interview moved: the calendar entry updates in place (same UID, higher sequence).
+    interviewRescheduled(a, iv, ics, when, previous) {
+      const joinLink = /^https?:\/\//.test(iv.where) ? iv.where : '';
+      return send(site, {
+        to: a.email,
+        replyTo: teamInbox,
+        subject: `Interview moved: ${a.jobTitle}, now ${when}`,
+        heading: 'Your interview has a new time',
+        icalEvent: { method: 'REQUEST', filename: 'interview.ics', content: ics },
+        html:
+          p(`Hi ${first(a.name)}, your interview for <b>${esc(a.jobTitle)}</b>${previous ? ` (was ${esc(previous)})` : ''} is now at the time below. Your calendar entry has been updated.`) +
+          detailsTable([['When', when], ['Duration', `${iv.duration} minutes`], ['Format', iv.mode], [iv.mode === 'In person' ? 'Address' : iv.mode === 'Phone' ? 'Phone' : 'Link', iv.where], ['Interviewer', iv.interviewer]]) +
+          (joinLink ? button(joinLink, 'Join the interview') : '') +
+          p(`Please confirm the new time, or ask for another one, in <a href="${esc(baseUrl)}/account/interviews" style="color:#123B70">your account</a>.`),
+      });
+    },
+
+    // The offer's respond-by date is close and the candidate hasn't answered.
+    offerDeadline(a, company, offer) {
+      return send(site, {
+        to: a.email,
+        replyTo: teamInbox,
+        subject: `Reminder: please reply to your offer for ${a.jobTitle}`,
+        heading: 'Your offer is waiting for your answer',
+        html:
+          p(`Hi ${first(a.name)}, <b>${esc(company)}</b> asked for your answer to their offer for <b>${esc(a.jobTitle)}</b> by <b>${esc(offer.respondBy)}</b>.`) +
+          p('Tell the company whether you accept, or ask them for more time if you need it.') +
+          p(`<span style="color:#6b7690;font-size:13px">A genuine employer never asks you to pay for an offer, joining, training or a uniform. If anyone does, report it to ${esc(site.email)}.</span>`),
+      });
+    },
+
+    // A short notice for employer people and the team, mirroring an in-app
+    // notification: what happened, a few details, and a link to act on it.
+    notice(who, { subject, heading, intro, rows = [], link, label = 'Open', why }) {
+      return send(site, {
+        to: who.email,
+        replyTo: teamInbox,
+        subject,
+        heading,
+        preheader: intro,
+        footer: why ? manageFooter(why, who.kind !== 'team') : '',
+        html: p(`Hi ${first(who.name)}, ${esc(intro)}`) + detailsTable(rows) + (link ? button(link, label) : ''),
+      });
+    },
+
+    // Confirms a privacy request: the candidate's data was deleted.
+    accountDeleted(email) {
+      return send(site, {
+        to: email,
+        subject: `Your ${site.name} data has been deleted`,
+        heading: 'Your data has been deleted',
+        html:
+          p('As you asked, we deleted your job-seeker account and everything in it: your profile, applications, resumes, job alerts, saved jobs, notifications and account activity.') +
+          p(`Invoices and placement records that Indian tax law requires us to keep are not affected. Questions? Reply to this email or write to ${esc(site.email)}.`) +
+          p(`<span style="color:#6b7690;font-size:13px">Didn't ask for this? Reply to this email straight away.</span>`),
       });
     },
 
@@ -491,7 +572,7 @@ function createMailer(site) {
     },
 
     employerInvite(emp, link, hours) {
-      send(site, {
+      return send(site, {
         to: emp.email,
         replyTo: teamInbox,
         subject: `Your ${site.name} client portal is ready`,
@@ -504,7 +585,7 @@ function createMailer(site) {
     },
 
     candidateShared(emp, a, link) {
-      send(site, {
+      return send(site, {
         to: emp.email,
         replyTo: teamInbox,
         subject: `New candidate for ${a.jobTitle}: ${a.name}`,
@@ -519,7 +600,7 @@ function createMailer(site) {
     },
 
     clientFeedback(emp, a, fb, link) {
-      send(site, {
+      return send(site, {
         to: teamInbox,
         replyTo: emp.email,
         subject: `${emp.company}: ${fb.decision} – ${a.name} (${a.jobTitle})`,
@@ -533,7 +614,7 @@ function createMailer(site) {
     invoiceIssued(emp, inv, link) {
       const money = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(inv.total);
       const due = new Date(`${inv.dueDate}T00:00:00Z`).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
-      send(site, {
+      return send(site, {
         to: emp.email,
         replyTo: teamInbox,
         subject: `Invoice ${inv.number} from ${site.name} – ${money}`,
@@ -548,7 +629,7 @@ function createMailer(site) {
 
     // To the client's portal contact, or the team when the client isn't on the portal.
     timesheetSubmitted(client, pl, ts, total, week, link) {
-      send(site, {
+      return send(site, {
         to: client ? client.email : teamInbox,
         replyTo: client ? teamInbox : undefined,
         subject: `Timesheet to approve: ${pl.candidateName}, ${week}`,
@@ -564,7 +645,7 @@ function createMailer(site) {
 
     timesheetReviewed(pl, ts, total, week, link) {
       const ok = ts.status === 'Approved';
-      send(site, {
+      return send(site, {
         to: pl.candidateEmail,
         replyTo: teamInbox,
         subject: `Timesheet ${ok ? 'approved' : 'needs changes'}: ${week}`,
@@ -581,7 +662,7 @@ function createMailer(site) {
     invoiceReminder(emp, inv, balance, daysOverdue, link) {
       const money = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(balance);
       const due = new Date(`${inv.dueDate}T00:00:00Z`).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
-      send(site, {
+      return send(site, {
         to: emp.email,
         replyTo: teamInbox,
         subject: `Payment reminder: invoice ${inv.number} – ${money} ${daysOverdue ? 'overdue' : 'due'}`,
@@ -596,7 +677,7 @@ function createMailer(site) {
 
     creditNoteIssued(emp, inv, cn, link) {
       const money = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(cn.total);
-      send(site, {
+      return send(site, {
         to: emp.email,
         replyTo: teamInbox,
         subject: `Credit note ${cn.number} from ${site.name} – ${money}`,
@@ -610,7 +691,7 @@ function createMailer(site) {
     },
 
     employerReset(emp, link, hours) {
-      send(site, {
+      return send(site, {
         to: emp.email,
         replyTo: teamInbox,
         subject: `Reset your ${site.name} client portal password`,
@@ -629,7 +710,7 @@ function createMailer(site) {
         send(site, {
           to: teamInbox,
           replyTo: a.email,
-          subject: `New candidate account: ${a.name}`,
+          subject: 'New candidate account',
           heading: 'A job seeker created an account',
           html:
             detailsTable([
@@ -638,7 +719,7 @@ function createMailer(site) {
             ]) + button(`${baseUrl}/admin?tab=applications`, 'See in admin'),
         });
       }
-      send(site, {
+      return send(site, {
         to: a.email,
         subject: `Welcome to ${site.name}: open your account`,
         heading: `Welcome, ${first(a.name)}!`,
@@ -652,7 +733,7 @@ function createMailer(site) {
 
     // Someone flagged a job listing as suspicious or misleading.
     jobReported(r) {
-      send(site, {
+      return send(site, {
         to: teamInbox,
         ...(r.email ? { replyTo: r.email } : {}),
         subject: `Job reported: ${r.jobTitle} (${r.reason})`,
@@ -666,7 +747,7 @@ function createMailer(site) {
     },
 
     candidateSignIn(email, link, minutes) {
-      send(site, {
+      return send(site, {
         to: email,
         subject: `Your ${site.name} sign-in link`,
         heading: 'Sign in to your account',
@@ -678,7 +759,7 @@ function createMailer(site) {
     },
 
     candidatePasswordReset(email, link, minutes) {
-      send(site, {
+      return send(site, {
         to: email,
         subject: `Reset your ${site.name} password`,
         heading: 'Choose a new password',
@@ -691,7 +772,7 @@ function createMailer(site) {
 
     // A security notice whenever the password is set, changed or reset.
     candidatePasswordChanged(email, what) {
-      send(site, {
+      return send(site, {
         to: email,
         subject: `Your ${site.name} password was ${what}`,
         heading: `Password ${what}`,
@@ -702,10 +783,10 @@ function createMailer(site) {
     },
 
     applicationWithdrawn(a) {
-      send(site, {
+      return send(site, {
         to: teamInbox,
         replyTo: a.email,
-        subject: `Withdrawn: ${a.name} – ${a.jobTitle}`,
+        subject: `Application withdrawn for ${a.jobTitle}`,
         heading: 'A candidate withdrew their application',
         html: detailsTable([['Candidate', a.name], ['Email', a.email], ['Job', a.jobTitle], ['Stage at withdrawal', a.status || 'New']]) +
           p('Any scheduled interviews for this application were cancelled.'),
@@ -714,7 +795,7 @@ function createMailer(site) {
 
     jobAlertConfirm(sub) {
       const what = describeAlert(sub);
-      send(site, {
+      return send(site, {
         to: sub.email,
         subject: 'Confirm your Hireriv job alert',
         heading: 'One click to switch on your job alert',
@@ -727,7 +808,7 @@ function createMailer(site) {
 
     jobAlert(sub, job) {
       const unsubscribe = `${baseUrl}/job-alerts/unsubscribe/${sub.token}`;
-      send(site, {
+      return send(site, {
         to: sub.email,
         subject: `New job: ${job.title} in ${job.location}`,
         heading: 'A new job matches your alert',
@@ -738,7 +819,7 @@ function createMailer(site) {
           detailsTable([['Location', `${job.location} (${job.mode})`], ['Type', job.type], ['Experience', job.experience], ['Salary', job.salary], ['Skills', job.skills.join(', ')]]) +
           p(esc(job.description)) +
           button(`${baseUrl}${jobPath(job)}?utm_source=job-alert`, 'View job & apply') +
-          p(`<span style="color:#6b7690;font-size:12px">You're getting this because you set up an alert for ${esc(describeAlert(sub))}. <a href="${esc(unsubscribe)}" style="color:#6b7690">Unsubscribe</a></span>`),
+          p(`<span style="color:#6b7690;font-size:12px">You're getting this because you set up an alert for ${esc(describeAlert(sub))}. <a href="${esc(unsubscribe)}" style="color:#6b7690">Unsubscribe</a> · <a href="${esc(baseUrl)}/notifications/settings" style="color:#6b7690">Notification settings</a></span>`),
       });
     },
 
@@ -752,8 +833,7 @@ function createMailer(site) {
         Rejected: [`Update on your application: ${a.jobTitle}`, 'An update on your application', p(`Hi ${first(a.name)}, thank you for your interest in <b>${job}</b>. After careful review, the hiring team has decided to go ahead with other candidates for this role.`) + p(`We'll keep your profile on file and get in touch when a better match comes up. You can also browse our <a href="${esc(baseUrl)}/jobs" style="color:#123B70">latest openings</a>.`)],
       }[a.status];
       if (!copy) return false;
-      send(site, { to: a.email, subject: copy[0], heading: copy[1], html: copy[2] });
-      return true;
+      return send(site, { to: a.email, subject: copy[0], heading: copy[1], html: copy[2], footer: manageFooter('updates on your applications') });
     },
 
     // A recruiter's own message (from a template or typed): plain text, blank
@@ -765,7 +845,7 @@ function createMailer(site) {
         .filter(Boolean)
         .map((para) => p(esc(para).replace(/\r?\n/g, '<br>')))
         .join('');
-      send(site, { to: a.email, replyTo: replyTo || teamInbox, subject, heading: subject, html });
+      return send(site, { to: a.email, replyTo: replyTo || teamInbox, subject, heading: subject, html });
     },
   };
 }

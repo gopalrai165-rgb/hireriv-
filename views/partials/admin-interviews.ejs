@@ -34,6 +34,11 @@
             <td><%= iv.interviewer || '—' %><% if (iv.interviewerEmail) { %><br><span class="muted small"><%= iv.interviewerEmail %></span><% } %></td>
             <td class="row-actions">
               <a class="btn btn-outline btn-sm" href="/admin/interviews/<%= iv.app.id %>/<%= iv.id %>.ics">.ics</a>
+              <form class="iv-move" method="post" action="/admin/interviews/<%= iv.app.id %>/<%= iv.id %>/reschedule">
+                <label class="sr-only" for="mv-date-<%= iv.id %>">New date</label><input id="mv-date-<%= iv.id %>" type="date" name="date" required>
+                <label class="sr-only" for="mv-time-<%= iv.id %>">New time</label><input id="mv-time-<%= iv.id %>" type="time" name="time" required>
+                <button class="btn btn-sm btn-outline" type="submit">Move</button>
+              </form>
               <form method="post" action="/admin/interviews/<%= iv.app.id %>/<%= iv.id %>/cancel" data-confirm="Cancel this interview? The candidate will be emailed and it will be removed from their calendar."><button class="btn btn-sm btn-danger">Cancel</button></form>
             </td>
           </tr>

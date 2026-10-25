@@ -444,7 +444,7 @@ function create({ db, mailer, baseUrl, ownerUser, ownerPass, site = {}, resetOwn
   const members = () => list().filter((u) => u.active);
   const activity = ({ userId = '', limit = 200 } = {}) => db.all('activity').filter((a) => !userId || a.userId === userId).slice(0, limit);
 
-  return { adminAuth, requireAdmin, register, log, list, members, activity, byId, has2fa, requires2fa, ROLES, OWNER_ID };
+  return { adminAuth, requireAdmin, register, log, list, members, activity, byId, currentUser, has2fa, requires2fa, ROLES, OWNER_ID };
 }
 
 module.exports = { create, ROLES };

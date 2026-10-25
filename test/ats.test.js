@@ -212,7 +212,7 @@ test('interviews: scheduling rules, the candidate confirms, cancellations are se
   const conf = await post(`/account/interviews/a1/${iv.id}/confirm`, {}, people.asha);
   assert.match(msgOf(conf), /confirmed/);
   assert.equal(rec('a1').interviews[0].confirmation, 'confirmed');
-  await srv.waitForEmail((m) => m.includes('To: rita@aco.in') && m.includes('Interview confirmed: Asha'));
+  await srv.waitForEmail((m) => m.includes('To: rita@aco.in') && m.includes('Interview confirmed for Job j1'));
   const page = await (await get('/employer/applicants/a1', people.rita)).text();
   assert.match(page, /Confirmed by candidate/);
 
@@ -299,14 +299,14 @@ test('metrics match the records', async () => {
 });
 
 test('notifications are recorded once per event', async () => {
-  const list = srv.records('notifications');
+  const list = srv.records('notification-deliveries');
   const keys = list.map((n) => n.key);
   assert.equal(new Set(keys).size, keys.length);
   assert.ok(keys.some((k) => k.startsWith('interview-invite:')));
   assert.ok(keys.some((k) => k.startsWith('offer-made:')));
-  assert.ok(list.every((n) => !('to' in n) && !('email' in n)), 'the ledger keeps no addresses');
-  await new Promise((r) => setTimeout(r, 200));
-  assert.ok(srv.records('notifications').every((n) => ['sent', 'failed'].includes(n.status)));
+  assert.ok(list.every((n) => !/example.in|aco.in/.test(JSON.stringify({ ...n, providerRef: '' }))), 'deliveries keep no addresses');
+  await new Promise((r) => setTimeout(r, 300));
+  assert.ok(list.length && srv.records('notification-deliveries').every((n) => ['sent', 'skipped'].includes(n.status)));
   assert.equal(srv.emails().filter((m) => m.includes('Job offer: Job j1')).length, 1);
 });
 

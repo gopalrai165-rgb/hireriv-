@@ -4,13 +4,22 @@
 const MAX_HISTORY = 100;
 const ORDER = ['New', 'Screening', 'Shortlisted', 'Interview', 'Offered', 'Hired'];
 
-// Move an application to a stage and record it. Returns false if it was already there.
-function moveStage(a, to, by, at = new Date().toISOString()) {
+// Called after every move with (application, history entry): notifications.
+const listeners = [];
+const onMove = (fn) => listeners.push(fn);
+
+// Move an application to a stage and record it. Returns false if it was already
+// there. `extra` adds to the history entry (who moved it, a correction's reason).
+function moveStage(a, to, by, at = new Date().toISOString(), extra = {}) {
   const from = a.status || 'New';
   if (from === to) return false;
   a.status = to;
   a.updatedAt = at;
-  a.history = [...(a.history || []), { at, from, to, by: by || 'System' }].slice(-MAX_HISTORY);
+  const entry = { at, from, to, by: by || 'System', ...extra };
+  a.history = [...(a.history || []), entry].slice(-MAX_HISTORY);
+  for (const fn of listeners) {
+    try { fn(a, entry); } catch (e) { console.error('Stage listener failed:', e.message); }
+  }
   return true;
 }
 
@@ -54,4 +63,4 @@ function timeline(a) {
   return ev.filter((e) => e.at).sort((x, y) => y.at.localeCompare(x.at));
 }
 
-module.exports = { moveStage, everReached, firstResponseDays, timeline, ORDER };
+module.exports = { moveStage, onMove, everReached, firstResponseDays, timeline, ORDER };

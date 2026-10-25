@@ -3,7 +3,7 @@ const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const { startServer, resumeForm } = require('./helpers');
+const { startServer, resumeForm, decodeEmail } = require('./helpers');
 
 const base = { jobId: 'hr-101', name: 'Priya Sharma', email: 'priya@example.in', phone: '9876543210', skills: 'React' };
 let srv;
@@ -36,7 +36,7 @@ test('applying again for the same job updates the existing application', async (
   assert.equal(a.reapplied.length, 1);
   assert.equal(fs.existsSync(path.join(srv.paths.uploads, first.resume)), false);
   assert.equal(fs.existsSync(path.join(srv.paths.uploads, a.resume)), true);
-  await srv.waitForEmail((e) => e.includes('Updated application: Priya Sharma'));
+  await srv.waitForEmail((e) => e.includes('Updated application for') && decodeEmail(e).includes('Priya Sharma'));
 });
 
 test('a different job, or coming back after withdrawing, is a new application', async () => {

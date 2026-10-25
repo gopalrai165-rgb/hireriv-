@@ -104,7 +104,7 @@ function parseInterview(body, candidate) {
   return { f, at, errors };
 }
 
-function register(app, { adminAuth, sameOrigin, readSubmissions, writeSubmissions, mailer, site, adminUrl, baseUrl, limit }) {
+function register(app, { adminAuth, sameOrigin, readSubmissions, writeSubmissions, mailer, site, adminUrl, baseUrl, limit, db, events }) {
   const icsFor = (method, iv, a) => interviewIcs({ method, interview: iv, candidate: a, jobTitle: a.jobTitle, site });
 
   // ---------- reminders ----------
@@ -112,21 +112,21 @@ function register(app, { adminAuth, sameOrigin, readSubmissions, writeSubmission
     const list = readSubmissions('applications');
     const due = remindersDue(list);
     if (!due.length) return 0;
-    for (const { a, iv, kind } of due) {
-      iv.reminders = { ...(iv.reminders || {}), [kind]: new Date().toISOString() };
-      const when = formatIst(new Date(iv.at));
-      mailer.interviewReminder(a, iv, when, kind);
-      if (iv.interviewerEmail) mailer.interviewerReminder(iv.interviewerEmail, a, iv, when, kind);
-    }
-    writeSubmissions('applications', list);
+    db.transaction(() => {
+      for (const { a, iv, kind } of due) iv.reminders = { ...(iv.reminders || {}), [kind]: new Date().toISOString() };
+      writeSubmissions('applications', list);
+      for (const { a, iv, kind } of due) events.interviewReminder(a, iv, kind);
+    });
     return due.length;
   }
   sendReminders();
   setInterval(sendReminders, 5 * 60000).unref();
 
-  // Books an interview on application `a` (part of `list`), saves, and emails
-  // the candidate and the interviewer. Used by the team and by employers.
-  function book(list, a, f, at, by) {
+  // Books an interview on application `a` (part of `list`), saves, and invites
+  // the candidate (through the notification service) and briefs the
+  // interviewer. Used by the team and by employers; `actor` goes on the
+  // history entry when the booking moves the application to Interview.
+  function book(list, a, f, at, by, actor = {}) {
     const iv = {
       id: crypto.randomUUID(),
       at: at.toISOString(),
@@ -154,23 +154,45 @@ function register(app, { adminAuth, sameOrigin, readSubmissions, writeSubmission
     }
     a.interviews = [...(a.interviews || []), iv];
     // Booking an interview moves early-stage candidates forward automatically.
-    if (['New', 'Screening', 'Shortlisted', undefined, ''].includes(a.status)) moveStage(a, 'Interview', by, iv.createdAt);
-    a.updatedAt = iv.createdAt;
-    writeSubmissions('applications', list);
-    const delivered = mailer.interviewScheduled(a, iv, icsFor('REQUEST', iv, a), formatIst(at));
+    db.transaction(() => {
+      if (['New', 'Screening', 'Shortlisted', undefined, ''].includes(a.status)) moveStage(a, 'Interview', by, iv.createdAt, actor);
+      a.updatedAt = iv.createdAt;
+      writeSubmissions('applications', list);
+      events.interviewBooked(a, iv);
+    });
+    // The briefing carries the interviewer's private link, which is never
+    // stored, so it is sent straight away rather than queued.
     if (feedbackUrl) mailer.interviewerBriefing(f.interviewerEmail, a, iv, formatIst(at), feedbackUrl);
-    return { iv, feedbackUrl, delivered };
+    return { iv, feedbackUrl };
+  }
+
+  // Moves a scheduled interview to a new time: the calendar entry updates (same
+  // UID, higher sequence), reminders start again, and the candidate is asked to
+  // confirm the new time.
+  function reschedule(list, a, iv, at) {
+    if (iv.status !== 'scheduled') return false;
+    const previous = iv.at;
+    Object.assign(iv, { at: at.toISOString(), sequence: (iv.sequence || 0) + 1, confirmation: 'awaiting', candidateNote: '', answeredAt: null, reminders: {}, rescheduledAt: new Date().toISOString(), previousAt: previous });
+    if (iv.feedbackLink) iv.feedbackLink.exp = endOf(iv) + FEEDBACK_DAYS * 86400000;
+    db.transaction(() => {
+      writeSubmissions('applications', list);
+      events.interviewRescheduled(a, iv, previous);
+    });
+    return true;
   }
 
   // Cancels a scheduled interview on `a` (part of `list`), saves, and sends the
-  // candidate a calendar cancellation. Returns the email's delivery promise.
+  // candidate a calendar cancellation.
   function cancel(list, a, iv) {
-    if (iv.status !== 'scheduled') return null;
+    if (iv.status !== 'scheduled') return false;
     iv.status = 'cancelled';
     iv.sequence = (iv.sequence || 0) + 1;
     iv.cancelledAt = new Date().toISOString();
-    writeSubmissions('applications', list);
-    return mailer.interviewCancelled(a, iv, icsFor('CANCEL', iv, a), formatIst(iv.at)) || null;
+    db.transaction(() => {
+      writeSubmissions('applications', list);
+      events.interviewCancelled(a, iv);
+    });
+    return true;
   }
 
   const formPage = (res, a, f, errors, status = 200) =>
@@ -191,7 +213,7 @@ function register(app, { adminAuth, sameOrigin, readSubmissions, writeSubmission
     const { f, at, errors } = parseInterview(req.body, a);
     if (errors.length) return formPage(res, a, f, errors, 400);
 
-    const { feedbackUrl } = book(list, a, f, at, `${req.admin.name} (interview booked)`);
+    const { feedbackUrl } = book(list, a, f, at, `${req.admin.name} (interview booked)`, { actor: 'team', userId: req.admin.id });
     res.redirect(adminUrl('interviews', `Interview booked with ${a.name} for ${formatIst(at)} · ${a.email ? 'invite emailed' : 'no email on file, so tell them by phone or WhatsApp'}${feedbackUrl ? ` · feedback link sent to ${f.interviewerEmail}` : ''}`));
   });
 
@@ -271,6 +293,18 @@ function register(app, { adminAuth, sameOrigin, readSubmissions, writeSubmission
     res.redirect(adminUrl('interviews', `Cancelled the interview with ${a.name} · candidate notified`));
   });
 
+  // A new time for a scheduled interview (e.g. the candidate asked for one).
+  app.post('/admin/interviews/:appId/:ivId/reschedule', adminAuth, sameOrigin, (req, res, next) => {
+    const list = readSubmissions('applications');
+    const a = list.find((x) => x.id === req.params.appId);
+    const iv = a && (a.interviews || []).find((x) => x.id === req.params.ivId);
+    if (!iv) return next();
+    const r = parseNewTime(req.body);
+    if (r.error) return res.redirect(adminUrl('interviews', `Not moved: ${r.error}`));
+    if (!reschedule(list, a, iv, r.at)) return res.redirect(adminUrl('interviews', 'Not moved: that interview is not scheduled'));
+    res.redirect(adminUrl('interviews', `Moved the interview with ${a.name} to ${formatIst(r.at)} · candidate notified`));
+  });
+
   // Download the invite (e.g. to forward to the interviewer's calendar).
   app.get('/admin/interviews/:appId/:ivId.ics', adminAuth, (req, res, next) => {
     const a = readSubmissions('applications').find((x) => x.id === req.params.appId);
@@ -279,7 +313,18 @@ function register(app, { adminAuth, sameOrigin, readSubmissions, writeSubmission
     res.type('text/calendar').attachment(`interview-${a.name.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}.ics`).send(icsFor(iv.status === 'cancelled' ? 'CANCEL' : 'REQUEST', iv, a));
   });
 
-  return { book, cancel, saveScorecard };
+  return { book, cancel, reschedule, saveScorecard };
 }
 
-module.exports = { register, parseInterview, parseScorecard, MODES, DURATIONS, allInterviews, upcoming, formatIst, feedbackSummary, feedbackDue, remindersDue, REMINDERS, RECOMMENDATIONS };
+// A new date and time (India time) for an interview that is being moved.
+function parseNewTime(body) {
+  const date = String((body || {}).date || '');
+  const time = String((body || {}).time || '');
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !/^\d{2}:\d{2}$/.test(time)) return { error: 'choose a date and time' };
+  const at = istToDate(date, time);
+  if (!at || Number.isNaN(at.getTime())) return { error: 'choose a valid date and time' };
+  if (at.getTime() < Date.now()) return { error: 'the new time is in the past' };
+  return { at };
+}
+
+module.exports = { register, parseInterview, parseScorecard, parseNewTime, MODES, DURATIONS, allInterviews, upcoming, formatIst, feedbackSummary, feedbackDue, remindersDue, REMINDERS, RECOMMENDATIONS };

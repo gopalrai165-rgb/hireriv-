@@ -31,7 +31,7 @@ test('docs/ACCESS.md lists every route with the protection it really has', () =>
 });
 
 test('signed out: team, candidate and client routes are all refused', async () => {
-  const want = { team: [401], admin: [401], candidate: [302, '/account/login'], employer: [302, '/employer/login'] };
+  const want = { team: [401], admin: [401], candidate: [302, '/account/login'], employer: [302, '/employer/login'], account: [401] };
   for (const r of routes.filter((x) => want[x.policy])) {
     const res = await srv.request(fill(r.path), { method: r.method, form: r.method === 'POST' ? {} : undefined });
     // JSON endpoints answer 401 instead of redirecting to a sign-in page.

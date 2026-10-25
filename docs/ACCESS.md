@@ -8,17 +8,19 @@ Every route the app serves, and who may use it. **This table is checked by `test
 | link | Whoever holds a one-time emailed link | Random 256-bit token, stored hashed, single-use or expiring |
 | candidate | A candidate signed in with an emailed link or their password (`hr_cand` session: HttpOnly, SameSite=Lax, Secure on https) | `requireCandidate`; data is limited to applications made with their email |
 | employer | A person signed in to the employer portal, working in one of their companies (`hr_emp` session) | `requireEmployer` + their role in that company (owner, hiring manager, recruiter, viewer), checked on the server for every action; other companies' jobs and applicants are "not found" |
+| account | Anyone signed in: a candidate, an employer person or the team | `anyAccount` / `anyAccountApi`: the recipient comes from the session, never from the request, and each person sees only their own notifications |
 | team | Anyone on the recruiting team (Admin or Recruiter) | `adminAuth` (+ two-step sign-in when the team requires it) |
 | admin | Team members with the Admin role | `adminAuth` + `requireAdmin` (403 for Recruiters) |
 
 Every state-changing team, candidate and client form also passes `sameOrigin` (cross-site posts are refused).
 
-Total: 278 routes.
+Total: 299 routes.
 
 ## Public website
 
 | Method | Path | Policy | Notes |
 | --- | --- | --- | --- |
+| POST | `/webhooks/email` | public | Email provider to server only: HMAC-SHA256 signature with EMAIL_WEBHOOK_SECRET over the exact body, 5-minute replay window, each event processed once; 404 when no secret is set |
 | GET | `/healthz` | public | Uptime check |
 | GET | `/og/site.png` | public |  |
 | GET | `/og/jobs/:id.png` | public |  |
@@ -50,7 +52,7 @@ Total: 278 routes.
 | GET | `/api/jobs` | public | Open, published jobs only (no samples); validated filters; 120 a minute per IP |
 | GET | `/api/jobs/:id` | public | Open, published jobs only |
 | POST | `/api/jobs/:id/report` | public | 5 per 10 minutes per IP |
-| POST | `/api/job-alerts` | public |  |
+| POST | `/api/job-alerts` | public | Bot trap, per-IP limit. Signed out: confirmed by an emailed link, same reply either way. Signed in as a candidate (own email): on at once |
 | POST | `/api/newsletter` | public |  |
 | GET | `/post-a-job` | public | Signed-in employer: the job form; anyone else: employer sign-up |
 
@@ -149,6 +151,8 @@ Total: 278 routes.
 | DELETE | `/api/candidate/saved-jobs/:jobId` | candidate | 401 when signed out; only the candidate's own saved jobs |
 | GET | `/api/candidate/applications` | candidate | 401 when signed out; only the candidate's own applications, without contact details |
 | DELETE | `/api/candidate/account` | candidate | 401 when signed out; needs {"confirm": "DELETE"} |
+| GET | `/api/job-alerts` | candidate | JSON; the signed-in candidate's own job alerts |
+| DELETE | `/api/job-alerts/:id` | candidate | JSON; only an alert of the signed-in candidate |
 | GET | `/account/timesheets/:pid` | candidate | Only the contractor's own placement |
 | POST | `/account/timesheets/:pid` | candidate | Only the contractor's own placement |
 
@@ -160,6 +164,7 @@ Total: 278 routes.
 | GET | `/employer/ats/reports` | employer | Metrics for the jobs this member may see; team workload for owners and hiring managers |
 | POST | `/employer/applicants/:id/notes` | employer | Internal notes: owners, or managers and recruiters on the job; never shown to candidates |
 | POST | `/employer/applicants/:id/assign` | employer | Owners, or hiring managers on the job; only to people who work on the job |
+| POST | `/employer/applicants/:id/interviews/:ivId/reschedule` | employer | People working on the job (interviews.manage); same timing and clash rules as booking; the candidate is asked to confirm the new time |
 | POST | `/employer/applicants/:id/interviews/:ivId/cancel` | employer | Owners, or managers and recruiters on the job; the candidate gets a calendar cancellation |
 | POST | `/employer/applicants/:id/interviews/:ivId/feedback` | employer | Owners, or managers and recruiters on the job; after the interview starts |
 | POST | `/employer/applicants/:id/offers` | employer | Owners, or managers and recruiters on the job; waits for approval |
@@ -171,6 +176,7 @@ Total: 278 routes.
 | POST | `/api/ats/applications/:id/notes` | employer | Owners, or managers and recruiters on the job |
 | POST | `/api/ats/applications/:id/interviews` | employer | Owners, or managers and recruiters on the job; scheduling rules checked |
 | POST | `/api/ats/interviews/:ivId/feedback` | employer | Owners, or managers and recruiters on the job |
+| POST | `/api/ats/interviews/:ivId/reschedule` | employer | JSON; the interview must belong to an applicant the member may see, and their role must allow interviews.manage |
 | POST | `/api/ats/applications/:id/offers` | employer | Owners, or managers and recruiters on the job |
 | POST | `/api/ats/offers/:offerId/approve` | employer | Owners, or hiring managers on the job (not their own offer unless owner) |
 | POST | `/api/ats/offers/:offerId/response` | employer | Owners, or managers and recruiters on the job; only approved offers |
@@ -241,6 +247,23 @@ Total: 278 routes.
 | POST | `/employer/timesheets/:pid/:tsId/approve` | employer | Owners and hiring managers; this company's placements |
 | POST | `/employer/timesheets/:pid/:tsId/reject` | employer | Owners and hiring managers; this company's placements |
 
+## Notifications (any signed-in account)
+
+| Method | Path | Policy | Notes |
+| --- | --- | --- | --- |
+| GET | `/notifications` | account | The signed-in person's own notifications only (candidate, employer or team, chosen with ?as= when signed in as more than one); employer people see their current company's, filtered by their current role |
+| GET | `/notifications/:id/open` | account | Marks one of your own notifications read and goes to its link (links are checked to stay on this site) |
+| POST | `/notifications/read-all` | account | Your own notifications only |
+| POST | `/notifications/:id/read` | account | Your own notifications only; anyone else's is not found |
+| GET | `/notifications/settings` | account | Your own email preferences |
+| POST | `/notifications/settings` | account | Your own email preferences; only optional categories can be switched off |
+| GET | `/api/notifications` | account | JSON; your own notifications, filters unread and category |
+| GET | `/api/notifications/unread-count` | account | JSON; your own unread count |
+| PATCH | `/api/notifications/:id/read` | account | JSON; 404 for anyone else's notification |
+| POST | `/api/notifications/read-all` | account | JSON; your own notifications only |
+| GET | `/api/notification-preferences` | account | JSON; your own preferences |
+| PATCH | `/api/notification-preferences` | account | JSON; only applications, interviews and jobs email can be changed, as true or false |
+
 ## Admin panel: any team member
 
 | Method | Path | Policy | Notes |
@@ -263,6 +286,7 @@ Total: 278 routes.
 | GET | `/admin/interviews/:appId/:ivId/feedback` | team |  |
 | POST | `/admin/interviews/:appId/:ivId/feedback` | team |  |
 | POST | `/admin/interviews/:appId/:ivId/cancel` | team |  |
+| POST | `/admin/interviews/:appId/:ivId/reschedule` | team | Moves a scheduled interview; the candidate gets the updated calendar invite |
 | GET | `/admin/interviews/:appId/:ivId.ics` | team |  |
 | GET | `/admin/applications/:id/placement` | team |  |
 | POST | `/admin/applications/:id/placement` | team |  |
@@ -297,6 +321,9 @@ Total: 278 routes.
 | Method | Path | Policy | Notes |
 | --- | --- | --- | --- |
 | POST | `/admin/templates/:id/delete` | admin |  |
+| GET | `/admin/notifications` | admin | Email delivery monitor: queue, retries, failures, bounces (no addresses shown) |
+| POST | `/admin/notifications/:id/retry` | admin | Queues a failed email again |
+| POST | `/admin/notifications/suppressions/:id/delete` | admin | Lets a bounced address receive emails again |
 | POST | `/admin/placements/:id/delete` | admin |  |
 | POST | `/admin/placements/:id/invoice` | admin |  |
 | GET | `/admin/placements/:id/bill` | admin |  |

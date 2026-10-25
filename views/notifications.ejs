@@ -1,0 +1,78 @@
+<%- include('partials/head') %>
+
+<section class="section admin portal">
+  <div class="container">
+    <div class="admin-head">
+      <div>
+        <span class="eyebrow"><%= viewer.label %></span>
+        <h1>Notifications</h1>
+        <p class="muted"><%= unread %> unread · <a href="<%= viewer.home %>">Back to your dashboard</a></p>
+      </div>
+      <div class="row-actions">
+        <a class="btn btn-outline btn-sm" href="/notifications/settings<%= viewers.length > 1 ? '?as=' + viewer.as : '' %>">Notification settings</a>
+        <% if (unread) { %>
+          <form method="post" action="/notifications/read-all">
+            <% if (viewers.length > 1) { %><input type="hidden" name="as" value="<%= viewer.as %>"><% } %>
+            <input type="hidden" name="filter" value="<%= f.unread ? 'unread' : '' %>">
+            <input type="hidden" name="category" value="<%= f.category %>">
+            <button class="btn btn-primary btn-sm" type="submit">Mark all<%= f.category ? ' ' + categories[f.category].toLowerCase() : '' %> as read</button>
+          </form>
+        <% } %>
+      </div>
+    </div>
+
+    <% if (viewers.length > 1) { %>
+      <nav class="account-tabs" aria-label="Account">
+        <% viewers.forEach(function (v) { %><a href="/notifications?as=<%= v.as %>"<%- v.as === viewer.as ? ' aria-current="page" class="active"' : '' %>><%= v.label %></a><% }) %>
+      </nav>
+    <% } %>
+    <% if (msg) { %><p class="notice" role="status"><%= msg %></p><% } %>
+
+    <div class="notif-filters">
+      <nav class="chip-row" aria-label="Show">
+        <a class="chip<%= !f.unread ? ' chip-on' : '' %>" href="<%= link({ filter: '', offset: '' }) %>"<%- !f.unread ? ' aria-current="true"' : '' %>>All</a>
+        <a class="chip<%= f.unread ? ' chip-on' : '' %>" href="<%= link({ filter: 'unread', offset: '' }) %>"<%- f.unread ? ' aria-current="true"' : '' %>>Unread<% if (unread) { %> (<%= unread %>)<% } %></a>
+      </nav>
+      <nav class="chip-row" aria-label="Category">
+        <a class="chip<%= !f.category ? ' chip-on' : '' %>" href="<%= link({ category: '', offset: '' }) %>">Everything</a>
+        <% Object.keys(categories).forEach(function (c) { %>
+          <a class="chip<%= f.category === c ? ' chip-on' : '' %>" href="<%= link({ category: c, offset: '' }) %>"<%- f.category === c ? ' aria-current="true"' : '' %>><%= categories[c] %></a>
+        <% }) %>
+      </nav>
+    </div>
+
+    <section class="dash-card dash-wide">
+      <% if (!items.length) { %>
+        <p class="muted dash-empty"><%= f.unread ? "You're all caught up." : 'Nothing here yet. Updates about your applications, interviews, jobs and account will appear here.' %></p>
+      <% } else { %>
+        <ul class="notif-list">
+          <% items.forEach(function (n) { %>
+            <li class="notif<%= n.read ? '' : ' notif-unread' %>">
+              <div class="notif-main">
+                <% if (!n.read) { %><span class="notif-dot" aria-hidden="true"></span><span class="sr-only">Unread: </span><% } %>
+                <% if (n.link) { %><a href="/notifications/<%= n.id %>/open<%= viewers.length > 1 ? '?as=' + viewer.as : '' %>"><b><%= n.title %></b></a><% } else { %><b><%= n.title %></b><% } %>
+                <% if (n.body) { %><span class="notif-body"><%= n.body %></span><% } %>
+                <span class="muted small"><%= categories[n.category] %> · <time datetime="<%= n.createdAt %>"><%= formatIst(new Date(n.createdAt)) %></time></span>
+              </div>
+              <% if (!n.read) { %>
+                <form method="post" action="/notifications/<%= n.id %>/read">
+                  <% if (viewers.length > 1) { %><input type="hidden" name="as" value="<%= viewer.as %>"><% } %>
+                  <input type="hidden" name="filter" value="<%= f.unread ? 'unread' : '' %>">
+                  <input type="hidden" name="category" value="<%= f.category %>">
+                  <button class="link-btn small" type="submit" aria-label="Mark “<%= n.title %>” as read">Mark as read</button>
+                </form>
+              <% } %>
+            </li>
+          <% }) %>
+        </ul>
+        <% if (total > f.offset + items.length) { %>
+          <p class="center"><a class="btn btn-outline btn-sm" href="<%= link({ offset: f.offset + items.length }) %>">Older notifications</a></p>
+        <% } else if (f.offset) { %>
+          <p class="center"><a class="small" href="<%= link({ offset: '' }) %>">Back to the newest</a></p>
+        <% } %>
+      <% } %>
+    </section>
+  </div>
+</section>
+
+<%- include('partials/foot') %>

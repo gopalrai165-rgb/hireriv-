@@ -35,7 +35,12 @@ function open(file) {
   // enforced by SQLite itself. Documents without a key are not constrained.
   if (!db.prepare('PRAGMA table_info(records)').all().some((c) => c.name === 'ukey')) db.exec('ALTER TABLE records ADD COLUMN ukey TEXT');
   db.exec('CREATE UNIQUE INDEX IF NOT EXISTS records_unique ON records (collection, ukey) WHERE ukey IS NOT NULL');
+  // Lookups by recipient and by delivery status (notifications), without
+  // reading a whole collection.
+  db.exec("CREATE INDEX IF NOT EXISTS records_rk ON records (collection, json_extract(data, '$.rk'))");
+  db.exec("CREATE INDEX IF NOT EXISTS records_status ON records (collection, json_extract(data, '$.status'))");
   const keyFns = {};
+  const whereCache = {};
   // Called with the collection's name after each committed write.
   const listeners = [];
   const changed = (collection) => listeners.forEach((fn) => fn(collection));
@@ -47,6 +52,8 @@ function open(file) {
     clear: db.prepare('DELETE FROM records WHERE collection = ?'),
     put: db.prepare('INSERT INTO records (collection, id, pos, data, ukey) VALUES (?, ?, ?, ?, ?)'),
     minPos: db.prepare('SELECT COALESCE(MIN(pos), 0) AS p FROM records WHERE collection = ?'),
+    update: db.prepare('UPDATE records SET data = ?, ukey = ? WHERE collection = ? AND id = ?'),
+    remove: db.prepare('DELETE FROM records WHERE collection = ? AND id = ?'),
     metaGet: db.prepare('SELECT value FROM meta WHERE key = ?'),
     metaSet: db.prepare('INSERT INTO meta (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value'),
     sGet: db.prepare('SELECT subject, exp FROM sessions WHERE kind = ? AND key = ?'),
@@ -56,13 +63,30 @@ function open(file) {
     sPurge: db.prepare('DELETE FROM sessions WHERE exp < ?'),
   };
 
+  // Transactions nest: an inner one joins the outer, so several writes (a
+  // business change and the notifications it causes) commit or fail together.
+  let depth = 0;
   function tx(fn) {
+    if (depth) {
+      depth++;
+      try {
+        return fn();
+      } catch (err) {
+        if (/UNIQUE constraint failed: records\.collection, records\.ukey/.test(err.message)) err.code = 'ERR_UNIQUE';
+        throw err;
+      } finally {
+        depth--;
+      }
+    }
     db.exec('BEGIN IMMEDIATE');
+    depth = 1;
     try {
       const out = fn();
+      depth = 0;
       db.exec('COMMIT');
       return out;
     } catch (err) {
+      depth = 0;
       db.exec('ROLLBACK');
       if (/UNIQUE constraint failed: records\.collection, records\.ukey/.test(err.message)) err.code = 'ERR_UNIQUE';
       throw err;
@@ -90,6 +114,31 @@ function open(file) {
       tx(() => q.put.run(collection, idOf(doc, 0), q.minPos.get(collection).p - 1, JSON.stringify(doc), keyOf(collection, doc)));
       changed(collection);
     },
+
+    // Replace one document in place (same position), or remove some by id.
+    // Both return how many documents changed.
+    update(collection, doc) {
+      const n = tx(() => Number(q.update.run(JSON.stringify(doc), keyOf(collection, doc), collection, String(doc.id)).changes));
+      if (n) changed(collection);
+      return n;
+    },
+    remove(collection, ids) {
+      const n = tx(() => ids.reduce((sum, id) => sum + Number(q.remove.run(collection, String(id)).changes), 0));
+      if (n) changed(collection);
+      return n;
+    },
+
+    // Documents whose top-level `field` equals `value`, in list order. Only
+    // `rk` and `status` are indexed; other fields scan the collection in SQLite.
+    where(collection, field, value, { limit = -1, offset = 0 } = {}) {
+      if (!/^[A-Za-z]+$/.test(field)) throw new Error(`bad field ${field}`);
+      const sql = `SELECT data FROM records WHERE collection = ? AND json_extract(data, '$.${field}') = ? ORDER BY pos LIMIT ? OFFSET ?`;
+      const stmt = whereCache[sql] || (whereCache[sql] = db.prepare(sql));
+      return stmt.all(collection, value, limit, offset).map((r) => JSON.parse(r.data));
+    },
+
+    // Runs fn inside one transaction (see tx above).
+    transaction: (fn) => tx(fn),
 
     // fn(collection) runs after every write that commits (e.g. to copy it elsewhere).
     onChange: (fn) => listeners.push(fn),

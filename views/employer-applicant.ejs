@@ -82,7 +82,13 @@
               <% iv.feedback.forEach(function (fb) { %><p class="cand-note"><b><%= fb.by %>:</b> <%= fb.recommendation %>, <%= fb.rating %>/5<%= fb.strengths ? ' · Strengths: ' + fb.strengths : '' %><%= fb.concerns ? ' · Concerns: ' + fb.concerns : '' %></p><% }) %>
             <% } %>
             <div class="row-actions">
-              <% if (iv.status === 'scheduled' && can('interviews.manage', job) && !started) { %><form method="post" action="/employer/applicants/<%= v.id %>/interviews/<%= iv.id %>/cancel"><button class="btn btn-outline btn-sm" type="submit">Cancel interview</button></form><% } %>
+              <% if (iv.status === 'scheduled' && can('interviews.manage', job) && !started) { %>
+                <form class="form iv-move" method="post" action="/employer/applicants/<%= v.id %>/interviews/<%= iv.id %>/reschedule">
+                  <label class="sr-only" for="mv-date-<%= iv.id %>">New date</label><input id="mv-date-<%= iv.id %>" type="date" name="date" min="<%= today %>" required>
+                  <label class="sr-only" for="mv-time-<%= iv.id %>">New time</label><input id="mv-time-<%= iv.id %>" type="time" name="time" required>
+                  <button class="btn btn-outline btn-sm" type="submit">Move to this time</button>
+                </form>
+                <form method="post" action="/employer/applicants/<%= v.id %>/interviews/<%= iv.id %>/cancel"><button class="btn btn-outline btn-sm" type="submit">Cancel interview</button></form><% } %>
             </div>
             <% if (iv.status === 'scheduled' && started && can('feedback.submit', job)) { %>
               <details><summary class="small">Add your feedback</summary>

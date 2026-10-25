@@ -31,7 +31,7 @@
     <h2>How we use your data</h2>
     <ul>
       <li>To assess you for the role you applied for and for similar roles, and to contact you about them by email, phone, SMS or WhatsApp. Messages sent on WhatsApp are also handled by WhatsApp (Meta) under its own terms</li>
-      <li>To schedule interviews, ask you to confirm them, and send you updates on your application, including any job offer</li>
+      <li>To schedule interviews, ask you to confirm them, and send you updates on your application, including any job offer, as notifications in your account and by email</li>
       <li>To respond to hiring requirements and enquiries</li>
       <li>To send job alerts and newsletters you asked for</li>
       <li>To issue invoices and keep the business and tax records the law requires</li>
@@ -47,16 +47,18 @@
 
     <h2>How long we keep it</h2>
     <% if (site.retentionMonths) { %>
-    <p>We delete your applications and resume automatically <%= site.retentionMonths %> months after your last activity with us (for example, applying, an interview or a status update), or sooner if you ask. Contact messages and hiring requests are deleted after the same period. A record that a notification was sent (without its text or your address) is kept for a year. Invoices
+    <p>We delete your applications and resume automatically <%= site.retentionMonths %> months after your last activity with us (for example, applying, an interview or a status update), or sooner if you ask. Contact messages and hiring requests are deleted after the same period. Invoices
     <% } else { %>
     <p>We keep applications while they are useful for recruitment, or until you ask us to delete them. Invoices
     <% } %> and placement records are kept for as long as Indian tax law requires, even if the candidate's other data is deleted.</p>
+
+    <p>The notifications in your account are deleted after a year. Our record of each email we sent (what kind of email, when, and whether it was delivered, without its text or your address) is deleted after 90 days, and delivery reports from our email provider after 30 days. If an email to you bounces or is reported as spam, we keep a one-way fingerprint of the address (not the address itself) so we stop emailing it.</p>
 
     <h2>Your rights and choices</h2>
     <ul>
       <li><b>See and update your data:</b> sign in to <a href="/account/login">your account</a> with the email you registered or applied with to view your applications, update your profile and resumes, manage your job alerts, choose whether our recruiters may find your profile for other jobs, and download a copy of your data.</li>
       <li><b>Withdraw or delete:</b> from your account you can withdraw an application, or delete your account and all your data (profile, applications, resumes, job alerts, saved jobs, account activity and newsletter) in one step.</li>
-      <li><b>Unsubscribe:</b> every job alert and newsletter email has a one-click unsubscribe link.</li>
+      <li><b>Unsubscribe:</b> every job alert and newsletter email has a one-click unsubscribe link, and in <a href="/notifications/settings">notification settings</a> you can turn off emails about application updates and new jobs. Emails about your interviews, offers and account security are part of the service you asked for, so they always go.</li>
       <li><b>Anything else:</b> email us at <a href="mailto:<%= site.email %>"><%= site.email %></a> to access, correct or erase your data, or to nominate someone to act for you.</li>
     </ul>
 

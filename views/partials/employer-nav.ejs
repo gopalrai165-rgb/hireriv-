@@ -15,6 +15,7 @@
         <button class="btn btn-outline btn-sm" type="submit">Switch</button>
       </form>
     <% } %>
+    <%- include('notification-bell', { as: 'employer', bellQuery: '?as=employer', bellClass: 'btn btn-outline btn-sm' }) %>
     <form method="post" action="/employer/logout"><button class="btn btn-outline btn-sm" type="submit">Log out</button></form>
   </div>
 </div>

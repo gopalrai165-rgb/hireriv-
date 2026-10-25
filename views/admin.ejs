@@ -4,6 +4,8 @@
   <div class="container">
     <div class="admin-userbar">
       <span>Signed in as <b><%= admin.name %></b> · <%= admin.role %></span>
+      <%- include('partials/notification-bell', { as: 'team', bellQuery: '?as=team', bellClass: 'small' }) %>
+      <% if (isAdmin) { %><a class="small" href="/admin/notifications">Email delivery</a><% } %>
       <a class="small" href="/admin/security">Sign-in security</a>
       <form method="post" action="/admin/logout"><button class="link-btn small" type="submit">Sign out</button></form>
     </div>

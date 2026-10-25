@@ -1,7 +1,7 @@
 // The applicant tracking rules: hiring stages and the moves allowed between
 // them, offers (approval and the candidate's answer kept apart), internal
-// notes, interview scheduling rules, hiring metrics, and a notification ledger
-// so a retried request never emails twice. No routes here: see employer-ats.js.
+// notes, interview scheduling rules and hiring metrics. No routes here: see
+// employer-ats.js. Notifications go through notify.js.
 //
 // Stages are stored with the names the rest of the app already uses ("New",
 // "Offered"); LABELS gives the names people see ("Applied", "Offer").
@@ -13,6 +13,8 @@ const STAGES = [...PIPELINE, ...OUTCOMES];
 const LABELS = { New: 'Applied', Offered: 'Offer' };
 const label = (s) => LABELS[s] || s;
 const CLOSED = ['Hired', 'Rejected'];
+// What candidates see. Shortlisted and On hold are internal decisions, shown as "Under review".
+const CANDIDATE_LABELS = { New: 'Received', Screening: 'Under review', Shortlisted: 'Under review', 'On hold': 'Under review', Interview: 'Interview', Offered: 'Offer', Hired: 'Hired', Rejected: 'Not selected' };
 
 // The workflow: where an application can go from each stage. Anything else is
 // a correction, which only a company owner can make, with a reason.
@@ -48,10 +50,7 @@ const allowedMoves = (a) => (a.withdrawnAt ? [] : (NEXT[a.status || 'New'] || []
 // Records the move in the application's history (append-only: corrections are
 // new entries, nothing is removed). Returns false when it was already there.
 function recordMove(moveStage, a, to, actor, { correction = false, reason = '' } = {}) {
-  if (!moveStage(a, to, actor.label)) return false;
-  const h = a.history[a.history.length - 1];
-  Object.assign(h, { actor: actor.kind, ...(actor.userId ? { userId: actor.userId } : {}), ...(correction ? { correction: true, reason } : {}) });
-  return true;
+  return moveStage(a, to, actor.label, undefined, { actor: actor.kind, ...(actor.userId ? { userId: actor.userId } : {}), ...(correction ? { correction: true, reason } : {}) });
 }
 
 // ---------- notes ----------
@@ -206,39 +205,8 @@ function metrics(applications, jobs, { now = Date.now(), since = null, members =
   };
 }
 
-// ---------- notification ledger ----------
-// Each notification has a key (e.g. "interview-invite:<id>"). Sending the same
-// key again does nothing, so a retried request can't email twice. The ledger
-// keeps who it was for (candidate, team or employer), the template and whether
-// it was delivered; never the message itself.
-function notifier({ readSubmissions, writeSubmissions, saveSubmission }) {
-  const KEY = 'notifications';
-  const update = (id, patch) => {
-    const list = readSubmissions(KEY);
-    const n = list.find((x) => x.id === id);
-    if (n) { Object.assign(n, patch); writeSubmissions(KEY, list); }
-  };
-  function once(key, meta, sendFn) {
-    if (readSubmissions(KEY).some((n) => n.key === key)) return false;
-    const n = saveSubmission(KEY, { key, ...meta, channel: 'email', status: 'queued' });
-    Promise.resolve()
-      .then(sendFn)
-      .then((ok) => update(n.id, { status: ok === false ? 'failed' : 'sent', doneAt: new Date().toISOString() }))
-      .catch(() => update(n.id, { status: 'failed', doneAt: new Date().toISOString() }));
-    return true;
-  }
-  // Deliveries older than a year are dropped.
-  function prune() {
-    const cutoff = new Date(Date.now() - 365 * DAY).toISOString();
-    const list = readSubmissions(KEY);
-    const keep = list.filter((n) => n.createdAt >= cutoff);
-    if (keep.length !== list.length) writeSubmissions(KEY, keep);
-  }
-  return { once, prune, list: () => readSubmissions(KEY) };
-}
-
 module.exports = {
   PIPELINE, OUTCOMES, STAGES, LABELS, NEXT, CLOSED, RESPONSES, label, stageOf, moveProblem, allowedMoves, recordMove,
   addNote, parseOffer, createOffer, findOffer, decideOffer, recordResponse, withdrawOffer, approvedOffer, acceptedOffer, liveOffers,
-  scheduleProblem, metrics, median, notifier,
+  scheduleProblem, metrics, median, CANDIDATE_LABELS,
 };

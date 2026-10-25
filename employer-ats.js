@@ -9,12 +9,12 @@
 // Rules live in ats.js.
 const ats = require('./ats');
 const { can } = require('./employer-team');
-const { parseScorecard, RECOMMENDATIONS } = require('./interviews');
+const { parseScorecard, parseNewTime, RECOMMENDATIONS } = require('./interviews');
 
 function register(app, deps) {
-  const { site, mailer, baseUrl, limit, sameOrigin, clients, hiring, readSubmissions, writeSubmissions, getJobs, interviewDesk, moveStage, formatIst, todayIst } = deps;
+  const { site, mailer, baseUrl, limit, sameOrigin, clients, hiring, readSubmissions, writeSubmissions, getJobs, interviewDesk, moveStage, formatIst, todayIst, events, db } = deps;
   const { requireEmployer, requireEmployerApi, team, addressed } = clients;
-  const { ledger, applicantView, applicationsFor, withApplicant, withJob, changeStatus, bookInterview, actorOf } = hiring;
+  const { applicantView, applicationsFor, withApplicant, withJob, changeStatus, bookInterview, actorOf } = hiring;
   const page = (res, view, locals, status = 200) => res.status(status).render(view, { page: 'employer', noindex: true, errors: [], msg: '', ...locals });
   const fail = (res, status, errors) => res.status(status).json({ ok: false, errors: [].concat(errors) });
   const toApplicant = (res, a, msg) => res.redirect(`/employer/applicants/${a.id}?msg=${encodeURIComponent(msg)}`);
@@ -97,7 +97,11 @@ function register(app, deps) {
       if (a.assignedTo === userId) return { changed: false };
       a.assignedTo = userId;
     }
-    save(req);
+    a.updatedAt = new Date().toISOString();
+    db.transaction(() => {
+      save(req);
+      events.assigned(a, req.job, userId, req.employerUser.id);
+    });
     const who = userId ? team.userById(userId) : null;
     team.audit(req.employer.id, req.employerUser, 'applicant-assigned', `${a.name} (${req.job.title}) → ${who ? who.name : 'nobody'}`);
     return { changed: true };
@@ -107,15 +111,35 @@ function register(app, deps) {
     toApplicant(res, req.application, r.error ? `Not changed: ${r.error}.` : r.changed ? 'Assignment saved.' : 'No change.');
   });
 
-  // ---------- interviews: cancel, scorecards ----------
+  // ---------- interviews: cancel, move, scorecards ----------
   const findInterview = (req, ivId) => (req.application.interviews || []).find((iv) => iv.id === ivId) || null;
   function cancelInterview(req, iv) {
     if (iv.status !== 'scheduled') return { error: 'this interview is not scheduled' };
-    const delivered = interviewDesk.cancel(req.applications, req.application, iv);
-    ledger.once(`interview-cancelled:${iv.id}`, { audience: 'candidate', template: 'interview-cancelled', employerId: req.employer.id, applicationId: req.application.id }, () => delivered);
+    interviewDesk.cancel(req.applications, req.application, iv);
     team.audit(req.employer.id, req.employerUser, 'interview-cancelled', `${req.application.name} on ${formatIst(iv.at)} (${req.job.title})`);
     return {};
   }
+  // A new time, with the same rules as booking (2 hours ahead, 7 am to 9 pm,
+  // no clash for the candidate or the interviewer).
+  function rescheduleInterview(req, iv, body) {
+    if (iv.status !== 'scheduled') return { status: 409, error: 'this interview is not scheduled' };
+    const r = parseNewTime(body);
+    if (r.error) return { status: 400, error: r.error };
+    const company = new Set(getJobs().filter((j) => j.employerId === req.employer.id).map((j) => j.id));
+    const others = req.applications.filter((x) => company.has(x.jobId)).map((x) => (x.id === req.application.id ? { ...x, interviews: (x.interviews || []).filter((y) => y.id !== iv.id) } : x));
+    const problem = ats.scheduleProblem(others, { ...req.application, interviews: (req.application.interviews || []).filter((y) => y.id !== iv.id) }, r.at, iv.duration, iv.interviewerEmail);
+    if (problem) return { status: 400, error: problem };
+    const previous = iv.at;
+    interviewDesk.reschedule(req.applications, req.application, iv, r.at);
+    team.audit(req.employer.id, req.employerUser, 'interview-rescheduled', `${req.application.name}: ${formatIst(previous)} → ${formatIst(r.at)} (${req.job.title})`);
+    return {};
+  }
+  app.post('/employer/applicants/:id/interviews/:ivId/reschedule', requireEmployer, withApplicant('interviews.manage'), limit('employer-interviews', 30), sameOrigin, (req, res, next) => {
+    const iv = findInterview(req, req.params.ivId);
+    if (!iv) return next();
+    const r = rescheduleInterview(req, iv, req.body);
+    toApplicant(res, req.application, r.error ? `Not moved: ${r.error}.` : `Interview moved to ${formatIst(iv.at)}. The candidate was sent the new time to confirm.`);
+  });
   app.post('/employer/applicants/:id/interviews/:ivId/cancel', requireEmployer, withApplicant('interviews.manage'), limit('employer-interviews', 30), sameOrigin, (req, res, next) => {
     const iv = findInterview(req, req.params.ivId);
     if (!iv) return next();
@@ -147,7 +171,10 @@ function register(app, deps) {
     if (errors.length) return { status: 400, errors };
     const r = ats.createOffer(req.application, { ...fields, title: fields.title || req.job.title }, req.employerUser);
     if (r.error) return { status: 409, errors: [r.error] };
-    save(req);
+    db.transaction(() => {
+      save(req);
+      events.offerCreated(req.application, req.job, r.offer, req.employerUser.id);
+    });
     team.audit(req.employer.id, req.employerUser, 'offer-created', `${req.application.name} (${req.job.title})`);
     return { offer: r.offer, errors: [] };
   }
@@ -162,8 +189,11 @@ function register(app, deps) {
     if (problem) return { status: 409, error: problem };
     // An approved offer moves the application to Offer and tells the candidate.
     if (action === 'approve' && a.status !== 'Offered' && !ats.moveProblem(a, 'Offered')) ats.recordMove(moveStage, a, 'Offered', actorOf(req));
-    save(req);
-    if (action === 'approve') ledger.once(`offer-made:${o.id}`, { audience: 'candidate', template: 'offer-made', employerId: req.employer.id, applicationId: a.id }, () => mailer.offerMade(a, req.employer.company, o));
+    db.transaction(() => {
+      save(req);
+      if (action === 'approve') events.offerApproved(a, o);
+      if (action === 'accepted') events.offerAnswered(a, req.job, o, req.employerUser.id);
+    });
     team.audit(req.employer.id, req.employerUser, `offer-${{ approve: 'approved', reject: 'rejected', withdraw: 'withdrawn', accepted: 'accepted', declined: 'declined' }[action]}`, `${a.name} (${req.job.title})`);
     return {};
   }
@@ -184,21 +214,10 @@ function register(app, deps) {
   });
 
   // ---------- the candidate answered an interview invite (from candidates.js) ----------
-  function interviewResponded(a, iv, confirmed, note) {
+  function interviewResponded(a, iv, confirmed) {
     const job = getJobs().find((j) => j.id === a.jobId);
-    const when = formatIst(iv.at);
-    const key = `interview-answer:${iv.id}:${iv.confirmation}:${iv.answeredAt}`;
-    if (job && hiring.selfManaged(job)) {
-      const emp = clients.read().find((e) => e.id === job.employerId && e.active);
-      if (!emp) return;
-      for (const m of team.membersOf(emp.id).filter((x) => can(x, 'interviews.manage', job))) {
-        const u = team.userById(m.userId);
-        if (u && u.emailVerifiedAt) ledger.once(`${key}:${u.id}`, { audience: 'employer', template: 'interview-answer', employerId: emp.id, applicationId: a.id }, () => mailer.interviewResponse(addressed(emp, u), a, iv, when, confirmed, note, `${baseUrl}/employer/applicants/${a.id}`));
-      }
-      team.audit(emp.id, null, confirmed ? 'interview-confirmed' : 'interview-reschedule-requested', `${a.name} (${job.title}) by the candidate`);
-    } else {
-      ledger.once(key, { audience: 'team', template: 'interview-answer', applicationId: a.id }, () => mailer.interviewResponse({ name: `${site.name} team`, email: process.env.NOTIFY_EMAIL || site.email }, a, iv, when, confirmed, note, `${baseUrl}/admin?tab=interviews`));
-    }
+    events.interviewAnswered(a, iv, confirmed);
+    if (job && hiring.selfManaged(job)) team.audit(job.employerId, null, confirmed ? 'interview-confirmed' : 'interview-reschedule-requested', `${a.name} (${job.title}) by the candidate`);
   }
 
   // ---------- JSON API ----------
@@ -237,6 +256,17 @@ function register(app, deps) {
       const r = submitFeedback(req, findInterview(req, req.params.ivId), req.body || {});
       if (r.errors.length) return fail(res, r.status, r.errors);
       res.status(201).json({ ok: true, feedback: { by: r.entry.by, at: r.entry.at, rating: r.entry.rating, recommendation: r.entry.recommendation } });
+    });
+  });
+  app.post('/api/ats/interviews/:ivId/reschedule', requireEmployerApi, limit('employer-interviews', 30), sameOrigin, (req, res) => {
+    const { apps } = applicationsFor(req);
+    const a = apps.find((x) => (x.interviews || []).some((iv) => iv.id === req.params.ivId));
+    req.params.id = a ? a.id : '';
+    withApplicant('interviews.manage', { api: true })(req, res, () => {
+      const iv = findInterview(req, req.params.ivId);
+      const r = rescheduleInterview(req, iv, req.body || {});
+      if (r.error) return fail(res, r.status, r.error);
+      res.json({ ok: true, interview: { id: iv.id, at: iv.at, status: iv.status, confirmation: iv.confirmation, sequence: iv.sequence } });
     });
   });
   app.post('/api/ats/applications/:id/offers', requireEmployerApi, withApplicant('offers.create', { api: true }), limit('ats-offers', 30), sameOrigin, (req, res) => {

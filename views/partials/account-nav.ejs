@@ -5,7 +5,10 @@
     <h1><%= heading %></h1>
     <p class="muted">Signed in as <%= email %></p>
   </div>
-  <form method="post" action="/account/logout"><button class="btn btn-outline btn-sm" type="submit">Log out</button></form>
+  <div class="row-actions">
+    <%- include('notification-bell', { as: 'candidate', bellQuery: '?as=candidate', bellClass: 'btn btn-outline btn-sm' }) %>
+    <form method="post" action="/account/logout"><button class="btn btn-outline btn-sm" type="submit">Log out</button></form>
+  </div>
 </div>
 <nav class="account-tabs" aria-label="My account">
   <% [['dashboard', '/account', 'Dashboard'], ['profile', '/account/profile', 'Profile & resume'], ['saved', '/account/saved', 'Saved jobs'], ['interviews', '/account/interviews', 'Interviews'], ['settings', '/account/settings', 'Settings']].forEach(function (t) { %>
