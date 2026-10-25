@@ -49,6 +49,7 @@
         <p><b><%= inv.buyer.name %></b><% if (inv.buyer.address) { %><br><%= inv.buyer.address %><% } %><% if (inv.buyer.gstin) { %><br>GSTIN: <%= inv.buyer.gstin %><% } %></p>
       </section>
 
+      <div class="scroll-x">
       <table class="invoice-lines">
         <thead><tr><th>Description</th><th>SAC</th><th class="num">Amount</th></tr></thead>
         <tbody>
@@ -66,6 +67,7 @@
           <tr class="invoice-total"><td colspan="2"><%= cn ? 'Total credit' : 'Total' %></td><td class="num"><%= inr(doc.total) %></td></tr>
         </tfoot>
       </table>
+      </div>
       <p class="small"><b>Amount in words:</b> <%= amountInWords(doc.total) %></p>
 
       <% if (!cn && inv.seller.bank) { %>

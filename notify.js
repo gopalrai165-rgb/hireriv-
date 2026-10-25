@@ -98,7 +98,14 @@ const hasInbox = (r) => ['candidate', 'employer', 'team'].includes(r.kind);
 const safeLink = (link) => (typeof link === 'string' && /^\/(?!\/)[^\s\\]*$/.test(link) ? link.slice(0, 300) : '');
 const clip = (s, n) => String(s ?? '').replace(/\s+/g, ' ').trim().slice(0, n);
 
-const defaultPrefs = () => ({ email: Object.fromEntries(OPTIONAL_CATEGORIES.map((c) => [c, true])) });
+// Email per area (on unless switched off), phone notifications per area (they
+// only reach devices the person turned them on for), and agreement to
+// marketing emails, which is off until the person turns it on.
+const defaultPrefs = () => ({
+  email: Object.fromEntries(OPTIONAL_CATEGORIES.map((c) => [c, true])),
+  push: Object.fromEntries(OPTIONAL_CATEGORIES.map((c) => [c, true])),
+  marketing: { email: false, at: null, how: null },
+});
 
 function create({ db, now = () => Date.now(), log = console }) {
   const iso = (ms = now()) => new Date(ms).toISOString();
@@ -132,17 +139,28 @@ function create({ db, now = () => Date.now(), log = console }) {
   function prefsOf(rk) {
     const p = db.where(PREFERENCES, 'rk', rk)[0];
     const base = defaultPrefs();
-    if (p && p.email) for (const c of OPTIONAL_CATEGORIES) if (typeof p.email[c] === 'boolean') base.email[c] = p.email[c];
+    for (const ch of ['email', 'push']) if (p && p[ch]) for (const c of OPTIONAL_CATEGORIES) if (typeof p[ch][c] === 'boolean') base[ch][c] = p[ch][c];
+    if (p && p.marketing && typeof p.marketing.email === 'boolean') base.marketing = { email: p.marketing.email, at: p.marketing.at || null, how: p.marketing.how || null };
     return base;
   }
   function setPrefs(rk, input) {
     const prefs = prefsOf(rk);
-    for (const c of OPTIONAL_CATEGORIES) if (input && input.email && typeof input.email[c] === 'boolean') prefs.email[c] = input.email[c];
+    for (const ch of ['email', 'push']) for (const c of OPTIONAL_CATEGORIES) if (input && input[ch] && typeof input[ch][c] === 'boolean') prefs[ch][c] = input[ch][c];
+    // Agreeing or withdrawing is recorded with when and where it happened.
+    if (input && typeof input.marketing === 'boolean' && input.marketing !== prefs.marketing.email) prefs.marketing = { email: input.marketing, at: iso(), how: String(input.how || 'notification settings').slice(0, 60) };
     const existing = db.where(PREFERENCES, 'rk', rk)[0];
     if (existing) db.update(PREFERENCES, { ...existing, ...prefs, updatedAt: iso() });
     else db.prepend(PREFERENCES, { id: crypto.randomUUID(), rk, ...prefs, createdAt: iso(), updatedAt: iso() });
     return prefs;
   }
+  // Would this in-app notification also go to the person's phone?
+  function pushAllowed(n) {
+    if (!OPTIONAL_CATEGORIES.includes(n.category)) return true;
+    return prefsOf(n.rk).push[n.category] !== false;
+  }
+  // Called with each new in-app notification once it is saved (push).
+  const listeners = [];
+  const onNotification = (fn) => listeners.push(fn);
   // Would this recipient get this type of email?
   function emailAllowed(rk, type) {
     const t = TYPES[type];
@@ -161,6 +179,7 @@ function create({ db, now = () => Date.now(), log = console }) {
     if (!TYPES[type]) throw new Error(`unknown notification type ${type}`);
     if (email && !templates[email.template]) throw new Error(`unknown email template ${email.template}`);
     const out = { notifications: 0, deliveries: 0 };
+    const created = [];
     const seen = new Set();
     db.transaction(() => {
       for (const r of to || []) {
@@ -177,7 +196,7 @@ function create({ db, now = () => Date.now(), log = console }) {
             ...(content.jobId ? { jobId: content.jobId } : {}), ...(content.perm ? { perm: content.perm } : {}),
             event: key, readAt: null, createdAt: iso(),
           };
-          if (insert(NOTIFICATIONS, n)) out.notifications++;
+          if (insert(NOTIFICATIONS, n)) { out.notifications++; created.push(n); }
         }
         if (email && r.mail !== false && (r.kind !== 'candidate' || r.email) && emailAllowed(rk, type)) {
           const d = {
@@ -190,6 +209,11 @@ function create({ db, now = () => Date.now(), log = console }) {
       }
     });
     if (out.deliveries) kick();
+    if (created.length && listeners.length) {
+      setImmediate(() => {
+        for (const n of created) for (const fn of listeners) Promise.resolve().then(() => fn({ ...n, categoryLabel: CATEGORIES[n.category] || '' })).catch((e) => log.error('Notification listener:', e.message));
+      });
+    }
     return out;
   }
   function insert(collection, doc) {
@@ -406,7 +430,7 @@ function create({ db, now = () => Date.now(), log = console }) {
   }
 
   return {
-    TYPES, CATEGORIES, OPTIONAL_CATEGORIES, rkOf, candidateRk, addressHash, template, emit, work, start, prefsOf, setPrefs, emailAllowed,
+    TYPES, CATEGORIES, OPTIONAL_CATEGORIES, rkOf, candidateRk, addressHash, template, emit, work, start, prefsOf, setPrefs, emailAllowed, pushAllowed, onNotification,
     list, unreadCount, find, markRead, markAllRead, forget, forgetCompany, prune, stats, problems, recentDeliveries, suppressions, unsuppress, suppress, retry,
     verifySignature, applyWebhook, safeLink,
   };

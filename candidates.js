@@ -76,7 +76,7 @@ function passwordProblem(pw, confirm) {
 function register(app, deps) {
   const { db, mailer, baseUrl, sameOrigin, limit, readSubmissions, writeSubmissions, uploadsDir, getJobs, interviewIcs, site, contractsFor } = deps;
   const { upload, saveApplication, isBot, isSample, isLive, resumeNeeded, skillMatch, saveSubmission, jobCategories, jobLocations, vetUpload, downloadLinks, linkExpired } = deps;
-  const { jobTypes, modes, stateOf, interviewResponded, events, notify, recommendFor } = deps;
+  const { jobTypes, modes, stateOf, interviewResponded, events, notify, push, recommendFor } = deps;
   const track = (event, label, req) => { if (deps.analytics) deps.analytics.track(event, label, req); };
   const secureCookie = /^https:/.test(baseUrl);
 
@@ -877,6 +877,7 @@ function register(app, deps) {
     for (const kind of ['candidate', 'candidate-link', 'candidate-reset']) db.sessions.deleteSubject(kind, email);
     failures.delete(email);
     notify.forget(notify.candidateRk(email));
+    if (push) push.forget(notify.candidateRk(email));
   }
   app.post('/account/delete', requireCandidate, limit('account-delete', 5), sameOrigin, (req, res) => {
     if (String(req.body.confirm || '').trim().toUpperCase() !== 'DELETE') return back(res, 'Type DELETE to confirm deleting your data.', '/account/settings');

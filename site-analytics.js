@@ -19,9 +19,13 @@ const EVENTS = {
   'inquiry-qualified': 'Employer inquiries qualified by sales',
   'form-rejected': 'Public forms sent back with errors',
   'server-error': 'Server errors',
+  'app-launch': 'Opened from the installed app',
+  'app-installed': 'App installed',
+  'push-enabled': 'Phone notifications turned on',
+  'offline-page': 'Offline page shown',
 };
 // What a visitor's browser may report itself; everything else is counted on the server.
-const CLIENT_EVENTS = ['application-started'];
+const CLIENT_EVENTS = ['application-started', 'app-installed', 'offline-page'];
 const BOT_RE = /bot|crawl|spider|slurp|bingpreview|facebookexternalhit|whatsapp|linkedinbot|embedly|preview|headless|lighthouse|pingdom|uptime|curl|wget|python-requests|node-fetch|axios/i;
 const KEEP_DAYS = 400;
 const LABEL_RE = /[^A-Za-z0-9 &,./()-]/g;

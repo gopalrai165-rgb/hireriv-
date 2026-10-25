@@ -70,6 +70,15 @@
   <svg class="i"><use href="#i-whatsapp"/></svg>
 </a><% } %>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
+<div class="app-bar" id="app-update" role="status" hidden>
+  <span>A new version of <%= site.name %> is ready.</span>
+  <button type="button" class="btn btn-primary btn-sm" data-app-reload>Reload</button>
+</div>
+<% if (typeof workspace === 'undefined' || !workspace) { %><div class="app-bar" id="app-install" hidden>
+  <span>Add <%= site.name %> to your home screen to search and apply faster.</span>
+  <button type="button" class="btn btn-primary btn-sm" data-install-app>Install</button>
+  <button type="button" class="btn btn-outline btn-sm" data-install-dismiss>Not now</button>
+</div><% } %>
 <script src="/js/main.js?v=<%= assetVersion %>" defer></script>
 </body>
 </html>

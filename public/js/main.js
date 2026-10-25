@@ -422,3 +422,155 @@ document.querySelectorAll('input[data-resume-autofill]').forEach((input) => {
     }
   });
 });
+
+// ---------- installable app ----------
+// Counts an app event (no personal data), like the application counter above.
+function countEvent(event) {
+  const body = JSON.stringify({ event });
+  try {
+    if (!(navigator.sendBeacon && navigator.sendBeacon('/api/public/events', new Blob([body], { type: 'application/json' })))) {
+      fetch('/api/public/events', { method: 'POST', body, headers: { 'Content-Type': 'application/json' }, keepalive: true }).catch(() => {});
+    }
+  } catch { /* counting is best-effort */ }
+}
+
+// The service worker keeps public files for slow connections and shows the
+// offline page; a new version waits until the visitor chooses to reload.
+if ('serviceWorker' in navigator) {
+  const bar = document.getElementById('app-update');
+  let reloading = false;
+  const offer = (worker) => {
+    if (!bar || !worker) return;
+    bar.hidden = false;
+    bar.querySelector('[data-app-reload]').onclick = () => { reloading = true; worker.postMessage({ type: 'SKIP_WAITING' }); };
+  };
+  navigator.serviceWorker.addEventListener('controllerchange', () => { if (reloading) location.reload(); });
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js', { scope: '/' }).then((reg) => {
+      if (reg.waiting && navigator.serviceWorker.controller) offer(reg.waiting);
+      reg.addEventListener('updatefound', () => {
+        const w = reg.installing;
+        if (w) w.addEventListener('statechange', () => { if (w.state === 'installed' && navigator.serviceWorker.controller) offer(w); });
+      });
+    }).catch(() => { /* the site works without it */ });
+  });
+}
+
+// "Add to home screen", only where the browser offers it, and not again for
+// 30 days after "Not now".
+(() => {
+  const KEY = 'hireriv:install-dismissed';
+  let deferred = null;
+  const bar = document.getElementById('app-install');
+  const dismissed = () => { try { return Date.now() - Number(localStorage.getItem(KEY) || 0) < 30 * 86400000; } catch { return false; } };
+  const buttons = () => document.querySelectorAll('[data-install-app]');
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferred = e;
+    buttons().forEach((b) => { b.hidden = false; });
+    if (bar && !dismissed()) bar.hidden = false;
+  });
+  document.addEventListener('click', async (e) => {
+    if (e.target.closest('[data-install-dismiss]')) {
+      try { localStorage.setItem(KEY, String(Date.now())); } catch { /* storage blocked */ }
+      if (bar) bar.hidden = true;
+      return;
+    }
+    if (!e.target.closest('[data-install-app]') || !deferred) return;
+    deferred.prompt();
+    await deferred.userChoice.catch(() => null);
+    deferred = null;
+    buttons().forEach((b) => { b.hidden = true; });
+    if (bar) bar.hidden = true;
+  });
+  window.addEventListener('appinstalled', () => countEvent('app-installed'));
+})();
+
+// The offline page: try again by hand, or as soon as the connection is back.
+document.querySelectorAll('[data-offline-page]').forEach((page) => {
+  page.querySelector('[data-retry]').addEventListener('click', () => location.reload());
+  window.addEventListener('online', () => { countEvent('offline-page'); location.reload(); }, { once: true });
+});
+
+// Signing out: stop phone notifications on this device and forget what this
+// tab kept about the visit (the server also asks the browser to clear its cache).
+document.querySelectorAll('form[action$="/logout"]').forEach((form) => {
+  form.addEventListener('submit', () => {
+    try { sessionStorage.clear(); } catch { /* storage blocked */ }
+    try { localStorage.removeItem('hireriv:push-device'); } catch { /* storage blocked */ }
+    if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+      navigator.serviceWorker.ready.then((reg) => reg.pushManager && reg.pushManager.getSubscription()).then((s) => s && s.unsubscribe()).catch(() => {});
+    }
+  });
+});
+
+// Phone notifications (Notification settings): only when the person presses
+// the button, never asked on page load.
+document.querySelectorAll('[data-push]').forEach((box) => {
+  const status = box.querySelector('[data-push-status]');
+  const on = box.querySelector('[data-push-on]');
+  const off = box.querySelector('[data-push-off]');
+  const asQuery = box.dataset.as ? `?as=${encodeURIComponent(box.dataset.as)}` : '';
+  const DEVICE = 'hireriv:push-device';
+  const say = (t) => { status.textContent = t; };
+  if (!('serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window)) {
+    say(/iPhone|iPad/.test(navigator.userAgent) ? 'On iPhone and iPad, add Hireriv to your Home Screen first (Share, then Add to Home Screen) and open it from there to turn on notifications.' : 'This browser does not support phone notifications.');
+    return;
+  }
+  const key = (b64) => {
+    const s = atob((b64 + '='.repeat((4 - (b64.length % 4)) % 4)).replace(/-/g, '+').replace(/_/g, '/'));
+    return Uint8Array.from(s, (c) => c.charCodeAt(0));
+  };
+  const paint = async () => {
+    const reg = await navigator.serviceWorker.ready;
+    const sub = await reg.pushManager.getSubscription();
+    on.hidden = Boolean(sub);
+    off.hidden = !sub;
+    if (Notification.permission === 'denied') {
+      on.hidden = true;
+      say('Notifications are blocked for this site in your browser settings. Allow them there, then reload this page.');
+    } else say(sub ? 'Phone notifications are on for this device.' : 'Phone notifications are off for this device.');
+  };
+  on.addEventListener('click', async () => {
+    on.disabled = true;
+    try {
+      const permission = await Notification.requestPermission();
+      if (permission !== 'granted') { say('Notifications were not allowed, so nothing was turned on.'); return; }
+      const reg = await navigator.serviceWorker.ready;
+      const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: key(box.dataset.key) });
+      const res = await fetch(`/api/devices/push-subscriptions${asQuery}`, { method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, body: JSON.stringify(sub.toJSON()) });
+      const data = await res.json();
+      if (!data.ok) { await sub.unsubscribe(); say(data.errors.join(', ')); return; }
+      try { localStorage.setItem(DEVICE, data.device.id); } catch { /* storage blocked */ }
+      location.reload();
+    } catch {
+      say('Could not turn on notifications right now. Please try again.');
+    } finally {
+      on.disabled = false;
+    }
+  });
+  off.addEventListener('click', async () => {
+    off.disabled = true;
+    try {
+      let id = '';
+      try { id = localStorage.getItem(DEVICE) || ''; } catch { /* storage blocked */ }
+      if (id) await fetch(`/api/devices/push-subscriptions/${encodeURIComponent(id)}${asQuery}`, { method: 'DELETE', headers: { Accept: 'application/json' } });
+      const reg = await navigator.serviceWorker.ready;
+      const sub = await reg.pushManager.getSubscription();
+      if (sub) await sub.unsubscribe();
+      try { localStorage.removeItem(DEVICE); } catch { /* storage blocked */ }
+      location.reload();
+    } catch {
+      say('Could not turn off notifications right now. Please try again.');
+    } finally {
+      off.disabled = false;
+    }
+  });
+  paint().catch(() => {});
+});
+
+// Find Jobs on a phone: the extra filters fold away until asked for, unless
+// one of them is in use.
+document.querySelectorAll('details[data-more-filters]').forEach((d) => {
+  if (d.dataset.moreFilters === '0' && window.matchMedia('(max-width: 700px)').matches) d.open = false;
+});

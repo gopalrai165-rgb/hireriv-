@@ -1,6 +1,7 @@
 // The notification center (/notifications) and its JSON API, notification
 // preferences, the job-alert API for signed-in candidates, the email
-// provider's delivery webhook, and the team's delivery monitor.
+// provider's delivery webhook, the team's delivery monitor, and the devices
+// that get phone notifications (push.js).
 //
 // Whoever is signed in — a candidate, an employer person or the team — sees
 // only their own notifications. The recipient comes from the session, never
@@ -42,7 +43,7 @@ const ESSENTIAL_TEXT = {
 };
 
 function register(app, deps) {
-  const { notify, team, clients, candidates, getJobs, sameOrigin, limit, readSubmissions, writeSubmissions, saveSubmission, jobCategories, jobLocations, adminAuth, requireAdmin, adminUrl } = deps;
+  const { notify, push, team, clients, candidates, getJobs, sameOrigin, limit, readSubmissions, writeSubmissions, saveSubmission, jobCategories, jobLocations, adminAuth, requireAdmin, adminUrl, analytics } = deps;
   const jobById = (id) => getJobs().find((j) => j.id === id) || null;
 
   // ---------- who is asking ----------
@@ -133,16 +134,39 @@ function register(app, deps) {
   // ---------- preferences ----------
   const prefsView = (v) => {
     const p = notify.prefsOf(v.rk);
-    return { email: p.email, categories: notify.OPTIONAL_CATEGORIES.map((c) => ({ key: c, label: notify.CATEGORIES[c], text: PREF_TEXT[v.as][c], on: p.email[c] !== false })), essential: ESSENTIAL_TEXT[v.as] };
+    return {
+      email: p.email, push: p.push, marketing: p.marketing,
+      categories: notify.OPTIONAL_CATEGORIES.map((c) => ({ key: c, label: notify.CATEGORIES[c], text: PREF_TEXT[v.as][c], on: p.email[c] !== false, push: p.push[c] !== false })),
+      essential: ESSENTIAL_TEXT[v.as],
+    };
   };
+  // Marketing emails are only asked of job seekers; for them the newsletter
+  // list follows the same choice, so withdrawing is respected everywhere.
+  function setMarketing(v, on, how) {
+    if (v.as !== 'candidate') return;
+    notify.setPrefs(v.rk, { marketing: on, how });
+    const list = readSubmissions('newsletter');
+    const mine = (s) => String(s.email || '').toLowerCase() === v.email.toLowerCase();
+    if (!on && list.some(mine)) writeSubmissions('newsletter', list.filter((s) => !mine(s)));
+    if (on && !list.some(mine)) saveSubmission('newsletter', { email: v.email, source: how });
+  }
+  const devicesOf = (req) => push.list(req.viewer).map((s) => push.view(s, req));
   app.get('/notifications/settings', anyAccount, (req, res) => {
     const alerts = req.viewer.as === 'candidate' ? readSubmissions('job-alerts').filter((s) => s.email === req.viewer.email && s.confirmed) : [];
-    page(res, 'notification-settings', { title: 'Notification settings', viewer: req.viewer, viewers: req.viewers, prefs: prefsView(req.viewer), alerts, msg: String(req.query.msg || '').slice(0, 200) });
+    page(res, 'notification-settings', { title: 'Notification settings', viewer: req.viewer, viewers: req.viewers, prefs: prefsView(req.viewer), alerts, devices: devicesOf(req), pushKey: push.publicKey(), msg: String(req.query.msg || '').slice(0, 200) });
   });
   app.post('/notifications/settings', anyAccount, limit('notification-settings', 30), sameOrigin, (req, res) => {
     const email = Object.fromEntries(notify.OPTIONAL_CATEGORIES.map((c) => [c, req.body[`email_${c}`] === '1']));
-    notify.setPrefs(req.viewer.rk, { email });
+    const pushPrefs = Object.fromEntries(notify.OPTIONAL_CATEGORIES.map((c) => [c, req.body[`push_${c}`] === '1']));
+    notify.setPrefs(req.viewer.rk, { email, push: pushPrefs });
+    setMarketing(req.viewer, req.body.marketing === '1', 'notification settings');
     res.redirect(`/notifications/settings?${new URLSearchParams(Object.entries({ as: req.viewers.length > 1 ? req.viewer.as : '', msg: 'Notification settings saved.' }).filter(([, v]) => v))}`);
+  });
+
+  // A device removed from the settings page (works without JavaScript).
+  app.post('/notifications/devices/:id/delete', anyAccount, limit('push-devices', 30), sameOrigin, (req, res) => {
+    const gone = push.remove(req.viewer, req.params.id);
+    res.redirect(`/notifications/settings?${new URLSearchParams(Object.entries({ as: req.viewers.length > 1 ? req.viewer.as : '', msg: gone ? 'Phone notifications turned off for that device.' : 'That device was already removed.' }).filter(([, v]) => v))}`);
   });
 
   // ---------- JSON API ----------
@@ -170,17 +194,57 @@ function register(app, deps) {
     const category = filtersOf(req.body || {}).category;
     res.json({ ok: true, marked: notify.markAllRead(req.viewer, category) });
   });
-  app.get('/api/notification-preferences', anyAccountApi, (req, res) => {
+  // Preferences for whoever is signed in (/api/me/... is the same thing).
+  const prefsJson = (req) => {
     const p = prefsView(req.viewer);
-    res.json({ ok: true, as: req.viewer.as, email: p.email, alwaysSent: p.essential, channels: { inApp: 'always on', email: 'per category', sms: 'not used for notifications yet', whatsapp: 'not used for notifications yet', push: 'not available yet' } });
+    return {
+      ok: true, as: req.viewer.as, email: p.email, push: p.push, alwaysSent: p.essential,
+      ...(req.viewer.as === 'candidate' ? { marketing: { email: p.marketing.email, updatedAt: p.marketing.at } } : {}),
+      devices: devicesOf(req).length,
+      channels: { inApp: 'always on', email: 'per category', push: 'per category, on devices where you turned it on', sms: 'not used for notifications yet', whatsapp: 'not used for notifications yet' },
+    };
+  };
+  app.get('/api/notification-preferences', anyAccountApi, (req, res) => res.json(prefsJson(req)));
+  app.get('/api/me/notification-preferences', anyAccountApi, (req, res) => res.json(prefsJson(req)));
+  function patchPrefs(req, res) {
+    const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
+    const errors = [];
+    const known = ['email', 'push', ...(req.viewer.as === 'candidate' ? ['marketing'] : [])];
+    const extra = Object.keys(body).filter((k) => !known.includes(k));
+    if (extra.length) errors.push(`these can't be changed: ${extra.join(', ')}`);
+    if (!Object.keys(body).some((k) => known.includes(k))) errors.push(`send ${known.map((k) => (k === 'marketing' ? '{ marketing: { email } }' : `{ ${k}: { applications, interviews, jobs, work } }`)).join(' or ')} with true or false`);
+    for (const ch of ['email', 'push']) {
+      if (body[ch] === undefined) continue;
+      const input = body[ch];
+      if (!input || typeof input !== 'object' || Array.isArray(input)) { errors.push(`${ch} must be an object`); continue; }
+      const unknown = Object.keys(input).filter((k) => !notify.OPTIONAL_CATEGORIES.includes(k));
+      if (unknown.length) errors.push(`these can't be changed: ${unknown.join(', ')}`);
+      if (Object.values(input).some((v) => typeof v !== 'boolean')) errors.push('use true or false');
+    }
+    const marketing = body.marketing === undefined ? undefined : body.marketing && typeof body.marketing === 'object' ? body.marketing.email : body.marketing;
+    if (body.marketing !== undefined && typeof marketing !== 'boolean') errors.push('marketing.email must be true or false');
+    if (errors.length) return res.status(400).json({ ok: false, errors });
+    notify.setPrefs(req.viewer.rk, { email: body.email, push: body.push });
+    if (marketing !== undefined) setMarketing(req.viewer, marketing, 'notification preferences API');
+    res.json(prefsJson(req));
+  }
+  app.patch('/api/notification-preferences', anyAccountApi, limit('notification-settings', 30), sameOrigin, (req, res) => patchPrefs(req, res));
+  app.patch('/api/me/notification-preferences', anyAccountApi, limit('notification-settings', 30), sameOrigin, (req, res) => patchPrefs(req, res));
+
+  // ---------- devices for phone notifications ----------
+  // Registered only by the person's own action (the "Turn on" button); tied to
+  // the account and the sign-in it was registered with.
+  app.get('/api/devices/push-subscriptions', anyAccountApi, (req, res) => res.json({ ok: true, as: req.viewer.as, publicKey: push.publicKey(), devices: devicesOf(req) }));
+  app.post('/api/devices/push-subscriptions', anyAccountApi, limit('push-devices', 30), sameOrigin, (req, res) => {
+    const r = push.add(req, req.viewer, req.body);
+    if (r.error) return res.status(r.status).json({ ok: false, errors: [r.error] });
+    if (r.status === 201 && analytics) analytics.track('push-enabled', req.viewer.as === 'candidate' ? 'Job seeker' : req.viewer.as === 'employer' ? 'Employer' : 'Team', req);
+    res.status(r.status).json({ ok: true, device: push.view(r.subscription, req) });
   });
-  app.patch('/api/notification-preferences', anyAccountApi, limit('notification-settings', 30), sameOrigin, (req, res) => {
-    const input = (req.body || {}).email;
-    if (!input || typeof input !== 'object' || Array.isArray(input)) return res.status(400).json({ ok: false, errors: ['send { email: { applications, interviews, jobs } } with true or false'] });
-    const unknown = Object.keys(input).filter((k) => !notify.OPTIONAL_CATEGORIES.includes(k));
-    const bad = Object.values(input).some((v) => typeof v !== 'boolean');
-    if (unknown.length || bad) return res.status(400).json({ ok: false, errors: [unknown.length ? `these can't be changed: ${unknown.join(', ')}` : 'use true or false'] });
-    res.json({ ok: true, email: notify.setPrefs(req.viewer.rk, { email: input }).email });
+  app.delete('/api/devices/push-subscriptions/:id', anyAccountApi, limit('push-devices', 30), sameOrigin, (req, res) => {
+    // Someone else's device is simply "not found".
+    if (!push.remove(req.viewer, req.params.id)) return res.status(404).json({ ok: false, errors: ['device not found'] });
+    res.json({ ok: true });
   });
 
   // ---------- job alerts for signed-in candidates ----------

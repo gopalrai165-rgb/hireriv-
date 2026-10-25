@@ -18,18 +18,23 @@
 
     <form class="form dash-card" method="post" action="/notifications/settings">
       <% if (viewers.length > 1) { %><input type="hidden" name="as" value="<%= viewer.as %>"><% } %>
-      <h2>Email</h2>
-      <p class="muted small">Everything also appears in your notifications here, whatever you choose for email.</p>
-      <fieldset class="pref-list">
-        <legend class="sr-only">Send me emails about</legend>
-        <% prefs.categories.forEach(function (c) { %>
-          <label class="check-row">
-            <input type="checkbox" name="email_<%= c.key %>" value="1"<%= c.on ? ' checked' : '' %>>
-            <span><b><%= c.label %></b><br><span class="muted small"><%= c.text %></span></span>
-          </label>
-        <% }) %>
-      </fieldset>
-      <button class="btn btn-primary" type="submit">Save settings</button>
+      <h2>What to send</h2>
+      <p class="muted small">Everything also appears in your notifications here, whatever you choose. Phone notifications reach only the devices where you turned them on (below).</p>
+      <% prefs.categories.forEach(function (c) { %>
+        <fieldset class="pref-list pref-row">
+          <legend><b><%= c.label %></b> <span class="muted small"><%= c.text %></span></legend>
+          <label class="check-row"><input type="checkbox" name="email_<%= c.key %>" value="1"<%= c.on ? ' checked' : '' %>> <span>Email</span></label>
+          <label class="check-row"><input type="checkbox" name="push_<%= c.key %>" value="1"<%= c.push ? ' checked' : '' %>> <span>Phone notification</span></label>
+        </fieldset>
+      <% }) %>
+      <% if (viewer.as === 'candidate') { %>
+        <fieldset class="pref-list pref-row">
+          <legend><b>News and career tips</b> <span class="muted small">Occasional emails from <%= site.name %> about hiring events and job-search advice. Off unless you turn it on, and every one of these emails has an unsubscribe link.</span></legend>
+          <label class="check-row"><input type="checkbox" name="marketing" value="1"<%= prefs.marketing.email ? ' checked' : '' %>> <span>Yes, send me these</span></label>
+          <% if (prefs.marketing.at) { %><p class="muted small"><%= prefs.marketing.email ? 'You agreed' : 'You turned this off' %> on <%= formatDate(prefs.marketing.at) %>.</p><% } %>
+        </fieldset>
+      <% } %>
+      <button class="btn btn-primary btn-lg" type="submit">Save settings</button>
     </form>
 
     <section class="dash-card">
@@ -38,12 +43,30 @@
       <ul><% prefs.essential.forEach(function (t) { %><li><%= t %></li><% }) %></ul>
     </section>
 
-    <section class="dash-card">
-      <h2>Other channels</h2>
-      <ul>
-        <li><b>Text message and WhatsApp:</b> not used for notifications yet. <% if (viewer.as === 'candidate') { %>Whether recruiters may contact you this way is under <a href="/account/settings">Account settings</a>.<% } %></li>
-        <li><b>Browser notifications:</b> not available yet.</li>
-      </ul>
+    <section class="dash-card" id="devices">
+      <h2>Phone notifications</h2>
+      <p class="muted small">A short alert on your phone or computer when something new arrives, such as "New applications update". It never shows the details: they open after you sign in. Signing out turns them off on that device.</p>
+      <div class="push-box" data-push data-key="<%= pushKey %>"<%- viewers.length > 1 ? ' data-as="' + viewer.as + '"' : '' %>>
+        <p data-push-status class="small" role="status">Turning on phone notifications needs JavaScript.</p>
+        <button type="button" class="btn btn-primary btn-lg" data-push-on hidden>Turn on for this device</button>
+        <button type="button" class="btn btn-outline" data-push-off hidden>Turn off for this device</button>
+      </div>
+      <% if (devices.length) { %>
+        <h3>Devices with notifications on</h3>
+        <ul class="device-list">
+          <% devices.forEach(function (d) { %>
+            <li>
+              <span><b><%= d.device %></b><%= d.thisSession ? ' (this sign-in)' : '' %><br><span class="muted small">Since <%= formatDate(d.createdAt) %><%= d.lastSentAt ? ', last alert ' + formatDate(d.lastSentAt) : '' %></span></span>
+              <form method="post" action="/notifications/devices/<%= d.id %>/delete">
+                <% if (viewers.length > 1) { %><input type="hidden" name="as" value="<%= viewer.as %>"><% } %>
+                <button class="btn btn-outline btn-sm" type="submit">Turn off</button>
+              </form>
+            </li>
+          <% }) %>
+        </ul>
+      <% } %>
+      <p class="muted small"><b>Text message and WhatsApp:</b> not used for notifications yet. <% if (viewer.as === 'candidate') { %>Whether recruiters may contact you this way is under <a href="/account/settings">Account settings</a>.<% } %></p>
+      <p><button type="button" class="btn btn-outline btn-sm" data-install-app hidden>Install the <%= site.name %> app</button></p>
     </section>
 
     <% if (viewer.as === 'candidate') { %>

@@ -24,6 +24,9 @@
         </optgroup>
       </select>
       <button class="btn btn-primary" type="submit">Search</button>
+      <% const moreCount = filters.categories.length + ['experience', 'minPay', 'type', 'mode', 'shift', 'company'].filter(function (k) { return filters[k]; }).length + ((filters.skills || []).length ? 1 : 0); %>
+      <details class="more-filters" open data-more-filters="<%= moreCount %>">
+      <summary>Filters: pay, job type, experience, shift<% if (moreCount) { %> <span class="count"><%= moreCount %></span><% } %></summary>
       <div class="filter-row">
         <details class="filter-cats"<%- filters.categories.length ? ' open' : '' %>>
           <summary>Categories<% if (filters.categories.length) { %> <span class="count"><%= filters.categories.length %></span><% } %></summary>
@@ -74,7 +77,9 @@
           <option value="newest" <%= sort === 'newest' ? 'selected' : '' %>>Sort: newest</option>
           <option value="salary" <%= sort === 'salary' ? 'selected' : '' %>>Sort: highest pay</option>
         </select>
+        <button class="btn btn-primary more-filters-apply" type="submit">Show jobs</button>
       </div>
+      </details>
       <% if (filters.work) { %><input type="hidden" name="work" value="<%= filters.work %>"><% } %>
       <% if (filters.group) { %><input type="hidden" name="group" value="<%= filters.group %>"><% } %>
     </form>

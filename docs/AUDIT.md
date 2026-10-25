@@ -365,3 +365,73 @@ Suggested order: 2 → 1 → 3 → 4, which makes Hireriv usable for skilled and
   - suspension and reinstatement, closure needing a second person, and two-step sign-in for strong actions
   - a policy change with a reason, and health data without secrets
   - a read-only audit trail and tamper detection
+
+## Step 60: mobile-friendly website, installable app and the phone experience
+
+- **Audit first.** Already there:
+  - responsive pages with a phone menu, the saved-jobs icon in the header, and tables that scroll inside their box (all but the invoice)
+  - Find Jobs: search by title, skill, company or keyword and location; filters for categories, experience, pay, job type, work arrangement, shift, company and skills; kind-of-work tabs (Office & professional, Skilled & technical, Industrial, field & service) with counts
+  - job pages with pay, workplace, employment type, work arrangement, experience and shift
+  - one-click apply with the saved profile, resume upload from the phone, saved jobs, job alerts and saved searches
+  - application status and interview times in My account, with confirm and reschedule
+  - one application per person and job, enforced in the database; the submit button is disabled while sending
+  - the employer applicant tracking (pipeline, shortlist and reject with reasons, interviews, offers), already usable on a phone
+  - the notification center, email preferences per area, unsubscribe and suppression
+
+  Missing:
+  - a manifest, icons, a service worker, an offline page and update handling
+  - phone (push) notifications and their devices
+  - phone-notification and marketing choices in the preferences
+  - the `/api/me/...` and `/api/devices/...` addresses from the brief
+  - a compact filter layout and larger tap targets on phones
+  - anything for slow connections
+- **Reused, not duplicated.**
+  - Pushes come from the existing in-app notifications: `notify.js` calls a listener for each new one, and `push.js` sends it if the person allowed that area.
+  - Preferences extend the existing record (`notification-preferences`), and `/api/me/notification-preferences` is the same handler as `/api/notification-preferences`.
+  - Devices are tied to the existing sessions; no new sign-in.
+  - Employers keep the existing applicant tracking; there is no second mobile system.
+  - App counts use the existing cookie-free website analytics.
+- **Private data never in the offline cache.**
+  - The service worker stores only paths under `/css/`, `/js/` and `/img/` plus the offline page, all fetched without cookies.
+  - Pages are always fetched from the network and never stored; API calls, uploads and other requests are not touched.
+  - Responses marked `private` or `no-store`, or setting a cookie, are not stored either.
+  - The offline page never shows who is signed in.
+  - The test runs the worker against stand-in browser caches.
+- **Sign-out.**
+  - `Clear-Site-Data: "cache"` on all three sign-outs.
+  - The tab's session storage is cleared and the browser's push subscription cancelled.
+  - The server removes the devices registered with that sign-in, and checks before every push that the sign-in still exists.
+- **Push security.**
+  - Devices are registered only by the person's own action.
+  - Endpoints must be HTTPS addresses of known push services (Google, Mozilla, Microsoft, Apple), with no other port and no credentials; a local stand-in is accepted only when `NODE_ENV=test`.
+  - Device keys are checked as P-256 points, and the auth secret is 16 bytes.
+  - The endpoint and keys are never returned or logged; other people's devices are "not found".
+  - Pushes carry no names, job titles, email addresses or phone numbers. They are encrypted per device and signed with the site's VAPID key.
+  - At most 10 devices per account, and registering is rate-limited.
+- **Consent.**
+  - Phone notifications follow the per-area choices.
+  - Marketing emails for job seekers are off by default, and each change records when and where it was made. Withdrawing also removes the person from the newsletter list.
+  - Employers and the team have no marketing choice here.
+- **Slow connections.**
+  - Public files are kept on the device after the first visit.
+  - `Save-Data` skips the web font.
+  - The `Vary: Save-Data` header keeps caches apart.
+  - Images under icons get a week's cache.
+- **Also fixed.** Unreadable or oversized request bodies now get a 400 or 413 (JSON for the API) instead of a server error.
+- **Adapted from the brief.**
+  - The app stays on Express and EJS with the existing record store instead of React and PostgreSQL tables.
+  - Devices live in `push-subscriptions` like the rest of the app's records, so no separate migration is needed.
+- **Not done here.**
+  - Regional languages: the brief says "if required". Pages are English only, and translating them is a separate piece of work.
+  - Sending marketing emails: consent is recorded, but there are still no campaigns (Step 15).
+  - Real-device testing on Android, iPhone and low-end phones, and Lighthouse runs, are still to do on the live site. iPhones need the app added to the Home Screen before notifications can be turned on, and the settings page says so.
+- **Tests.** `test/mobile.test.js` has 9 tests, covering:
+  - the manifest, icons and page tags
+  - the service worker run against stand-in caches: public files only, pages never stored, the offline fallback, removing old versions, and an update waiting for "Reload"
+  - an offline page that is the same for everyone
+  - device validation, ownership, hidden endpoints, moving to a new owner, and removal on sign-out
+  - encrypted and signed pushes without personal details, none without permission, per-area choices and revocation by the push service
+  - preferences validation and marketing consent
+  - one application per job
+  - Find Jobs on a phone, every table in a scrolling box, and `Save-Data`
+  - app counts, and permission never requested on page load

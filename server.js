@@ -49,6 +49,8 @@ const catalog = require('./catalog');
 const notifyModule = require('./notify');
 const notifyEvents = require('./notify-events');
 const notificationCenter = require('./notification-center');
+const pushModule = require('./push');
+const pwa = require('./pwa');
 
 const PORT = process.env.PORT || 3004;
 const ADMIN_USER = process.env.ADMIN_USER || 'admin';
@@ -136,6 +138,10 @@ const mailer = createMailer(site);
 // events notify whom lives in notify-events.js. Its lookups run when an event
 // happens, so the modules registered further down are ready by then.
 const notify = notifyModule.create({ db });
+// Phone notifications (push.js): new in-app notifications also go to the
+// devices people turned them on for, in the areas they chose.
+const push = pushModule.create({ db, siteUrl: process.env.SITE_URL || '' });
+notify.onNotification((n) => push.deliver(n, notify.pushAllowed));
 const events = notifyEvents.create({
   notify, mailer, site, baseUrl: BASE_URL, db, readSubmissions: (t) => db.all(t), getJobs: () => jobs, formatIst: interviews.formatIst, interviewIcs, jobPath,
   appOwner: (a) => appOwner(a), team: { byId: (id) => team.byId(id), members: () => team.members() }, clients: () => clients,
@@ -432,7 +438,18 @@ app.get('/healthz', (req, res) => {
   }
 });
 
-app.use(express.static(path.join(__dirname, 'public'), { maxAge: '1h' }));
+// Light pages for slow connections: browsers asking to save data (Save-Data)
+// skip the web font and use the system font instead.
+app.use((req, res, next) => {
+  res.locals.saveData = /^on$/i.test(String(req.get('Save-Data') || ''));
+  if (req.method === 'GET') res.vary('Save-Data');
+  next();
+});
+app.use(express.static(path.join(__dirname, 'public'), {
+  maxAge: '1h',
+  // App icons change rarely; a new version gets a new file name.
+  setHeaders: (res, file) => { if (file.includes(`${path.sep}icons${path.sep}`)) res.set('Cache-Control', 'public, max-age=604800'); },
+}));
 
 app.locals.site = site;
 app.locals.catalog = catalog;
@@ -507,6 +524,9 @@ app.get('/og/jobs/:id.png', (req, res, next) => {
   og.job(job, site).then(sendPng(res), next);
 });
 
+// The installable app: manifest, service worker and offline page (pwa.js).
+pwa.register(app, { site, assetVersion: () => app.locals.assetVersion, analytics: siteAnalytics, push, sameOrigin });
+
 app.get('/robots.txt', (req, res) =>
   res.type('text/plain').send(`User-agent: *
 Disallow: /admin
@@ -561,6 +581,8 @@ function setupTodo() {
 
 // ---------- pages ----------
 app.get('/', (req, res) => {
+  // Opened from the home-screen icon (the manifest's start_url).
+  if (req.query.source === 'pwa') siteAnalytics.track('app-launch', /Mobi|Android|iPhone|iPad/.test(req.get('User-Agent') || '') ? 'Phone or tablet' : 'Computer', req);
   const live = openJobs();
   // Real openings first; sample listings only fill the gaps on a new site.
   const featured = [...live.filter((j) => !isSample(j)), ...live.filter(isSample)].slice(0, 6);
@@ -1366,7 +1388,7 @@ const candidateAccounts = candidates.register(app, {
   upload, saveApplication, isBot, isSample, isLive, resumeNeeded, skillMatch, saveSubmission, jobCategories, jobLocations,
   vetUpload: resumeCheck.vet, downloadLinks, linkExpired, jobTypes: JOB_TYPES, modes, stateOf: search.stateOf,
   interviewResponded: (...args) => atsDesk.interviewResponded(...args), events, notify,
-  recommendFor: (...args) => recommendations.recommend(...args), analytics: siteAnalytics,
+  recommendFor: (...args) => recommendations.recommend(...args), analytics: siteAnalytics, push,
 });
 
 // Recommended jobs with match explanations, saved searches with daily or
@@ -1439,8 +1461,8 @@ app.get('/admin/site-analytics', adminAuth, (req, res) => {
 
 // The notification center, its API, preferences, job alerts and delivery reports.
 const center = notificationCenter.register(app, {
-  notify, team, clients: () => clients, candidates: () => candidateAccounts, getJobs: () => jobs, sameOrigin, limit, readSubmissions, writeSubmissions, saveSubmission,
-  jobCategories, jobLocations, adminAuth, requireAdmin, siteName: site.name,
+  notify, push, team, clients: () => clients, candidates: () => candidateAccounts, getJobs: () => jobs, sameOrigin, limit, readSubmissions, writeSubmissions, saveSubmission,
+  jobCategories, jobLocations, adminAuth, requireAdmin, siteName: site.name, analytics: siteAnalytics,
 });
 // The worker sends queued emails (and retries failed ones); scheduled checks
 // find feedback that is due and offers about to expire; old records go.
@@ -1998,6 +2020,11 @@ app.get('/admin/resume/:file', adminAuth, (req, res) => {
 // ---------- 404 / errors ----------
 app.use((req, res) => res.status(404).render('404', { title: 'Page not found', page: '', noindex: true }));
 app.use((err, req, res, next) => {
+  // Unreadable or oversized request bodies are the sender's mistake, not a server error.
+  if (err.type && err.status >= 400 && err.status < 500) {
+    if (req.path.startsWith('/api/') || req.accepts(['html', 'json']) === 'json') return res.status(err.status).json({ ok: false, errors: [err.status === 413 ? 'the request is too large' : 'the request body could not be read'] });
+    return res.status(err.status).render('thanks', { title: 'Something was wrong with that request', page: '', ok: false, message: 'Please go back and try again.', noindex: true });
+  }
   console.error(err);
   ops.recordError(req, err);
   siteAnalytics.track('server-error', `/${String(req.path).split('/')[1] || ''}`);

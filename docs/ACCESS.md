@@ -15,7 +15,7 @@ Every route the app serves, and who may use it. **This table is checked by `test
 
 Every state-changing team, candidate and client form also passes `sameOrigin` (cross-site posts are refused).
 
-Total: 569 routes.
+Total: 578 routes.
 
 ## Trust & safety and platform operations: verification, moderation, complaint cases, appeals, audit history, system health; public reports and appeal links
 
@@ -181,6 +181,9 @@ Total: 569 routes.
 | GET | `/client/reports` | public | Short link to /employer/reports |
 | GET | `/client/team` | public | Short link to /employer/team |
 | POST | `/webhooks/email` | public | Email provider to server only: HMAC-SHA256 signature with EMAIL_WEBHOOK_SECRET over the exact body, 5-minute replay window, each event processed once; 404 when no secret is set |
+| GET | `/manifest.webmanifest` | public | The installable app manifest (name, icons, colours, start page, shortcuts) |
+| GET | `/sw.js` | public | Service worker: keeps public files only (CSS, script, images, the offline page); never pages, API answers or resumes. Always revalidated |
+| GET | `/offline` | public | Shown by the service worker without a connection; the same for everyone, never shows who is signed in |
 | GET | `/healthz` | public | Uptime check |
 | GET | `/og/site.png` | public |  |
 | GET | `/og/jobs/:id.png` | public |  |
@@ -483,12 +486,18 @@ Total: 569 routes.
 | POST | `/notifications/:id/read` | account | Your own notifications only; anyone else's is not found |
 | GET | `/notifications/settings` | account | Your own email preferences |
 | POST | `/notifications/settings` | account | Your own email preferences; only optional categories can be switched off |
+| POST | `/notifications/devices/:id/delete` | account | Turns off phone notifications for one of your own devices (others are "not found"); same-origin, rate-limited |
 | GET | `/api/notifications` | account | JSON; your own notifications, filters unread and category |
 | GET | `/api/notifications/unread-count` | account | JSON; your own unread count |
 | PATCH | `/api/notifications/:id/read` | account | JSON; 404 for anyone else's notification |
 | POST | `/api/notifications/read-all` | account | JSON; your own notifications only |
 | GET | `/api/notification-preferences` | account | JSON; your own preferences |
-| PATCH | `/api/notification-preferences` | account | JSON; only applications, interviews and jobs email can be changed, as true or false |
+| GET | `/api/me/notification-preferences` | account | Same as /api/notification-preferences: email and phone notifications per area, and (job seekers) marketing consent; for whoever is signed in |
+| PATCH | `/api/notification-preferences` | account | JSON; email and phone notifications per area (applications, interviews, jobs, work) as true or false, and marketing consent for job seekers |
+| PATCH | `/api/me/notification-preferences` | account | Validated booleans only; marketing consent is recorded with when and where, and withdrawing removes the person from the newsletter list; same-origin, rate-limited |
+| GET | `/api/devices/push-subscriptions` | account | Your devices with phone notifications on (device type and dates; never the endpoint or keys) and the public VAPID key |
+| POST | `/api/devices/push-subscriptions` | account | Registers this browser for phone notifications, tied to your account and this sign-in; HTTPS endpoints of known push services only, keys validated, at most 10 devices; same-origin, rate-limited |
+| DELETE | `/api/devices/push-subscriptions/:id` | account | Only your own device ("not found" otherwise); same-origin, rate-limited |
 
 ## Admin panel: any team member
 
