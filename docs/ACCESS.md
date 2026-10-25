@@ -12,10 +12,49 @@ Every route the app serves, and who may use it. **This table is checked by `test
 | team | Anyone on the team (Admin, Recruitment Manager, Recruiter, Account Manager, Staffing Manager, Finance Manager, Sales Manager, Business Development Representative, Verification Reviewer, Job Moderator, Support Agent, Trust & Safety Manager, Operations Admin, Auditor) | `adminAuth` or `teamApi` (+ two-step sign-in when the team requires it, always for the trust & safety and operations roles, and for Admins on the live site; the password again before exports with personal data, backups, erasing accounts, retention changes, incident containment and refunds), then the role's permission in `agency-roles.js` (403 otherwise). A Finance Manager can open only billing pages (and the sales reports); the sales roles only the CRM; the trust & safety and operations roles only their own pages |
 | admin | Team members with the Admin (Super Admin) role | `adminAuth` + `requireAdmin` (403 for everyone else) |
 | billing | Admins and Finance Managers | `adminAuth` + `requireBilling` (403 for everyone else) |
+| apikey | A company's own system with an access token from its client secret (`/api/v1`) | `apiAuth(scope)` in `integrations.js`: `Authorization: Bearer` only (never cookies or the address), the token's scopes, its company only (other ids are 404), and a per-integration rate limit |
 
 Every state-changing team, candidate and client form also passes `sameOrigin` (cross-site posts are refused).
 
-Total: 670 routes.
+Total: 703 routes.
+
+## Public API and integrations: companies' own systems with access tokens, the developer portal, and the Integrations pages for owners and the team
+
+| Method | Path | Policy | Notes |
+| --- | --- | --- | --- |
+| POST | `/api/v1/oauth/token` | public | An integration's client secret (HTTP Basic or the body, never the address); only its HMAC is stored; 30 a minute per address; a 15-minute bearer token, stored hashed, with the integration's scopes or fewer; no-store |
+| GET | `/api/v1/me` | apikey | Any valid token; the integration, its scopes and its company |
+| GET | `/api/v1/jobs` | apikey | jobs:read; the token's company's own jobs only (sandbox: its sample jobs); cursor pages |
+| GET | `/api/v1/jobs/:id` | apikey | jobs:read; another company's job is 404 |
+| POST | `/api/v1/jobs` | apikey | jobs:write; Idempotency-Key; the same checks as the portal; sent for Hireriv's review, never published directly |
+| PATCH | `/api/v1/jobs/:id` | apikey | jobs:write; own jobs only (404 otherwise); a live job goes back for review |
+| POST | `/api/v1/jobs/:id/submit` | apikey | jobs:write; own jobs only; posting holds, plan limits and quality checks apply |
+| POST | `/api/v1/jobs/:id/close` | apikey | jobs:write; own jobs only; not for jobs restricted by moderators |
+| GET | `/api/v1/applications` | apikey | applications:read; applications to the company's own jobs; email and phone only with applications:contact; no resumes |
+| GET | `/api/v1/applications/:id` | apikey | applications:read; another company's application is 404 |
+| PATCH | `/api/v1/applications/:id/status` | apikey | applications:status:update; own applications only; the same allowed moves as the portal; audited as the integration |
+| GET | `/api/v1/webhooks` | apikey | webhooks:manage; the company's endpoints (sandbox: that integration's); secrets never shown |
+| POST | `/api/v1/webhooks` | apikey | webhooks:manage; Idempotency-Key; public https addresses only (SSRF checks); the signing secret shown once, never stored |
+| PATCH | `/api/v1/webhooks/:id` | apikey | webhooks:manage; own endpoints only; the address is checked again |
+| DELETE | `/api/v1/webhooks/:id` | apikey | webhooks:manage; own endpoints only; audited |
+| POST | `/api/v1/webhooks/:id/rotate-secret` | apikey | webhooks:manage; the old secret also signs for 24 hours; audited |
+| POST | `/api/v1/webhooks/:id/test` | apikey | webhooks:manage; queues a webhook.test event |
+| GET | `/api/v1/webhooks/:id/deliveries` | apikey | webhooks:manage; own endpoints only; status, attempts and answer codes, no payloads |
+| POST | `/api/v1/webhook-deliveries/:id/replay` | apikey | webhooks:manage; own deliveries only; the same event id; audited |
+| GET | `/api/v1/events` | apikey | Any valid token; the company's events of 30 days (sandbox: its own); ids and states only |
+| GET | `/employer/integrations` | employer | Company owners only (integrations.manage); secrets masked; no-store |
+| POST | `/employer/integrations/clients` | employer | Company owners only; the secret shown once on the answer page (no-store, never in a link); owners emailed; audited |
+| POST | `/employer/integrations/clients/:id/rotate` | employer | Company owners only, own integrations only; old secret works 24 hours or stops now; audited |
+| POST | `/employer/integrations/clients/:id/revoke` | employer | Company owners only, own integrations only; keys, tokens and its endpoints stop at once; audited |
+| POST | `/employer/integrations/webhooks` | employer | Company owners only; public https addresses only; the signing secret shown once; audited |
+| POST | `/employer/integrations/webhooks/:id/:action` | employer | Company owners only, own endpoints only; rotate, test, turn on or off, delete; audited |
+| POST | `/employer/integrations/deliveries/:id/replay` | employer | Company owners only, own deliveries only; audited |
+| GET | `/admin/integrations` | team | integrations.view (Admins, Operations Admins, Trust & Safety Managers); keys masked, never secrets; no-store |
+| POST | `/admin/integrations/clients/:id/revoke` | team | integrations.manage (Admins, Trust & Safety Managers); reason required and shown to the company; in the hash-chained audit history; owners emailed |
+| GET | `/api/v1/openapi.json` | public | Anyone; the OpenAPI 3.1 description |
+| GET | `/developers` | public | Anyone; the developer portal |
+| GET | `/api/v1/public/jobs` | public | Anyone; the same live listings as /api/public/jobs |
+| GET | `/api/v1/public/jobs/:slug` | public | Anyone; one live listing (404 or 410 otherwise) |
 
 ## Employer verification, fraud reports and risk: company checks with documents, public company pages, report tracking, the trust queue and risk assessments
 

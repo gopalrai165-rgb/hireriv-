@@ -574,6 +574,44 @@ Suggested order: 2 → 1 → 3 → 4, which makes Hireriv usable for skilled and
 
   Existing tests were updated where exports and backups now ask for the password, and where sign-up no longer makes a profile visible to recruiters.
 
+## Step 65: public API, integrations and developer platform
+
+- **Audit first.** Already there:
+  - session-based employer JSON APIs (`/api/employers/jobs`, applications and status, interviews) for the portal's own pages
+  - the public job API (`/api/public/jobs`)
+  - the notification events (`notify-events.js`) and the stage history listeners
+  - the employer roles, the company activity log and the trust audit history
+
+  Gaps: no API keys or tokens for other systems, no scopes, no outbound webhooks, no idempotency, no per-client limits, no protection for requests to addresses customers give us, no sandbox and no developer documentation.
+- **Reused, not duplicated.**
+  - Jobs and status changes go through the existing functions in `employer-hiring.js` (now exported): `createEmployerJob`, `updateEmployerJob`, `submitJob`, `setJobState` and `changeStatus`. Review, quality checks, plan limits and posting holds apply exactly as in the portal.
+  - The public listings reuse `jobsApi`.
+  - Events come from wrapping the existing `events` methods, `history.onMove` and a new `hooks.stateChanged` in `setJobState`.
+  - Integrations belong to the existing company and are managed by its owners: there is no second sign-in system. Revocation by the team is recorded with `trust.record`.
+- **Security choices.**
+  - Secrets: HMAC-hashed, shown once, masked after that.
+  - Tokens: hashed, 15 minutes, header only, cookies ignored.
+  - Isolation: every lookup is scoped to the token's company (404 otherwise).
+  - Payloads carry no personal data.
+  - Outbound requests: SSRF-checked, pinned to the checked address, with each redirect checked again.
+  - Signing secrets: derived, never stored.
+- **Not done here.**
+  - No partner integrations (none are claimed).
+  - No IP allow-lists or mutual TLS.
+  - Rate counters are kept per process.
+  - Not part of an external penetration test yet.
+- **Adapted from the brief.** Express and SQLite collections instead of PostgreSQL tables: `integration-clients`, `integration-credentials`, `integration-tokens`, `webhook-endpoints`, `webhook-deliveries`, `integration-events`, `integration-idempotency` and `integration-sandbox`. There is a server-rendered Integrations page in place of React screens.
+- **Tests.** `test/integrations.test.js` has 9 tests, covering:
+  - owners only, the secret shown once and stored hashed, and the owners' email
+  - tokens, scopes and refusing tokens in the address or from cookies
+  - jobs scoped to the company, idempotent creation and review as usual
+  - applications with and without contact details, and status moves
+  - signed webhooks without personal data, retries, replays with the same event id, and dual signatures after rotation
+  - SSRF checks on addresses, DNS answers and redirects
+  - rotation and revocation by the company and by the team
+  - the sandbox's own data and rate limit
+  - no collar words in the new files
+
 ## Step 64: employer verification, fraud prevention and job quality intelligence
 
 - **Audit first.** Already there from Step 59:

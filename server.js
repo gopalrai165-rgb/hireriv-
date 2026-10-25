@@ -1180,6 +1180,14 @@ app.get('/api/public/jobs/:slug', limit('job-search', 120, 60 * 1000), (req, res
   if (!isLive(job)) return res.status(410).json({ ok: false, status: 'closed', errors: ['this job is no longer open'] });
   res.json({ ok: true, job: { ...publicJob(job), slug: jobPath(job).slice(6) } });
 });
+// The same two in the versioned API (integrations.js documents them).
+app.get('/api/v1/public/jobs', limit('job-search', 120, 60 * 1000), (req, res) => jobsApi(req, res));
+app.get('/api/v1/public/jobs/:slug', limit('job-search', 120, 60 * 1000), (req, res) => {
+  const job = findJobBySlug(jobs.filter(isPublicJob), String(req.params.slug).slice(0, 200));
+  if (!job || isSample(job)) return res.status(404).json({ error: { code: 'not_found', message: 'job not found' } });
+  if (!isLive(job)) return res.status(410).json({ error: { code: 'closed', message: 'this job is no longer open' } });
+  res.json({ data: { ...publicJob(job), slug: jobPath(job).slice(6) } });
+});
 app.get('/api/public/industries', limit('public-api', 120, 60 * 1000), (req, res) => {
   const live = openJobs().filter((j) => !isSample(j));
   res.json({
@@ -1507,6 +1515,15 @@ const companyTrust = require('./company-trust').register(app, {
   uploadsDir: UPLOADS_DIR, vetDocument: resumeCheck.vetDocument, trust: trustDesk, isLive,
 });
 trustHooks.labelsFor = companyTrust.labelsFor;
+
+// The public API (/api/v1) for companies' own systems: credentials, tokens,
+// scopes, signed webhooks, the sandbox and the developer portal (integrations.js).
+require('./openapi').register(app, { baseUrl: BASE_URL, site, limit });
+const integrationsDesk = require('./integrations').create({
+  db, app, clients, hiring, getJobs: () => jobs, readSubmissions, limit, sameOrigin, adminAuth, mailer, site, baseUrl: BASE_URL, record: trustDesk.record, roles: agencyRoles,
+  adminNav: (req) => ({ roleLabel: (agencyRoles.ROLE_INFO[req.admin.role] || {}).label || req.admin.role, can: (a) => agencyRoles.can(req.admin, a), strong: team.has2fa(req.admin.id) }),
+});
+integrationsDesk.tap(events, history);
 
 // Security alerts, incidents, data requests and retention (security.js,
 // privacy.js), on the trust & safety pages.

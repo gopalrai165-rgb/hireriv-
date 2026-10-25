@@ -1,0 +1,114 @@
+<%- include('partials/head') %>
+
+<section class="section">
+  <div class="container narrow developers">
+    <span class="eyebrow">For developers</span>
+    <h1><%= site.name %> API</h1>
+    <p class="lead">Connect your applicant tracking system, HR software or careers site to <%= site.name %>: post and update jobs, read applications, move candidates along your stages and get signed webhooks when something happens.</p>
+    <p class="small">Machine-readable description: <a href="/api/v1/openapi.json">/api/v1/openapi.json</a> (OpenAPI 3.1). Base address: <code><%= apiBase %></code>. Current release: <code><%= API_VERSION %></code>.</p>
+    <p class="notice small">There are no certified third-party integrations yet. The API is for a company's own systems, set up by that company's owners. We will list partner integrations here only after we have tested them.</p>
+
+    <nav class="dev-toc" aria-label="On this page">
+      <a href="#start">Getting started</a> · <a href="#auth">Authentication</a> · <a href="#endpoints">Endpoints</a> · <a href="#webhooks">Webhooks</a> · <a href="#errors">Errors and limits</a> · <a href="#sandbox">Sandbox</a> · <a href="#versions">Versions</a> · <a href="#security">Security</a>
+    </nav>
+
+    <h2 id="start">Getting started</h2>
+    <ol>
+      <li>A company owner signs in to the employer portal and opens <b>Integrations</b>.</li>
+      <li>They create an integration, choose its permissions and copy the client secret. It is shown once.</li>
+      <li>Your server exchanges the secret for an access token and calls the API. Keep the secret on the server: never in a website, a mobile app or a code repository.</li>
+    </ol>
+
+    <h2 id="auth">Authentication</h2>
+    <p>Exchange the client secret for an access token that lasts 15 minutes, then send it as <code>Authorization: Bearer &lt;token&gt;</code>. Tokens in the address (<code>?access_token=</code>) are refused, and cookies are never used.</p>
+    <pre class="code-block"><code>curl -s -X POST <%= apiBase %>/oauth/token \
+  -u "$HIRERIV_CLIENT_ID:$HIRERIV_CLIENT_SECRET" \
+  -d grant_type=client_credentials
+
+{ "access_token": "hrv_at_…", "token_type": "Bearer", "expires_in": 900, "scope": "jobs:read jobs:write" }
+
+curl -s <%= apiBase %>/jobs -H "Authorization: Bearer $TOKEN"</code></pre>
+    <h3>Permissions (scopes)</h3>
+    <div class="table-wrap">
+      <table class="table">
+        <thead><tr><th scope="col">Scope</th><th scope="col">Allows</th></tr></thead>
+        <tbody><% Object.keys(SCOPES).forEach(function (k) { %><tr><td><code><%= k %></code></td><td><%= SCOPES[k] %></td></tr><% }) %></tbody>
+      </table>
+    </div>
+    <p class="small">Ask for a narrower token with <code>scope=jobs:read</code>. Owners can rotate a secret (the old one keeps working for 24 hours, or stops at once) or revoke the integration, which stops its tokens immediately.</p>
+
+    <h2 id="endpoints">Endpoints</h2>
+    <% groups.forEach(function (g) { %>
+      <h3><%= g.tag %></h3>
+      <div class="table-wrap">
+        <table class="table">
+          <thead><tr><th scope="col">Request</th><th scope="col">What it does</th><th scope="col">Needs</th></tr></thead>
+          <tbody>
+            <% g.ops.forEach(function (o) { %>
+              <tr><td><code><%= o.method %> <%= o.path %></code></td><td><%= o.summary %><% if (o.description) { %><br><span class="muted small"><%= o.description %></span><% } %></td><td><% if (o.scope) { %><code><%= o.scope %></code><% } else { %><span class="muted">—</span><% } %></td></tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+    <% }) %>
+    <p class="small">Jobs sent through the API are reviewed by <%= site.name %> before they go live, exactly like jobs posted in the portal, and must include their responsibilities, pay (or how it is decided) and, for industrial, field and service work, the hours or shift. Lists return <code>{ "data": [...], "has_more": true, "next_cursor": "…" }</code>; pass <code>cursor</code> for the next page.</p>
+    <p class="small">Applications include the candidate's name, experience, location and stage. Email and phone are included only with <code>applications:contact</code>. Resumes are not available through the API.</p>
+
+    <h2 id="webhooks">Webhooks</h2>
+    <p>Add an endpoint (a public <code>https://</code> address) under Integrations or with <code>POST /webhooks</code>, and choose its events:</p>
+    <div class="table-wrap">
+      <table class="table">
+        <thead><tr><th scope="col">Event</th><th scope="col">When</th></tr></thead>
+        <tbody><% Object.keys(EVENTS).forEach(function (k) { %><tr><td><code><%= k %></code></td><td><%= EVENTS[k] %></td></tr><% }) %></tbody>
+      </table>
+    </div>
+    <p>Each delivery is a <code>POST</code> with a JSON body <code>{ "id", "type", "created_at", "api_version", "environment", "data" }</code>. The data holds ids and states, never candidates' contact details: read those through the API with the right permission.</p>
+    <ul class="small">
+      <li><b>At least once.</b> The same event can arrive more than once (after a timeout or a replay). Use <code>Hireriv-Event-Id</code> to ignore repeats. Order is not guaranteed.</li>
+      <li><b>Answer quickly</b> with any 2xx within 10 seconds, and do the work afterwards. Redirects other than 307 and 308 count as failures.</li>
+      <li><b>Retries.</b> Failures are retried up to 8 times, waiting about 30 seconds, then doubling up to 6 hours. After 20 failed deliveries in a row the endpoint is turned off and the owners are emailed. Deliveries are kept for 30 days and can be replayed.</li>
+      <li><b>Catching up.</b> <code>GET /events</code> lists the last 30 days of events.</li>
+    </ul>
+    <h3>Checking the signature</h3>
+    <p>Every delivery has <code>Hireriv-Signature: t=&lt;unix seconds&gt;,v1=&lt;hex&gt;</code>, an HMAC-SHA256 of <code>t + "." + the raw body</code> with your endpoint's signing secret. After a rotation, two <code>v1</code> values are sent for 24 hours. Reject deliveries older than 5 minutes.</p>
+    <pre class="code-block"><code>const crypto = require('crypto');
+
+function verify(rawBody, header, secret) {
+  const parts = Object.groupBy(header.split(','), (p) =&gt; p.split('=')[0]);
+  const t = Number(parts.t?.[0].slice(2));
+  if (!t || Math.abs(Date.now() / 1000 - t) &gt; 300) return false;
+  const expected = crypto.createHmac('sha256', secret).update(`${t}.${rawBody}`).digest('hex');
+  return (parts.v1 || []).some((p) =&gt; {
+    const got = Buffer.from(p.slice(3), 'hex');
+    return got.length === 32 &amp;&amp; crypto.timingSafeEqual(got, Buffer.from(expected, 'hex'));
+  });
+}</code></pre>
+
+    <h2 id="errors">Errors and limits</h2>
+    <p>Errors look like <code>{ "error": { "code": "validation_failed", "message": "…", "details": ["…"] } }</code>. Codes include <code>unauthorized</code>, <code>invalid_token</code>, <code>insufficient_scope</code>, <code>not_found</code>, <code>validation_failed</code>, <code>idempotency_key_reused</code> and <code>rate_limited</code>. Anything another company owns answers <code>404</code>.</p>
+    <ul class="small">
+      <li><b>Rate limits:</b> 600 requests a minute for a live integration, 120 in the sandbox. Every answer has <code>RateLimit-Limit</code>, <code>RateLimit-Remaining</code> and <code>RateLimit-Reset</code>; a <code>429</code> has <code>Retry-After</code>.</li>
+      <li><b>Idempotency:</b> send <code>Idempotency-Key</code> on <code>POST</code> requests to retry safely. The same key and body return the first answer for 24 hours; a different body is refused with <code>422</code>.</li>
+    </ul>
+
+    <h2 id="sandbox">Sandbox</h2>
+    <p>Choose <b>Sandbox</b> when creating an integration. Its secret starts with <code>hrv_test_</code> and it sees only sample jobs and applications made for it: nothing reaches live jobs, real candidates or our review queue. Sandbox events go only to that integration's sandbox endpoints.</p>
+
+    <h2 id="versions">Versions and changes</h2>
+    <ul class="small">
+      <li>The version is in the address (<code>/api/v1</code>). Within v1 we only add things: new endpoints, optional fields and new event types. Your code should ignore fields it does not know.</li>
+      <li>A breaking change means a new version. We announce it to the owners of every integration at least 6 months before v1 stops, and old versions answer with <code>Deprecation</code> and <code>Sunset</code> headers in that time.</li>
+      <li>Every answer carries <code>Hireriv-Api-Version</code> with the release date.</li>
+    </ul>
+
+    <h2 id="security">Security</h2>
+    <ul class="small">
+      <li>Secrets are stored only as hashes and shown once. If one leaks, rotate it with "stop the old key now", or revoke the integration.</li>
+      <li>Owners are emailed when an integration is created. Every change to keys and webhooks is in the company's activity log.</li>
+      <li>Webhook addresses must be public: private, local and reserved networks are refused, also after redirects and when a name resolves to one.</li>
+      <li>Report a security problem to <a href="mailto:<%= site.email %>"><%= site.email %></a>.</li>
+    </ul>
+  </div>
+</section>
+
+<%- include('partials/foot') %>

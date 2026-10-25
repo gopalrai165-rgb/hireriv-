@@ -25,6 +25,8 @@ function policyOf(args, p) {
   if (args.includes('requireEmployer')) return 'employer';
   // Any signed-in account (candidate, employer or team): the notification center.
   if (args.includes('anyAccount')) return 'account';
+  // Companies' own systems with an access token (integrations.js).
+  if (args.includes('apiAuth(')) return 'apikey';
   if (p.includes(':token')) return 'link';
   return 'public';
 }
@@ -34,7 +36,7 @@ function sourceRoutes() {
   const files = fs.readdirSync(ROOT).filter((f) => f.endsWith('.js'));
   for (const file of files) {
     for (const line of fs.readFileSync(path.join(ROOT, file), 'utf8').split(/\r?\n/)) {
-      const m = /app\.(get|post|put|patch|delete)\((.+?)(?:, (?:async )?\(req, res)/.exec(line);
+      const m = /app\.(get|post|put|patch|delete)\((.+?)(?:, (?:route\()?(?:async )?\(req, res)/.exec(line);
       if (!m) continue;
       const method = m[1].toUpperCase();
       const first = m[2].split(',')[0].trim();

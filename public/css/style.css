@@ -1548,3 +1548,14 @@ form.inline { display: inline; }
 [data-receipt] { margin-top: 12px; }
 [data-receipt]:focus { outline: 3px solid #1d5fd6; outline-offset: 2px; }
 .risk-panel table td { vertical-align: top; }
+
+/* Integrations and the developer portal (Step 65). */
+.stat-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin: 16px 0 24px; text-align: center; }
+.stat-row .stat b { font-size: 1.8rem; }
+.list-row { border-top: 1px solid var(--line, #e5e7eb); padding: 12px 0; }
+.list-row:first-of-type { border-top: 0; }
+.secret-value { display: inline-block; max-width: 100%; padding: 8px 10px; border-radius: 8px; background: var(--primary-50); font-size: 0.95rem; word-break: break-all; user-select: all; }
+.code-block { max-width: 100%; overflow-x: auto; padding: 14px 16px; border-radius: 12px; background: #0f172a; color: #e2e8f0; font-size: 0.85rem; line-height: 1.5; }
+.code-block code { background: none; color: inherit; white-space: pre; }
+.dev-toc { margin: 20px 0; font-size: 0.95rem; }
+.developers h2 { margin-top: 2rem; }

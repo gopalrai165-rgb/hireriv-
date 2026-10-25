@@ -1,0 +1,143 @@
+<%- include('partials/head') %>
+<%
+  const day = function (d) { return d ? formatDate(d) : '–'; };
+  const v = values || {};
+  const chosen = function (name, key) { return [].concat(v[name] || []).includes(key); };
+  const active = list.filter(function (c) { return c.status === 'active'; });
+  const sandboxes = active.filter(function (c) { return c.environment === 'sandbox'; });
+  const dStatus = { pending: 'Waiting to send', delivered: 'Delivered', failed: 'Failed', cancelled: 'Cancelled' };
+%>
+<section class="section admin portal">
+  <div class="container">
+    <%- include('partials/employer-nav', { heading: 'Integrations' }) %>
+    <p class="muted">Connect your own systems (an applicant tracking system, HR software, your careers site) through the <a href="/developers"><%= site.name %> API</a>. Only company owners see this page.</p>
+
+    <% if (newSecret) { %>
+      <section class="form-card recovery-card" aria-labelledby="secret-h" role="alert">
+        <h2 id="secret-h"><%= newSecret.kind === 'key' ? 'Your client secret' : 'Your webhook signing secret' %></h2>
+        <p>For <b><%= newSecret.name %></b>. <b>Copy it now: it won't be shown again.</b> Keep it on your server, never in a website, a mobile app or a code repository.</p>
+        <% if (newSecret.clientId) { %><p class="small">Client id: <code><%= newSecret.clientId %></code></p><% } %>
+        <p><code class="secret-value"><%= newSecret.secret %></code></p>
+        <p><button class="btn btn-outline btn-sm" type="button" data-copy="<%= newSecret.secret %>">Copy</button></p>
+      </section>
+    <% } %>
+
+    <div class="dash-grid">
+      <section class="dash-card" aria-labelledby="clients-h">
+        <div class="dash-head"><h2 id="clients-h">API keys</h2></div>
+        <% if (!list.length) { %><p class="muted">No integrations yet.</p><% } %>
+        <% list.forEach(function (c) { %>
+          <article class="list-row">
+            <p><b><%= c.name %></b> <span class="pill <%= c.status === 'active' ? 'st-hired' : 'st-rejected' %>"><%= c.status === 'active' ? 'Active' : 'Revoked' %></span> <span class="pill"><%= c.environment === 'sandbox' ? 'Sandbox' : 'Live' %></span></p>
+            <p class="small muted">Client id <code><%= c.id %></code> · created <%= day(c.createdAt) %> by <%= c.createdBy %></p>
+            <p class="small">Permissions: <% c.scopes.forEach(function (s) { %><code><%= s %></code> <% }) %></p>
+            <% if (c.revokeReason) { %><p class="small">Revoked <%= day(c.revokedAt) %> by <%= c.revokedBy %>: <%= c.revokeReason %></p><% } %>
+            <ul class="small plain">
+              <% c.keys.forEach(function (k) { %>
+                <li><code><%= k.masked %></code> · created <%= day(k.createdAt) %> · <%= k.lastUsedAt ? 'last used ' + day(k.lastUsedAt) : 'never used' %><% if (k.revokedAt) { %> · <b>stopped</b><% } else if (k.expiresAt) { %> · stops <%= day(k.expiresAt) %><% } %></li>
+              <% }) %>
+            </ul>
+            <% if (c.status === 'active') { %>
+              <div class="row-actions">
+                <form method="post" action="/employer/integrations/clients/<%= c.id %>/rotate"><button class="btn btn-outline btn-sm" type="submit">New secret (old one works 24 hours)</button></form>
+                <form method="post" action="/employer/integrations/clients/<%= c.id %>/rotate"><input type="hidden" name="now" value="1"><button class="btn btn-outline btn-sm" type="submit">New secret, stop the old one now</button></form>
+                <form method="post" action="/employer/integrations/clients/<%= c.id %>/revoke" data-confirm="Revoke <%= c.name %>? Its keys and tokens stop working at once."><button class="btn btn-danger btn-sm" type="submit">Revoke</button></form>
+              </div>
+            <% } %>
+          </article>
+        <% }) %>
+      </section>
+
+      <section class="dash-card" aria-labelledby="new-h">
+        <h2 id="new-h">Create an integration</h2>
+        <form class="form" method="post" action="/employer/integrations/clients">
+          <label for="int-name">Name</label>
+          <input id="int-name" name="name" maxlength="80" required value="<%= v.name || '' %>" placeholder="Our ATS">
+          <fieldset>
+            <legend>Where it works</legend>
+            <label class="check"><input type="radio" name="environment" value="live"<%= v.environment !== 'sandbox' ? ' checked' : '' %>> Live: your real jobs and applications</label>
+            <label class="check"><input type="radio" name="environment" value="sandbox"<%= v.environment === 'sandbox' ? ' checked' : '' %>> Sandbox: sample data for testing</label>
+          </fieldset>
+          <fieldset>
+            <legend>Permissions</legend>
+            <% Object.keys(SCOPES).forEach(function (s) { %>
+              <label class="check"><input type="checkbox" name="scopes" value="<%= s %>"<%= chosen('scopes', s) ? ' checked' : '' %>> <code><%= s %></code> <span class="muted small"><%= SCOPES[s] %></span></label>
+            <% }) %>
+          </fieldset>
+          <p class="small muted">Give only what the system needs. Applicants' email and phone need <code>applications:contact</code>. The owners are emailed when an integration is created.</p>
+          <button class="btn btn-primary" type="submit">Create and show the secret</button>
+        </form>
+      </section>
+    </div>
+
+    <section class="dash-card" aria-labelledby="hooks-h">
+      <div class="dash-head"><h2 id="hooks-h">Webhooks</h2></div>
+      <p class="small muted">We POST signed events to these addresses and retry failures for about a day. See <a href="/developers#webhooks">checking the signature</a>.</p>
+      <% if (!endpoints.length) { %><p class="muted">No webhook endpoints yet.</p><% } %>
+      <% endpoints.forEach(function (e) { %>
+        <article class="list-row">
+          <p><b><%= e.url %></b> <span class="pill <%= e.status === 'active' ? 'st-hired' : 'st-rejected' %>"><%= e.status === 'active' ? 'On' : 'Off' %></span> <span class="pill"><%= e.environment === 'sandbox' ? 'Sandbox' : 'Live' %></span></p>
+          <% if (e.description) { %><p class="small"><%= e.description %></p><% } %>
+          <p class="small">Events: <% e.events.forEach(function (x) { %><code><%= x %></code> <% }) %></p>
+          <p class="small muted">Secret <%= e.secret %><% if (e.disabledReason) { %> · turned off: <%= e.disabledReason %><% } %><% if (e.consecutiveFailures) { %> · <%= e.consecutiveFailures %> failed in a row<% } %></p>
+          <div class="row-actions">
+            <% if (e.status === 'active') { %>
+              <form method="post" action="/employer/integrations/webhooks/<%= e.id %>/test"><button class="btn btn-outline btn-sm" type="submit">Send a test event</button></form>
+              <form method="post" action="/employer/integrations/webhooks/<%= e.id %>/disable"><button class="btn btn-outline btn-sm" type="submit">Turn off</button></form>
+            <% } else { %>
+              <form method="post" action="/employer/integrations/webhooks/<%= e.id %>/enable"><button class="btn btn-outline btn-sm" type="submit">Turn on</button></form>
+            <% } %>
+            <form method="post" action="/employer/integrations/webhooks/<%= e.id %>/rotate"><button class="btn btn-outline btn-sm" type="submit">New signing secret</button></form>
+            <form method="post" action="/employer/integrations/webhooks/<%= e.id %>/delete" data-confirm="Delete this webhook endpoint?"><button class="btn btn-danger btn-sm" type="submit">Delete</button></form>
+          </div>
+          <% if (e.deliveries.length) { %>
+            <div class="table-wrap">
+              <table class="table small">
+                <caption class="sr-only">Recent deliveries to <%= e.url %></caption>
+                <thead><tr><th scope="col">Event</th><th scope="col">Status</th><th scope="col">Attempts</th><th scope="col">Last answer</th><th scope="col">Created</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
+                <tbody>
+                  <% e.deliveries.forEach(function (d) { %>
+                    <tr>
+                      <td><code><%= d.type %></code><br><span class="muted"><%= d.eventId %></span></td>
+                      <td><%= dStatus[d.status] || d.status %></td>
+                      <td><%= d.attempts %></td>
+                      <td><%= d.lastStatus || '' %><% if (d.lastError) { %> <span class="muted"><%= d.lastError %></span><% } %></td>
+                      <td><%= day(d.createdAt) %></td>
+                      <td><% if (e.status === 'active' && d.status !== 'pending') { %><form method="post" action="/employer/integrations/deliveries/<%= d.id %>/replay"><button class="btn btn-outline btn-sm" type="submit">Send again</button></form><% } %></td>
+                    </tr>
+                  <% }) %>
+                </tbody>
+              </table>
+            </div>
+          <% } %>
+        </article>
+      <% }) %>
+
+      <h3>Add an endpoint</h3>
+      <form class="form" method="post" action="/employer/integrations/webhooks">
+        <label for="wh-url">Address (https://)</label>
+        <input id="wh-url" name="url" type="url" maxlength="500" required value="<%= v.url || '' %>" placeholder="https://ats.example.com/hireriv/webhooks">
+        <label for="wh-desc">Note (optional)</label>
+        <input id="wh-desc" name="description" maxlength="120" value="<%= v.description || '' %>">
+        <fieldset>
+          <legend>Where it works</legend>
+          <label class="check"><input type="radio" name="environment" value="live"<%= v.environment !== 'sandbox' ? ' checked' : '' %>> Live events</label>
+          <% if (sandboxes.length) { %>
+            <label class="check"><input type="radio" name="environment" value="sandbox"<%= v.environment === 'sandbox' ? ' checked' : '' %>> Sandbox events of</label>
+            <label class="sr-only" for="wh-client">Sandbox integration</label>
+            <select id="wh-client" name="clientId"><% sandboxes.forEach(function (c) { %><option value="<%= c.id %>"<%= v.clientId === c.id ? ' selected' : '' %>><%= c.name %></option><% }) %></select>
+          <% } %>
+        </fieldset>
+        <fieldset>
+          <legend>Events</legend>
+          <% Object.keys(EVENTS).forEach(function (x) { %>
+            <label class="check"><input type="checkbox" name="events" value="<%= x %>"<%= chosen('events', x) ? ' checked' : '' %>> <code><%= x %></code> <span class="muted small"><%= EVENTS[x] %></span></label>
+          <% }) %>
+        </fieldset>
+        <button class="btn btn-primary" type="submit">Add and show the signing secret</button>
+      </form>
+    </section>
+  </div>
+</section>
+
+<%- include('partials/foot') %>

@@ -1,0 +1,69 @@
+<%- include('partials/head') %>
+<%
+  const when = function (d) { return d ? new Date(d).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'medium', timeStyle: 'short' }) : '–'; };
+%>
+<section class="section admin">
+  <div class="container">
+    <%- include('partials/trust-nav', { heading: 'Integrations', tab: 'integrations' }) %>
+    <p class="muted">Companies' API integrations and webhook endpoints. Secrets are never shown here: only the start and last four characters of each key.</p>
+
+    <div class="stat-row">
+      <div class="stat"><b><%= all.filter(function (c) { return c.status === 'active'; }).length %></b><span>Active integrations</span></div>
+      <div class="stat"><b><%= endpoints.filter(function (e) { return e.status === 'active'; }).length %></b><span>Webhook endpoints on</span></div>
+      <div class="stat"><b><%= stats.delivered %></b><span>Delivered in 24 hours</span></div>
+      <div class="stat"><b><%= stats.pending %></b><span>Waiting to send</span></div>
+      <div class="stat"><b><%= stats.failed %></b><span>Failed in 24 hours</span></div>
+    </div>
+
+    <h2>Integrations</h2>
+    <% if (!all.length) { %><p class="muted">None yet.</p><% } else { %>
+      <div class="table-wrap">
+        <table class="table">
+          <thead><tr><th scope="col">Company</th><th scope="col">Integration</th><th scope="col">Permissions</th><th scope="col">Keys</th><th scope="col">Status</th><% if (canManage) { %><th scope="col"><span class="sr-only">Actions</span></th><% } %></tr></thead>
+          <tbody>
+            <% all.forEach(function (c) { %>
+              <tr>
+                <td><%= c.company %></td>
+                <td><b><%= c.name %></b> <span class="pill"><%= c.environment === 'sandbox' ? 'Sandbox' : 'Live' %></span><br><span class="muted small"><%= c.id %> · created <%= when(c.createdAt) %> by <%= c.createdBy %></span></td>
+                <td class="small"><%= c.scopes.join(' ') %></td>
+                <td class="small"><% c.keys.forEach(function (k) { %><code><%= k.masked %></code> <%= k.lastUsedAt ? 'used ' + when(k.lastUsedAt) : 'never used' %><br><% }) %></td>
+                <td><%= c.status === 'active' ? 'Active' : 'Revoked' %><% if (c.revokeReason) { %><br><span class="muted small"><%= c.revokeReason %></span><% } %></td>
+                <% if (canManage) { %>
+                  <td><% if (c.status === 'active') { %>
+                    <form class="form inline-form" method="post" action="/admin/integrations/clients/<%= c.id %>/revoke" data-confirm="Revoke this integration? Its keys and tokens stop at once and the company is emailed.">
+                      <label class="sr-only" for="r-<%= c.id %>">Reason (the company sees it)</label>
+                      <input id="r-<%= c.id %>" name="reason" minlength="5" maxlength="300" required placeholder="Reason (the company sees it)">
+                      <button class="btn btn-danger btn-sm" type="submit">Revoke</button>
+                    </form>
+                  <% } %></td>
+                <% } %>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+    <% } %>
+
+    <h2>Webhook endpoints</h2>
+    <% if (!endpoints.length) { %><p class="muted">None yet.</p><% } else { %>
+      <div class="table-wrap">
+        <table class="table">
+          <thead><tr><th scope="col">Company</th><th scope="col">Address</th><th scope="col">Events</th><th scope="col">Status</th><th scope="col">Last success</th></tr></thead>
+          <tbody>
+            <% endpoints.forEach(function (e) { %>
+              <tr>
+                <td><%= e.company %></td>
+                <td class="small"><%= e.url %> <span class="pill"><%= e.environment === 'sandbox' ? 'Sandbox' : 'Live' %></span></td>
+                <td class="small"><%= e.events.join(' ') %></td>
+                <td><%= e.status === 'active' ? 'On' : 'Off' %><% if (e.disabledReason) { %><br><span class="muted small"><%= e.disabledReason %></span><% } %><% if (e.consecutiveFailures) { %><br><span class="small"><%= e.consecutiveFailures %> failed in a row</span><% } %></td>
+                <td class="small"><%= when(e.lastSuccessAt) %></td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+    <% } %>
+  </div>
+</section>
+
+<%- include('partials/foot') %>

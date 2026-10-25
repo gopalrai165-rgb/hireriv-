@@ -170,6 +170,8 @@ function register(app, deps) {
     job.updatedAt = now();
     saveJobs();
     team.audit(req.employer.id, req.employerUser, `job-${action === 'resume' ? 'resumed' : action === 'pause' ? 'paused' : 'closed'}`, `${job.title} (${job.id})`);
+    // Set by integrations.js: webhooks for jobs the employer closed.
+    if (hooks.stateChanged) hooks.stateChanged(job, from);
     return { job, errors: [] };
   }
 
@@ -485,7 +487,10 @@ function register(app, deps) {
     res.redirect(adminUrl('jobs', `"${job.title}" was sent back to the employer`));
   });
 
-  return { hooks, approveJob, sendBackJob, lockedByModeration, selfManaged, STATUS_LABELS, applicantView, applicationsFor, withApplicant, withJob, visibleJobs, companyJob, changeStatus, bookInterview, actorOf, byLine };
+  return {
+    hooks, approveJob, sendBackJob, lockedByModeration, selfManaged, STATUS_LABELS, applicantView, applicationsFor, withApplicant, withJob, visibleJobs, companyJob, changeStatus, bookInterview, actorOf, byLine,
+    createEmployerJob, updateEmployerJob, submitJob, setJobState, employerJobView,
+  };
 }
 
 module.exports = { register, lockedByModeration, selfManaged, STATUS_LABELS, MAX_ACTIVE_JOBS, MAX_WAITING_UNVERIFIED };
