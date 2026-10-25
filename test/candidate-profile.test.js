@@ -217,7 +217,7 @@ test('saved jobs, interviews and settings pages', async () => {
   const admin = await srv.adminLogin();
   assert.match(await (await srv.request('/admin?tab=talent', { cookie: admin })).text(), /kavya@example\.in/);
   await post('/account/settings', { whatsapp: '1' }, kavya);
-  assert.deepEqual(candidate('kavya@example.in').privacy, { visibleToRecruiters: false });
+  assert.deepEqual(candidate('kavya@example.in').privacy, { visibleToRecruiters: false, discoverable: false });
   assert.equal(candidate('kavya@example.in').comms.whatsapp, true);
   assert.doesNotMatch(await (await srv.request('/admin?tab=talent', { cookie: admin })).text(), /kavya@example\.in/);
   await post('/account/settings', { visibleToRecruiters: '1' }, kavya);

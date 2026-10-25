@@ -157,7 +157,20 @@ function create(deps) {
   T('job-alert', (refs, to) => {
     const sub = readSubmissions('job-alerts').find((s) => s.id === refs.alertId);
     const job = jobById(refs.jobId);
-    return sub && sub.confirmed && notify.candidateRk(sub.email) === to.rk && job && job.status === 'open' && { to: sub.email, send: () => mailer.jobAlert(sub, job) };
+    return sub && sub.confirmed && sub.alertEnabled !== false && notify.candidateRk(sub.email) === to.rk && job && job.status === 'open' && { to: sub.email, send: () => mailer.jobAlert(sub, job) };
+  });
+  T('job-digest', (refs, to) => {
+    const sub = readSubmissions('job-alerts').find((s) => s.id === refs.alertId);
+    if (!sub || !sub.confirmed || sub.alertEnabled === false || notify.candidateRk(sub.email) !== to.rk) return null;
+    const jobs = (refs.jobIds || []).map(jobById).filter((j) => j && j.status === 'open');
+    return jobs.length ? { to: sub.email, send: () => mailer.jobDigest(sub, jobs, refs.frequency) } : null;
+  });
+  // Only while the candidate still lets employers find them, and the job is open.
+  T('job-invite', (refs, to) => {
+    const c = readSubmissions('candidates').find((x) => x.id === refs.candidateId);
+    const job = jobById(refs.jobId);
+    return c && c.privacy && c.privacy.discoverable === true && notify.candidateRk(c.email) === to.rk && job && job.status === 'open' && employerOf(job)
+      ? { to: c.email, send: () => mailer.jobInvite(c, job) } : null;
   });
   T('job-decision', (refs, to) => {
     const job = jobById(refs.jobId);
@@ -377,13 +390,17 @@ function create(deps) {
   // match, at most JOB_ALERTS_PER_DAY a day, and none when they switched job
   // emails off. People with an account also see it in-app. Returns how many
   // people were told.
+  // Job-alert emails (as they happen, and daily or weekly) sent to this person in the last day.
+  const alertEmailsToday = (rk) => {
+    const since = new Date(Date.now() - DAY).toISOString();
+    return db.where('notification-deliveries', 'rk', rk).filter((d) => (d.type === 'job-alert' || d.type === 'job-digest') && d.createdAt >= since).length;
+  };
   function jobAlerts(job, subs) {
     const byPerson = new Map();
     for (const s of subs) if (!byPerson.has(s.email)) byPerson.set(s.email, s);
-    const since = new Date(Date.now() - DAY).toISOString();
     for (const [email, sub] of byPerson) {
       const rk = notify.candidateRk(email);
-      const today = db.where('notification-deliveries', 'rk', rk).filter((d) => d.type === 'job-alert' && d.createdAt >= since).length;
+      const today = alertEmailsToday(rk);
       const account = hasAccount(email);
       emit({
         key: `job-alert:${job.id}`, type: 'job-alert', to: [{ kind: 'candidate', email, inApp: account, mail: today < JOB_ALERTS_PER_DAY }],
@@ -392,6 +409,36 @@ function create(deps) {
       });
     }
     return byPerson.size;
+  }
+  // A saved search's daily or weekly email. Jobs the person already heard
+  // about as they were posted (another of their searches) aren't repeated.
+  // `v` is the saved search as shown to them (name, link, frequency).
+  function jobDigest(sub, jobs, v) {
+    const email = sub.email;
+    const rk = notify.candidateRk(email);
+    const told = new Set([
+      ...db.where('notification-deliveries', 'rk', rk).filter((d) => d.type === 'job-alert').map((d) => d.event),
+      ...db.where('notifications', 'rk', rk).filter((n) => n.type === 'job-alert').map((n) => n.event),
+    ]);
+    const fresh = jobs.filter((j) => !told.has(`job-alert:${j.id}`));
+    if (!fresh.length) return false;
+    const n = fresh.length;
+    emit({
+      key: `job-digest:${sub.id}:${sub.lastDigestAt}`, type: 'job-digest',
+      to: [{ kind: 'candidate', email, inApp: hasAccount(email), mail: alertEmailsToday(rk) < JOB_ALERTS_PER_DAY }],
+      inApp: { title: `${n} new ${n === 1 ? 'job' : 'jobs'} for “${v.name}”`, body: fresh.slice(0, 3).map((j) => j.title).join(', '), link: v.href },
+      email: { template: 'job-digest', refs: { alertId: sub.id, jobIds: fresh.map((j) => j.id), frequency: v.frequency } },
+    });
+    return true;
+  }
+  // A verified employer invites a candidate who agreed to be found. Once per
+  // candidate and job, however often the button is pressed.
+  function jobInvite(c, job) {
+    return emit({
+      key: `job-invite:${job.id}:${c.id}`, type: 'job-invite', to: [{ kind: 'candidate', email: c.email }],
+      inApp: { title: `${job.company} invites you to apply: ${job.title}`, body: `${job.location} · ${job.type}. They see your details only if you apply.`, link: jobPath(job) },
+      email: { template: 'job-invite', refs: { candidateId: c.id, jobId: job.id } },
+    });
   }
   // A staffing request (public form or client portal): everyone on the team sees it.
   function staffingRequest(entry) {
@@ -415,7 +462,7 @@ function create(deps) {
 
   return {
     applicationSubmitted, newApplication, stageMoved, statusEmail, interviewBooked, interviewRescheduled, interviewCancelled, interviewReminder, interviewAnswered,
-    feedbackDueScan, offerCreated, offerApproved, offerAnswered, offerDeadlineScan, assigned, jobDecision, jobExpired, jobSubmitted, jobAlerts, staffingRequest,
+    feedbackDueScan, offerCreated, offerApproved, offerAnswered, offerDeadlineScan, assigned, jobDecision, jobExpired, jobSubmitted, jobAlerts, jobDigest, jobInvite, staffingRequest,
     accountSecurity, scan, JOB_ALERTS_PER_DAY,
   };
 }

@@ -37,6 +37,7 @@ const ACTIVITY_LABELS = {
   'sessions-revoked': 'Signed out on all devices', 'password-set': 'Password set', 'password-changed': 'Password changed', 'password-reset': 'Password reset by email link',
   'profile-updated': 'Profile updated', 'resume-added': 'Resume uploaded', 'resume-removed': 'Resume deleted', 'settings-changed': 'Settings changed',
   'interview-confirmed': 'Interview confirmed', 'interview-reschedule': 'Asked for another interview time',
+  'saved-search-added': 'Search saved',
 };
 
 const sha = (s) => crypto.createHash('sha256').update(String(s)).digest('hex');
@@ -75,7 +76,7 @@ function passwordProblem(pw, confirm) {
 function register(app, deps) {
   const { db, mailer, baseUrl, sameOrigin, limit, readSubmissions, writeSubmissions, uploadsDir, getJobs, interviewIcs, site, contractsFor } = deps;
   const { upload, saveApplication, isBot, isSample, isLive, resumeNeeded, skillMatch, saveSubmission, jobCategories, jobLocations, vetUpload, downloadLinks, linkExpired } = deps;
-  const { jobTypes, modes, stateOf, interviewResponded, events, notify } = deps;
+  const { jobTypes, modes, stateOf, interviewResponded, events, notify, recommendFor } = deps;
   const secureCookie = /^https:/.test(baseUrl);
 
   const mine = (email) => readSubmissions('applications').filter((a) => String(a.email).toLowerCase() === email);
@@ -461,30 +462,10 @@ function register(app, deps) {
     page(res, 'account', {
       title: 'My account', ...s, apps, steps: STEPS,
       msg: String(req.query.msg || ''), welcome: req.query.welcome === '1' && !s.candidate.passwordHash, contracts: contractsFor(email),
-      matches: jobsFor(email, s.profile), alerts: readSubmissions('job-alerts').filter((x) => x.email === email), categories: jobCategories(), locations: jobLocations(),
+      matches: recommendFor(email, { limit: 6 }), alerts: readSubmissions('job-alerts').filter((x) => x.email === email), categories: jobCategories(), locations: jobLocations(),
       savedCount: savedOf(email).length,
     });
   });
-
-  // Open jobs that fit the profile: required skills they mention, then their
-  // preferred places or city (or remote). Jobs they've applied to and sample
-  // listings are left out.
-  function jobsFor(email, profile) {
-    const c = candidateOf(email);
-    const appliedTo = new Set(mine(email).filter((a) => !a.withdrawnAt).map((a) => a.jobId));
-    const places = [...((c && c.profile.preferences.locations) || []), String(profile.location || '').split(',')[0].trim()].map((p) => p.toLowerCase()).filter(Boolean);
-    const near = (j) => j.mode === 'Remote' || places.some((p) => p.includes(String(j.location).toLowerCase()) || String(j.location).toLowerCase().includes(p));
-    const wanted = new Set((c && c.profile.preferences.categories) || []);
-    return getJobs()
-      .filter((j) => isLive(j) && !isSample(j) && !appliedTo.has(j.id))
-      .map((j) => {
-        const m = skillMatch(profile, j);
-        return { job: j, score: (m ? m.score : 0) + (wanted.has(j.category) ? 20 : 0), near: near(j), matched: m ? m.matched : [] };
-      })
-      .filter((x) => x.score > 0 || (x.near && places.length))
-      .sort((x, y) => y.score + (y.near ? 25 : 0) - (x.score + (x.near ? 25 : 0)) || String(y.job.posted).localeCompare(String(x.job.posted)))
-      .slice(0, 6);
-  }
 
   // ---------- profile ----------
   app.get('/account/profile', requireCandidate, (req, res) => {
@@ -775,7 +756,7 @@ function register(app, deps) {
   app.post('/account/settings', requireCandidate, limit('account-settings', 20), sameOrigin, (req, res) => {
     const c = ensureCandidate(req.candidateEmail);
     const on = (k) => req.body[k] === '1';
-    c.privacy = { visibleToRecruiters: on('visibleToRecruiters') };
+    c.privacy = { visibleToRecruiters: on('visibleToRecruiters'), discoverable: on('discoverable') };
     c.comms = { whatsapp: on('whatsapp'), sms: on('sms'), offers: on('offers') };
     saveCandidate(c);
     activity(c.email, 'settings-changed');
@@ -834,7 +815,13 @@ function register(app, deps) {
         withdrawnAt: a.withdrawnAt || null,
       })),
       savedJobs: savedOf(email).map((s) => ({ jobId: s.jobId, savedAt: s.createdAt })),
-      jobAlerts: subs('job-alerts').map((s) => ({ category: s.category || 'Any', location: s.location || 'Any', confirmed: Boolean(s.confirmed), since: s.createdAt })),
+      jobAlerts: subs('job-alerts').map((s) => (s.filters
+        ? { savedSearch: s.name, filters: s.filters, alerts: s.alertEnabled !== false ? s.frequency || 'instant' : 'off', since: s.createdAt }
+        : { category: s.category || 'Any', location: s.location || 'Any', confirmed: Boolean(s.confirmed), since: s.createdAt })),
+      invitationsFromEmployers: c ? readSubmissions('candidate-invites').filter((i) => i.candidateId === c.id).map((i) => {
+        const job = getJobs().find((j) => j.id === i.jobId);
+        return { at: i.createdAt, job: job ? job.title : 'A job that was removed', company: job ? job.company : '' };
+      }) : [],
       newsletter: subs('newsletter').map((s) => ({ since: s.createdAt })),
       notifications: notify.list({ rk: notify.candidateRk(email) }, { limit: 1000 }).items.map((n) => ({ at: n.createdAt, title: n.title, text: n.body, readAt: n.readAt })),
       notificationSettings: notify.prefsOf(notify.candidateRk(email)),
@@ -873,6 +860,11 @@ function register(app, deps) {
     writeSubmissions('applications', keep);
     const c = candidateOf(email);
     if (c) for (const r of c.resumes) fs.unlink(path.join(uploadsDir, path.basename(r.file)), () => {});
+    if (c) {
+      const invites = readSubmissions('candidate-invites');
+      const rest = invites.filter((i) => i.candidateId !== c.id);
+      if (rest.length !== invites.length) writeSubmissions('candidate-invites', rest);
+    }
     for (const type of ['job-alerts', 'newsletter', 'saved-jobs', 'candidates', 'candidate-activity']) {
       const subs = readSubmissions(type);
       const rest = subs.filter((s) => String(s.email).toLowerCase() !== email);
@@ -897,7 +889,8 @@ function register(app, deps) {
   const ALIASES = {
     '': '/account', '/dashboard': '/account', '/register': '/account/register', '/login': '/account/login', '/forgot-password': '/account/forgot',
     '/profile': '/account/profile', '/resumes': '/account/profile#resume', '/applications': '/account#applications', '/saved-jobs': '/account/saved',
-    '/alerts': '/account#alerts', '/interviews': '/account/interviews', '/settings': '/account/settings',
+    '/alerts': '/account/saved-searches', '/interviews': '/account/interviews', '/settings': '/account/settings',
+    '/recommendations': '/account/recommendations', '/saved-searches': '/account/saved-searches',
   };
   for (const [from, to] of Object.entries(ALIASES)) {
     app.get(`/candidate${from}`, (req, res) => {
@@ -974,7 +967,7 @@ function register(app, deps) {
       if (!v || typeof v !== 'object' || Object.keys(v).some((k) => !keys.includes(k) || typeof v[k] !== 'boolean')) { errors.push(`${label} takes ${keys.join(', ')} as true or false`); return null; }
       return v;
     };
-    const p = flags(privacy, ['visibleToRecruiters'], 'privacy');
+    const p = flags(privacy, ['visibleToRecruiters', 'discoverable'], 'privacy');
     const m = flags(comms, ['whatsapp', 'sms', 'offers'], 'comms');
     if (errors.length) return jsonErrors(res, 400, errors);
     if (Object.keys(patch).length) updateProfile(req.candidateEmail, patch);
@@ -1042,7 +1035,11 @@ function register(app, deps) {
     for (const c of readSubmissions('candidates')) if (!emails.has(c.email) && c.createdAt < cutoff) deleteEverything(c.email);
   }
 
-  return { requireCandidate, currentEmail, accountForJob, hiddenFromSearch, pruneAccounts };
+  // What the recommendations and saved searches (job-recommendations.js) build on.
+  const helpers = {
+    requireCandidate, requireCandidateApi, candidateOf, ensureCandidate, profileFor, updateProfile, profileContext, shell, page, back, mine, savedOf, activity,
+  };
+  return { requireCandidate, currentEmail, accountForJob, hiddenFromSearch, pruneAccounts, helpers };
 }
 
 module.exports = { register, CANDIDATE_STAGE, safeNext };

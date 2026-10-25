@@ -1,0 +1,45 @@
+<%- include('partials/head') %>
+
+<section class="section admin portal">
+  <div class="container">
+    <%- include('partials/account-nav', { heading: 'Saved searches' }) %>
+    <section class="dash-card dash-wide">
+      <div class="dash-head"><h2>Your saved searches</h2><span class="muted small"><%= searches.length %> of <%= max %></span></div>
+      <p class="muted small">Save a search on <a href="/jobs">Find Jobs</a> with the button above the results. Choose how often we email you new jobs that match, or switch the emails off and keep the search. Every email has an unsubscribe link. Job emails can also be switched off for all searches in <a href="/notifications/settings">notification settings</a>.</p>
+      <% if (!searches.length) { %>
+        <p class="muted dash-empty">No saved searches yet. <a href="/jobs">Search jobs</a>, then press “Save this search”.</p>
+      <% } else { %>
+        <ul class="search-list">
+          <% searches.forEach(function (s) { %>
+            <li class="search-item">
+              <div class="search-head">
+                <div>
+                  <b><%= s.name %></b><% if (!s.alertEnabled) { %> <span class="pill st-rejected">Emails off</span><% } %>
+                  <br><span class="muted small"><%= s.description %></span>
+                </div>
+                <a class="btn btn-outline btn-sm" href="<%= s.href %>">See <%= s.count %> <%= s.count === 1 ? 'job' : 'jobs' %></a>
+              </div>
+              <form class="form search-edit" method="post" action="/account/saved-searches/<%= s.id %>">
+                <div class="form-grid">
+                  <label>Name<input name="name" maxlength="150" value="<%= s.name %>"></label>
+                  <label>Email me
+                    <select name="frequency">
+                      <% Object.keys(frequencies).forEach(function (k) { %><option value="<%= k %>"<%= s.frequency === k ? ' selected' : '' %>><%= frequencies[k] %></option><% }) %>
+                    </select>
+                  </label>
+                </div>
+                <label class="check-row"><input type="checkbox" name="alertEnabled" value="1"<%= s.alertEnabled ? ' checked' : '' %>> <span>Email me new jobs for this search</span></label>
+                <div class="row-actions">
+                  <button class="btn btn-primary btn-sm" type="submit">Save changes</button>
+                </div>
+              </form>
+              <form method="post" action="/account/saved-searches/<%= s.id %>/delete" data-confirm="Delete the saved search “<%= s.name %>”?"><button class="link-btn small" type="submit" aria-label="Delete saved search <%= s.name %>">Delete</button></form>
+            </li>
+          <% }) %>
+        </ul>
+      <% } %>
+    </section>
+  </div>
+</section>
+
+<%- include('partials/foot') %>

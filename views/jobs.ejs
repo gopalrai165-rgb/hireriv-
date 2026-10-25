@@ -56,6 +56,18 @@
           <option value="">Any work arrangement</option>
           <% modes.forEach(function (m) { %><option value="<%= m %>" <%= filters.mode === m ? 'selected' : '' %>><%= m %> (<%= modeCounts[m] || 0 %>)</option><% }) %>
         </select>
+        <label class="sr-only" for="f-shift">Shift</label>
+        <select id="f-shift" name="shift">
+          <option value="">Any shift</option>
+          <% shifts.forEach(function (sh) { %><option value="<%= sh %>" <%= filters.shift === sh ? 'selected' : '' %>><%= sh %> shift</option><% }) %>
+        </select>
+        <label class="sr-only" for="f-company">Company</label>
+        <select id="f-company" name="company">
+          <option value="">Any company</option>
+          <% companies.forEach(function (c) { %><option <%= filters.company && filters.company.toLowerCase() === c.toLowerCase() ? 'selected' : '' %>><%= c %></option><% }) %>
+        </select>
+        <label class="filter-skills"><span class="sr-only">Skills</span><input id="f-skills" name="skills" value="<%= (filters.skills || []).join(', ') %>" placeholder="Skills, e.g. Forklift, Excel" maxlength="200" aria-describedby="f-skills-hint"></label>
+        <span id="f-skills-hint" class="sr-only">Separate skills with commas. Jobs must list every skill you enter.</span>
         <label class="sr-only" for="f-sort">Sort by</label>
         <select id="f-sort" name="sort">
           <option value="relevance" <%= sort === 'relevance' ? 'selected' : '' %>>Sort: most relevant</option>
@@ -78,8 +90,20 @@
   <div class="container">
     <div class="results-head">
       <p><b><%= pager.total %></b> <%= pager.total === 1 ? 'job' : 'jobs' %> found<% if (group) { %> in <b><%= group.label %></b><% } %></p>
-      <% if (active.length) { %><a href="/jobs" class="small">Clear all filters</a><% } %>
+      <div class="row-actions">
+        <% if (canSaveSearch) { %>
+          <form class="form save-search" method="post" action="/account/saved-searches">
+            <% Object.keys(savedSearchQuery).forEach(function (k) { [].concat(savedSearchQuery[k]).filter(function (v) { return v !== '' && v !== null && v !== undefined && k !== 'sort'; }).forEach(function (v) { %><input type="hidden" name="<%= k %>" value="<%= v %>"><% }); }); %>
+            <input type="hidden" name="frequency" value="daily">
+            <button class="btn btn-outline btn-sm" type="submit"><svg class="i" aria-hidden="true"><use href="#i-bookmark"/></svg> Save this search</button>
+          </form>
+        <% } else { %>
+          <a class="small" href="/account/login?next=<%= encodeURIComponent('/jobs') %>">Sign in to save this search</a>
+        <% } %>
+        <% if (active.length) { %><a href="/jobs" class="small">Clear all filters</a><% } %>
+      </div>
     </div>
+    <% if (corrected) { %><p class="notice" role="status">No jobs for “<%= corrected.from %>”. Showing results for <b>“<%= corrected.to %>”</b> instead.</p><% } %>
     <% if (results.length) { %>
       <div class="jobs-grid">
         <% results.forEach(function (job) { %><%- include('partials/job-card', { job: job }) %><% }) %>

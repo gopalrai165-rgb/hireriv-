@@ -130,16 +130,25 @@ function relevance(job, terms) {
 const SORTS = ['relevance', 'newest', 'salary'];
 const MIN_PAY_OPTIONS = [10000, 15000, 20000, 30000, 50000, 100000, 200000];
 
+const lc = (s) => String(s || '').trim().toLowerCase();
+// Does the job list every one of these skills (ignoring case)?
+const hasSkills = (job, skills) => !skills.length || skills.every((s) => (job.skills || []).some((x) => lc(x) === lc(s)));
+
 // Filters: q, location, categories[], type, mode, work, group, experience,
-// minPay (₹ a month), sort. `extra(job)` adds caller-specific rules.
+// minPay (₹ a month), skills[] (all of them), company, shift, sort.
+// `extra(job)` adds caller-specific rules.
 function searchJobs(list, f, { extra = () => true } = {}) {
   const terms = [...new Set(words(f.q))].slice(0, 12);
   const cats = new Set(f.categories || []);
+  const skills = f.skills || [];
   const scored = [];
   for (const job of list) {
     if (cats.size && !cats.has(job.category)) continue;
     if (f.type && job.type !== f.type) continue;
     if (f.mode && job.mode !== f.mode) continue;
+    if (f.shift && job.shift !== f.shift) continue;
+    if (f.company && lc(job.company) !== lc(f.company)) continue;
+    if (!hasSkills(job, skills)) continue;
     if (!inLocation(job, f.location)) continue;
     if (f.experience && !fitsLevel(job, f.experience)) continue;
     if (f.minPay && !(monthlyMax(job) >= f.minPay)) continue;
@@ -156,7 +165,59 @@ function searchJobs(list, f, { extra = () => true } = {}) {
   return { jobs: scored.map((x) => x.job), sort };
 }
 
+// ---------- spelling ----------
+// Typing slips in keywords ("devloper", "forklfit"): each unknown word is
+// swapped for the closest word in the live jobs' titles, skills, companies and
+// categories, one or two letters away (two for longer words).
+function distance(a, b, max) {
+  if (Math.abs(a.length - b.length) > max) return max + 1;
+  let prev = Array.from({ length: b.length + 1 }, (_, i) => i);
+  let prev2 = null;
+  for (let i = 1; i <= a.length; i++) {
+    const cur = [i];
+    let best = i;
+    for (let j = 1; j <= b.length; j++) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      let v = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + cost);
+      // A swap of two neighbouring letters counts as one slip.
+      if (prev2 && i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) v = Math.min(v, prev2[j - 2] + 1);
+      cur.push(v);
+      best = Math.min(best, v);
+    }
+    if (best > max) return max + 1;
+    prev2 = prev;
+    prev = cur;
+  }
+  return prev[b.length];
+}
+function vocabulary(list) {
+  const out = new Set();
+  for (const j of list) for (const w of words([j.title, (j.skills || []).join(' '), j.company, j.category].join(' '))) if (w.length >= 3) out.add(w);
+  return out;
+}
+// The corrected keywords, or '' when every word is known or nothing is close.
+function suggest(q, vocab) {
+  const terms = words(q);
+  if (!terms.length) return '';
+  let changed = false;
+  const fixed = terms.map((t) => {
+    if (vocab.has(t) || t.length < 4 || /\d/.test(t) || [...vocab].some((v) => v.startsWith(t))) return t;
+    const max = t.length >= 8 ? 2 : 1;
+    let best = null;
+    let bestD = max + 1;
+    for (const v of vocab) {
+      const d = distance(t, v, max);
+      if (d < bestD || (d === bestD && best && v < best)) { best = v; bestD = d; }
+    }
+    if (!best) return t;
+    changed = true;
+    return best;
+  });
+  return changed ? fixed.join(' ') : '';
+}
+
 module.exports = {
+  suggest, vocabulary, distance, hasSkills,
   PAY_PERIODS, payText, parsePayFields, payFromText, payOf, monthlyMax,
   EXPERIENCE_LEVELS, experienceRange, fitsLevel,
   CITY_STATE, stateOf, statesOf, inLocation,

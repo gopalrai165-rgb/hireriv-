@@ -6,11 +6,13 @@
 //
 // The schema lives in db/postgres/migrations/*.sql. Pending files are applied
 // in order, each in its own transaction, and recorded in schema_migrations.
+// Each has an undo file of the same name in db/postgres/rollback/.
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 
 const MIGRATIONS_DIR = path.join(__dirname, 'db', 'postgres', 'migrations');
+const ROLLBACK_DIR = path.join(__dirname, 'db', 'postgres', 'rollback');
 // Any fixed number: makes two servers starting together migrate one at a time.
 const MIGRATION_LOCK = 4826310;
 
@@ -44,6 +46,37 @@ async function migrate(pool, { dir = MIGRATIONS_DIR, log = () => {} } = {}) {
     client.release();
   }
   return applied;
+}
+
+// Undoes the newest applied migration with its file in db/postgres/rollback/,
+// in one transaction. Only the newest, so migrations always undo in reverse
+// order. Returns the version undone, or null when nothing is applied.
+async function rollback(pool, { dir = ROLLBACK_DIR, log = () => {} } = {}) {
+  const client = await pool.connect();
+  try {
+    await client.query('SELECT pg_advisory_lock($1)', [MIGRATION_LOCK]);
+    await client.query('CREATE TABLE IF NOT EXISTS schema_migrations (version text PRIMARY KEY, applied_at timestamptz NOT NULL DEFAULT now())');
+    const { rows } = await client.query('SELECT version FROM schema_migrations ORDER BY version DESC LIMIT 1');
+    if (!rows.length) return null;
+    const { version } = rows[0];
+    const file = path.join(dir, `${version}.sql`);
+    if (!fs.existsSync(file)) throw new Error(`No rollback file for ${version} (expected ${path.relative(__dirname, file)})`);
+    await client.query('BEGIN');
+    try {
+      await client.query(fs.readFileSync(file, 'utf8'));
+      await client.query('DELETE FROM schema_migrations WHERE version = $1', [version]);
+      await client.query('COMMIT');
+    } catch (err) {
+      await client.query('ROLLBACK');
+      err.message = `Rolling back ${version} failed: ${err.message}`;
+      throw err;
+    }
+    log(`Postgres: rolled back migration ${version}`);
+    return version;
+  } finally {
+    await client.query('SELECT pg_advisory_unlock($1)', [MIGRATION_LOCK]).catch(() => {});
+    client.release();
+  }
 }
 
 // ---------- turning app records into rows ----------
@@ -191,6 +224,12 @@ function searchSql(f, { page, size, levels, words }) {
   }
   if (f.categories && f.categories.length) where.push(`EXISTS (SELECT 1 FROM job_category_assignments a JOIN job_categories c ON c.id = a.category_id WHERE a.job_id = j.id AND c.parent_id IS NOT NULL AND c.name = ANY(${p(f.categories)}::text[]))`);
   if (f.type) where.push(`j.employment_type = ${p(f.type)}`);
+  if (f.shift) where.push(`j.shift = ${p(f.shift)}`);
+  if (f.company) where.push(`lower(j.company_name) = lower(${p(f.company)})`);
+  if (f.skills && f.skills.length) {
+    const sp = p(f.skills.map((x) => x.toLowerCase()));
+    where.push(`(SELECT count(DISTINCT lower(s.name)) FROM job_skills js JOIN skills s ON s.id = js.skill_id WHERE js.job_id = j.id AND lower(s.name) = ANY(${sp}::text[])) = cardinality(${sp}::text[])`);
+  }
   if (f.mode) where.push(`j.work_arrangement = ${p(f.mode)}`);
   if (f.work) where.push(`j.work_kind = ${p(f.work)}`);
   if (f.group) where.push(`${p(f.group)} = ANY(j.group_keys)`);
@@ -445,4 +484,4 @@ function create(opts) {
   };
 }
 
-module.exports = { create, migrate, jobRow, applicationRow, searchSql, tsQuery, searchText, idSort, payColumns, MIGRATIONS_DIR, KIND_NAMES };
+module.exports = { create, migrate, rollback, ROLLBACK_DIR, jobRow, applicationRow, searchSql, tsQuery, searchText, idSort, payColumns, MIGRATIONS_DIR, KIND_NAMES };

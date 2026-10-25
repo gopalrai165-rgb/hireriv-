@@ -1,0 +1,78 @@
+<%- include('partials/head') %>
+
+<section class="section admin portal">
+  <div class="container">
+    <%- include('partials/account-nav', { heading: 'Fill your profile from your resume' }) %>
+    <% if (errors.length) { %><div class="notice notice-err" role="alert"><% errors.forEach(function (e) { %><p><%= e %></p><% }) %></div><% } %>
+    <section class="dash-card dash-wide">
+      <div class="dash-head"><h2>From “<%= resume.name %>”</h2><a class="small" href="/account/profile">Back to your profile</a></div>
+      <% if (!found && !values) { %>
+        <p class="muted">We couldn't read text from this resume. It may be a scanned image or an old .doc file. You can add your details on <a href="/account/profile">your profile</a> yourself.</p>
+      <% } else if (found && !found.skills.length && !found.experiences.length && !found.education.length && !found.experienceLevel) { %>
+        <p class="muted">We read your resume but found nothing that isn't on your profile already.</p>
+      <% } else { %>
+        <p class="muted small">Here's what we found. Nothing is saved yet: untick what's wrong, correct anything, then add it to your profile. Your resume itself stays exactly as you uploaded it.</p>
+        <%# After an error, the form comes back with what was sent. %>
+        <% const pick = function (prefix, fields) { const out = []; for (let i = 0; i < 10; i++) { if (values[prefix + i + '_keep'] !== '1') continue; const row = {}; fields.forEach(function (k) { row[k] = values[prefix + i + '_' + k] || ''; }); row.current = values[prefix + i + '_current'] === '1'; out.push(row); } return out; }; %>
+        <% const f = found || { skills: [].concat(values.skills || []), experienceLevel: values.experienceLevel || '', experiences: pick('exp', ['title', 'company', 'from', 'to']), education: pick('edu', ['level', 'course', 'institution', 'year']) }; %>
+        <form class="form" method="post" action="/account/resumes/<%= resume.id %>/review">
+          <fieldset class="check-set">
+            <legend>Skills</legend>
+            <% if (!f.skills.length) { %><p class="small muted">No new skills found.</p><% } %>
+            <div class="check-grid">
+              <% f.skills.forEach(function (sk) { %><label class="check-row"><input type="checkbox" name="skills" value="<%= sk %>" checked> <span><%= sk %></span></label><% }) %>
+            </div>
+            <label>Other skills to add <span class="muted small">(comma separated)</span><input name="moreSkills" maxlength="300" value="<%= values ? values.moreSkills || '' : '' %>"></label>
+          </fieldset>
+          <fieldset class="check-set">
+            <legend>Experience level</legend>
+            <label>Your experience
+              <select name="experienceLevel">
+                <option value="">Keep what's on my profile (<%= candidate.profile.experienceLevel || 'not set' %>)</option>
+                <% opts.EXPERIENCE.forEach(function (e) { %><option<%= f.experienceLevel === e ? ' selected' : '' %>><%= e %></option><% }) %>
+              </select>
+            </label>
+            <% if (found && found.years) { %><p class="small muted">Your resume mentions <%= found.years %> years.</p><% } %>
+          </fieldset>
+          <fieldset class="check-set">
+            <legend>Work experience</legend>
+            <% if (!f.experiences.length) { %><p class="small muted">No new jobs found.</p><% } %>
+            <% f.experiences.forEach(function (e, i) { %>
+              <div class="review-row">
+                <label class="check-row"><input type="checkbox" name="exp<%= i %>_keep" value="1" checked> <span>Add this job</span></label>
+                <div class="form-grid">
+                  <label>Job title<input name="exp<%= i %>_title" maxlength="120" value="<%= e.title %>"></label>
+                  <label>Company<input name="exp<%= i %>_company" maxlength="120" value="<%= e.company %>"></label>
+                  <label>From<input type="month" name="exp<%= i %>_from" value="<%= e.from %>"></label>
+                  <label>To<input type="month" name="exp<%= i %>_to" value="<%= e.to %>"></label>
+                </div>
+                <label class="check-row"><input type="checkbox" name="exp<%= i %>_current" value="1"<%= e.current ? ' checked' : '' %>> <span>I work here now</span></label>
+              </div>
+            <% }) %>
+          </fieldset>
+          <fieldset class="check-set">
+            <legend>Education</legend>
+            <% if (!f.education.length) { %><p class="small muted">No new education found.</p><% } %>
+            <% f.education.forEach(function (e, i) { %>
+              <div class="review-row">
+                <label class="check-row"><input type="checkbox" name="edu<%= i %>_keep" value="1" checked> <span>Add this</span></label>
+                <div class="form-grid">
+                  <label>Level<select name="edu<%= i %>_level"><% opts.EDUCATION_LEVELS.forEach(function (l) { %><option<%= e.level === l ? ' selected' : '' %>><%= l %></option><% }) %></select></label>
+                  <label>Course<input name="edu<%= i %>_course" maxlength="120" value="<%= e.course %>"></label>
+                  <label>Institution<input name="edu<%= i %>_institution" maxlength="160" value="<%= e.institution %>"></label>
+                  <label>Year<input name="edu<%= i %>_year" inputmode="numeric" maxlength="4" value="<%= e.year %>"></label>
+                </div>
+              </div>
+            <% }) %>
+          </fieldset>
+          <div class="row-actions">
+            <button class="btn btn-primary" type="submit">Add to my profile</button>
+            <a class="btn btn-outline" href="/account/profile">Cancel</a>
+          </div>
+        </form>
+      <% } %>
+    </section>
+  </div>
+</section>
+
+<%- include('partials/foot') %>

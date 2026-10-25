@@ -1,0 +1,82 @@
+<%- include('partials/head') %>
+
+<section class="section admin portal">
+  <div class="container">
+    <%- include('partials/employer-nav', { heading: 'Find candidates', tab: 'candidates' }) %>
+
+    <% if (!allowed) { %>
+      <p class="notice">Your role in this company doesn't include finding candidates. Ask a company owner, hiring manager or recruiter.</p>
+    <% } else if (!verified) { %>
+      <p class="notice">Finding candidates opens once the <%= site.name %> team has verified your company. <a href="/employer/company">Check your company's verification</a>.</p>
+    <% } else { %>
+      <p class="muted small">Only people who chose to let verified employers find them appear here, with their first name and initial, skills, experience and the work they want. You see their contact details and resume only if they apply. Invite someone to one of your open jobs and they decide. A match score is a guide for sorting, never a reason to turn anyone away.</p>
+
+      <form class="form filter-bar" method="get" action="/employer/candidates" role="search">
+        <label>Keywords<input name="q" maxlength="100" value="<%= f.q %>" placeholder="e.g. warehouse, accounts"></label>
+        <label>Skills <span class="muted small">(comma separated)</span><input name="skills" maxlength="200" value="<%= (f.skills || []).join(', ') %>"></label>
+        <label>City or state<input name="location" maxlength="80" value="<%= f.location %>"></label>
+        <label>Experience
+          <select name="experience"><option value="">Any</option><% experienceOptions.forEach(function (e) { %><option<%= f.experience === e ? ' selected' : '' %>><%= e %></option><% }) %></select>
+        </label>
+        <label>Wants
+          <select name="type"><option value="">Any job type</option><% jobTypes.forEach(function (t) { %><option<%= f.type === t ? ' selected' : '' %>><%= t %></option><% }) %></select>
+        </label>
+        <label>Shift
+          <select name="shift"><option value="">Any shift</option><% shifts.forEach(function (s) { %><option<%= f.shift === s ? ' selected' : '' %>><%= s %></option><% }) %></select>
+        </label>
+        <label class="check-row"><input type="checkbox" name="available" value="now"<%= f.available === 'now' ? ' checked' : '' %>> <span>Can start within a week</span></label>
+        <label>Match to your job
+          <select name="job"><option value="">No job (newest profiles first)</option><% jobs.forEach(function (j) { %><option value="<%= j.id %>"<%= f.job === j.id ? ' selected' : '' %>><%= j.title %> · <%= j.location %></option><% }) %></select>
+        </label>
+        <% if (f.job) { %>
+          <label>Sort
+            <select name="sort"><option value="match"<%= f.sort === 'match' ? ' selected' : '' %>>Best match first</option><option value="recent"<%= f.sort === 'recent' ? ' selected' : '' %>>Recently updated</option></select>
+          </label>
+        <% } %>
+        <button class="btn btn-primary btn-sm" type="submit">Search</button>
+      </form>
+
+      <p class="small muted"><b><%= pager ? pager.total : 0 %></b> <%= pager && pager.total === 1 ? 'candidate' : 'candidates' %> · <%= invitesLeft %> invitations left today</p>
+      <% if (!rows.length) { %>
+        <p class="muted dash-empty">No candidates match. Try fewer filters.</p>
+      <% } else { %>
+        <ul class="cand-list">
+          <% rows.forEach(function (c) { %>
+            <li class="dash-card cand-card">
+              <div class="cand-head">
+                <div>
+                  <b><%= c.displayName %></b><% if (c.headline) { %> · <%= c.headline %><% } %>
+                  <br><span class="muted small"><%= [c.experienceLevel, [c.city, c.state].filter(Boolean).join(', '), c.education].filter(Boolean).join(' · ') || 'Profile details coming' %> · updated <%= formatDate(c.updatedOn) %></span>
+                </div>
+                <% if (c.match) { %><span class="pill match-pill match-<%= c.match.level %>"><%= c.match.score === null ? c.match.label : c.match.score + '% · ' + c.match.label %></span><% } %>
+              </div>
+              <% if (c.skills.length) { %><div class="chips"><% c.skills.forEach(function (s) { %><span class="chip"><%= s %></span><% }) %></div><% } %>
+              <p class="small">
+                <% if (c.recentRoles.length) { %>Recent roles: <%= c.recentRoles.join(', ') %><br><% } %>
+                <% if (c.certifications.length) { %>Licences and certificates: <%= c.certifications.join(', ') %><br><% } %>
+                Wants: <%= [c.wants.types.join(', '), c.wants.arrangements.join(', '), c.wants.shifts.length ? c.wants.shifts.join(', ') + ' shift' : '', c.wants.locations.join(', '), c.wants.relocate ? 'open to relocating' : ''].filter(Boolean).join(' · ') || 'not said' %>
+                <% if (c.availability.noticePeriod || c.availability.availableFrom) { %><br>Can start: <%= c.availability.noticePeriod || 'from ' + formatDate(c.availability.availableFrom) %><% } %>
+                <% if (c.languages.length) { %><br>Languages: <%= c.languages.join(', ') %><% } %>
+              </p>
+              <% if (c.match) { %>
+                <details class="rec-why"><summary>How they match <%= job.title %></summary><%- include('partials/match-explain', { m: c.match, note: 'A relevance estimate from what the candidate shared, not a prediction. Review every candidate yourself.' }) %></details>
+              <% } %>
+              <% if (jobs.length) { %>
+                <form class="form invite-form" method="post" action="/employer/candidates/<%= c.id %>/invite">
+                  <label class="sr-only" for="inv-<%= c.id %>">Job to invite <%= c.displayName %> to</label>
+                  <select id="inv-<%= c.id %>" name="jobId"><% jobs.forEach(function (j) { %><option value="<%= j.id %>"<%= (f.job || '') === j.id ? ' selected' : '' %>><%= j.title %> · <%= j.location %><%= c.invitedTo.includes(j.id) ? ' (invited)' : '' %></option><% }) %></select>
+                  <button class="btn btn-outline btn-sm" type="submit">Invite to apply</button>
+                </form>
+              <% } else { %>
+                <p class="small muted">Post a job to invite candidates to apply.</p>
+              <% } %>
+            </li>
+          <% }) %>
+        </ul>
+        <%- include('partials/pager', { pager: pager, pagerLabel: 'Candidate result pages' }) %>
+      <% } %>
+    <% } %>
+  </div>
+</section>
+
+<%- include('partials/foot') %>

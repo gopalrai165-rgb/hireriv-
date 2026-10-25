@@ -73,7 +73,7 @@ describe('with a Postgres database', { skip: DB_URL ? false : 'set TEST_DATABASE
   const extra = [
     { id: 'hr-201', title: 'Night Security Guard', company: 'Shield Services', location: 'Thane', mode: 'On-site', type: 'Full-time', category: 'Security Services', experience: 'Freshers welcome', pay: { min: 700, max: 900, period: 'day', currency: 'INR' }, posted: '2026-10-01', skills: ['Patrolling'], description: 'Guard a warehouse at night.' },
     { id: 'hr-202', title: 'Data Analyst', company: 'Insight Co', location: 'Remote', mode: 'Remote', type: 'Contract', category: 'Technology', experience: '10+ years', pay: { min: 1500000, max: 2400000, period: 'year', currency: 'INR' }, posted: '2026-10-01', skills: ['SQL', 'Python'], description: 'Dashboards and models.' },
-    { id: 'hr-203', title: 'Hourly Tutor', company: 'Learn Hub', location: 'Pune', mode: 'Hybrid', type: 'Part-time', category: 'Education & Training', experience: '1-2 years', pay: { min: 300, max: null, period: 'hour', currency: 'INR' }, posted: '2026-10-01', skills: [], description: 'Teach maths.' },
+    { id: 'hr-203', title: 'Hourly Tutor', company: 'Learn Hub', location: 'Pune', mode: 'Hybrid', type: 'Part-time', category: 'Education & Training', experience: '1-2 years', pay: { min: 300, max: null, period: 'hour', currency: 'INR' }, posted: '2026-10-01', shift: 'Day', skills: [], description: 'Teach maths.' },
     { id: 'hr-204', title: 'Expired Driver Role', company: 'Go Fleet', location: 'Pune', mode: 'Field work', type: 'Full-time', category: 'Delivery & Driving', experience: '', posted: '2026-09-01', closesOn: '2026-09-15', description: 'Too late.' },
     { id: 'hr-205', title: 'Draft Welder', company: 'Steelworks', location: 'Pune', mode: 'On-site', type: 'Full-time', category: 'Skilled Trades', status: 'draft', createdBy: 'employer', employerId: 'e1', posted: '2026-10-02', description: 'Not yet live.' },
     { id: 'hr-206', title: 'Sample Cashier', company: 'Demo', location: 'Pune', mode: 'On-site', type: 'Full-time', category: 'Store & Counter Staff', sample: true, posted: '2026-10-03', description: 'Example only.' },
@@ -120,7 +120,7 @@ describe('with a Postgres database', { skip: DB_URL ? false : 'set TEST_DATABASE
   });
 
   test('the migrations are recorded once and the tables are filled', async () => {
-    assert.deepEqual((await q('SELECT version FROM schema_migrations ORDER BY version')).map((r) => r.version), ['001_jobs', '002_employer_jobs', '003_ats']);
+    assert.deepEqual((await q('SELECT version FROM schema_migrations ORDER BY version')).map((r) => r.version), ['001_jobs', '002_employer_jobs', '003_ats', '004_job_search_filters']);
     const [j] = await q("SELECT * FROM jobs WHERE id = 'hr-201'");
     assert.equal(j.slug, 'night-security-guard-thane-hr-201');
     assert.equal(j.pay_period, 'day');
@@ -171,7 +171,8 @@ describe('with a Postgres database', { skip: DB_URL ? false : 'set TEST_DATABASE
       '?employmentType=full_time', '?workArrangement=hybrid', '?work=field', '?work=office&sort=salary', '?group=freshers', '?group=it-engineering',
       '?experience=fresher', '?experience=senior', '?experience=mid&location=Bengaluru', '?minPay=30000', '?minPay=20000&sort=salary', '?sort=salary',
       '?sort=newest', '?q=react', '?q=developer', '?q=warehouse%20supervisor', '?q=driver&location=Pune', '?q=sql%20python', '?q=nothingmatchesthis',
-      '?page=99',
+      '?page=99', '?skill=React', '?skills=sql,%20PYTHON', '?skill=SQL&skill=React', '?company=insight%20co', '?company=Insight%20Co&q=data',
+      '?shift=Night', '?shift=Day&location=Pune', "?company=x'%20OR%201%3D1--",
     ];
     for (const query of queries) {
       const [a, b] = await Promise.all([api(srv, query), api(plain, query)]);
@@ -183,6 +184,29 @@ describe('with a Postgres database', { skip: DB_URL ? false : 'set TEST_DATABASE
     // Drafts, samples and closed jobs never come back.
     const all = await api(srv, '?limit=50');
     for (const id of ['hr-204', 'hr-205', 'hr-206']) assert.ok(!all.jobs.some((j) => j.id === id), id);
+  });
+
+  test('each migration can be rolled back and applied again', async () => {
+    const other = `${schema}_rb`;
+    const pool = new Pool({ connectionString: DB_URL, max: 1 });
+    pool.on('connect', (c) => c.query(`CREATE SCHEMA IF NOT EXISTS "${other}"; SET search_path TO "${other}"`));
+    const tables = async () => (await pool.query("SELECT table_name FROM information_schema.tables WHERE table_schema = $1 ORDER BY 1", [other])).rows.map((r) => r.table_name);
+    try {
+      assert.equal((await pgm.migrate(pool)).length, 4);
+      const full = await tables();
+      assert.ok(full.includes('jobs') && full.includes('job_skills'));
+      const undone = [];
+      for (let v; (v = await pgm.rollback(pool)); ) undone.push(v);
+      assert.deepEqual(undone, ['004_job_search_filters', '003_ats', '002_employer_jobs', '001_jobs']);
+      assert.deepEqual(await tables(), ['schema_migrations']);
+      assert.equal((await pgm.migrate(pool)).length, 4);
+      assert.deepEqual(await tables(), full);
+      // Every migration has a matching rollback file.
+      for (const f of fs.readdirSync(path.join(__dirname, '..', 'db', 'postgres', 'migrations'))) assert.ok(fs.existsSync(path.join(pgm.ROLLBACK_DIR, f)), f);
+    } finally {
+      await pool.query(`DROP SCHEMA IF EXISTS "${other}" CASCADE`).catch(() => {});
+      await pool.end();
+    }
   });
 
   test('Postgres answers the keyword search (whole-word prefixes)', async () => {

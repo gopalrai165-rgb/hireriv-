@@ -36,7 +36,7 @@
     <% } %>
 
     <section class="dash-card dash-wide" id="jobs-for-you">
-      <div class="dash-head"><h2>Jobs for you</h2><a class="small" href="/jobs">All jobs</a></div>
+      <div class="dash-head"><h2>Jobs for you</h2><a class="small" href="/account/recommendations">All recommendations</a></div>
       <% if (!matches.length) { %>
         <p class="muted dash-empty">No matches yet. Add your key skills and the places you'd work to <a href="/account/profile">your profile</a> and we'll show open jobs that fit.</p>
       <% } else { %>
@@ -46,7 +46,7 @@
               <div>
                 <a href="<%= jobPath(m.job) %>"><b><%= m.job.title %></b></a>
                 <span class="muted small"><%= m.job.company %> · <%= m.job.location %> · <%= m.job.type %><%= m.job.salary ? ' · ' + m.job.salary : '' %></span>
-                <% if (m.matched.length) { %><span class="small">Your skills: <%= m.matched.join(', ') %></span><% } else if (m.near) { %><span class="small">Near you</span><% } %>
+                <span class="small"><% if (m.match.score !== null) { %><b><%= m.match.label %></b> (<%= m.match.score %>%)<% } %><%= m.match.skills.matched.length ? (m.match.score !== null ? ' · ' : '') + 'Your skills: ' + m.match.skills.matched.join(', ') : '' %><%= m.reasons.length ? ' · ' + m.reasons[0] : '' %></span>
               </div>
               <a class="btn btn-outline btn-sm" href="<%= jobPath(m.job) %>#apply">View &amp; apply</a>
             </li>
@@ -110,14 +110,14 @@
       </section>
 
       <section class="dash-card" id="alerts">
-        <div class="dash-head"><h2>Job alerts</h2></div>
-        <p class="muted small">We email you the first time a matching job goes live.</p>
+        <div class="dash-head"><h2>Job alerts</h2><a class="small" href="/account/saved-searches">Saved searches</a></div>
+        <p class="muted small">We email you about new jobs that match. Save any search on Find Jobs to get alerts for it, daily, weekly or as soon as jobs are posted.</p>
         <% if (alerts.length) { %>
           <ul class="alert-list">
             <% alerts.forEach(function (s) { %>
               <li>
-                <span><b><%= s.category || 'All jobs' %></b> · <%= s.location || 'Any city' %><% if (!s.confirmed) { %> <span class="pill st-screening">Not confirmed</span><% } %></span>
-                <form method="post" action="/account/alerts/<%= s.id %>/delete"><button class="link-btn small" type="submit" aria-label="Remove job alert for <%= s.category || 'all jobs' %> in <%= s.location || 'any city' %>">Remove</button></form>
+                <span><% if (s.filters) { %><b><%= s.name %></b><% if (s.alertEnabled === false) { %> <span class="pill st-rejected">Emails off</span><% } %><% } else { %><b><%= s.category || 'All jobs' %></b> · <%= s.location || 'Any city' %><% } %><% if (!s.confirmed) { %> <span class="pill st-screening">Not confirmed</span><% } %></span>
+                <form method="post" action="/account/alerts/<%= s.id %>/delete"><button class="link-btn small" type="submit" aria-label="Remove job alert <%= s.filters ? s.name : 'for ' + (s.category || 'all jobs') + ' in ' + (s.location || 'any city') %>">Remove</button></form>
               </li>
             <% }) %>
           </ul>

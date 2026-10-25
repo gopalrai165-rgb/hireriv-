@@ -11,6 +11,9 @@
       <label>Status
         <select name="status"><option value="">Any</option><% statuses.concat(['Withdrawn']).forEach(function (s) { %><option<%= status === s ? ' selected' : '' %>><%= s %></option><% }) %></select>
       </label>
+      <label>Sort
+        <select name="sort"><option value="newest"<%= sort === 'newest' ? ' selected' : '' %>>Newest first</option><option value="match"<%= sort === 'match' ? ' selected' : '' %>>Best skill match (choose a job)</option></select>
+      </label>
       <button class="btn btn-outline btn-sm" type="submit">Filter</button>
     </form>
 

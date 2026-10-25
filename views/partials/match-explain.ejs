@@ -1,0 +1,26 @@
+<%# How a candidate matches a job: the score, each factor with what matched and
+    what didn't, and the job's must-haves on their own. `m` is from job-match.js
+    (or its JSON form); `who` is "you" or "they". %>
+<% const statusText = { met: 'Matches', partial: 'Partly matches', unmet: 'Not yet', unknown: 'Not known yet', 'not-asked': 'Not asked' }; %>
+<div class="match-explain">
+  <p class="match-score match-<%= m.level %>">
+    <% if (m.score === null) { %><b><%= m.label %></b><% } else { %><b><%= m.score %>%</b> <span><%= m.label %></span><% } %>
+  </p>
+  <ul class="match-factors">
+    <% m.factors.forEach(function (x) { %>
+      <li class="mf-<%= x.status %>">
+        <span class="mf-icon" aria-hidden="true"><%= x.status === 'met' ? '✓' : x.status === 'partial' ? '◐' : x.status === 'unmet' ? '✗' : '?' %></span>
+        <span><b><%= x.label %></b> <span class="sr-only">(<%= statusText[x.status] %>)</span><span class="muted small">· counts <%= x.weight %>%</span><br><span class="small"><%= x.detail %></span></span>
+      </li>
+    <% }) %>
+  </ul>
+  <% if (m.requirements && m.requirements.length) { %>
+    <p class="small"><b>Must-haves for this job</b> <span class="muted">(shown separately, not part of the score)</span></p>
+    <ul class="match-factors">
+      <% m.requirements.forEach(function (r) { %>
+        <li class="mf-<%= r.met === true ? 'met' : r.met === false ? 'unmet' : 'unknown' %>"><span class="mf-icon" aria-hidden="true"><%= r.met === true ? '✓' : r.met === false ? '✗' : '?' %></span><span><b><%= r.label %></b><% if (r.detail) { %><br><span class="small"><%= r.detail %></span><% } %></span></li>
+      <% }) %>
+    </ul>
+  <% } %>
+  <p class="muted small"><%= typeof note !== 'undefined' ? note : 'A relevance estimate from the details given, not a prediction of being hired. People always make the decisions.' %></p>
+</div>

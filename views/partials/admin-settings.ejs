@@ -84,6 +84,18 @@
     <% if (keep) { %><p class="muted small">On: candidates are deleted <%= keep %> months after their last activity. The Privacy Policy says so automatically.</p><% } %>
   </section>
 
+  <section class="form-card" id="job-matching">
+    <h2>Job matching</h2>
+    <p class="muted small">How much each part counts when candidates see how well they match a job, in recommendations, and when employers sort candidates by match. Whole numbers adding up to 100. Details a candidate hasn't given are left out of their score rather than counted against them. A match score never rejects or hides anyone: people make every decision.</p>
+    <% const mw = matchWeights(form); %>
+    <div class="form-grid">
+      <% matchFactors.forEach(function (f) { %>
+        <label><%= f.label %> (%)<input type="number" name="match_<%= f.key %>" min="0" max="100" step="1" value="<%= mw[f.key] %>" required></label>
+      <% }) %>
+    </div>
+    <p class="muted small">Defaults: <%= matchFactors.map(function (f) { return f.label + ' ' + matchDefaults[f.key]; }).join(', ') %>. Check them against who you actually hire, and adjust.</p>
+  </section>
+
   <section class="form-card" id="backups">
     <h2>Backups</h2>
     <% const bs = backups.status; %>

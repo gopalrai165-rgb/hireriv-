@@ -33,6 +33,8 @@ function can(m, action, job = null) {
       return ['manager', 'recruiter'].includes(role) && assigned(m, job);
     case 'applicants.assign': case 'offers.approve': return role === 'manager' && assigned(m, job);
     case 'shortlist.feedback': return ['manager', 'recruiter'].includes(role);
+    // Finding candidates who agreed to be found, and inviting them to apply.
+    case 'candidates.search': return ['manager', 'recruiter'].includes(role);
     case 'workload.view': return role === 'manager';
     case 'dashboard.view': case 'analytics.view': return true;
     // company.edit, team.manage, billing.view, company.verify and stage.correct

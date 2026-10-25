@@ -50,7 +50,7 @@ function detailsTable(rows) {
   return `<table role="presentation" cellpadding="0" cellspacing="0" style="font-size:14px;margin:0 0 16px">${tr}</table>`;
 }
 
-const describeAlert = (sub) => [sub.category || 'all', 'jobs', sub.location ? `in ${sub.location}` : ''].filter(Boolean).join(' ');
+const describeAlert = (sub) => (sub.name ? `your saved search “${sub.name}”` : [sub.category || 'all', 'jobs', sub.location ? `in ${sub.location}` : ''].filter(Boolean).join(' '));
 
 const button = (href, label) =>
   `<p style="margin:20px 0 0"><a href="${esc(href)}" style="background:#123B70;color:#fff;padding:12px 22px;border-radius:999px;text-decoration:none;font-weight:bold;display:inline-block">${esc(label)}</a></p>`;
@@ -820,6 +820,45 @@ function createMailer(site) {
           p(esc(job.description)) +
           button(`${baseUrl}${jobPath(job)}?utm_source=job-alert`, 'View job & apply') +
           p(`<span style="color:#6b7690;font-size:12px">You're getting this because you set up an alert for ${esc(describeAlert(sub))}. <a href="${esc(unsubscribe)}" style="color:#6b7690">Unsubscribe</a> · <a href="${esc(baseUrl)}/notifications/settings" style="color:#6b7690">Notification settings</a></span>`),
+      });
+    },
+
+    // The daily or weekly email of a saved search: the new jobs since the last one.
+    jobDigest(sub, jobs, frequency) {
+      const unsubscribe = `${baseUrl}/job-alerts/unsubscribe/${sub.token}`;
+      const n = jobs.length;
+      const rows = jobs.map((job) =>
+        `<tr><td style="padding:12px 0;border-top:1px solid #e3e8f2"><a href="${esc(`${baseUrl}${jobPath(job)}?utm_source=job-alert`)}" style="color:#123B70;font-weight:bold;text-decoration:none">${esc(job.title)}</a><br>` +
+        `<span style="color:#6b7690;font-size:13px">${esc([job.company, `${job.location} (${job.mode})`, job.type, job.salary].filter(Boolean).join(' · '))}</span></td></tr>`).join('');
+      return send(site, {
+        to: sub.email,
+        subject: `${n} new ${n === 1 ? 'job' : 'jobs'} for ${sub.name || 'your saved search'}`,
+        heading: `New jobs for your saved search`,
+        preheader: jobs.slice(0, 3).map((j) => j.title).join(', '),
+        headers: { 'List-Unsubscribe': `<${unsubscribe}>`, 'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click' },
+        html:
+          p(`${n === 1 ? 'This job was' : `These ${n} jobs were`} posted since your last ${frequency === 'weekly' ? 'weekly' : 'daily'} email and ${n === 1 ? 'matches' : 'match'} <b>${esc(sub.name || 'your saved search')}</b>.`) +
+          `<table role="presentation" style="width:100%;border-collapse:collapse">${rows}</table>` +
+          button(`${baseUrl}/account/saved-searches`, 'Manage saved searches'),
+        footer: `You're getting this because you saved this search and chose a ${frequency === 'weekly' ? 'weekly' : 'daily'} email. <a href="${esc(unsubscribe)}" style="color:#6b7690">Stop these emails</a> · <a href="${esc(baseUrl)}/notifications/settings" style="color:#6b7690">Notification settings</a>`,
+      });
+    },
+
+    // A verified employer found the candidate's profile (they agreed to be
+    // found) and invites them to apply. The employer has no contact details
+    // until the candidate applies.
+    jobInvite(c, job) {
+      return send(site, {
+        to: c.email,
+        subject: `Invitation to apply: ${job.title} at ${job.company}`,
+        heading: `${job.company} would like you to apply`,
+        preheader: `${job.title} · ${job.location}`,
+        html:
+          p(`Hi ${first(c.profile.name || 'there')}, <b>${esc(job.company)}</b> saw your profile on ${esc(site.name)} and invites you to apply for this job.`) +
+          detailsTable([['Job', job.title], ['Location', `${job.location} (${job.mode})`], ['Type', job.type], ['Salary', job.salary]]) +
+          p(`They haven't seen your name, phone number, email or resume. They will only if you decide to apply. You don't have to reply.`) +
+          button(`${baseUrl}${jobPath(job)}?utm_source=invite`, 'View the job'),
+        footer: `You're getting this because you let verified employers find your profile. <a href="${esc(baseUrl)}/account/settings" style="color:#6b7690">Change this in your settings</a> · <a href="${esc(baseUrl)}/notifications/settings" style="color:#6b7690">Notification settings</a>`,
       });
     },
 

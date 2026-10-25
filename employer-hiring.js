@@ -17,7 +17,7 @@ const { SHIFTS } = require('./candidate-profile');
 const MAX_ACTIVE_JOBS = 50;
 // Until the company is verified, at most this many can wait for review.
 const MAX_WAITING_UNVERIFIED = 5;
-const EMPLOYER_JOB_FIELDS = ['title', 'location', 'mode', 'type', 'category', 'work', 'experience', 'salaryMin', 'salaryMax', 'salaryPeriod', 'payNote', 'education', 'schedule', 'shift', 'hours', 'openings', 'address', 'walkIn', 'eligibility', 'skills', 'description', 'responsibilities', 'qualifications', 'benefits', 'closesOn', 'resume'];
+const EMPLOYER_JOB_FIELDS = ['title', 'location', 'mode', 'type', 'category', 'work', 'experience', 'salaryMin', 'salaryMax', 'salaryPeriod', 'payNote', 'education', 'schedule', 'shift', 'hours', 'openings', 'address', 'walkIn', 'eligibility', 'mustHave', 'physical', 'immediate', 'skills', 'description', 'responsibilities', 'qualifications', 'benefits', 'closesOn', 'resume'];
 const STATUS_LABELS = { draft: 'Draft', pending: 'Waiting for review', open: 'Live', paused: 'Paused', closed: 'Closed', rejected: 'Needs changes' };
 const ACTIVE = ['open', 'paused', 'pending'];
 const selfManaged = (job) => Boolean(job) && job.createdBy === 'employer';
@@ -38,6 +38,7 @@ function register(app, deps) {
     salaryMin: j.pay && j.pay.min ? String(j.pay.min) : '', salaryMax: j.pay && j.pay.max ? String(j.pay.max) : '', salaryPeriod: (j.pay && j.pay.period) || 'month',
     payNote: j.payNote || '', salary: j.pay ? '' : j.salary || '', education: j.education || '', schedule: j.schedule || '', shift: j.shift || '', hours: j.hours || '',
     openings: j.openings ? String(j.openings) : '', address: j.address || '', walkIn: j.walkIn ? '1' : '', eligibility: (j.eligibility || []).join('\n'),
+    mustHave: (j.mustHave || []).join('\n'), physical: j.physical || '', immediate: j.immediate ? '1' : '',
     skills: (j.skills || []).join(', '), description: j.description, responsibilities: (j.responsibilities || []).join('\n'),
     qualifications: (j.qualifications || []).join('\n'), benefits: (j.benefits || []).join('\n'), closesOn: j.closesOn || '', resume: j.resume || '',
   });
@@ -49,9 +50,10 @@ function register(app, deps) {
     if (src.pay && typeof src.pay === 'object') Object.assign(src, { salaryMin: src.pay.min ?? '', salaryMax: src.pay.max ?? '', salaryPeriod: src.pay.period ?? body.salaryPeriod });
     // A form sends nothing for an unticked box.
     if (!existing && src.walkIn === undefined) src.walkIn = '';
+    if (!existing && src.immediate === undefined) src.immediate = '';
     for (const k of EMPLOYER_JOB_FIELDS) {
       if (src[k] === undefined || src[k] === null) continue;
-      if (k === 'walkIn') { body.walkIn = src.walkIn === true || src.walkIn === '1' || src.walkIn === 'on' ? '1' : ''; continue; }
+      if (k === 'walkIn' || k === 'immediate') { body[k] = src[k] === true || src[k] === '1' || src[k] === 'on' ? '1' : ''; continue; }
       body[k] = Array.isArray(src[k]) ? src[k].join(k === 'skills' ? ', ' : '\n') : String(src[k]);
       if (['salaryMin', 'salaryMax'].includes(k)) body.salary = '';
     }
@@ -232,11 +234,15 @@ function register(app, deps) {
     const { jobs, apps } = applicationsFor(req);
     const jobId = jobs.has(req.query.job) ? req.query.job : '';
     const status = [...appStatuses, 'Withdrawn'].includes(req.query.status) ? req.query.status : '';
+    // Newest first, or (for one job) the best skill match first. Sorting only:
+    // everyone stays in the list for a person to review.
+    const sort = req.query.sort === 'match' && jobId ? 'match' : 'newest';
+    const newest = (x, y) => String(y.appliedAt).localeCompare(String(x.appliedAt));
     const rows = apps.filter((a) => (!jobId || a.jobId === jobId))
       .map((a) => applicantView(req, a, jobs.get(a.jobId)))
       .filter((v) => !status || v.status === status)
-      .sort((x, y) => String(y.appliedAt).localeCompare(String(x.appliedAt)));
-    page(res, 'employer-applicants', { title: 'Applicants', tab: 'applicants', rows, jobs: [...jobs.values()], jobId, status, statuses: appStatuses, msg: String(req.query.msg || '') });
+      .sort(sort === 'match' ? (x, y) => ((y.match && y.match.score) || 0) - ((x.match && x.match.score) || 0) || newest(x, y) : newest);
+    page(res, 'employer-applicants', { title: 'Applicants', tab: 'applicants', rows, jobs: [...jobs.values()], jobId, status, sort, statuses: appStatuses, msg: String(req.query.msg || '') });
   });
 
   // The applicant from the URL, if this member may see them.

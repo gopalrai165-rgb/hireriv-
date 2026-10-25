@@ -1,0 +1,45 @@
+<%- include('partials/head') %>
+
+<section class="section admin portal">
+  <div class="container">
+    <%- include('partials/account-nav', { heading: 'Recommended jobs' }) %>
+    <section class="dash-card dash-wide">
+      <div class="dash-head"><h2>Jobs picked for you</h2><a class="small" href="/jobs">Search all jobs</a></div>
+      <p class="muted small">From your profile, the searches you saved and the jobs you saved. Each one says why. It's a guide, not a verdict: apply to anything that interests you.</p>
+      <% if (!items.length) { %>
+        <div class="dash-empty">
+          <p class="muted">No recommendations yet. We need a little more about the work you want.</p>
+          <% if (completion.missing.length) { %>
+            <ul class="meter-next"><% completion.missing.slice(0, 4).forEach(function (m) { %><li><a href="<%= m.href %>"><%= m.label %></a></li><% }) %></ul>
+          <% } %>
+          <p class="small">Or <a href="/jobs">search jobs</a> and save a search to get alerts.</p>
+        </div>
+      <% } else { %>
+        <ul class="rec-list">
+          <% items.forEach(function (x) { const j = x.job; %>
+            <li class="rec-item">
+              <div class="rec-main">
+                <a href="<%= jobPath(j) %>"><b><%= j.title %></b></a>
+                <span class="muted small"><%= [j.company, j.location, j.type, j.salary].filter(Boolean).join(' · ') %></span>
+                <span class="small">
+                  <% if (x.match.score !== null) { %><span class="pill match-pill match-<%= x.match.level %>"><%= x.match.score %>% · <%= x.match.label %></span><% } %>
+                  <%= x.reasons.join(' · ') %>
+                </span>
+                <details class="rec-why">
+                  <summary>Why this job</summary>
+                  <%- include('partials/match-explain', { m: x.match }) %>
+                </details>
+              </div>
+              <div class="row-actions">
+                <button type="button" class="btn btn-outline btn-sm save-btn" data-save-job="<%= j.id %>" aria-pressed="false" aria-label="Save <%= j.title %>"><svg class="i"><use href="#i-bookmark"/></svg></button>
+                <a class="btn btn-primary btn-sm" href="<%= jobPath(j) %>#apply">View &amp; apply</a>
+              </div>
+            </li>
+          <% }) %>
+        </ul>
+      <% } %>
+    </section>
+  </div>
+</section>
+
+<%- include('partials/foot') %>

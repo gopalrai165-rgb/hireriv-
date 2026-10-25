@@ -65,6 +65,22 @@
         <% if (job.schedule) { %><div><dt>Work schedule</dt><dd><%= job.schedule %></dd></div><% } %>
         <div><dt>Apply by</dt><dd><%= job.closesOn ? formatDate(job.closesOn) : 'Open until filled' %></dd></div>
       </dl>
+      <% const needs = (job.mustHave || []).length || job.immediate || job.physical; %>
+      <% if (needs) { %>
+        <h2>Requirements</h2>
+        <ul class="checks">
+          <% (job.mustHave || []).forEach(function (r) { %><li><%= r %></li><% }) %>
+          <% if (job.immediate) { %><li>Can start straight away</li><% } %>
+          <% if (job.physical) { %><li>Physical work: <%= job.physical %></li><% } %>
+        </ul>
+      <% } %>
+      <% if (match) { %>
+        <section class="match-box" aria-labelledby="match-h">
+          <h2 id="match-h">How you match</h2>
+          <%- include('partials/match-explain', { m: match }) %>
+          <p class="small">Something missing or out of date? <a href="/account/profile">Update your profile</a>. You can apply whatever the match says.</p>
+        </section>
+      <% } %>
       <% if ((job.eligibility || []).length) { %>
         <h2>Who can apply</h2>
         <ul class="checks"><% job.eligibility.forEach(function (b) { %><li><%= b %></li><% }) %></ul>

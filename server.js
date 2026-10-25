@@ -24,6 +24,9 @@ const reportsModule = require('./reports');
 const timesheetsModule = require('./timesheets');
 const history = require('./history');
 const resumes = require('./resume-parse');
+const jobRecommendations = require('./job-recommendations');
+const employerDiscovery = require('./employer-discovery');
+const jobMatch = require('./job-match');
 const { interviewIcs } = require('./ics');
 const ogImages = require('./og');
 const retentionModule = require('./retention');
@@ -418,6 +421,9 @@ app.locals.catalog = catalog;
 app.locals.workOf = workOf;
 app.locals.isSample = (j) => j.sample === true;
 app.locals.jobPath = jobPath;
+app.locals.matchWeights = jobMatch.weightsOf;
+app.locals.matchFactors = jobMatch.FACTORS;
+app.locals.matchDefaults = jobMatch.DEFAULT_WEIGHTS;
 // Resume links in pages are signed and expire, so a copied link stops working.
 app.locals.signedLink = (url) => downloadLinks.signed(url);
 // Chat link for a candidate's mobile number (10-digit Indian numbers get +91).
@@ -583,8 +589,18 @@ function jobFilters(query) {
     group: pick(['group'], (v) => JOB_GROUPS.some((g) => g.key === v)),
     experience: pick(['experience'], (v) => search.EXPERIENCE_LEVELS.some((l) => l.key === v)),
     minPay: 0,
+    skills: [],
+    company: one('company').value,
+    shift: pick(['shift'], (v) => SHIFTS.includes(v)),
     sort: pick(['sort'], (v) => search.SORTS.includes(v)),
   };
+  // Skills: repeated (?skill=Forklift&skill=Excel) or comma-separated (?skills=Forklift, Excel).
+  const skillList = [].concat(query.skill ?? [], String([].concat(query.skills ?? []).join(',')).split(',')).map((x) => String(x).trim()).filter(Boolean);
+  for (const sk of skillList) {
+    if (sk.length > 40) { errors.push('each skill must be 40 characters or fewer'); continue; }
+    if (!f.skills.some((x) => x.toLowerCase() === sk.toLowerCase())) f.skills.push(sk);
+  }
+  if (f.skills.length > MAX_SKILL_FILTERS) { errors.push(`choose up to ${MAX_SKILL_FILTERS} skills`); f.skills = f.skills.slice(0, MAX_SKILL_FILTERS); }
   const known = jobCategories();
   for (const c of [].concat(query.category ?? [], query.categories ?? []).map(String).filter(Boolean).slice(0, 20)) {
     if (known.includes(c)) { if (!f.categories.includes(c)) f.categories.push(c); } else errors.push('category is invalid');
@@ -596,21 +612,34 @@ function jobFilters(query) {
   }
   return { filters: f, errors: [...new Set(errors)] };
 }
+const MAX_SKILL_FILTERS = 5;
 // The search itself: live jobs, these filters, the category group and kind of
 // work on top. `skipWork` gives the counts for the kind-of-work tabs.
 function findJobs(list, f, { skipWork = false } = {}) {
   const group = JOB_GROUPS.find((g) => g.key === f.group);
   return search.searchJobs(list, f, { extra: (j) => (!group || inGroup(group, j)) && (skipWork || !f.work || workOf(j) === f.work) });
 }
-// The filters as query parameters (repeated for several categories).
-const filterQuery = (f) => ({ q: f.q, group: f.group, work: f.work, category: f.categories, location: f.location, mode: f.mode, type: f.type, experience: f.experience, minPay: f.minPay || '', sort: f.sort });
-const hasFilters = (f) => Boolean(f.q || f.group || f.work || f.categories.length || f.location || f.mode || f.type || f.experience || f.minPay);
+// Keywords with a typing slip and no results get one more try with the
+// closest words from the live jobs ("devloper" → "developer").
+function correctedFilters(list, f) {
+  const better = f.q ? search.suggest(f.q, search.vocabulary(list)) : '';
+  return better ? { ...f, q: better } : null;
+}
+// The filters as query parameters (repeated for several categories and skills).
+const filterQuery = (f) => ({ q: f.q, group: f.group, work: f.work, category: f.categories, location: f.location, mode: f.mode, type: f.type, experience: f.experience, minPay: f.minPay || '', skill: f.skills || [], company: f.company || '', shift: f.shift || '', sort: f.sort });
+const hasFilters = (f) => Boolean(f.q || f.group || f.work || f.categories.length || f.location || f.mode || f.type || f.experience || f.minPay || (f.skills || []).length || f.company || f.shift);
 
 app.get('/jobs', (req, res) => {
   const live = openJobs();
-  const { filters: f } = jobFilters(req.query);
+  let { filters: f } = jobFilters(req.query);
   const group = JOB_GROUPS.find((g) => g.key === f.group) || null;
-  const found = findJobs(live, f);
+  let found = findJobs(live, f);
+  let corrected = null;
+  if (!found.jobs.length) {
+    const better = correctedFilters(live, f);
+    const retry = better && findJobs(live, better);
+    if (retry && retry.jobs.length) { corrected = { from: f.q, to: better.q }; f = better; found = retry; }
+  }
   // Kind-of-work counts follow the other filters, so each tab says what it would show.
   const workCounts = findJobs(live, f, { skipWork: true }).jobs.reduce((n, j) => ({ ...n, [workOf(j)]: (n[workOf(j)] || 0) + 1 }), {});
   const { rows, pager } = paginate(found.jobs, { page: req.query.page, size: JOBS_PAGE_SIZE, query: filterQuery(f), path: '/jobs' });
@@ -627,7 +656,13 @@ app.get('/jobs', (req, res) => {
     f.type && { label: f.type, href: removeLink({ type: '' }) },
     f.experience && { label: search.EXPERIENCE_LEVELS.find((l) => l.key === f.experience).label, href: removeLink({ experience: '' }) },
     f.minPay && { label: payLabel(f.minPay), href: removeLink({ minPay: '' }) },
+    ...f.skills.map((sk) => ({ label: sk, href: removeLink({ skill: f.skills.filter((x) => x !== sk) }) })),
+    f.company && { label: f.company, href: removeLink({ company: '' }) },
+    f.shift && { label: `${f.shift} shift`, href: removeLink({ shift: '' }) },
   ].filter(Boolean);
+  // Signed-in candidates can save this search and get alerts for it.
+  const candidateEmail = candidateAccounts.currentEmail(req);
+  if (candidateEmail) res.set('Cache-Control', 'private, no-store');
   res.render('jobs', {
     title: pager.page > 1 ? `Find Jobs – page ${pager.page}` : 'Find Jobs',
     page: 'jobs',
@@ -638,6 +673,11 @@ app.get('/jobs', (req, res) => {
     filters: { ...f, category: f.categories[0] || '' },
     sort: found.sort,
     active,
+    corrected,
+    canSaveSearch: Boolean(candidateEmail),
+    savedSearchQuery: filterQuery(f),
+    shifts: SHIFTS,
+    companies: [...new Set(live.filter((j) => !isSample(j)).map((j) => j.company))].sort((a, b) => a.localeCompare(b)),
     experienceLevels: search.EXPERIENCE_LEVELS,
     minPayOptions: search.MIN_PAY_OPTIONS.map((n) => ({ value: n, label: payLabel(n) })),
     states: search.statesOf(jobLocations()),
@@ -682,6 +722,7 @@ app.get('/jobs/:id', (req, res, next) => {
     job,
     related,
     account,
+    match: account && open && !isSample(job) ? recommendations.matchFor(account.email, job) : null,
     msg: account ? String(req.query.msg || '').slice(0, 200) : '',
     live: isLive(job),
     verifiedEmployer: verifiedEmployer(job),
@@ -921,6 +962,7 @@ const publicJob = (j) => ({
   walkIn: Boolean(j.walkIn),
   eligibility: j.eligibility || [],
   benefits: j.benefits || [],
+  requirements: { licences: j.mustHave || [], startsImmediately: Boolean(j.immediate), physical: j.physical || null },
   postedAt: j.posted,
   closesOn: j.closesOn || null,
   quickApply: !resumeNeeded(j),
@@ -938,24 +980,37 @@ app.get('/api/jobs', limit('job-search', 120, 60 * 1000), async (req, res) => {
   const page = int('page', 1, 1000);
   const size = int('limit', JOBS_PAGE_SIZE, API_MAX_LIMIT);
   if (errors.length) return res.status(400).json({ ok: false, errors });
-  const send = (total, sort, list) => res.set('Cache-Control', 'public, max-age=60').json({
-    ok: true, total, page, limit: size, pages: Math.max(1, Math.ceil(total / size)), sort, jobs: list.map(publicJob),
+  const live = openJobs().filter((j) => !isSample(j));
+  const send = (total, sort, list, corrected) => res.set('Cache-Control', 'public, max-age=60').json({
+    ok: true, total, page, limit: size, pages: Math.max(1, Math.ceil(total / size)), sort, ...(corrected ? { correctedQuery: corrected } : {}), jobs: list.map(publicJob),
   });
   // Postgres when it's connected and up to date; the same search in memory otherwise.
-  if (pg && pg.usable()) {
+  const viaPg = async (filters) => {
+    if (!(pg && pg.usable())) return null;
     try {
       await pg.flush();
-      const found = pg.usable() && (await pg.search(f, { page, size }));
-      if (found) {
-        const byId = new Map(jobs.map((j) => [j.id, j]));
-        return send(found.total, found.sort, found.ids.map((id) => byId.get(id)).filter((j) => j && isLive(j) && !isSample(j)));
-      }
+      const found = pg.usable() && (await pg.search(filters, { page, size }));
+      if (!found) return null;
+      const byId = new Map(jobs.map((j) => [j.id, j]));
+      return { total: found.total, sort: found.sort, list: found.ids.map((id) => byId.get(id)).filter((j) => j && isLive(j) && !isSample(j)) };
     } catch (err) {
       console.error(`Postgres search failed, used the built-in search: ${err.message}`);
+      return null;
     }
+  };
+  const inMemory = (filters) => {
+    const found = findJobs(live, filters);
+    return { total: found.jobs.length, sort: found.sort, list: found.jobs.slice((page - 1) * size, page * size) };
+  };
+  const run = async (filters) => (await viaPg(filters)) || inMemory(filters);
+  let r = await run(f);
+  let corrected = null;
+  if (!r.total) {
+    const better = correctedFilters(live, f);
+    const retry = better && (await run(better));
+    if (retry && retry.total) { r = retry; corrected = better.q; }
   }
-  const found = findJobs(openJobs().filter((j) => !isSample(j)), f);
-  send(found.jobs.length, found.sort, found.jobs.slice((page - 1) * size, page * size));
+  send(r.total, r.sort, r.list, corrected);
 });
 
 app.get('/api/jobs/:id', limit('job-search', 120, 60 * 1000), (req, res) => {
@@ -980,16 +1035,13 @@ app.post('/api/jobs/:id/report', limit('job-report', 5), (req, res, next) => {
 });
 
 // ---------- job alerts (double opt-in) ----------
-const alertMatches = (sub, job) =>
-  sub.confirmed &&
-  (!sub.category || sub.category === job.category) &&
-  (!sub.location || sub.location === job.location || job.mode === 'Remote');
-
-// Alert each job at most once, the first time it goes live.
+// Alert each job at most once, the first time it goes live: saved searches
+// with instant alerts and email-only alerts now, daily and weekly ones in
+// their next email (job-recommendations.js).
 function sendJobAlerts(job) {
   if (job.status !== 'open' || job.alertsSentAt || isSample(job)) return 0;
   job.alertsSentAt = new Date().toISOString();
-  return events.jobAlerts(job, readSubmissions('job-alerts').filter((s) => alertMatches(s, job)));
+  return recommendations.dispatch(job);
 }
 
 app.post('/api/job-alerts', limit('job-alerts', 5), (req, res) => {
@@ -1046,6 +1098,12 @@ app.get('/job-alerts/unsubscribe/:token', (req, res) => {
 
 app.post('/job-alerts/unsubscribe/:token', (req, res) => {
   const { list, sub } = findAlert(req.params.token);
+  // A saved search stays saved, with its emails off; an email-only alert goes.
+  if (sub && sub.filters) {
+    Object.assign(sub, { alertEnabled: false, pending: [], updatedAt: new Date().toISOString() });
+    writeSubmissions('job-alerts', list);
+    return res.render('thanks', { title: "You're unsubscribed", page: '', ok: true, message: `You won't get emails for your saved search “${sub.name}” any more. It stays in your account, where you can switch them back on.`, noindex: true });
+  }
   if (sub) writeSubmissions('job-alerts', list.filter((s) => s !== sub));
   res.render('thanks', { title: "You're unsubscribed", page: '', ok: true, message: "You won't get this job alert any more. You can set up a new one any time on the Find Work page.", noindex: true });
 });
@@ -1155,6 +1213,35 @@ const candidateAccounts = candidates.register(app, {
   upload, saveApplication, isBot, isSample, isLive, resumeNeeded, skillMatch, saveSubmission, jobCategories, jobLocations,
   vetUpload: resumeCheck.vet, downloadLinks, linkExpired, jobTypes: JOB_TYPES, modes, stateOf: search.stateOf,
   interviewResponded: (...args) => atsDesk.interviewResponded(...args), events, notify,
+  recommendFor: (...args) => recommendations.recommend(...args),
+});
+
+// Recommended jobs with match explanations, saved searches with daily or
+// weekly alerts, and filling a profile from a resume (job-recommendations.js).
+const describeFilters = (f) => {
+  const level = search.EXPERIENCE_LEVELS.find((l) => l.key === f.experience);
+  const group = JOB_GROUPS.find((g) => g.key === f.group);
+  const work = WORK_KINDS.find((w) => w.key === f.work);
+  const parts = [
+    f.q && `“${f.q}”`, group && group.label, work && work.label, (f.categories || []).join(', '), f.location, f.mode, f.type,
+    level && level.label, f.minPay && `₹${Number(f.minPay).toLocaleString('en-IN')}+ a month`, (f.skills || []).length && `Skills: ${f.skills.join(', ')}`,
+    f.company, f.shift && `${f.shift} shift`,
+  ].filter(Boolean);
+  return parts.length ? parts.join(' · ').slice(0, 150) : 'All jobs';
+};
+const recommendations = jobRecommendations.register(app, {
+  readSubmissions, writeSubmissions, saveSubmission, sameOrigin, limit, site, getJobs: () => jobs, isLive, isSample, jobPath, events,
+  parseFilters: (input) => jobFilters(input), matchesFilters: (job, f) => findJobs([job], { categories: [], ...f }).jobs.length > 0,
+  searchHref: (f) => paginate([], { size: 1, query: filterQuery({ categories: [], ...f, sort: '' }), path: '/jobs' }).pager.urlFor(1), describeFilters,
+  upload, vetUpload: resumeCheck.vet, resumes, allJobSkills, uploadsDir: UPLOADS_DIR, candidates: candidateAccounts.helpers,
+});
+// Daily and weekly saved-search emails that are due, every hour (SAVED_SEARCH_SCAN_MS for tests).
+setInterval(() => { try { recommendations.digestScan(); } catch (e) { console.error('Saved search emails failed:', e.message); } }, Number(process.env.SAVED_SEARCH_SCAN_MS) || 60 * 60 * 1000).unref();
+
+// Finding candidates who agreed to be found, for verified employers.
+employerDiscovery.register(app, {
+  readSubmissions, saveSubmission, sameOrigin, limit, site, getJobs: () => jobs, isLive, isSample, jobPath, clients, events, paginate,
+  stateOf: search.stateOf, jobTypes: JOB_TYPES,
 });
 
 // The notification center, its API, preferences, job alerts and delivery reports.
@@ -1374,7 +1461,7 @@ function buildDashboard(applications, user) {
 
 // ----- jobs -----
 function parseJob(body) {
-  const data = clean(body, ['title', 'company', 'location', 'mode', 'type', 'category', 'experience', 'salary', 'payNote', 'education', 'schedule', 'shift', 'hours', 'openings', 'address', 'eligibility', 'skills', 'description', 'responsibilities', 'qualifications', 'benefits', 'status']);
+  const data = clean(body, ['title', 'company', 'location', 'mode', 'type', 'category', 'experience', 'salary', 'payNote', 'education', 'schedule', 'shift', 'hours', 'openings', 'address', 'eligibility', 'mustHave', 'physical', 'skills', 'description', 'responsibilities', 'qualifications', 'benefits', 'status']);
   const errors = [];
   for (const f of ['title', 'company', 'location', 'category', 'description']) if (!data[f]) errors.push(`${f} is required`);
   if (data.category && !jobCategories().includes(data.category)) errors.push('pick a category from the list (add new ones in Settings)');
@@ -1417,6 +1504,12 @@ function parseJob(body) {
     address: data.address.slice(0, 300),
     walkIn,
     eligibility: lines(data.eligibility),
+    // Must-haves shown apart from the match score: licences or certificates
+    // the work legally or practically needs, starting straight away, and
+    // physical demands that are genuinely part of the job.
+    mustHave: lines(data.mustHave).slice(0, 10).map((x) => x.slice(0, 80)),
+    immediate: ['1', 'on', 'true'].includes(String(body.immediate ?? '')),
+    physical: data.physical.slice(0, 200),
     qualifications: lines(data.qualifications),
     benefits: lines(data.benefits),
     skills: data.skills.split(',').map((s) => s.trim()).filter(Boolean),
@@ -1503,11 +1596,19 @@ app.post('/admin/jobs/:id/delete', adminAuth, requireAdmin, sameOrigin, (req, re
 // `site` is shared by every view (app.locals) and the mailer, so it is updated in place.
 app.post('/admin/settings', adminAuth, requireAdmin, sameOrigin, (req, res) => {
   const { settings, errors } = parseSettings(req.body, site);
+  // Matching weights, when the form includes them (older forms keep the current ones).
+  if (req.body.match_skills !== undefined) {
+    const w = jobMatch.parseWeights(Object.fromEntries(jobMatch.FACTORS.map((f) => [f.key, req.body[`match_${f.key}`]])));
+    errors.push(...w.errors);
+    settings.matchWeights = w.weights;
+  }
   if (errors.length) {
     return res.status(400).render('admin', { title: 'Admin', page: 'admin', tab: 'settings', tabs: tabsFor(req.admin), counts: {}, members: team.members(), memberName: {}, status: '', msg: '', rows: [], form: settings, errors, social: SOCIAL, retentionPreview: retentionPreviews(), backups: { status: backups.status(), list: backups.list(), dir: backups.dir, keep: backups.keep }, billingForm: Object.fromEntries(Object.entries(placements.billingOf(settings)).map(([k, v]) => [k, Number.isNaN(v) ? '' : v])) });
   }
   const retentionChanged = settings.retentionMonths !== (site.retentionMonths || 0);
+  const weightsChanged = JSON.stringify(jobMatch.weightsOf(settings)) !== JSON.stringify(jobMatch.weightsOf(site));
   Object.assign(site, settings);
+  if (weightsChanged) team.log(req.admin, `Changed job matching weights: ${jobMatch.FACTORS.map((f) => `${f.label} ${site.matchWeights[f.key]}%`).join(', ')}`);
   saveSite();
   if (retentionChanged) team.log(req.admin, site.retentionMonths ? `Turned on data retention: ${site.retentionMonths} months` : 'Turned off data retention');
   const cleaned = retentionChanged && site.retentionMonths ? retention.run() : null;

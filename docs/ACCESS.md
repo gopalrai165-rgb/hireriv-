@@ -14,7 +14,7 @@ Every route the app serves, and who may use it. **This table is checked by `test
 
 Every state-changing team, candidate and client form also passes `sameOrigin` (cross-site posts are refused).
 
-Total: 299 routes.
+Total: 319 routes.
 
 ## Public website
 
@@ -138,6 +138,8 @@ Total: 299 routes.
 | GET | `/candidate/alerts` | public |  |
 | GET | `/candidate/interviews` | public |  |
 | GET | `/candidate/settings` | public |  |
+| GET | `/candidate/recommendations` | public |  |
+| GET | `/candidate/saved-searches` | public |  |
 | POST | `/api/auth/register` | public | Bot trap, per-IP limit; same reply whether or not the email has an account |
 | POST | `/api/auth/login` | public | Per-IP limit and per-email lock-out; unconfirmed emails get a new link instead |
 | POST | `/api/auth/logout` | public |  |
@@ -151,6 +153,20 @@ Total: 299 routes.
 | DELETE | `/api/candidate/saved-jobs/:jobId` | candidate | 401 when signed out; only the candidate's own saved jobs |
 | GET | `/api/candidate/applications` | candidate | 401 when signed out; only the candidate's own applications, without contact details |
 | DELETE | `/api/candidate/account` | candidate | 401 when signed out; needs {"confirm": "DELETE"} |
+| GET | `/account/recommendations` | candidate | The candidate's own recommended jobs, each with its match explanation |
+| GET | `/account/saved-searches` | candidate | The candidate's own saved searches and their alert settings |
+| POST | `/account/saved-searches` | candidate | Saves the current Find Jobs filters for the signed-in candidate (checked like a search; up to 20) |
+| POST | `/account/saved-searches/:id` | candidate | Only the candidate's own saved search; name, alert on or off, frequency |
+| POST | `/account/saved-searches/:id/delete` | candidate | Only the candidate's own saved search |
+| GET | `/api/candidate/recommendations` | candidate | 401 when signed out; the candidate's own recommendations |
+| GET | `/api/jobs/:id/match` | candidate | 401 when signed out; how the signed-in candidate matches one open job (never anyone else) |
+| GET | `/api/candidate/saved-searches` | candidate | 401 when signed out; the candidate's own saved searches |
+| POST | `/api/candidate/saved-searches` | candidate | 401 when signed out; filters are checked like /api/jobs; unknown fields refused |
+| PATCH | `/api/candidate/saved-searches/:id` | candidate | 401 when signed out; 404 for anyone else's saved search |
+| DELETE | `/api/candidate/saved-searches/:id` | candidate | 401 when signed out; 404 for anyone else's saved search |
+| GET | `/account/resumes/:id/review` | candidate | One of the candidate's own resumes, read for profile details; nothing is saved |
+| POST | `/account/resumes/:id/review` | candidate | Adds only the details the candidate kept and corrected, checked like any profile change; the resume file is unchanged |
+| POST | `/api/candidate/resumes/parse` | candidate | 401 when signed out; one of their own resumes, or an uploaded file checked by type, size and virus scan and deleted after reading; nothing is saved |
 | GET | `/api/job-alerts` | candidate | JSON; the signed-in candidate's own job alerts |
 | DELETE | `/api/job-alerts/:id` | candidate | JSON; only an alert of the signed-in candidate |
 | GET | `/account/timesheets/:pid` | candidate | Only the contractor's own placement |
@@ -181,6 +197,10 @@ Total: 299 routes.
 | POST | `/api/ats/offers/:offerId/approve` | employer | Owners, or hiring managers on the job (not their own offer unless owner) |
 | POST | `/api/ats/offers/:offerId/response` | employer | Owners, or managers and recruiters on the job; only approved offers |
 | GET | `/api/ats/analytics` | employer | 401 when signed out; metrics for the jobs this member may see |
+| GET | `/employer/candidates` | employer | Owners, hiring managers and recruiters of a verified company; only candidates who chose to be found, without contact details, resumes or past employers |
+| POST | `/employer/candidates/:id/invite` | employer | Invites a findable candidate to one of the company's own open jobs; once per candidate and job, 30 a day per company; recorded in the activity log |
+| GET | `/api/employers/candidates` | employer | JSON; same rules as the page; a job to match must be one of the company's own |
+| POST | `/api/employers/candidates/:id/invites` | employer | JSON; same rules as the page |
 | GET | `/employer/jobs` | employer | Jobs this member may see: all for owners and viewers, assigned or own jobs for others |
 | GET | `/employer/jobs/new` | employer | Owners and hiring managers |
 | POST | `/employer/jobs` | employer | Owners and hiring managers |

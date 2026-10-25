@@ -20,7 +20,7 @@
   </div>
 </div>
 <nav class="account-tabs" aria-label="Employer portal">
-  <% [['dashboard', '/employer', 'Dashboard'], ['jobs', '/employer/jobs', 'Jobs'], ['ats', '/employer/ats', 'Pipeline'], ['applicants', '/employer/applicants', 'Applicants'], ['interviews', '/employer/interviews', 'Interviews'], ['team', '/employer/team', 'Team'], ['company', '/employer/company', 'Company'], ['settings', '/employer/settings', 'Settings']].forEach(function (t) { %>
+  <% [['dashboard', '/employer', 'Dashboard'], ['jobs', '/employer/jobs', 'Jobs'], ['ats', '/employer/ats', 'Pipeline'], ['applicants', '/employer/applicants', 'Applicants'], ['interviews', '/employer/interviews', 'Interviews'], ['candidates', '/employer/candidates', 'Find candidates'], ['team', '/employer/team', 'Team'], ['company', '/employer/company', 'Company'], ['settings', '/employer/settings', 'Settings']].forEach(function (t) { %>
     <a href="<%= t[1] %>"<%- tab === t[0] ? ' aria-current="page" class="active"' : '' %>><%= t[2] %></a>
   <% }) %>
 </nav>

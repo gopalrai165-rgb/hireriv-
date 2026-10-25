@@ -95,6 +95,9 @@
         <label class="span-2">Responsibilities <span class="muted small">(one per line)</span><textarea name="responsibilities" rows="5"><%= (job.responsibilities || []).join('\n') %></textarea></label>
         <label class="span-2">Qualifications and requirements <span class="muted small">(one per line, optional)</span><textarea name="qualifications" rows="3" placeholder="e.g. Valid two-wheeler licence"><%= (job.qualifications || []).join('\n') %></textarea></label>
         <label class="span-2">Who can apply <span class="muted small">(one per line, optional)</span><textarea name="eligibility" rows="2"><%= (job.eligibility || []).join('\n') %></textarea></label>
+        <label class="span-2">Licences or certificates needed <span class="muted small">(one per line, optional, e.g. "Forklift licence", "Two-wheeler driving licence"; shown to candidates as must-haves, apart from the match score)</span><textarea name="mustHave" rows="2"><%= (job.mustHave || []).join('\n') %></textarea></label>
+        <label class="span-2">Physical work <span class="muted small">(optional; only what the work really involves, e.g. "Lifting boxes up to 20 kg", "Standing for the whole shift")</span><input name="physical" maxlength="200" value="<%= job.physical || '' %>"></label>
+        <label class="span-2 check-row"><input type="checkbox" name="immediate" value="1"<%= job.immediate ? ' checked' : '' %>> <span>Needs people who can start straight away</span></label>
         <label class="span-2">Benefits <span class="muted small">(one per line, optional)</span><textarea name="benefits" rows="3" placeholder="e.g. PF and ESI&#10;Free meals"><%= (job.benefits || []).join('\n') %></textarea></label>
       </div>
       <button class="btn btn-primary" type="submit"><%= job.id ? 'Save changes' : 'Publish job' %></button>

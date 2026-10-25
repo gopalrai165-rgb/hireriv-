@@ -89,6 +89,7 @@
                 </div>
                 <div class="row-actions">
                   <a class="btn btn-outline btn-sm" href="<%= signedLink('/account/resumes/' + r.id) %>">Download</a>
+                  <a class="btn btn-outline btn-sm" href="/account/resumes/<%= r.id %>/review">Fill profile from it</a>
                   <% if (!isDefault) { %><form method="post" action="/account/resumes/<%= r.id %>/default"><button class="btn btn-outline btn-sm" type="submit">Use this one</button></form><% } %>
                   <form method="post" action="/account/resumes/<%= r.id %>/delete" data-confirm="Delete <%= r.name %>? Applications you already sent keep their copy."><button class="btn btn-sm btn-danger" type="submit">Delete</button></form>
                 </div>
