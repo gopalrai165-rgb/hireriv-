@@ -20,7 +20,10 @@
   </div>
 </div>
 <nav class="account-tabs" aria-label="Employer portal">
-  <% [['dashboard', '/employer', 'Dashboard'], ['jobs', '/employer/jobs', 'Jobs'], ['ats', '/employer/ats', 'Pipeline'], ['applicants', '/employer/applicants', 'Applicants'], ['interviews', '/employer/interviews', 'Interviews'], ['requisitions', '/employer/requisitions', 'Requisitions'], ['candidates', '/employer/candidates', 'Find candidates'], ['team', '/employer/team', 'Team'], ['company', '/employer/company', 'Company'], ['settings', '/employer/settings', 'Settings']].forEach(function (t) { %>
+  <% var navTabs = [['dashboard', '/employer', 'Dashboard'], ['jobs', '/employer/jobs', 'Jobs'], ['ats', '/employer/ats', 'Pipeline'], ['applicants', '/employer/applicants', 'Applicants'], ['interviews', '/employer/interviews', 'Interviews'], ['requisitions', '/employer/requisitions', 'Requisitions'], ['workforce', '/employer/workforce', 'Workforce'], ['candidates', '/employer/candidates', 'Find candidates'], ['team', '/employer/team', 'Team'], ['company', '/employer/company', 'Company'], ['settings', '/employer/settings', 'Settings']]; %>
+  <%# Site supervisors only work with the workers they supervise. %>
+  <% if (member.role === 'supervisor') navTabs = navTabs.filter(function (t) { return ['workforce', 'settings'].includes(t[0]); }); else if (!can('workforce.view')) navTabs = navTabs.filter(function (t) { return t[0] !== 'workforce'; }); %>
+  <% navTabs.forEach(function (t) { %>
     <a href="<%= t[1] %>"<%- tab === t[0] ? ' aria-current="page" class="active"' : '' %>><%= t[2] %></a>
   <% }) %>
 </nav>

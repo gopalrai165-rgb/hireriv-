@@ -1,0 +1,43 @@
+<%# Attendance rows for the team, a client's supervisors or the worker. Times show in each site's time zone. %>
+<% if (!rows.length) { %><p class="muted dash-empty">No attendance recorded in this period.</p><% } else { %>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Date</th><th>In</th><th>Out</th><th class="num">Worked</th><th>Notes</th><th></th></tr></thead>
+    <tbody><% rows.forEach(function (r) { const a = assignmentById(r.assignmentId) || {}; %>
+      <tr>
+        <td><%= r.date %><br><span class="muted small"><%= a.workerName %> · <%= r.timeZone %></span></td>
+        <% if (r.kind === 'absence') { %><td colspan="2"><span class="pill">Absent: <%= r.reason %></span></td><td class="num">—</td>
+        <% } else { %>
+          <td><%= r.checkIn || '—' %><%= r.lateMinutes ? ' (' + r.lateMinutes + ' min late)' : '' %></td>
+          <td><%= r.checkOut || (r.status === 'Open' ? 'still in' : '—') %></td>
+          <td class="num"><%= r.workedMinutes === null ? '—' : hours(r.workedMinutes) %></td>
+        <% } %>
+        <td>
+          <% if (r.status === 'Exception') { %><span class="pill st-on-hold"><%= r.exception %></span><% } %>
+          <% if (r.overtimeMinutes) { %><span class="pill"><%= hours(r.overtimeMinutes) %> overtime: <%= r.overtimeStatus.toLowerCase() %></span><% } %>
+          <% if (r.source === 'manual') { %><span class="muted small">entered by hand</span><% } %>
+          <% if (r.original) { %><span class="muted small">corrected</span><% } %>
+          <% if (r.locked) { %><span class="muted small">approved</span><% } else if (r.timesheetId) { %><span class="muted small">in a submitted timesheet</span><% } %>
+        </td>
+        <td>
+          <% if (!r.timesheetId && r.kind !== 'absence') { %>
+            <% if (canDecide && r.overtimeStatus === 'Pending') { %>
+              <form class="row-actions" method="post" action="/api/staffing/attendance/<%= r.id %>/overtime"><input type="hidden" name="back" value="<%= back %>"><input type="hidden" name="as" value="<%= as %>"><button class="btn btn-primary btn-sm" name="decision" value="approve">Approve overtime</button><button class="btn btn-outline btn-sm" name="decision" value="reject">Reject</button></form>
+            <% } %>
+            <% if (r.status !== 'Open' && !(typeof pending !== 'undefined' && pending.has(r.id))) { %>
+              <details><summary class="small">Ask for a correction</summary>
+                <form class="form" method="post" action="/api/staffing/attendance/<%= r.id %>/corrections">
+                  <input type="hidden" name="back" value="<%= back %>"><input type="hidden" name="as" value="<%= as %>">
+                  <label class="small">Check-in (site time)<input type="datetime-local" name="checkInAt"></label>
+                  <label class="small">Check-out (site time)<input type="datetime-local" name="checkOutAt"></label>
+                  <label class="small">Break minutes<input name="breakMinutes" inputmode="numeric" maxlength="3"></label>
+                  <label class="small">Why*<input name="reason" required maxlength="300"></label>
+                  <button class="btn btn-outline btn-sm">Send for approval</button>
+                </form>
+              </details>
+            <% } else if (typeof pending !== 'undefined' && pending.has(r.id)) { %><span class="muted small">Correction waiting</span><% } %>
+          <% } %>
+        </td>
+      </tr>
+    <% }) %></tbody>
+  </table></div>
+<% } %>

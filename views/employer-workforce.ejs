@@ -1,0 +1,57 @@
+<%- include('partials/head') %>
+
+<section class="section admin portal">
+  <div class="container">
+    <%- include('partials/employer-nav', { heading: 'Workforce' }) %>
+    <p class="muted small">Hireriv workers on your assignments<%= member.role === 'supervisor' ? ' that you supervise' : '' %>. Times show in each site's time zone. Hireriv never tracks location: check-ins are recorded by the worker, by you, or by hand from your site register.</p>
+
+    <% if (!rows.length) { %><p class="muted dash-empty">No workers on assignment<%= member.role === 'supervisor' ? ' under you' : '' %> right now.</p><% } else { %>
+      <section class="dash-card dash-wide">
+        <h2>Today</h2>
+        <ul class="plain-list"><% rows.forEach(function (x) { const a = x.a; %>
+          <li><b><%= a.workerName %></b> · <%= a.role %><%= a.site ? ' at ' + a.site : '' %> · <%= a.startsOn %> – <%= a.endsOn || 'open-ended' %> · <%= a.status %><%= x.plan ? ' · shift ' + x.plan.start + '–' + x.plan.end : '' %>
+            <% if (x.open) { %> · <span class="pill">In since <%= localTime(x.open.checkInAt, zoneOf(a)) %></span><% } %>
+            <% if (x.canSupervise && a.status === 'Active' && x.w && x.w.status === 'Joined') { %>
+              <form class="row-actions" method="post" action="/api/staffing/attendance/<%= x.open ? 'check-out' : 'check-in' %>">
+                <input type="hidden" name="back" value="/employer/workforce"><input type="hidden" name="as" value="employer"><input type="hidden" name="assignmentId" value="<%= a.id %>">
+                <label class="small">Time (blank = now)<input type="datetime-local" name="at"></label>
+                <button class="btn btn-outline btn-sm"><%= x.open ? 'Check out' : 'Check in' %></button>
+              </form>
+              <details><summary class="small">Record an absence</summary>
+                <form class="form row-actions" method="post" action="/api/staffing/attendance/absences"><input type="hidden" name="back" value="/employer/workforce"><input type="hidden" name="as" value="employer"><input type="hidden" name="assignmentId" value="<%= a.id %>">
+                  <input type="date" name="date" value="<%= x.today %>" required><select name="reason"><% ABSENCE_REASONS.forEach(function (r) { %><option><%= r %></option><% }) %></select><button class="btn btn-outline btn-sm">Save</button></form>
+              </details>
+            <% } %>
+            <% if (x.canSupervise && ['Scheduled', 'Active'].includes(a.status)) { %>
+              <details><summary class="small">Ask for a replacement</summary>
+                <form class="form row-actions" method="post" action="/api/staffing/assignments/<%= a.id %>/replacement"><input type="hidden" name="back" value="/employer/workforce"><input type="hidden" name="as" value="employer">
+                  <input name="reason" required maxlength="500" placeholder="Why"><input type="date" name="from"><button class="btn btn-outline btn-sm">Send</button></form>
+              </details>
+            <% } %>
+          </li>
+        <% }) %></ul>
+      </section>
+    <% } %>
+
+    <% if (corrections.length) { %>
+      <section class="dash-card dash-wide">
+        <h2>Corrections waiting</h2>
+        <ul class="plain-list"><% corrections.forEach(function (c) { const a = assignmentById(c.assignmentId) || {}; %>
+          <li><b><%= a.workerName %></b>: in <%= showAt(c.before.checkInAt, zoneOf(a)) || '—' %> → <%= showAt(c.proposed.checkInAt || c.before.checkInAt, zoneOf(a)) %>, out <%= showAt(c.before.checkOutAt, zoneOf(a)) || '—' %> → <%= showAt(c.proposed.checkOutAt || c.before.checkOutAt, zoneOf(a)) || '—' %> · “<%= c.reason %>”
+            <% if (c.requestedBy !== me && can('workforce.supervise')) { %>
+              <form class="row-actions" method="post" action="/api/staffing/attendance/corrections/<%= c.id %>/approve"><input type="hidden" name="back" value="/employer/workforce"><input type="hidden" name="as" value="employer"><button class="btn btn-primary btn-sm">Approve</button></form>
+              <form class="row-actions" method="post" action="/api/staffing/attendance/corrections/<%= c.id %>/reject"><input type="hidden" name="back" value="/employer/workforce"><input type="hidden" name="as" value="employer"><input name="note" required maxlength="200" placeholder="Why not"><button class="btn btn-outline btn-sm">Reject</button></form>
+            <% } %>
+          </li>
+        <% }) %></ul>
+      </section>
+    <% } %>
+
+    <h2>Timesheets</h2>
+    <%- include('partials/timesheet-table', { rows: timesheets, as: 'employer', back: '/employer/workforce', canDecide: can('workforce.supervise'), money: false }) %>
+    <h2>Attendance, last two weeks</h2>
+    <%- include('partials/attendance-table', { rows: attendance, canDecide: can('workforce.supervise'), as: 'employer', back: '/employer/workforce' }) %>
+  </div>
+</section>
+
+<%- include('partials/foot') %>

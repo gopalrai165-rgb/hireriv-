@@ -29,9 +29,9 @@ const BATCH = 25;
 // Webhook signatures older than this are refused (replays).
 const WEBHOOK_TOLERANCE_SECONDS = 300;
 
-const CATEGORIES = { applications: 'Applications', interviews: 'Interviews', jobs: 'Jobs', account: 'Account' };
+const CATEGORIES = { applications: 'Applications', interviews: 'Interviews', jobs: 'Jobs', work: 'Work & attendance', account: 'Account' };
 // Email can be switched off per category; account and security email can't.
-const OPTIONAL_CATEGORIES = ['applications', 'interviews', 'jobs'];
+const OPTIONAL_CATEGORIES = ['applications', 'interviews', 'jobs', 'work'];
 
 // Every kind of notification. `optional` emails follow the person's
 // preferences; the others are part of a service they asked for (their
@@ -64,6 +64,13 @@ const TYPES = {
   'job-review': { category: 'jobs', optional: true, label: 'Job waiting for review' },
   'staffing-request': { category: 'jobs', optional: true, label: 'Staffing request' },
   'requisition-assigned': { category: 'jobs', optional: true, label: 'Requisition assigned to you' },
+  // workers, their supervisors and the staffing team (workforce.js)
+  'work-onboarding': { category: 'work', optional: true, label: 'Joining steps and documents to review' },
+  'work-shift': { category: 'work', optional: true, label: 'Shift reminders' },
+  'work-attendance': { category: 'work', optional: true, label: 'Missing check-ins and check-outs' },
+  'work-timesheet': { category: 'work', optional: true, label: 'Timesheets to approve or sent back' },
+  'work-document': { category: 'work', optional: true, label: 'Documents expiring' },
+  'work-assignment': { category: 'work', optional: true, label: 'Assignment changes, ends and replacements' },
 };
 
 const sha = (s) => crypto.createHash('sha256').update(String(s)).digest('hex');

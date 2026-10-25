@@ -408,14 +408,14 @@ test('assignments, stage changes by others and offers needing approval reach the
 
 test('preferences control optional email; essential messages always go', async () => {
   const p = await api('/api/notification-preferences', people.asha);
-  assert.deepEqual(p.email, { applications: true, interviews: true, jobs: true });
+  assert.deepEqual(p.email, { applications: true, interviews: true, jobs: true, work: true });
   assert.equal((await json('/api/notification-preferences', 'PATCH', { email: { account: false } }, people.asha)).status, 400);
   assert.equal((await json('/api/notification-preferences', 'PATCH', { email: { jobs: 'no' } }, people.asha)).status, 400);
   assert.equal((await json('/api/notification-preferences', 'PATCH', { email: { jobs: false } }, people.asha)).status, 200);
   // The settings page saves the same thing.
   const saved = await post('/notifications/settings', { email_applications: '1', email_interviews: '1' }, people.olga);
   assert.match(decodeURIComponent(saved.headers.get('location')), /saved/);
-  assert.deepEqual((await api('/api/notification-preferences', people.olga)).email, { applications: true, interviews: true, jobs: false });
+  assert.deepEqual((await api('/api/notification-preferences', people.olga)).email, { applications: true, interviews: true, jobs: false, work: false });
   assert.match(await (await get('/notifications/settings', people.asha)).text(), /Always sent/);
 });
 

@@ -721,6 +721,8 @@ function register(app, deps) {
     return getJobs().filter((j) => j.employerId === m.employerId && can(m, 'job.view', j));
   }
   app.get('/employer', requireEmployer, (req, res) => {
+    // Site supervisors work only with the workers they supervise.
+    if (req.member.role === 'supervisor') return res.redirect('/employer/workforce');
     const emp = req.employer;
     const apps = readSubmissions('applications').filter((a) => !a.duplicateOf);
     const statusOf = (a) => a.status || 'New';

@@ -1,0 +1,188 @@
+<%- include('partials/head') %>
+
+<section class="section admin">
+  <div class="container">
+    <%- include('partials/agency-nav', { heading: 'Workforce', tab: 'workforce' }) %>
+    <% const manage = can('workforce.manage'); const back = '/admin/workforce' + (section === 'workers' ? '' : '/' + section); %>
+    <nav class="account-tabs" aria-label="Workforce">
+      <% [['workers', '/admin/workforce', 'Workers', 'workforce.view'], ['onboarding', '/admin/workforce/onboarding', 'Onboarding', 'workforce.view'], ['shifts', '/admin/workforce/shifts', 'Shifts', 'workforce.manage'], ['attendance', '/admin/workforce/attendance', 'Attendance', 'workforce.manage'], ['timesheets', '/admin/workforce/timesheets', 'Timesheets', 'workforce.manage'], ['payroll', '/admin/workforce/payroll', 'Payroll', 'workforce.payroll'], ['rules', '/admin/workforce/rules', 'Rules & requirements', 'workforce.manage'], ['activity', '/admin/workforce/activity', 'Activity', 'audit.view']].filter(function (t) { return can(t[3]); }).forEach(function (t) { %>
+        <a href="<%= t[1] %>"<%- section === t[0] ? ' aria-current="page" class="active"' : '' %>><%= t[2] %></a>
+      <% }) %>
+    </nav>
+
+    <% if (section === 'workers' || section === 'onboarding') { %>
+      <% if (manage && placements.length && section === 'workers') { %>
+        <form class="dash-card dash-wide form" method="post" action="/api/staffing/workers">
+          <input type="hidden" name="back" value="/admin/workforce"><input type="hidden" name="as" value="team">
+          <label>Start onboarding for a placed worker
+            <select name="placementId" required><% placements.forEach(function (p) { %><option value="<%= p.id %>"><%= p.candidateName %> · <%= p.jobTitle %> · <%= p.company %></option><% }) %></select>
+          </label>
+          <button class="btn btn-primary btn-sm" type="submit">Start onboarding</button>
+          <p class="muted small">Uses the placed candidate's own account: nothing is copied. They see the joining steps under <b>My work</b> in their account.</p>
+        </form>
+      <% } %>
+      <% const list = section === 'onboarding' ? workers.filter(function (w) { return ['Onboarding', 'Ready to join'].includes(w.status) || (w.tasks || []).some(function (t) { return ['Submitted', 'Expired'].includes(t.status); }); }) : workers; %>
+      <% if (!list.length) { %><p class="muted dash-empty"><%= section === 'onboarding' ? 'Nobody is onboarding right now.' : 'No workers yet. Workers come from temporary and contract placements billed per assignment.' %></p><% } else { %>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Worker</th><th>Client</th><th>Status</th><th class="num">Joining steps</th><th>Waiting</th></tr></thead>
+          <tbody><% list.forEach(function (w) { const waiting = (w.tasks || []).filter(function (t) { return t.status === 'Submitted'; }).length; const expired = (w.tasks || []).filter(function (t) { return t.status === 'Expired'; }).length; %>
+            <tr>
+              <td><% if (w.tasks) { %><a href="/admin/workforce/workers/<%= w.id %>"><b><%= w.name %></b></a><% } else { %><b><%= w.name %></b><% } %></td>
+              <td><%= w.company %></td>
+              <td><span class="pill"><%= w.status %></span><%= w.joinedOn ? ' since ' + w.joinedOn : '' %></td>
+              <td class="num"><%= w.progress.done %> / <%= w.progress.total %></td>
+              <td><%= waiting ? waiting + ' to review' : '' %><%= expired ? (waiting ? ' · ' : '') + expired + ' expired' : '' %></td>
+            </tr>
+          <% }) %></tbody>
+        </table></div>
+        <% if (!manage && !can('workforce.documents')) { %><p class="muted small">Your role shows the onboarding status only.</p><% } %>
+      <% } %>
+      <% if (manage && replacements.length) { %>
+        <section class="dash-card dash-wide">
+          <h2>Replacement requests</h2>
+          <ul class="plain-list"><% replacements.forEach(function (r) { const a = assignmentById(r.assignmentId) || {}; %>
+            <li><b><%= a.workerName %></b> · <%= a.role %><%= a.site ? ' at ' + a.site : '' %> · <%= (clientById(r.employerId) || {}).company %>: “<%= r.reason %>”<%= r.from ? ' from ' + r.from : '' %> (asked by <%= r.requestedByName %>)
+              <form class="row-actions" method="post" action="/api/staffing/replacements/<%= r.id %>"><input type="hidden" name="back" value="<%= back %>"><input type="hidden" name="as" value="team"><input name="note" maxlength="300" placeholder="Note"><button class="btn btn-primary btn-sm" name="status" value="Arranged">Arranged</button><button class="btn btn-outline btn-sm" name="status" value="Declined">Decline</button></form>
+            </li>
+          <% }) %></ul>
+        </section>
+      <% } %>
+    <% } %>
+
+    <% if (section === 'shifts') { %>
+      <details class="dash-card dash-wide" open>
+        <summary><b>Plan shifts</b></summary>
+        <form class="form" method="post" action="/api/staffing/shifts">
+          <input type="hidden" name="back" value="/admin/workforce/shifts"><input type="hidden" name="as" value="team">
+          <div class="form-grid">
+            <label>Assignment<select name="assignmentId" required><% assignments.filter(function (a) { return ['Scheduled', 'Active'].includes(a.status); }).forEach(function (a) { %><option value="<%= a.id %>"><%= a.workerName %> · <%= a.role %><%= a.site ? ' at ' + a.site : '' %> (<%= a.startsOn %> – <%= a.endsOn || 'open' %>)</option><% }) %></select></label>
+            <label>From<input type="date" name="from" required value="<%= today %>"></label>
+            <label>To<input type="date" name="to" required></label>
+            <label>Start <span class="muted small">(site time)</span><input type="time" name="start" placeholder="from the assignment"></label>
+            <label>End<input type="time" name="end"></label>
+            <label>Break (minutes)<input name="breakMinutes" inputmode="numeric" maxlength="3"></label>
+            <label>Days<input name="days" value="mon,tue,wed,thu,fri" maxlength="40"></label>
+          </div>
+          <button class="btn btn-primary" type="submit">Plan</button>
+          <p class="muted small">Days already planned, and times when the same person has another shift, are skipped.</p>
+        </form>
+      </details>
+      <% if (!shifts.length) { %><p class="muted dash-empty">No shifts planned from last week on.</p><% } else { %>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Date</th><th>Worker</th><th>Time (site)</th><th>Status</th><th></th></tr></thead>
+          <tbody><% shifts.forEach(function (s) { const a = assignmentById(s.assignmentId) || {}; %>
+            <tr><td><%= s.date %></td><td><%= a.workerName %> · <%= a.role %><%= a.site ? ' at ' + a.site : '' %></td><td><%= s.start %>–<%= s.end %><%= s.breakMinutes ? ' · ' + s.breakMinutes + ' min break' : '' %> <span class="muted small"><%= zoneOf(a) %></span></td><td><%= s.status %></td>
+              <td><% if (s.status === 'Planned') { %><form method="post" action="/api/staffing/shifts/<%= s.id %>/cancel"><input type="hidden" name="back" value="/admin/workforce/shifts"><input type="hidden" name="as" value="team"><button class="btn btn-outline btn-sm">Cancel</button></form><% } %></td></tr>
+          <% }) %></tbody>
+        </table></div>
+      <% } %>
+    <% } %>
+
+    <% if (section === 'attendance') { %>
+      <section class="dash-card dash-wide">
+        <h2>Today</h2>
+        <% const live = assignments.filter(function (a) { return a.status === 'Active'; }); %>
+        <% if (!live.length) { %><p class="muted dash-empty">No active assignments.</p><% } else { %>
+          <ul class="plain-list"><% live.forEach(function (a) { %>
+            <li><b><%= a.workerName %></b> · <%= a.role %><%= a.site ? ' at ' + a.site : '' %><%= a.plan ? ' · shift ' + a.plan.start + '–' + a.plan.end : '' %>
+              <% if (a.open) { %> · <span class="pill">In since <%= localTime(a.open.checkInAt, zoneOf(a)) %></span><% } %>
+              <form class="row-actions" method="post" action="/api/staffing/attendance/<%= a.open ? 'check-out' : 'check-in' %>">
+                <input type="hidden" name="back" value="/admin/workforce/attendance"><input type="hidden" name="as" value="team"><input type="hidden" name="assignmentId" value="<%= a.id %>">
+                <label class="small">Time (site, blank = now)<input type="datetime-local" name="at"></label>
+                <button class="btn btn-outline btn-sm"><%= a.open ? 'Check out' : 'Check in' %></button>
+              </form>
+            </li>
+          <% }) %></ul>
+          <p class="muted small">For sites without a connection: enter the times from the site register, up to <%= rules.backdateDays %> days back. Entries by hand are marked and logged.</p>
+        <% } %>
+      </section>
+      <form method="post" action="/admin/workforce/scan"><button class="btn btn-outline btn-sm">Check for missing check-outs now</button> <span class="muted small">Runs every hour by itself.</span></form>
+      <% if (corrections.length) { %>
+        <section class="dash-card dash-wide">
+          <h2>Corrections waiting</h2>
+          <ul class="plain-list"><% corrections.forEach(function (c) { const a = assignmentById(c.assignmentId) || {}; %>
+            <li><b><%= a.workerName %></b>: in <%= showAt(c.before.checkInAt, zoneOf(a)) || '—' %> → <%= showAt(c.proposed.checkInAt || c.before.checkInAt, zoneOf(a)) %>, out <%= showAt(c.before.checkOutAt, zoneOf(a)) || '—' %> → <%= showAt(c.proposed.checkOutAt || c.before.checkOutAt, zoneOf(a)) || '—' %> · “<%= c.reason %>” (<%= c.requestedByName %>)
+              <% if (c.requestedBy !== act.id) { %>
+                <form class="row-actions" method="post" action="/api/staffing/attendance/corrections/<%= c.id %>/approve"><input type="hidden" name="back" value="/admin/workforce/attendance"><input type="hidden" name="as" value="team"><button class="btn btn-primary btn-sm">Approve</button></form>
+                <form class="row-actions" method="post" action="/api/staffing/attendance/corrections/<%= c.id %>/reject"><input type="hidden" name="back" value="/admin/workforce/attendance"><input type="hidden" name="as" value="team"><input name="note" required maxlength="200" placeholder="Why not"><button class="btn btn-outline btn-sm">Reject</button></form>
+              <% } else { %><span class="muted small">You asked for this one; someone else decides it.</span><% } %>
+            </li>
+          <% }) %></ul>
+        </section>
+      <% } %>
+      <form class="form row-actions" method="get" action="/admin/workforce/attendance">
+        <label class="small">From<input type="date" name="from"></label>
+        <label class="small">To<input type="date" name="to"></label>
+        <label class="small">Status<select name="status"><option value="">All</option><option>Open</option><option>Complete</option><option>Exception</option></select></label>
+        <button class="btn btn-outline btn-sm">Show</button>
+      </form>
+      <%- include('partials/attendance-table', { rows: attendance, canDecide: true, as: 'team', back: '/admin/workforce/attendance', me: act.id }) %>
+    <% } %>
+
+    <% if (section === 'timesheets') { %>
+      <h2>Timesheets</h2>
+      <%- include('partials/timesheet-table', { rows: timesheets, as: 'team', back: '/admin/workforce/timesheets', canDecide: true, me: act.id, money: can('money.view') }) %>
+      <h2>Weekly hours (last four weeks)</h2>
+      <% if (!weekly.length) { %><p class="muted dash-empty">No attendance in the last four weeks.</p><% } else { %>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Week of</th><th>Worker</th><th class="num">Days</th><th class="num">Hours</th><th class="num">Overtime (approved)</th><th class="num">Late</th><th class="num">Absences</th><th>Open items</th></tr></thead>
+          <tbody><% weekly.forEach(function (r) { %>
+            <tr><td><%= r.week %></td><td><%= r.worker %> · <%= r.role %></td><td class="num"><%= r.daysWorked %></td><td class="num"><%= hours(r.workedMinutes) %></td><td class="num"><%= hours(r.overtimeMinutes) %></td><td class="num"><%= r.lateArrivals %></td><td class="num"><%= r.absences %></td><td><%= r.exceptions ? r.exceptions + ' exception(s) ' : '' %><%= r.pendingOvertime ? r.pendingOvertime + ' overtime to decide' : '' %></td></tr>
+          <% }) %></tbody>
+        </table></div>
+      <% } %>
+    <% } %>
+
+    <% if (section === 'payroll') { %>
+      <p class="muted small">Approved timesheets only, at the agreed pay rate. Overtime is shown separately and paid at the same rate unless your payroll applies its own multiplier. Bank details and pay runs stay in your payroll system.</p>
+      <form class="form row-actions" method="get" action="/admin/workforce/payroll">
+        <label class="small">From<input type="date" name="from"></label><label class="small">To<input type="date" name="to"></label>
+        <button class="btn btn-outline btn-sm">Show</button>
+        <a class="btn btn-outline btn-sm" href="/admin/workforce/payroll.csv">Download CSV</a>
+      </form>
+      <% if (!payroll.length) { %><p class="muted dash-empty">No approved timesheets yet.</p><% } else { %>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Worker</th><th>Client</th><th>Period</th><th class="num">Days</th><th class="num">Payable hours</th><th class="num">Overtime</th><th class="num">Pay rate</th><th class="num">Pay</th></tr></thead>
+          <tbody><% payroll.forEach(function (r) { %>
+            <tr><td><%= r.worker %> · <%= r.role %></td><td><%= r.client %></td><td><%= r.from %> – <%= r.to %></td><td class="num"><%= r.daysWorked %></td><td class="num"><%= r.payableHours %></td><td class="num"><%= r.overtimeHours %></td><td class="num"><%= r.payRatePaise === null ? '—' : '₹' + (r.payRatePaise / 100).toFixed(2) + '/' + r.per %></td><td class="num"><%= r.payPaise === null ? '—' : '₹' + (r.payPaise / 100).toFixed(2) %></td></tr>
+          <% }) %></tbody>
+        </table></div>
+      <% } %>
+    <% } %>
+
+    <% if (section === 'rules') { %>
+      <section class="dash-card dash-wide">
+        <h2>Attendance rules</h2>
+        <form class="form" method="post" action="/admin/workforce/rules">
+          <div class="form-grid">
+            <% [['overtimeAfterMinutes', 'Overtime starts this many minutes after the planned shift'], ['overtimeMinimumMinutes', 'Shorter extra time is not overtime (minutes)'], ['standardDayMinutes', 'Planned day without shift times (minutes)'], ['missingCheckoutHours', 'Hours after the shift ends before a missing check-out is an exception'], ['maxShiftHours', 'Longest possible shift (hours)'], ['backdateDays', 'Days back supervisors may enter times'], ['expiryWarnDays', 'Warn this many days before a document expires'], ['onboardingReminderDays', 'Remind about open joining steps every (days)'], ['timesheetReminderDays', 'Remind about waiting timesheets after (days)'], ['assignmentEndingDays', 'Warn this many days before an assignment ends'], ['contractEndingDays', 'Warn this many days before a client contract ends']].forEach(function (r) { %>
+              <label><%= r[1] %><input name="<%= r[0] %>" inputmode="numeric" maxlength="4" value="<%= rules[r[0]] %>"<%= admin.role === 'Admin' ? '' : ' disabled' %>></label>
+            <% }) %>
+          </div>
+          <% if (admin.role === 'Admin') { %><button class="btn btn-primary" type="submit">Save rules</button><% } else { %><p class="muted small">Only an Admin changes these.</p><% } %>
+        </form>
+        <p class="muted small">Late arrival grace and breaks are set per assignment. Overtime and corrections always need someone else's approval.</p>
+      </section>
+      <section class="dash-card dash-wide">
+        <h2>Joining requirements</h2>
+        <p class="muted small">What a new worker is asked for. A client, or a role at a client, can have its own list; otherwise the default applies. Only ask for what the job needs: Hireriv never makes one particular identity card, an identity number or bank details a condition of joining.</p>
+        <% const sets = [{ employerId: null, role: '', items: (requirements.find(function (s) { return !s.employerId; }) || { items: defaults }).items }].concat(requirements.filter(function (s) { return s.employerId; })); %>
+        <ul class="plain-list"><% sets.forEach(function (s) { %>
+          <li><b><%= s.employerId ? ((clientById(s.employerId) || {}).company || 'Client') + (s.role ? ' · ' + s.role : '') : 'Default' %></b>: <%= s.items.map(function (i) { return i.label + (i.required ? '' : ' (optional)'); }).join(' · ') %></li>
+        <% }) %></ul>
+        <p class="muted small">Change lists with <code>PUT /api/staffing/requirements</code>; client sites with <code>PUT /api/staffing/clients/:id/sites</code>.</p>
+      </section>
+    <% } %>
+
+    <% if (section === 'activity') { %>
+      <% if (!activity.length) { %><p class="muted dash-empty">Nothing yet.</p><% } else { %>
+        <div class="table-wrap"><table>
+          <thead><tr><th>When</th><th>Who</th><th>What</th><th>Detail</th></tr></thead>
+          <tbody><% activity.forEach(function (e) { %><tr><td><%= showAt(e.createdAt, 'Asia/Kolkata') %></td><td><%= e.actorName %> <span class="muted small">(<%= e.actorKind %>)</span></td><td><%= e.action %></td><td><%= e.detail %></td></tr><% }) %></tbody>
+        </table></div>
+      <% } %>
+    <% } %>
+  </div>
+</section>
+
+<%- include('partials/foot') %>

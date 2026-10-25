@@ -10,6 +10,7 @@ const ROLES = {
   manager: { label: 'Hiring manager', text: 'Posts jobs and manages the jobs and applicants assigned to them' },
   recruiter: { label: 'Recruiter', text: 'Reviews applicants and books interviews for assigned jobs' },
   viewer: { label: 'Viewer', text: 'Sees all jobs and applicant progress, without contact details or changes' },
+  supervisor: { label: 'Site supervisor', text: 'Reviews attendance and timesheets of the Hireriv workers they supervise; no jobs or applicants' },
 };
 const ROLE_KEYS = Object.keys(ROLES);
 
@@ -35,8 +36,11 @@ function can(m, action, job = null) {
     case 'shortlist.feedback': return ['manager', 'recruiter'].includes(role);
     // Finding candidates who agreed to be found, and inviting them to apply.
     case 'candidates.search': return ['manager', 'recruiter'].includes(role);
+    // Workers placed through Hireriv: supervisors see only those they supervise (checked in workforce.js).
+    case 'workforce.supervise': return ['manager', 'supervisor'].includes(role);
+    case 'workforce.view': return ['manager', 'supervisor', 'viewer'].includes(role);
     case 'workload.view': return role === 'manager';
-    case 'dashboard.view': case 'analytics.view': return true;
+    case 'dashboard.view': case 'analytics.view': return role !== 'supervisor';
     // company.edit, team.manage, billing.view, company.verify and stage.correct
     // (moving an application outside the workflow): owners only.
     default: return false;

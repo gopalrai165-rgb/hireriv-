@@ -206,7 +206,9 @@ function parseRequisition(input, { strict = false, existing = null, fields = REQ
   return { errors: [...new Set(errors)], values: out };
 }
 
-const ASSIGN_FIELDS = ['placementId', 'role', 'site', 'startsOn', 'endsOn', 'shift', 'billRate', 'payRate', 'ratePer', 'notes', 'status'];
+const ASSIGN_FIELDS = ['placementId', 'role', 'site', 'startsOn', 'endsOn', 'shift', 'billRate', 'payRate', 'ratePer', 'notes', 'status', 'supervisorId', 'shiftStart', 'shiftEnd', 'breakMinutes', 'graceMinutes', 'timeZone'];
+const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
+const validZone = (tz) => { try { new Intl.DateTimeFormat('en', { timeZone: tz }); return true; } catch (e) { return false; } };
 function parseAssignment(input, { strict = false, existing = null } = {}) {
   const r = reader(input, ASSIGN_FIELDS, strict);
   const { errors } = r;
@@ -236,10 +238,24 @@ function parseAssignment(input, { strict = false, existing = null } = {}) {
     out.rate = { billPaise: bill, payPaise: pay, per };
   }
   if (want('notes')) out.notes = tooLong(errors, 'notes', r.str('notes', 500), 500);
+  // Shift times at the site, in the site's time zone; attendance is checked against them.
+  for (const k of ['shiftStart', 'shiftEnd']) if (want(k)) { const v = r.str(k, 5); if (v && !TIME_RE.test(v)) errors.push(`${k} must be a time like 09:00`); out[k] = v || ''; }
+  if (out.shiftStart && !out.shiftEnd) errors.push('shiftEnd is needed with shiftStart');
+  if (out.shiftEnd && !out.shiftStart) errors.push('shiftStart is needed with shiftEnd');
+  for (const [k, max, dflt] of [['breakMinutes', 180, 0], ['graceMinutes', 120, 10]]) {
+    if (!want(k)) continue;
+    const v = r.str(k, 4);
+    if (v === '') { out[k] = existing && existing[k] !== undefined ? existing[k] : dflt; continue; }
+    if (!/^\d{1,3}$/.test(v) || Number(v) > max) errors.push(`${k} must be a whole number of minutes from 0 to ${max}`);
+    out[k] = Number(v) || 0;
+  }
+  if (want('timeZone')) { const v = r.str('timeZone', 60) || 'Asia/Kolkata'; if (!validZone(v)) errors.push('timeZone must be a time zone like Asia/Kolkata'); out.timeZone = v; }
+  if (want('supervisorId')) out.supervisorId = r.str('supervisorId', 60) || null;
   if (r.has('status')) out.nextStatus = r.str('status', 20);
   return { errors: [...new Set(errors)], values: out };
 }
 
+const r0 = (input, k) => Boolean(input) && Object.prototype.hasOwnProperty.call(input, k);
 const overlaps = (a1, a2, b1, b2) => a1 <= (b2 || '9999-12-31') && b1 <= (a2 || '9999-12-31');
 
 function register(app, deps) {
@@ -549,6 +565,33 @@ function register(app, deps) {
   }
 
   // ---------- staffing assignments ----------
+  // A supervisor must be someone at the client who supervises workers; a site
+  // must be one of the client's approved sites when it has a list.
+  function checkPlaces(values, employerId) {
+    const errors = [];
+    const client = clientById(employerId);
+    const sites = (client && client.sites) || [];
+    if (sites.length) {
+      const site = sites.find((s) => s.name.toLowerCase() === String(values.site || '').toLowerCase());
+      if (!site) errors.push(`site must be one of the client's approved sites: ${sites.map((s) => s.name).join(', ')}`);
+      else { values.site = site.name; if (!values.timeZoneSet) values.timeZone = site.timeZone || values.timeZone; }
+    }
+    if (values.supervisorId) {
+      const m = clients.team.membership(values.supervisorId, employerId);
+      if (!m || !employerCan(m, 'workforce.supervise')) errors.push("supervisor must be a hiring manager or site supervisor in the client's team");
+    }
+    delete values.timeZoneSet;
+    return errors;
+  }
+  // Every placement of the same person (by email), so one worker is never double-booked.
+  const placementsOfWorker = (p) => {
+    const email = String(p.candidateEmail || '').toLowerCase();
+    return new Set(billing.read().filter((x) => x.id === p.id || (email && String(x.candidateEmail || '').toLowerCase() === email)).map((x) => x.id));
+  };
+  const clashes = (p, values, selfId = null) => {
+    const mine = placementsOfWorker(p);
+    return assignments().some((a) => a.id !== selfId && mine.has(a.placementId) && a.status !== 'Cancelled' && overlaps(a.startsOn, a.endsOn, values.startsOn, values.endsOn));
+  };
   const eligiblePlacements = () => billing.read().filter((p) => p.type !== 'Permanent' && p.feeMode === 'assignment' && LIVE_PLACEMENT.includes(p.status));
   function createAssignment(user, input, strict) {
     const { errors, values } = parseAssignment(input, { strict });
@@ -560,7 +603,9 @@ function register(app, deps) {
     if (!canManageAssignment(user, draft)) return { status: 403, errors: ['your role does not allow staffing this placement'] };
     if (values.nextStatus) errors.push('a new assignment starts as Scheduled');
     if (!values.role) values.role = p.jobTitle;
-    if (assignments().some((a) => a.placementId === p.id && a.status !== 'Cancelled' && overlaps(a.startsOn, a.endsOn, values.startsOn, values.endsOn))) errors.push('this worker already has an assignment in those dates');
+    values.timeZoneSet = Boolean(input && input.timeZone);
+    errors.push(...checkPlaces(values, p.employerId));
+    if (clashes(p, values)) errors.push('this worker already has an assignment in those dates');
     if (errors.length) return { status: 400, errors: [...new Set(errors)] };
     delete values.nextStatus;
     const a = saveSubmission('staffing-assignments', { ...values, employerId: p.employerId, requisitionId: p.requisitionId || null, workerName: p.candidateName, status: 'Scheduled', createdBy: user.id, updatedAt: now(), history: [{ at: now(), by: user.name, text: 'Scheduled' }] });
@@ -582,17 +627,22 @@ function register(app, deps) {
     const billed = drafts().filter((d) => d.assignmentId === a.id && d.status !== 'Discarded');
     if (billed.length && (values.rate.billPaise !== a.rate.billPaise || values.rate.per !== a.rate.per)) errors.push('this assignment has invoice drafts or invoices: its bill rate stays as billed (end it and add a new assignment for a new rate)');
     if (billed.some((d) => d.period.from < values.startsOn || (values.endsOn && d.period.to > values.endsOn))) errors.push('billed periods must stay inside the assignment dates');
-    if (assignments().some((x) => x.id !== a.id && x.placementId === a.placementId && x.status !== 'Cancelled' && overlaps(x.startsOn, x.endsOn, values.startsOn, values.endsOn))) errors.push('this worker already has an assignment in those dates');
+    const pl = billing.read().find((x) => x.id === a.placementId);
+    if (pl && clashes(pl, values, a.id)) errors.push('this worker already has an assignment in those dates');
+    if (r0(input, 'site') || r0(input, 'supervisorId')) { values.timeZoneSet = r0(input, 'timeZone'); errors.push(...checkPlaces(values, a.employerId)); } else delete values.timeZoneSet;
+    if (values.endsOn !== a.endsOn && a.endsOn && values.endsOn && values.endsOn > a.endsOn) values.extendedFrom = a.endsOn;
     if (next === 'Cancelled' && billed.length) errors.push('an assignment with invoice drafts or invoices can\'t be cancelled: end it instead');
     if (errors.length) return { status: 400, errors: [...new Set(errors)] };
     const saved = update('staffing-assignments', id, (rec) => {
       Object.assign(rec, values);
+      if (rec.extendedFrom) { rec.history.push({ at: now(), by: user.name, text: `Extended from ${rec.extendedFrom} to ${rec.endsOn}` }); delete rec.extendedFrom; }
       if (next && next !== a.status) {
         rec.status = next;
         if (next === 'Ended early' && !rec.endsOn) rec.endsOn = todayIst();
         rec.history.push({ at: now(), by: user.name, text: `${a.status} → ${next}` });
       }
     });
+    if (hooks.assignmentChanged) hooks.assignmentChanged(saved, a, user);
     audit(user, next && next !== a.status ? 'assignment-status' : 'assignment-changed', 'assignment', id, `${saved.role}${next && next !== a.status ? `: ${a.status} → ${next}` : ''}`, a.employerId);
     return { status: 200, assignment: saved };
   }

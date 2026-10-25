@@ -8,14 +8,57 @@ Every route the app serves, and who may use it. **This table is checked by `test
 | link | Whoever holds a one-time emailed link | Random 256-bit token, stored hashed, single-use or expiring |
 | candidate | A candidate signed in with an emailed link or their password (`hr_cand` session: HttpOnly, SameSite=Lax, Secure on https) | `requireCandidate`; data is limited to applications made with their email |
 | employer | A person signed in to the employer portal, working in one of their companies (`hr_emp` session) | `requireEmployer` + their role in that company (owner, hiring manager, recruiter, viewer), checked on the server for every action; other companies' jobs and applicants are "not found" |
-| account | Anyone signed in: a candidate, an employer person or the team | `anyAccount` / `anyAccountApi`: the recipient comes from the session, never from the request, and each person sees only their own notifications |
-| team | Anyone on the team (Admin, Recruitment Manager, Recruiter, Account Manager, Finance Manager) | `adminAuth` or `teamApi` (+ two-step sign-in when the team requires it), then the role's permission in `agency-roles.js` (403 otherwise). A Finance Manager can open only billing pages |
+| account | Anyone signed in: a candidate, an employer person or the team | `anyAccount` / `anyAccountApi`: the recipient comes from the session, never from the request, and each person sees only their own notifications. On `/api/staffing/*` (workforce) the handler then checks the record: the worker's own, the client's assignments (site supervisors: only those they supervise), or the team role |
+| team | Anyone on the team (Admin, Recruitment Manager, Recruiter, Account Manager, Staffing Manager, Finance Manager) | `adminAuth` or `teamApi` (+ two-step sign-in when the team requires it), then the role's permission in `agency-roles.js` (403 otherwise). A Finance Manager can open only billing pages |
 | admin | Team members with the Admin (Super Admin) role | `adminAuth` + `requireAdmin` (403 for everyone else) |
 | billing | Admins and Finance Managers | `adminAuth` + `requireBilling` (403 for everyone else) |
 
 Every state-changing team, candidate and client form also passes `sameOrigin` (cross-site posts are refused).
 
-Total: 373 routes.
+Total: 420 routes.
+
+## Workforce: workers, client supervisors and the staffing team
+
+| Method | Path | Policy | Notes |
+| --- | --- | --- | --- |
+| GET | `/staffing/assignments` | public | Short link to /admin/staffing |
+| GET | `/staffing-solutions` | public | 301 to /services |
+| GET | `/api/staffing/workers` | account | JSON; the team by role (Recruiters: status only), a client its own workers (status only), a worker themselves |
+| POST | `/api/staffing/workers` | account | JSON; Staffing Managers, Admins, Account Managers (own clients); one worker per temporary or contract placement; nothing copied from the profile |
+| GET | `/api/staffing/workers/:id` | account | JSON; 404 when not visible; documents and contact only for the worker and the staffing team |
+| GET | `/api/staffing/workers/:id/onboarding` | account | JSON; the joining steps and their status |
+| POST | `/api/staffing/workers/:id/onboarding` | account | JSON; the worker completes their steps; the team reviews (documents: Admins and Staffing Managers), marks joined or left |
+| POST | `/api/staffing/workers/:id/documents` | account | Multipart; the worker only; PDF, JPG or PNG checked by content (and scanned when ClamAV is set), stored privately |
+| GET | `/api/staffing/assignments/:id/workforce` | account | JSON; shift times, grace, break, time zone and supervisor of a visible assignment |
+| POST | `/api/staffing/assignments/:id/replacement` | account | JSON; the client's supervisors and managers or the staffing team |
+| POST | `/api/staffing/replacements/:id` | account | JSON; the staffing team only |
+| PUT | `/api/staffing/clients/:id/sites` | account | JSON; the staffing team or the client's Account Manager |
+| GET | `/api/staffing/requirements` | account | JSON; the team (workforce permission) |
+| PUT | `/api/staffing/requirements` | account | JSON; the staffing team; identity numbers and bank details are never required |
+| GET | `/api/staffing/shifts` | account | JSON; shifts of visible assignments only |
+| POST | `/api/staffing/shifts` | account | JSON; supervisors of the assignment and the staffing team; inside the assignment, no double shifts |
+| POST | `/api/staffing/shifts/:id/cancel` | account | JSON; not once someone checked in |
+| POST | `/api/staffing/attendance/check-in` | account | JSON; the worker (server time, no location), their supervisor or the team (times up to 7 days back); Idempotency-Key supported |
+| POST | `/api/staffing/attendance/check-out` | account | JSON; same people; after check-in, at most 20 hours later |
+| POST | `/api/staffing/attendance/:id/breaks` | account | JSON; start or end a break on an open check-in |
+| POST | `/api/staffing/attendance/absences` | account | JSON; supervisors and the team |
+| GET | `/api/staffing/attendance` | account | JSON; visible assignments only; not for Recruiters or Finance |
+| POST | `/api/staffing/attendance/:id/overtime` | account | JSON; supervisors and the team, never the worker or whoever entered the times |
+| POST | `/api/staffing/attendance/:id/corrections` | account | JSON; the worker, supervisor or team; refused once in a submitted or approved timesheet |
+| GET | `/api/staffing/attendance/corrections` | account | JSON; visible assignments only |
+| POST | `/api/staffing/attendance/corrections/:id/approve` | account | JSON; someone other than the requester who supervises the assignment |
+| POST | `/api/staffing/attendance/corrections/:id/reject` | account | JSON; same, with a reason |
+| GET | `/api/staffing/timesheets` | account | JSON; visible assignments; Finance sees approved ones only |
+| POST | `/api/staffing/timesheets` | account | JSON; refused while check-ins, exceptions, corrections or overtime are open; the same period gives the same timesheet |
+| POST | `/api/staffing/timesheets/:id/approve` | account | JSON; a supervisor or the team, never the submitter; locks the attendance and asks Finance for an invoice draft |
+| POST | `/api/staffing/timesheets/:id/reject` | account | JSON; sends it back with a reason |
+| GET | `/staffing/workers` | public | Short link to /admin/workforce |
+| GET | `/staffing/onboarding` | public | Short link to /admin/workforce/onboarding |
+| GET | `/staffing/shifts` | public | Short link to /admin/workforce/shifts |
+| GET | `/staffing/attendance` | public | Short link to /admin/workforce/attendance |
+| GET | `/staffing/timesheets` | public | Short link to /admin/workforce/timesheets |
+| GET | `/worker/dashboard` | public | Short link to /account/work |
+| GET | `/client/workforce` | public | Short link to /employer/workforce |
 
 ## Public website
 
@@ -23,7 +66,6 @@ Total: 373 routes.
 | --- | --- | --- | --- |
 | GET | `/recruiter/workspace` | public | Short link to /admin/workspace (sign-in needed there) |
 | GET | `/recruiter/placements` | public | Short link to /admin/workspace |
-| GET | `/staffing/assignments` | public | Short link to /admin/staffing |
 | GET | `/client/requisitions` | public | Short link to /employer/requisitions |
 | GET | `/client/candidates` | public | Short link to the shortlist on the client's dashboard |
 | POST | `/webhooks/email` | public | Email provider to server only: HMAC-SHA256 signature with EMAIL_WEBHOOK_SECRET over the exact body, 5-minute replay window, each event processed once; 404 when no secret is set |
@@ -34,7 +76,6 @@ Total: 373 routes.
 | GET | `/sitemap.xml` | public |  |
 | GET | `/` | public |  |
 | GET | `/categories` | public | Job category groups with open-job counts |
-| GET | `/staffing-solutions` | public | 301 to /services |
 | GET | `/jobs` | public |  |
 | GET | `/jobs/:id` | public |  |
 | GET | `/saved` | public |  |
@@ -177,6 +218,8 @@ Total: 373 routes.
 | DELETE | `/api/job-alerts/:id` | candidate | JSON; only an alert of the signed-in candidate |
 | GET | `/account/timesheets/:pid` | candidate | Only the contractor's own placement |
 | POST | `/account/timesheets/:pid` | candidate | Only the contractor's own placement |
+| GET | `/account/work` | candidate | The worker's own joining steps, assignments, attendance and timesheets |
+| GET | `/account/work/documents/:id/file` | candidate | The worker's own documents, through a signed link |
 
 ## Employer portal (/employers/* addresses lead here)
 
@@ -279,6 +322,7 @@ Total: 373 routes.
 | GET | `/employer/invoices/:id/credit-notes/:cnId` | employer | Company owners only; this company's invoices |
 | POST | `/employer/timesheets/:pid/:tsId/approve` | employer | Owners and hiring managers; this company's placements |
 | POST | `/employer/timesheets/:pid/:tsId/reject` | employer | Owners and hiring managers; this company's placements |
+| GET | `/employer/workforce` | employer | The company's workers on assignment; site supervisors only those they supervise; no pay rates, emails or documents |
 
 ## Notifications (any signed-in account)
 
@@ -390,6 +434,14 @@ Total: 373 routes.
 | POST | `/admin/security/confirm` | team | Your own account only |
 | POST | `/admin/security/recovery` | team | Your own account only; needs a current code |
 | POST | `/admin/security/off` | team | Your own account only; needs a current code; refused while the team requires it |
+| GET | `/admin/workforce` | team | Workforce permission; Recruiters see onboarding status only |
+| GET | `/admin/workforce/payroll` | team | Admins and Finance Managers; approved timesheets at the pay rate |
+| GET | `/admin/workforce/payroll.csv` | team | Admins and Finance Managers; logged |
+| GET | `/admin/workforce/:section` | team | Onboarding for the workforce permission; shifts, attendance, timesheets and rules for workforce managers; activity for audit roles |
+| GET | `/admin/workforce/workers/:id` | team | Documents only for Admins and Staffing Managers; Account Managers only for their clients' workers |
+| GET | `/admin/workforce/documents/:id/file` | team | Admins and Staffing Managers, through a signed link that lasts 15 minutes; every opening logged |
+| POST | `/admin/workforce/rules` | team | Admins only (checked in the handler) |
+| POST | `/admin/workforce/scan` | team | Workforce managers: runs the hourly checks now |
 
 ## Admin panel: Admins only
 

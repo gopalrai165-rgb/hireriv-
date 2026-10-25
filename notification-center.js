@@ -19,16 +19,19 @@ const PREF_TEXT = {
     applications: 'Updates when your recruiter tells you your application moved on',
     interviews: 'Interview emails are always sent: they are part of the interview you agreed to',
     jobs: 'Job alerts and new jobs that match the alerts you set up',
+    work: 'If you work through Hireriv: joining steps, shift reminders, missing check-outs and timesheets',
   },
   employer: {
     applications: 'New applications, applicants assigned to you, offers to approve and hiring milestones',
     interviews: 'Candidates confirming or asking to move an interview, and feedback that is due',
     jobs: 'Your jobs closing on their last day to apply',
+    work: 'Hireriv workers you supervise: missing check-ins, timesheets to approve and assignment changes',
   },
   team: {
     applications: 'Applicants assigned to you',
     interviews: 'Candidates answering interview invitations and feedback that is due',
     jobs: 'Jobs waiting for review and staffing requests',
+    work: 'Documents to review, timesheets waiting, assignments and contracts ending, replacement requests',
   },
 };
 // Always sent, whatever the settings (shown so people know).

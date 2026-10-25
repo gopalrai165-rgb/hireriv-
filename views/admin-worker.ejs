@@ -1,0 +1,48 @@
+<%- include('partials/head') %>
+
+<section class="section admin">
+  <div class="container">
+    <%- include('partials/agency-nav', { heading: w.name, tab: 'workforce' }) %>
+    <p><a href="/admin/workforce">← Workforce</a></p>
+    <% const back = '/admin/workforce/workers/' + w.id; %>
+    <div class="kpis">
+      <div class="kpi"><span class="kpi-label">Status</span><span class="kpi-value"><%= w.status %></span><span class="kpi-note"><%= w.company %><%= w.joinedOn ? ' · joined ' + w.joinedOn : '' %></span></div>
+      <div class="kpi"><span class="kpi-label">Joining steps</span><span class="kpi-value"><%= w.progress.done %> / <%= w.progress.total %></span><span class="kpi-note"><%= w.email %></span></div>
+    </div>
+    <% if (rights.manage && w.status === 'Ready to join') { %>
+      <form class="form row-actions" method="post" action="/api/staffing/workers/<%= w.id %>/onboarding"><input type="hidden" name="back" value="<%= back %>"><input type="hidden" name="as" value="team"><input type="hidden" name="status" value="Joined"><label class="small">Joined on<input type="date" name="joinedOn"></label><button class="btn btn-primary btn-sm">Mark as joined</button></form>
+    <% } %>
+    <% if (rights.manage && w.status !== 'Left') { %>
+      <details><summary class="small">Worker left</summary><form class="form row-actions" method="post" action="/api/staffing/workers/<%= w.id %>/onboarding"><input type="hidden" name="back" value="<%= back %>"><input type="hidden" name="as" value="team"><input type="hidden" name="status" value="Left"><input name="reason" required maxlength="200" placeholder="Reason"><button class="btn btn-outline btn-sm">Save</button></form></details>
+    <% } %>
+
+    <section class="dash-card dash-wide">
+      <h2>Joining steps</h2>
+      <ul class="plain-list"><% w.tasks.forEach(function (t) { const doc = w.documents.find(function (d) { return d.id === t.documentId; }); %>
+        <li><b><%= t.label %></b><%= t.required ? '' : ' (optional)' %> · <span class="pill"><%= t.status %></span><%= t.expiresOn ? ' · expires ' + t.expiresOn : '' %><%= t.note ? ' · ' + t.note : '' %>
+          <% if (doc && rights.documents) { %> · <a href="<%= signed('/admin/workforce/documents/' + doc.id + '/file') %>"><%= doc.name %></a> <span class="muted small">(<%= Math.round(doc.size / 1024) %> KB, sha256 <%= doc.sha256.slice(0, 12) %>…; opening it is logged)</span><% } %>
+          <% if (t.kind === 'contact' && t.status === 'Done' && w.contact && rights.manage) { %> · <%= w.contact.name %><%= w.contact.relation ? ' (' + w.contact.relation + ')' : '' %>, <%= w.contact.phone %><% } %>
+          <% if ((t.kind === 'document' ? rights.documents : rights.manage) && !['Done', 'Waived'].includes(t.status)) { %>
+            <form class="row-actions" method="post" action="/api/staffing/workers/<%= w.id %>/onboarding"><input type="hidden" name="back" value="<%= back %>"><input type="hidden" name="as" value="team"><input type="hidden" name="task" value="<%= t.key %>">
+              <input name="note" maxlength="200" placeholder="Note (needed to reject or waive)">
+              <% if (t.status === 'Submitted') { %><button class="btn btn-primary btn-sm" name="decision" value="approve">Approve</button><button class="btn btn-outline btn-sm" name="decision" value="reject">Reject</button><% } %>
+              <button class="btn btn-outline btn-sm" name="decision" value="waive">Waive</button>
+            </form>
+          <% } %>
+        </li>
+      <% }) %></ul>
+    </section>
+    <section class="dash-card dash-wide">
+      <h2>Assignments</h2>
+      <% if (!w.assignments.length) { %><p class="muted dash-empty">None yet. Add one on <a href="/admin/staffing">Staffing</a>.</p><% } else { %>
+        <ul class="plain-list"><% w.assignments.forEach(function (a) { %><li><%= a.role %><%= a.site ? ' at ' + a.site : '' %> · <%= a.startsOn %> – <%= a.endsOn || 'open-ended' %> · <%= a.status %></li><% }) %></ul>
+      <% } %>
+    </section>
+    <section class="dash-card dash-wide">
+      <h2>History</h2>
+      <ul class="plain-list small"><% w.history.slice().reverse().forEach(function (h) { %><li><%= showAt(h.at, 'Asia/Kolkata') %> · <%= h.by %>: <%= h.text %></li><% }) %></ul>
+    </section>
+  </div>
+</section>
+
+<%- include('partials/foot') %>

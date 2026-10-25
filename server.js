@@ -28,6 +28,7 @@ const resumes = require('./resume-parse');
 const jobRecommendations = require('./job-recommendations');
 const employerDiscovery = require('./employer-discovery');
 const agency = require('./agency');
+const workforce = require('./workforce');
 const { can: employerCan } = require('./employer-team');
 const jobMatch = require('./job-match');
 const { interviewIcs } = require('./ics');
@@ -1250,9 +1251,15 @@ employerDiscovery.register(app, {
 });
 
 // Recruitment agency and staffing: contracts, requisitions, assignments, invoice drafts, reports.
-agency.register(app, {
+const agencyDesk = agency.register(app, {
   db, team, clients, billing, readSubmissions, writeSubmissions, saveSubmission, getJobs: () => jobs, adminAuth, sameOrigin, limit, site, events,
   ownerOf: appOwner, hooks: placementHooks, requireEmployer: clients.requireEmployer, requireEmployerApi: clients.requireEmployerApi, can: employerCan,
+});
+// Workers after placement: onboarding, documents, shifts, attendance and timesheets.
+const workforceDesk = workforce.register(app, {
+  team, clients, billing, agency: agencyDesk, candidates: candidateAccounts, readSubmissions, writeSubmissions, saveSubmission, adminAuth, sameOrigin, limit, site, saveSite,
+  notify, mailer, baseUrl: BASE_URL, uploadsDir: UPLOADS_DIR, downloadLinks, linkExpired, vetDocument: resumeCheck.vetDocument, hooks: placementHooks,
+  requireEmployer: clients.requireEmployer, requireCandidate: candidateAccounts.requireCandidate, can: employerCan,
 });
 
 // The notification center, its API, preferences, job alerts and delivery reports.

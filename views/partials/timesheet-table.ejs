@@ -1,0 +1,23 @@
+<%# Timesheets with approve and send-back buttons for people who may decide (never on their own). %>
+<% if (!rows.length) { %><p class="muted dash-empty">No timesheets yet.</p><% } else { %>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Period</th><th>Worker</th><th class="num">Days</th><th class="num">Hours</th><th class="num">Overtime</th><th>Status</th><th></th></tr></thead>
+    <tbody><% rows.forEach(function (t) { %>
+      <tr>
+        <td><%= t.from %> – <%= t.to %></td>
+        <td><%= t.worker %> · <%= t.role %><%= t.site ? ' at ' + t.site : '' %></td>
+        <td class="num"><%= t.totals.daysWorked %></td>
+        <td class="num"><%= hours(t.totals.payableMinutes) %></td>
+        <td class="num"><%= hours(t.totals.overtimeMinutes) %></td>
+        <td><%= t.status %><br><span class="muted small">by <%= t.submittedBy %><%= t.approvedBy ? ' · approved by ' + t.approvedBy : '' %><%= t.returnReason && t.status === 'Returned' ? ' · ' + t.returnReason : '' %></span>
+          <% if (money && t.status === 'Approved') { %><br><span class="muted small"><%= t.draftId ? 'Invoice draft made' : t.draftNote %></span><% } %></td>
+        <td><% if (canDecide && t.status === 'Submitted') { %>
+          <% if (t.mine) { %><span class="muted small">You submitted this; someone else approves it.</span><% } else { %>
+            <form class="row-actions" method="post" action="/api/staffing/timesheets/<%= t.id %>/approve"><input type="hidden" name="back" value="<%= back %>"><input type="hidden" name="as" value="<%= as %>"><button class="btn btn-primary btn-sm">Approve</button></form>
+            <form class="row-actions" method="post" action="/api/staffing/timesheets/<%= t.id %>/reject"><input type="hidden" name="back" value="<%= back %>"><input type="hidden" name="as" value="<%= as %>"><input name="reason" required maxlength="300" placeholder="What needs changing"><button class="btn btn-outline btn-sm">Send back</button></form>
+          <% } %>
+        <% } %></td>
+      </tr>
+    <% }) %></tbody>
+  </table></div>
+<% } %>

@@ -12,7 +12,13 @@ const SIGNATURES = {
   '.pdf': [Buffer.from('%PDF-')],
   '.docx': [Buffer.from([0x50, 0x4b, 0x03, 0x04])], // a ZIP container
   '.doc': [Buffer.from([0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1])], // OLE2
+  // Photos and scans of onboarding documents (never resumes).
+  '.jpg': [Buffer.from([0xff, 0xd8, 0xff])],
+  '.jpeg': [Buffer.from([0xff, 0xd8, 0xff])],
+  '.png': [Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])],
 };
+const RESUME_TYPES = ['.pdf', '.doc', '.docx'];
+const DOCUMENT_TYPES = ['.pdf', '.jpg', '.jpeg', '.png'];
 
 function hasValidSignature(file, originalname) {
   const want = SIGNATURES[path.extname(originalname || file).toLowerCase()];
@@ -63,12 +69,14 @@ function clamScan(file, { host, port = 3310, timeoutMs = 15000 }) {
 // '' when the file is fine. A file that fails is deleted. When a scanner is
 // configured but can't be reached, the upload is refused (fail closed).
 function create({ clamHost = process.env.CLAMAV_HOST, clamPort = Number(process.env.CLAMAV_PORT) || 3310, log = console } = {}) {
-  async function vet(file) {
+  async function vet(file, { types = RESUME_TYPES, what = 'resume' } = {}) {
     if (!file) return '';
     const drop = () => fs.unlink(file.path, () => {});
-    if (!hasValidSignature(file.path, file.originalname)) {
+    if (!types.includes(path.extname(file.originalname || '').toLowerCase()) || !hasValidSignature(file.path, file.originalname)) {
       drop();
-      return "That file doesn't look like a real PDF or Word document. Please upload your resume as a PDF, DOC or DOCX.";
+      return what === 'resume'
+        ? "That file doesn't look like a real PDF or Word document. Please upload your resume as a PDF, DOC or DOCX."
+        : "That file doesn't look like a real PDF, JPG or PNG. Please upload a photo or scan of the document.";
     }
     if (!clamHost) return '';
     try {
@@ -76,14 +84,16 @@ function create({ clamHost = process.env.CLAMAV_HOST, clamPort = Number(process.
       if (result.clean) return '';
       log.warn(`Blocked an infected upload (${result.threat})`);
       drop();
-      return 'Your file was blocked by our virus scanner. Please upload a clean copy of your resume.';
+      return `Your file was blocked by our virus scanner. Please upload a clean copy of your ${what}.`;
     } catch (err) {
       log.error(`Resume not scanned: ${err.message}`);
       drop();
       return "We couldn't check your file for viruses just now. Please try again in a few minutes.";
     }
   }
-  return { vet, scanning: Boolean(clamHost) };
+  // Onboarding documents: PDF or a photo, same checks and scan.
+  const vetDocument = (file) => vet(file, { types: DOCUMENT_TYPES, what: 'document' });
+  return { vet, vetDocument, scanning: Boolean(clamHost) };
 }
 
 // ---------- signed, expiring download links ----------
@@ -108,4 +118,4 @@ function links(secret) {
   };
 }
 
-module.exports = { create, links, hasValidSignature, clamScan, LINK_MINUTES };
+module.exports = { create, links, hasValidSignature, clamScan, LINK_MINUTES, RESUME_TYPES, DOCUMENT_TYPES };

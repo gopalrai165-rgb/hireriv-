@@ -1,0 +1,77 @@
+<%- include('partials/head') %>
+
+<section class="section admin portal">
+  <div class="container">
+    <%- include('partials/account-nav', { heading: 'My work' }) %>
+    <% if (!mine.length) { %>
+      <p class="muted dash-empty">When you're placed with a client as a temporary or contract worker through Hireriv, your joining steps, shifts, check-ins and timesheets appear here.</p>
+    <% } %>
+    <% mine.forEach(function (w) { %>
+      <section class="dash-card dash-wide">
+        <h2><%= w.company %> · <%= w.status %></h2>
+        <p class="muted small">Joining steps: <%= w.progress.done %> of <%= w.progress.total %> done. We only ask for what this job needs, and you never pay anything to join.</p>
+        <ul class="plain-list"><% w.tasks.forEach(function (t) { const doc = w.documents.find(function (d) { return d.id === t.documentId; }); %>
+          <li><b><%= t.label %></b><%= t.required ? '' : ' (optional)' %> · <span class="pill"><%= t.status %></span><%= t.note ? ' · ' + t.note : '' %><%= t.expiresOn ? ' · expires ' + t.expiresOn : '' %>
+            <% if (doc) { %> · <a href="<%= signed('/account/work/documents/' + doc.id + '/file') %>">your file</a><% } %>
+            <% if (!['Done', 'Waived', 'Submitted'].includes(t.status)) { %>
+              <% if (t.kind === 'document') { %>
+                <form class="form row-actions" method="post" action="/api/staffing/workers/<%= w.id %>/documents?as=worker" enctype="multipart/form-data">
+                  <input type="hidden" name="back" value="/account/work"><input type="hidden" name="as" value="worker"><input type="hidden" name="task" value="<%= t.key %>">
+                  <input type="file" name="file" accept=".pdf,.jpg,.jpeg,.png" required>
+                  <label class="small">Expires on<%= t.expires ? '*' : '' %><input type="date" name="expiresOn"<%= t.expires ? ' required' : '' %>></label>
+                  <button class="btn btn-primary btn-sm">Upload</button>
+                </form>
+                <p class="muted small">PDF, JPG or PNG up to 5 MB. Only you and the Hireriv staffing team can open it.</p>
+              <% } else if (t.kind === 'contact') { %>
+                <form class="form row-actions" method="post" action="/api/staffing/workers/<%= w.id %>/onboarding">
+                  <input type="hidden" name="back" value="/account/work"><input type="hidden" name="as" value="worker"><input type="hidden" name="task" value="<%= t.key %>">
+                  <input name="contactName" required maxlength="80" placeholder="Name"><input name="contactPhone" required maxlength="16" placeholder="Phone"><input name="contactRelation" maxlength="40" placeholder="Relation">
+                  <button class="btn btn-primary btn-sm">Save</button>
+                </form>
+              <% } else { %>
+                <form class="form row-actions" method="post" action="/api/staffing/workers/<%= w.id %>/onboarding">
+                  <input type="hidden" name="back" value="/account/work"><input type="hidden" name="as" value="worker"><input type="hidden" name="task" value="<%= t.key %>">
+                  <label class="small"><input type="checkbox" name="accept" value="1" required> I have read and accept this</label>
+                  <button class="btn btn-primary btn-sm">Confirm</button>
+                </form>
+              <% } %>
+            <% } %>
+          </li>
+        <% }) %></ul>
+      </section>
+    <% }) %>
+
+    <% rows.forEach(function (x) { const a = x.a; %>
+      <section class="dash-card dash-wide">
+        <h2><%= a.role %><%= a.site ? ' at ' + a.site : '' %></h2>
+        <p class="muted small"><%= a.startsOn %> – <%= a.endsOn || 'open-ended' %> · <%= a.status %><%= x.plan ? ' · today ' + x.plan.start + '–' + x.plan.end : '' %> · times in <%= zoneOf(a) %></p>
+        <% if (a.status === 'Active') { %>
+          <% if (x.open) { const onBreak = x.open.breaks.some(function (b) { return !b.endAt; }); %>
+            <p>Checked in at <b><%= localTime(x.open.checkInAt, zoneOf(a)) %></b><%= onBreak ? ' · on a break' : '' %></p>
+            <div class="row-actions">
+              <form method="post" action="/api/staffing/attendance/<%= x.open.id %>/breaks"><input type="hidden" name="back" value="/account/work"><input type="hidden" name="as" value="worker"><button class="btn btn-outline btn-sm" name="action" value="<%= onBreak ? 'end' : 'start' %>"><%= onBreak ? 'End break' : 'Start break' %></button></form>
+              <form method="post" action="/api/staffing/attendance/check-out"><input type="hidden" name="back" value="/account/work"><input type="hidden" name="as" value="worker"><input type="hidden" name="assignmentId" value="<%= a.id %>"><button class="btn btn-primary btn-sm">Check out</button></form>
+            </div>
+          <% } else { %>
+            <form method="post" action="/api/staffing/attendance/check-in"><input type="hidden" name="back" value="/account/work"><input type="hidden" name="as" value="worker"><input type="hidden" name="assignmentId" value="<%= a.id %>"><button class="btn btn-primary">Check in now</button></form>
+          <% } %>
+          <p class="muted small">Check-ins use the time now. We don't record where you are. If a time is wrong, ask for a correction below and your supervisor approves it.</p>
+        <% } %>
+        <% if (x.next.length) { %><p class="small">Next shifts: <%= x.next.map(function (s) { return s.date + ' ' + s.start + '–' + s.end; }).join(' · ') %></p><% } %>
+        <details><summary class="small">Submit a timesheet</summary>
+          <form class="form row-actions" method="post" action="/api/staffing/timesheets"><input type="hidden" name="back" value="/account/work"><input type="hidden" name="as" value="worker"><input type="hidden" name="assignmentId" value="<%= a.id %>">
+            <label class="small">From<input type="date" name="from" required></label><label class="small">To<input type="date" name="to" required></label><button class="btn btn-outline btn-sm">Submit</button></form>
+        </details>
+      </section>
+    <% }) %>
+
+    <% if (rows.length) { %>
+      <h2>Timesheets</h2>
+      <%- include('partials/timesheet-table', { rows: timesheets, as: 'worker', back: '/account/work', canDecide: false, money: false }) %>
+      <h2>My attendance, last month</h2>
+      <%- include('partials/attendance-table', { rows: attendance, canDecide: false, as: 'worker', back: '/account/work', pending: pendingCorrections }) %>
+    <% } %>
+  </div>
+</section>
+
+<%- include('partials/foot') %>

@@ -11,7 +11,7 @@
   </div>
 </div>
 <nav class="account-tabs" aria-label="My account">
-  <% [['dashboard', '/account', 'Dashboard'], ['recommendations', '/account/recommendations', 'Recommended'], ['profile', '/account/profile', 'Profile & resume'], ['saved', '/account/saved', 'Saved jobs'], ['saved-searches', '/account/saved-searches', 'Saved searches'], ['interviews', '/account/interviews', 'Interviews'], ['settings', '/account/settings', 'Settings']].forEach(function (t) { %>
+  <% [['dashboard', '/account', 'Dashboard'], ['recommendations', '/account/recommendations', 'Recommended'], ['profile', '/account/profile', 'Profile & resume'], ['saved', '/account/saved', 'Saved jobs'], ['saved-searches', '/account/saved-searches', 'Saved searches'], ['interviews', '/account/interviews', 'Interviews'], ['work', '/account/work', 'My work'], ['settings', '/account/settings', 'Settings']].forEach(function (t) { %>
     <a href="<%= t[1] %>"<%- tab === t[0] ? ' aria-current="page" class="active"' : '' %>><%= t[2] %></a>
   <% }) %>
 </nav>

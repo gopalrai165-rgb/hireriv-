@@ -223,3 +223,27 @@ Suggested order: 2 → 1 → 3 → 4, which makes Hireriv usable for skilled and
 - **Isolation.** Clients see only their own requisitions (from the session's company), never rates or internal history; another company's requisition is "not found". Recruiters get 404 for requisitions not assigned to them.
 - **PostgreSQL.** Not mirrored: these are operational records in SQLite like placements and invoices.
 - **Tests.** `test/agency.test.js`: exact money, contract and requisition validation, the role table, Finance's limits, account managers and contracts, requisition creation, linking, assignment, notification and status rules, placements taking contract fees and filling requisitions, invoice drafts (idempotency including simultaneous requests, Finance-only issuing, issuing twice), staffing assignments (overlaps, rates, exact period billing, Finance issuing), client isolation, reports and the audit log. `test/access.test.js` now checks that Recruiters get 403 on every billing route.
+
+## Step 55: worker onboarding, attendance and workforce operations
+
+- **Audit first.** Before: placements (temporary, contract) and staffing assignments with site, dates, shift and rates (Step 54); monthly contractor timesheets of full/half days for monthly-billed placements (`timesheets.js`); invoice drafts issued by Finance; notifications with preferences, a queued outbox, retries and stable keys (Step 52); upload checks for resumes. Missing: workers and their onboarding, documents, client sites and supervisors, planned shifts, clock-in and clock-out, breaks, corrections, overtime approval, attendance-based timesheets, payroll, and a client supervisor role.
+- **Reused, not duplicated.** The worker is the candidate's own account (linked by placement and email), not a copy. Assignments stay in `agency.js` with new fields (site from the client's approved list, supervisor, shift times, break, grace, time zone) and stronger overlap checks across all placements of the same person. Approved timesheets call the Step 54 invoice drafts, so Finance issues invoices through the same billing. Reminders go through the Step 52 notification service with one template that rebuilds each email from the records (someone who lost access gets nothing). Uploads use the same content checks and scanner as resumes, and the same signed links. Team roles gain a Staffing Manager; the client portal gains a Site supervisor; no new sign-in. The month-based contractor timesheets (`timesheets.js`) stay for monthly-billed placements.
+- **Entities:**
+
+  | Planned entity | Where it lives |
+  | --- | --- |
+  | workers | `workers`: placement, candidate email, status, joining steps, emergency contact, history |
+  | onboarding requirements | `onboarding-requirements`: per client and role, per client, or the default |
+  | documents | `worker-documents`: metadata, SHA-256, expiry, status, history; files in `uploads/worker-documents/` |
+  | client locations | `sites` on the employer record (name, address, time zone) |
+  | assignments, extensions | `staffing-assignments` (+ supervisor, shift, break, grace, time zone; extensions in its history) |
+  | replacement requests | `replacement-requests` |
+  | shifts | `work-shifts` (site wall-clock times and their UTC instants) |
+  | attendance | `attendance-records`: UTC check-in and check-out, breaks, source, who entered it, late, worked and overtime minutes, status, original times, history |
+  | corrections | `attendance-corrections`: proposed and previous values, reason, decision (never edited) |
+  | timesheets | `workforce-timesheets`: period, records, totals, submitter, approver, invoice draft |
+  | audit | `workforce-audit` |
+
+- **Safeguards.** UTC storage with site time zones (tested across daylight saving); configurable grace, breaks and overtime; overtime and corrections approved by someone else; nobody approves their own timesheet; manual entry for sites without a connection, limited and logged; no location fields accepted at all; missing check-outs become exceptions, never hours; approved timesheets lock their attendance; documents private, signed and logged; identity numbers and bank details never required.
+- **PostgreSQL.** Not mirrored: like placements and invoices these are operational records in SQLite, and nothing in the job search reads them.
+- **Tests.** `test/workforce.test.js` (10): time zones; joining requirements; onboarding, private documents and signed links; sites, supervisors and shift rules on assignments; shift planning; check-in and out, breaks, manual entry, location refused, missing check-outs, notifications and the email; corrections and overtime by someone else; timesheets (blockers, idempotency, approval, locking, invoice draft with exact amounts, payroll CSV, Finance's view); client and supervisor isolation, replacements, short links; requirements and page access by role. `test/notifications.test.js` now expects the Work & attendance preference. The full suite passes.
