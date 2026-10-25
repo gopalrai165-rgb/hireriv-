@@ -1,0 +1,56 @@
+<%- include('partials/head') %>
+<%
+  const usd = function (n) { return '$' + Number(n || 0).toFixed(2); };
+  const when = function (d) { return d ? new Date(d).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'medium', timeStyle: 'short' }) : '–'; };
+%>
+<section class="section admin">
+  <div class="container">
+    <%- include('partials/trust-nav', { heading: 'AI assistant', tab: 'ai' }) %>
+    <p class="muted">Provider: <b><%= provider %></b>. Figures for the last 30 days. Only counts are kept here, never what people wrote.</p>
+
+    <div class="stat-row">
+      <div class="stat"><b><%= usd(o.totalUsd) %></b><span>Estimated cost, 30 days</span></div>
+      <div class="stat"><b><%= usd(o.todayUsd) %></b><span>Last 24 hours (limit <%= usd(s.dailyUsd) %>)</span></div>
+      <div class="stat"><b><%= s.enabled ? 'On' : 'Off' %></b><span>AI assistant</span></div>
+    </div>
+
+    <div class="table-wrap">
+      <table class="table">
+        <caption class="sr-only">Use of each AI feature</caption>
+        <thead><tr><th scope="col">Feature</th><th scope="col">Requests</th><th scope="col">AI answers</th><th scope="col">Rules only</th><th scope="col">Errors</th><th scope="col">Declined</th><th scope="col">Cost</th><th scope="col">Helpful / not</th><th scope="col">Drafts used / discarded</th></tr></thead>
+        <tbody>
+          <% o.rows.forEach(function (r) { %>
+            <tr><td><%= r.label %><% if (!s.features[r.key]) { %> <span class="pill">Off</span><% } %></td><td><%= r.calls %></td><td><%= r.ai %></td><td><%= r.fallback %></td><td><%= r.errors %></td><td><%= r.declined %></td><td><%= usd(r.costUsd) %></td><td><%= r.helpful %> / <%= r.notHelpful %></td><td><%= r.used %> / <%= r.discarded %></td></tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+
+    <h2>Reported as wrong, unsafe or biased</h2>
+    <% if (!o.concerns.length) { %><p class="muted">None in 30 days.</p><% } else { %>
+      <ul class="plain-list">
+        <% o.concerns.forEach(function (f) { %><li><%= when(f.createdAt) %> · <b><%= f.rating %></b> · <%= (FEATURES[f.feature] || f.feature) %><% if (f.comment) { %>: <%= f.comment %><% } %> <span class="muted small">(<%= f.generationId %>)</span></li><% }) %>
+      </ul>
+    <% } %>
+
+    <h2>Settings</h2>
+    <% if (canManage) { %>
+      <form class="form form-card" method="post" action="/admin/ai/settings">
+        <label class="check"><input type="checkbox" name="enabled" value="1"<%= s.enabled ? ' checked' : '' %>> Use the AI provider (when off, every feature answers with its rules-based version)</label>
+        <fieldset>
+          <legend>Features</legend>
+          <% Object.keys(FEATURES).forEach(function (k) { %><label class="check"><input type="checkbox" name="features" value="<%= k %>"<%= s.features[k] ? ' checked' : '' %>> <%= FEATURES[k] %></label><% }) %>
+        </fieldset>
+        <label>Requests per person per day<input type="number" name="perPersonDaily" min="0" max="1000" value="<%= s.perPersonDaily %>"></label>
+        <label>Cost limit per company per month (US$)<input type="number" name="companyMonthlyUsd" min="0" max="10000" step="0.01" value="<%= s.companyMonthlyUsd %>"></label>
+        <label>Cost limit for the whole site per day (US$)<input type="number" name="dailyUsd" min="0" max="100000" step="0.01" value="<%= s.dailyUsd %>"></label>
+        <label>Reason for the change (recorded)<input name="reason" required minlength="5" maxlength="300"></label>
+        <button class="btn btn-primary" type="submit">Save</button>
+      </form>
+    <% } else { %>
+      <p class="muted">Only Admins change these. Requests per person per day: <%= s.perPersonDaily %>; per company per month: <%= usd(s.companyMonthlyUsd) %>; site per day: <%= usd(s.dailyUsd) %>.</p>
+    <% } %>
+  </div>
+</section>
+
+<%- include('partials/foot') %>

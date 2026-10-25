@@ -37,6 +37,7 @@ const PURPOSES = {
   'marketing-email': { label: 'News and career tips', text: 'Occasional emails about Hireriv and career advice. Never needed for applying.' },
   whatsapp: { label: 'WhatsApp updates', text: 'Job matches and updates on WhatsApp.' },
   sms: { label: 'SMS reminders', text: 'Interview reminders by SMS.' },
+  'ai-assistant': { label: 'AI career assistant', text: 'Your messages to the career assistant, with the skills, experience and place on your profile, are sent to our AI provider to write the answers. Contact details are removed first. Turning it off deletes the conversation.' },
 };
 const REQUEST_TYPES = {
   access: 'A copy of my personal data',

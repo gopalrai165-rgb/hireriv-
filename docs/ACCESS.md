@@ -16,7 +16,23 @@ Every route the app serves, and who may use it. **This table is checked by `test
 
 Every state-changing team, candidate and client form also passes `sameOrigin` (cross-site posts are refused).
 
-Total: 703 routes.
+Total: 714 routes.
+
+## AI assistant: drafts, match explanations, resume summaries and interview questions for employers, the career assistant for candidates, and the team's figures and settings
+
+| Method | Path | Policy | Notes |
+| --- | --- | --- | --- |
+| POST | `/api/ai/job-description/draft` | employer | Company members with jobs.create; a suggestion only (nothing saved to a job); pay and perks not given are removed; 30 a minute; counted against the person's and company's AI limits |
+| POST | `/api/ai/candidate-match/explain` | employer | Members who may see the applicant (applicants.view) in the signed-in company (404 otherwise); the rules' score with the AI's wording; never moves the application |
+| POST | `/api/ai/resume/summarize` | employer | Members with applicants.contact for that job (404 otherwise); contact details and ID numbers removed before the provider sees the text |
+| POST | `/api/ai/interview-questions/generate` | employer | Members with interviews.manage for that job (404 otherwise); personal questions removed |
+| POST | `/api/ai/generations/:id/review` | employer | The company the draft was made for (404 otherwise); used or discarded, recorded |
+| GET | `/account/assistant` | candidate | The signed-in candidate; their own conversation only; no-store |
+| POST | `/api/ai/career-assistant/consent` | candidate | The signed-in candidate; records the ai-assistant consent; turning it off deletes the conversation |
+| POST | `/api/ai/career-assistant/message` | candidate | The signed-in candidate after consent (409 otherwise); messages redacted and fenced; 20 a minute |
+| POST | `/api/ai/feedback` | public | A signed-in employer or candidate (401 otherwise) on an answer made for them or their company (404 otherwise) |
+| GET | `/admin/ai` | team | ai.view (Admins, Operations Admins); counts and costs only, never what people wrote; no-store |
+| POST | `/admin/ai/settings` | admin | Admins; switches and limits with a reason, in the hash-chained audit history |
 
 ## Public API and integrations: companies' own systems with access tokens, the developer portal, and the Integrations pages for owners and the team
 

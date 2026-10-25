@@ -1559,3 +1559,15 @@ form.inline { display: inline; }
 .code-block code { background: none; color: inherit; white-space: pre; }
 .dev-toc { margin: 20px 0; font-size: 0.95rem; }
 .developers h2 { margin-top: 2rem; }
+
+/* The AI assistant (Step 66). */
+.ai-panel summary { cursor: pointer; }
+.ai-panel [data-ai-result] { margin-top: 12px; padding: 12px 14px; border-left: 4px solid var(--primary-600, #1d5fd6); background: var(--primary-50, #eef4ff); border-radius: 8px; }
+.ai-panel [data-ai-result] h3 { margin: 12px 0 4px; font-size: 1rem; }
+.ai-feedback { margin-top: 10px; align-items: center; }
+.ai-log { list-style: none; margin: 16px 0; padding: 0; display: grid; gap: 10px; max-height: 60vh; overflow-y: auto; }
+.ai-msg { max-width: 85%; padding: 10px 14px; border-radius: 14px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.ai-msg p { margin: 0; }
+.ai-user { justify-self: end; background: var(--primary-600, #1d5fd6); color: #fff; }
+.ai-assistant { justify-self: start; background: var(--primary-50, #eef4ff); }
+@media (prefers-reduced-motion: no-preference) { .ai-log { scroll-behavior: smooth; } }

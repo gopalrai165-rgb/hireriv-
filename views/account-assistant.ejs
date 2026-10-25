@@ -1,0 +1,37 @@
+<%- include('partials/head') %>
+
+<section class="section admin portal">
+  <div class="container">
+    <%- include('partials/account-nav', { heading: 'Career assistant' }) %>
+    <section class="dash-card dash-wide ai-chat" data-ai-chat>
+      <div class="dash-head"><h2>Ask about jobs, your resume or interviews</h2><a class="small" href="/jobs">Search all jobs</a></div>
+      <p class="muted small">The assistant uses AI. It can be wrong, it never decides who gets a job, and it only suggests live jobs on <%= site.name %>. Genuine employers never ask you to pay to apply, or for an OTP, UPI PIN or bank password.</p>
+
+      <div data-ai-consent<%- consented ? ' hidden' : '' %>>
+        <p>Before you start: your messages, with the skills, experience and place on your profile, are sent to our AI provider to write the answers. Contact details are removed first. Conversations are kept for 90 days, and turning the assistant off deletes them.</p>
+        <button class="btn btn-primary" type="button" data-ai-consent-yes>Turn on the assistant</button>
+      </div>
+
+      <div data-ai-chat-body<%- consented ? '' : ' hidden' %>>
+        <% if (!available) { %><p class="notice small">The AI is not available right now. You'll get simpler answers with jobs that may suit you, and search and applying work as usual.</p><% } %>
+        <ol class="ai-log" data-ai-log aria-live="polite" aria-label="Conversation">
+          <% messages.forEach(function (m) { %>
+            <li class="ai-msg ai-<%= m.role %>"><span class="sr-only"><%= m.role === 'user' ? 'You said:' : 'Assistant:' %></span><p><%= m.text %></p></li>
+          <% }) %>
+        </ol>
+        <form class="form ai-ask" data-ai-ask>
+          <label for="ai-message">Your message</label>
+          <textarea id="ai-message" name="message" rows="3" maxlength="1000" required placeholder="For example: Which jobs suit my skills? How can I improve my resume?"></textarea>
+          <div class="row-actions">
+            <button class="btn btn-primary" type="submit">Send</button>
+            <button class="btn btn-outline btn-sm" type="button" data-ai-consent-no>Turn off and delete the conversation</button>
+          </div>
+          <p class="small muted" data-ai-status role="status"></p>
+        </form>
+      </div>
+    </section>
+  </div>
+</section>
+<script src="/js/ai.js?v=<%= assetVersion %>" defer></script>
+
+<%- include('partials/foot') %>

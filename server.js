@@ -1525,6 +1525,14 @@ const integrationsDesk = require('./integrations').create({
 });
 integrationsDesk.tap(events, history);
 
+// The AI recruitment assistant: drafts, match explanations, resume summaries,
+// interview questions and the candidates' career assistant (ai-assistant.js).
+const aiDesk = require('./ai-assistant').create({
+  db, app, clients, can: employerCan, getJobs: () => jobs, readSubmissions, sameOrigin, limit, adminAuth, requireAdmin, roles: agencyRoles, record: trustDesk.record, site, jobPath,
+  candidates: { ...candidateAccounts.helpers, currentEmail: candidateAccounts.currentEmail }, recommend: (...args) => recommendations.recommend(...args), privacy,
+  adminNav: (req) => ({ roleLabel: (agencyRoles.ROLE_INFO[req.admin.role] || {}).label || req.admin.role, can: (a) => agencyRoles.can(req.admin, a), strong: team.has2fa(req.admin.id) }),
+});
+
 // Security alerts, incidents, data requests and retention (security.js,
 // privacy.js), on the trust & safety pages.
 const protectView = (req, res, locals, status = 200) => {
@@ -1541,7 +1549,7 @@ securityDesk = securityModule.register(app, {
 const { requireConfirmed } = securityDesk;
 privacyModule.register(app, {
   db, privacy, mailer, notify, site, baseUrl: BASE_URL, team, adminAuth, sameOrigin, limit, isBot, trust: trustDesk, view: protectView, requireConfirmed,
-  candidates: candidateAccounts, deleteCandidate: (email) => candidateAccounts.deleteEverything(String(email).toLowerCase()), retention, readSubmissions,
+  candidates: candidateAccounts, deleteCandidate: (email) => { aiDesk.erase(String(email).toLowerCase()); return candidateAccounts.deleteEverything(String(email).toLowerCase()); }, retention, readSubmissions,
   setCandidateMonths: (months, user) => {
     site.retentionMonths = months;
     saveSite();

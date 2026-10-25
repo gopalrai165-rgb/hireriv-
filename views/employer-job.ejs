@@ -10,6 +10,16 @@
     <% if (['open', 'paused'].includes(job.status)) { %><p class="notice">This job is <%= job.status === 'open' ? 'live' : 'paused' %>. Saving changes sends it for a quick check, and it's hidden until they're approved.</p><% } %>
     <% if (errors.length) { %><div class="notice notice-err" role="alert"><% errors.forEach(function (e) { %><p><%= e %></p><% }) %></div><% } %>
 
+    <% if (can('jobs.create')) { %>
+      <details class="form-card ai-panel" data-ai-draft>
+        <summary><b>Draft the description with AI</b> <span class="muted small">(optional)</span></summary>
+        <p class="small muted">Fill in the title and the basics below first. The draft uses only what you give: it never adds pay or benefits you didn't type. Nothing changes until you choose "Use this draft", and you can edit everything before saving. Hireriv still reviews the job.</p>
+        <label>Anything else to include <span class="muted small">(the team, the place, a typical day; no personal details)</span><textarea name="aiNotes" rows="3" maxlength="1500"></textarea></label>
+        <div class="row-actions"><button class="btn btn-outline btn-sm" type="button" data-ai-draft-go>Write a draft</button></div>
+        <p class="small muted" data-ai-status role="status" aria-live="polite"></p>
+        <div data-ai-result hidden></div>
+      </details>
+    <% } %>
     <form class="form form-card" method="post" action="<%= job.id ? '/employer/jobs/' + job.id : '/employer/jobs' %>">
       <div class="form-grid">
         <label class="span-2">Job title*<input name="title" required maxlength="120" value="<%= job.title || '' %>" placeholder="e.g. Warehouse Supervisor"></label>
@@ -77,5 +87,6 @@
     </form>
   </div>
 </section>
+<script src="/js/ai.js?v=<%= assetVersion %>" defer></script>
 
 <%- include('partials/foot') %>

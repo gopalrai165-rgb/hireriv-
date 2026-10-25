@@ -176,8 +176,20 @@
           </form>
         </section>
       <% } %>
+      <section class="dash-card dash-wide ai-panel" id="ai" data-ai-applicant data-application="<%= v.id %>" data-job="<%= v.jobId %>">
+        <div class="dash-head"><h2>AI assistant</h2><span class="muted small">Suggestions to help you read and interview, never a decision</span></div>
+        <p class="small muted">Answers use AI and can be wrong. They never change this application's stage, and the match comes from the same rules as everywhere else. Contact details are removed before anything is sent to the AI provider.</p>
+        <div class="row-actions">
+          <button class="btn btn-outline btn-sm" type="button" data-ai-run="/api/ai/candidate-match/explain">Explain the match</button>
+          <% if (can('applicants.contact', job)) { %><button class="btn btn-outline btn-sm" type="button" data-ai-run="/api/ai/resume/summarize">Summarise the resume</button><% } %>
+          <% if (can('interviews.manage', job)) { %><button class="btn btn-outline btn-sm" type="button" data-ai-run="/api/ai/interview-questions/generate">Suggest interview questions</button><% } %>
+        </div>
+        <p class="small muted" data-ai-status role="status" aria-live="polite"></p>
+        <div data-ai-result hidden></div>
+      </section>
     </div>
   </div>
 </section>
+<script src="/js/ai.js?v=<%= assetVersion %>" defer></script>
 
 <%- include('partials/foot') %>

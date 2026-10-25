@@ -574,6 +574,42 @@ Suggested order: 2 → 1 → 3 → 4, which makes Hireriv usable for skilled and
 
   Existing tests were updated where exports and backups now ask for the password, and where sign-up no longer makes a profile visible to recruiters.
 
+## Step 66: AI recruitment assistant and hiring copilot
+
+- **Audit first.** Already there:
+  - explainable matching (`job-match.js`) with weights, factors and a note that it is not a prediction
+  - recommendations with reasons (`job-recommendations.js`)
+  - the resume parser (`resume-parse.js`) and resume text kept with applications
+  - the skill overlap used on applicant lists (`match.js`)
+  - consent per purpose (`privacy.js`), the employer roles and the audit history
+
+  Gaps: no AI provider, no drafts, summaries, explanations in words, interview questions or assistant, and no usage limits or records for any of them.
+- **Reused, not duplicated.**
+  - The match explanation runs `job-match.js` and only words its factors. Its fallback is those factors.
+  - The resume summary falls back to `resume-parse.js`, and the assistant suggests jobs from `recommend()`.
+  - Permissions are the employer actions that already exist (`jobs.create`, `applicants.view`, `applicants.contact`, `interviews.manage`).
+  - Consent is a new purpose in `privacy.js`, and settings changes go through `trust.record`.
+  - Candidate erasure also deletes AI conversations.
+- **Design choices.**
+  - The provider layer has `anthropic`, `off` and `mock` (tests only, refused in production).
+  - The model gets no tools and structured outputs where a shape is needed.
+  - Untrusted text is fenced and redacted.
+  - Answers are checked after generation for invented pay and perks, and for personal topics.
+  - Every feature has a rules-based answer, plus a circuit breaker.
+  - Limits per person a day, per company a month and for the site a day.
+  - Usage events carry no text.
+- **Not done here.** No evaluation set, no Hindi (Step 67), no streaming or voice. Legal review in docs/AI.md section 7.
+- **Adapted from the brief.** SQLite collections `ai-assistant-sessions`, `ai-assistant-messages`, `ai-generation-records`, `ai-feedback`, `ai-review-records` and `ai-usage-events` instead of tables. Panels on the existing pages instead of React screens.
+- **Tests.** `test/ai-assistant.test.js` has 8 tests, covering:
+  - the guards (redaction, fences, injection signs, invented pay, personal topics), prices, and the mock refused in production
+  - drafts: who may make them, nothing invented, other companies refused, review and feedback, and usage without text
+  - match explanations that move nothing, resume summaries by permission
+  - fair interview questions
+  - rules-based answers and the circuit breaker during an outage, with job search unaffected
+  - the career assistant's consent and deletion
+  - settings with a reason, features off and limits
+  - no collar words in the new files
+
 ## Step 65: public API, integrations and developer platform
 
 - **Audit first.** Already there:

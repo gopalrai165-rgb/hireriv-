@@ -124,7 +124,8 @@ function sweep(dir) {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
     const full = path.join(dir, entry.name);
     if (entry.isDirectory()) { n += sweep(full); continue; }
-    if (!entry.isFile()) continue;
+    // Uploads always get generated names; dotfiles such as .gitkeep are not uploads.
+    if (!entry.isFile() || entry.name.startsWith('.')) continue;
     if (entry.name.endsWith(TMP)) { fs.rmSync(full, { force: true }); continue; }
     try {
       if (seal(full)) n++;

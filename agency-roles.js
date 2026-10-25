@@ -107,6 +107,10 @@ const PERMS = {
   // and revoking one (a leaked key, abuse).
   'integrations.view': ['Admin', 'Operations Admin', 'Trust & Safety Manager'],
   'integrations.manage': ['Admin', 'Trust & Safety Manager'],
+  // The AI assistant (ai-assistant.js): usage, cost and feedback figures, and
+  // its settings (switches and limits; Admins only).
+  'ai.view': ['Admin', 'Operations Admin'],
+  'ai.manage': ['Admin'],
 };
 
 const can = (user, action) => Boolean(user && user.active !== false && (PERMS[action] || []).includes(user.role));
@@ -125,7 +129,7 @@ const FINANCE_TABS = ['placements', 'clients', 'reports'];
 const SALES_ROLES = ['Sales Manager', 'Business Development'];
 const SALES_PAGES = [/^\/admin\/?$/, /^\/admin\/(login|logout|security|confirm)(\/|$)/, /^\/admin\/crm(\/|$)/, /^\/admin\/site-analytics\/?$/];
 const SALES_TABS = [];
-const TRUST_PAGES = [/^\/admin\/?$/, /^\/admin\/(login|logout|security|confirm)(\/|$)/, /^\/admin\/(overview|verifications|job-moderation|reports|cases|appeals|audit-logs|system-health|access-control|security-events|incidents|data-requests|retention|integrations)(\/|$)/, /^\/api\/admin\/(security-events|incidents|data-requests)(\/|$)/];
+const TRUST_PAGES = [/^\/admin\/?$/, /^\/admin\/(login|logout|security|confirm)(\/|$)/, /^\/admin\/(overview|verifications|job-moderation|reports|cases|appeals|audit-logs|system-health|access-control|security-events|incidents|data-requests|retention|integrations|ai)(\/|$)/, /^\/api\/admin\/(security-events|incidents|data-requests)(\/|$)/];
 // Roles that must use two-step sign-in before opening any of their pages.
 const STRONG_AUTH_ROLES = [...TRUST_ROLES];
 function pathAllowed(user, path) {
