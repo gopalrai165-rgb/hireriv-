@@ -1309,6 +1309,19 @@ function register(app, deps) {
     res.render('admin-worker', { title: `${w.name} · Workforce`, page: 'admin', noindex: true, errors: [], msg: String(req.query.msg || ''), can: (a) => roles.can(req.admin, a), tab: 'workforce', w: workerJson(w, act), rights: workerRights(act, w), ...helpers });
   });
   app.get('/admin/workforce/documents/:id/file', adminAuth, need('workforce.documents'), (req, res) => sendDocument(teamAct(req), req, res, '/admin/workforce'));
+  // The forms on the rules page: one line per requirement or site, fields split by "|".
+  const rulesBack = (res, r, ok) => res.redirect(303, `/admin/workforce/rules?msg=${encodeURIComponent(r.errors ? r.errors.join(' ') : ok)}`);
+  const linesOf = (v) => String(v || '').split(/\r?\n/).map((l) => l.split('|').map((x) => x.trim())).filter((f) => f[0]);
+  app.post('/admin/workforce/requirements', adminAuth, sameOrigin, (req, res) => {
+    // "Label | document, contact or acknowledge | required or optional | expires"
+    const items = linesOf(req.body.items).map(([label, kind, req1, exp]) => ({ label, kind: (kind || 'document').toLowerCase(), required: !/^optional$/i.test(req1 || ''), expires: /^expires$/i.test(exp || '') }));
+    rulesBack(res, setRequirements(teamAct(req), { clientId: req.body.clientId || '', role: req.body.role || '', items }), 'Joining requirements saved. They apply to workers added from now on.');
+  });
+  app.post('/admin/workforce/sites', adminAuth, sameOrigin, (req, res) => {
+    // "Name | Address | Time zone"
+    const sites = linesOf(req.body.sites).map(([name, address, timeZone]) => ({ name, address: address || '', timeZone: timeZone || DEFAULT_ZONE }));
+    rulesBack(res, setSites(teamAct(req), String(req.body.clientId || ''), { sites }), 'Sites saved.');
+  });
   app.post('/admin/workforce/rules', adminAuth, sameOrigin, (req, res) => {
     if (req.admin.role !== 'Admin') return res.status(403).render('thanks', { title: 'Not part of your role', page: '', ok: false, message: 'Only an Admin changes the attendance rules.', noindex: true });
     const next = {};

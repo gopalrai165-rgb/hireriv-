@@ -300,6 +300,14 @@ test('requirements are configurable per client and role, within the rules', asyn
   assert.equal(ok.status, 200);
   assert.ok((await call('/api/staffing/requirements', 'GET', undefined, p.stan)).requirements.some((s) => s.role === 'Forklift Operator'));
   for (const s of ['', '/onboarding', '/shifts', '/attendance', '/timesheets', '/rules']) assert.equal((await get(`/admin/workforce${s}`, p.stan)).status, 200, s);
+  // The same through the forms on the rules page.
+  const saved = await post('/admin/workforce/requirements', { clientId: 'emp-a', role: 'Picker', items: 'Photo ID | document | required\nSafety shoes receipt | document | optional | expires' }, p.stan);
+  assert.match(decodeURIComponent(saved.headers.get('location')), /requirements saved/);
+  assert.deepEqual(rec('onboarding-requirements', (x) => x.role === 'Picker').items.map((i) => [i.label, i.required, i.expires]), [['Photo ID', true, false], ['Safety shoes receipt', false, true]]);
+  assert.match(decodeURIComponent((await post('/admin/workforce/requirements', { items: 'Aadhaar | document | required' }, p.stan)).headers.get('location')), /can't be required/);
+  assert.match(decodeURIComponent((await post('/admin/workforce/sites', { clientId: 'emp-a', sites: 'Chakan warehouse | MIDC | Asia/Kolkata\nPune office' }, p.stan)).headers.get('location')), /Sites saved/);
+  assert.deepEqual(rec('employers', (c) => c.id === 'emp-a').sites.map((s) => s.name), ['Chakan warehouse', 'Pune office']);
+  assert.match(decodeURIComponent((await post('/admin/workforce/sites', { clientId: 'emp-a', sites: 'X' }, p.rita)).headers.get('location')), /only the staffing team/);
   assert.equal((await get('/admin/workforce/attendance', p.rita)).status, 403);
   assert.equal((await get('/admin/workforce/payroll', p.fin)).status, 200);
   assert.equal((await get('/admin/workforce', p.fin)).status, 403, 'Finance: payroll only');

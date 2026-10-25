@@ -15,7 +15,7 @@ Every route the app serves, and who may use it. **This table is checked by `test
 
 Every state-changing team, candidate and client form also passes `sameOrigin` (cross-site posts are refused).
 
-Total: 458 routes.
+Total: 460 routes.
 
 ## Workforce: workers, client supervisors and the staffing team
 
@@ -478,6 +478,8 @@ Total: 458 routes.
 | GET | `/admin/workforce/:section` | team | Onboarding for the workforce permission; shifts, attendance, timesheets and rules for workforce managers; activity for audit roles |
 | GET | `/admin/workforce/workers/:id` | team | Documents only for Admins and Staffing Managers; Account Managers only for their clients' workers |
 | GET | `/admin/workforce/documents/:id/file` | team | Admins and Staffing Managers, through a signed link that lasts 15 minutes; every opening logged |
+| POST | `/admin/workforce/requirements` | team | Workforce managers (checked in the handler); same rules as PUT /api/staffing/requirements |
+| POST | `/admin/workforce/sites` | team | Workforce managers or the client's Account Manager (checked in the handler) |
 | POST | `/admin/workforce/rules` | team | Admins only (checked in the handler) |
 | POST | `/admin/workforce/scan` | team | Workforce managers: runs the hourly checks now |
 

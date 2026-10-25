@@ -170,7 +170,30 @@
         <ul class="plain-list"><% sets.forEach(function (s) { %>
           <li><b><%= s.employerId ? ((clientById(s.employerId) || {}).company || 'Client') + (s.role ? ' · ' + s.role : '') : 'Default' %></b>: <%= s.items.map(function (i) { return i.label + (i.required ? '' : ' (optional)'); }).join(' · ') %></li>
         <% }) %></ul>
-        <p class="muted small">Change lists with <code>PUT /api/staffing/requirements</code>; client sites with <code>PUT /api/staffing/clients/:id/sites</code>.</p>
+        <% if (manage) { %>
+          <form class="form" method="post" action="/admin/workforce/requirements">
+            <div class="form-grid">
+              <label>Client<select name="clientId"><option value="">Default (all clients)</option><% clientsList.forEach(function (c) { %><option value="<%= c.id %>"><%= c.company %></option><% }) %></select></label>
+              <label>Role <span class="muted small">(blank = every role)</span><input name="role" maxlength="80"></label>
+            </div>
+            <label>One per line: label | document, contact or acknowledge | required or optional | expires<textarea name="items" rows="5" maxlength="3000" required placeholder="Photo ID (any government photo ID you choose) | document | required&#10;Forklift licence | document | required | expires&#10;Emergency contact | contact | required&#10;Site safety rules | acknowledge | required"></textarea></label>
+            <button class="btn btn-outline btn-sm">Save list</button>
+          </form>
+        <% } %>
+      </section>
+      <section class="dash-card dash-wide">
+        <h2>Client sites</h2>
+        <p class="muted small">Assignments at a client with sites must use one of them; attendance times follow each site's time zone.</p>
+        <ul class="plain-list"><% clientsList.filter(function (c) { return (c.sites || []).length; }).forEach(function (c) { %>
+          <li><b><%= c.company %></b>: <%= c.sites.map(function (s) { return s.name + ' (' + s.timeZone + ')'; }).join(' · ') %></li>
+        <% }) %></ul>
+        <% if (manage) { %>
+          <form class="form" method="post" action="/admin/workforce/sites">
+            <label>Client<select name="clientId" required><% clientsList.forEach(function (c) { %><option value="<%= c.id %>"><%= c.company %></option><% }) %></select></label>
+            <label>One per line: name | address | time zone <span class="muted small">(replaces the client's list)</span><textarea name="sites" rows="4" maxlength="3000" placeholder="Chakan warehouse | Plot 12, MIDC Chakan | Asia/Kolkata"></textarea></label>
+            <button class="btn btn-outline btn-sm">Save sites</button>
+          </form>
+        <% } %>
       </section>
     <% } %>
 
