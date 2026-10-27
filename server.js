@@ -50,7 +50,7 @@ const trustHooks = { reportJob: () => null, labelsFor: () => null, hrContactFor:
 const leadCapture = { capture: () => null };
 const { can: employerCan } = require('./employer-team');
 const jobMatch = require('./job-match');
-const { interviewIcs } = require('./ics');
+const { interviewIcs, istDay } = require('./ics');
 const ogImages = require('./og');
 const retentionModule = require('./retention');
 const backupsModule = require('./backups');
@@ -269,9 +269,31 @@ for (const j of jobs) if (j.status === 'open' && !j.alertsSentAt) j.alertsSentAt
 const sortJobs = () => jobs.sort((a, b) => b.posted.localeCompare(a.posted));
 sortJobs();
 
+let jobsVersion = 0;
 function saveJobs() {
   sortJobs();
   db.replaceAll('jobs', jobs);
+  jobsVersion++;
+}
+// Numbers worked out from the live jobs (homepage counts), kept until the jobs
+// are saved again or a minute passes (closing dates and edits made elsewhere).
+const jobStatsCache = new Map();
+function fromJobs(name, fn) {
+  const hit = jobStatsCache.get(name);
+  if (hit && hit.version === jobsVersion && hit.at > Date.now() - 60000) return hit.value;
+  const value = fn();
+  jobStatsCache.set(name, { version: jobsVersion, at: Date.now(), value });
+  return value;
+}
+// A job by id without searching the list (the admin pages ask once per
+// application). Rebuilt when the list is saved, grows or shrinks; the job
+// objects themselves are the live ones.
+let jobIndex = { list: null, version: -1, length: -1, map: new Map() };
+function jobWithId(id) {
+  if (jobIndex.list !== jobs || jobIndex.version !== jobsVersion || jobIndex.length !== jobs.length) {
+    jobIndex = { list: jobs, version: jobsVersion, length: jobs.length, map: new Map(jobs.map((j) => [j.id, j])) };
+  }
+  return jobIndex.map.get(id);
 }
 
 // Open, and not past its closing date (the hourly check closes it for good).
@@ -280,7 +302,7 @@ const isLive = (j) => j.status === 'open' && !(j.closesOn && j.closesOn < todayI
 const UNPUBLISHED = ['draft', 'pending', 'rejected', 'paused'];
 const isPublicJob = (j) => !UNPUBLISHED.includes(j.status);
 const openJobs = () => jobs.filter(isLive);
-const todayIst = () => new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+const todayIst = () => istDay();
 // Open jobs with no closing date are flagged in admin after this many days.
 const STALE_JOB_DAYS = 60;
 const jobAgeDays = (j) => Math.floor((Date.parse(todayIst()) - Date.parse(j.posted)) / 86400000);
@@ -298,6 +320,12 @@ function closeExpiredJobs() {
 }
 setImmediate(closeExpiredJobs);
 setInterval(ops.track('close-expired-jobs', closeExpiredJobs, 60 * 60 * 1000), 60 * 60 * 1000).unref();
+// How many jobs have each value of a field (a loop: spreading an object per job was quadratic).
+function countBy(list, field) {
+  const out = {};
+  for (const j of list) out[j[field]] = (out[j[field]] || 0) + 1;
+  return out;
+}
 const categoriesOf = (list) => [...new Set(list.map((j) => j.category))];
 // The category list from Settings, plus any older category a job still uses.
 const jobCategories = () => [...new Set([...(site.jobCategories || DEFAULT_JOB_CATEGORIES), ...categoriesOf(jobs)])];
@@ -449,6 +477,9 @@ app.use((req, res, next) => {
 if (process.env.TRUST_PROXY) app.set('trust proxy', Number(process.env.TRUST_PROXY) || process.env.TRUST_PROXY);
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
+// Compiled templates are cached in production (Express's default); VIEW_CACHE=1
+// does the same elsewhere, so the load test measures what the live site does.
+if (process.env.VIEW_CACHE === '1') app.set('view cache', true);
 app.disable('x-powered-by');
 app.use(express.urlencoded({ extended: false, limit: '100kb' }));
 // Webhook signatures (email and payments) cover the exact bytes sent, so keep them.
@@ -711,8 +742,8 @@ app.get('/', (req, res) => {
   const featured = [...live.filter((j) => !isSample(j)), ...live.filter(isSample)].slice(0, 6);
   res.render('index', {
     title: 'Find Jobs & Hire Staff Across India', page: 'home', jobs: featured, posts: livePosts().slice(0, 3), locations: jobLocations(),
-    categoryGroups: groupCategories(jobCategories()), groups: groupCounts(live), jsonLd: seo.homePage(site, BASE_URL),
-    popularRoles: popularRoles(live.filter((j) => !isSample(j))), topCities: topCities(live.filter((j) => !isSample(j))),
+    categoryGroups: groupCategories(jobCategories()), groups: fromJobs('groups', () => groupCounts(live)), jsonLd: seo.homePage(site, BASE_URL),
+    popularRoles: fromJobs('roles', () => popularRoles(live.filter((j) => !isSample(j)))), topCities: fromJobs('cities', () => topCities(live.filter((j) => !isSample(j)))),
   });
 });
 
@@ -926,12 +957,12 @@ app.get('/jobs', (req, res) => {
     workKinds: WORK_KINDS,
     workCounts,
     jobTypes: JOB_TYPES,
-    typeCounts: live.reduce((n, j) => ({ ...n, [j.type]: (n[j.type] || 0) + 1 }), {}),
-    categoryCounts: live.reduce((n, j) => ({ ...n, [j.category]: (n[j.category] || 0) + 1 }), {}),
+    typeCounts: countBy(live, 'type'),
+    categoryCounts: countBy(live, 'category'),
     locations: jobLocations(),
-    locationCounts: live.reduce((n, j) => ({ ...n, [j.location]: (n[j.location] || 0) + 1 }), {}),
+    locationCounts: countBy(live, 'location'),
     modes,
-    modeCounts: live.reduce((n, j) => ({ ...n, [j.mode]: (n[j.mode] || 0) + 1 }), {}),
+    modeCounts: countBy(live, 'mode'),
   });
 });
 
@@ -1377,9 +1408,8 @@ app.get('/api/jobs', limit('job-search', 120, 60 * 1000), (req, res) => jobsApi(
 // Suggestions while typing in a job search box (suggest.js): public listing
 // words only, so the answer can be cached briefly and is the same for everyone.
 app.get('/api/suggest', limit('job-suggest', 240, 60 * 1000), (req, res) => {
-  const items = suggest.suggestions(String(req.query.q || ''), {
-    jobs: openJobs().filter((j) => !isSample(j)), cities: jobLocations(), categories: jobCategories(), translate: (q) => i18n.searchTerms(q),
-  });
+  const pool = fromJobs('suggest', () => suggest.buildPool({ jobs: openJobs().filter((j) => !isSample(j)), cities: jobLocations(), categories: jobCategories() }));
+  const items = suggest.suggestions(String(req.query.q || ''), { pool, translate: (q) => i18n.searchTerms(q) });
   res.set('Cache-Control', 'public, max-age=60').json({ items });
 });
 
@@ -1607,7 +1637,7 @@ team.register(app, { sameOrigin, adminUrl });
 // ----- ownership -----
 // Jobs have a recruiter who owns them; an application belongs to its job's
 // owner unless someone is assigned to it directly.
-const appOwner = (a) => a.ownerId || (jobs.find((j) => j.id === a.jobId) || {}).ownerId || '';
+const appOwner = (a) => a.ownerId || (jobWithId(a.jobId) || {}).ownerId || '';
 const ownerFilter = (req) => (['me', 'none'].includes(req.query.owner) ? req.query.owner : team.members().some((u) => u.id === req.query.owner) ? req.query.owner : '');
 const matchesOwner = (ownerId, filter, user) => (filter === 'me' ? ownerId === user.id : filter === 'none' ? !ownerId : ownerId === filter);
 const validOwner = (id) => (team.members().some((u) => u.id === id) ? id : '');
@@ -1889,7 +1919,9 @@ app.get('/admin', adminAuth, (req, res) => {
   if (agencyRoles.TRUST_ROLES.includes(req.admin.role)) return res.redirect('/admin/overview');
   const tabs = tabsFor(req.admin);
   const tab = tabs.includes(req.query.tab) ? req.query.tab : tabs.includes('dashboard') ? 'dashboard' : tabs[0];
-  const applications = readSubmissions('applications');
+  // A shared read-only copy (db.snapshot): parsing every application on each
+  // admin page view held up every other request. Copy a row before changing it.
+  const applications = db.snapshot('applications');
   const counts = { dashboard: '', reports: '', settings: '', activity: '', templates: templates.read().length, team: team.members().length, blog: posts.length, interviews: interviews.upcoming(applications).length, placements: billing.read().length, clients: clients.read().length, jobs: jobs.length, talent: new Set(applications.map((a) => String(a.email).toLowerCase())).size, ...Object.fromEntries(FORM_TYPES.map((t) => [t, readSubmissions(t).length])) };
   const members = team.members();
   const memberName = Object.fromEntries(members.map((u) => [u.id, u.name]));
@@ -1921,11 +1953,16 @@ app.get('/admin', adminAuth, (req, res) => {
     const status = APP_STATUSES.includes(req.query.status) ? req.query.status : '';
     const sort = req.query.sort === 'match' ? 'match' : '';
     const owner = ownerFilter(req);
+    // Jobs by id, and the skill match worked out only for the rows on screen
+    // (or for every row when sorting by it): with tens of thousands of
+    // applications, matching them all on every page view took seconds.
+    const jobById = new Map(jobs.map((j) => [j.id, j]));
+    const matchOf = (a) => skillMatch(a, jobById.get(a.jobId));
     let all = (status ? applications.filter((a) => statusOf(a) === status) : applications)
-      .map((a) => ({ ...a, owner: appOwner(a), match: skillMatch(a, jobs.find((j) => j.id === a.jobId)) }))
-      .filter((a) => !owner || matchesOwner(a.owner, owner, req.admin));
-    if (sort) all = all.sort((a, b) => (b.match?.score ?? -1) - (a.match?.score ?? -1));
-    const { rows, pager } = pageOf(all);
+      .filter((a) => !owner || matchesOwner(appOwner(a), owner, req.admin));
+    if (sort) all = all.map((a) => ({ ...a, match: matchOf(a) })).sort((a, b) => (b.match?.score ?? -1) - (a.match?.score ?? -1));
+    const { rows: page, pager } = pageOf(all);
+    const rows = page.map((a) => ({ ...a, owner: appOwner(a), match: sort ? a.match : matchOf(a) }));
     for (const a of rows) a.timeline = history.timeline(a); // only for the rows on screen
     return res.render('admin', { ...locals, rows, pager, owner, statuses: APP_STATUSES, statusCounts, status, sort, clientOptions: clients.read().filter((c) => c.active), placedApps, templates: templates.read(), backUrl: req.originalUrl.replace(/&msg=[^&]*/, ''), jobClient: Object.fromEntries(jobs.map((j) => [j.id, j.employerId || ''])) });
   }
@@ -1978,7 +2015,7 @@ app.get('/admin', adminAuth, (req, res) => {
 // ----- dashboard -----
 const DAY_MS = 86400000;
 // Day buckets follow India time so "today" matches the recruiters' calendar.
-const dayKey = (d) => new Date(d).toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+const dayKey = (d) => istDay(d);
 
 function buildDashboard(applications, user) {
   const hires = readSubmissions('hire-requests');
@@ -1994,18 +2031,23 @@ function buildDashboard(applications, user) {
     days.push({ key: dayKey(d), label: d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', timeZone: 'Asia/Kolkata' }), count: 0 });
   }
   const byKey = Object.fromEntries(days.map((d) => [d.key, d]));
-  for (const a of applications) if (byKey[dayKey(a.createdAt)]) byKey[dayKey(a.createdAt)].count++;
+  // Only the last 15 days can land in the chart (ISO times compare as text).
+  const since = new Date(Date.now() - 15 * DAY_MS).toISOString();
+  for (const a of applications) if (String(a.createdAt) >= since && byKey[dayKey(a.createdAt)]) byKey[dayKey(a.createdAt)].count++;
 
+  const jobById = new Map(jobs.map((j) => [j.id, j]));
   const perJob = {};
   for (const a of applications) perJob[a.jobId] = (perJob[a.jobId] || 0) + 1;
   const topJobs = Object.entries(perJob)
-    .map(([id, count]) => ({ id, count, job: jobs.find((j) => j.id === id) }))
+    .map(([id, count]) => ({ id, count, job: jobById.get(id) }))
     .filter((t) => t.job)
     .sort((a, b) => b.count - a.count)
     .slice(0, 5);
 
+  // Each list is newest first, so the newest few of each are enough.
+  const newestOf = (list) => list.slice().sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt))).slice(0, 8);
   const recent = [
-    ...applications.map((s) => ({ at: s.createdAt, kind: 'Application', text: `${s.name} applied for ${s.jobTitle}`, tab: 'applications' })),
+    ...newestOf(applications.slice(0, 200)).map((s) => ({ at: s.createdAt, kind: 'Application', text: `${s.name} applied for ${s.jobTitle}`, tab: 'applications' })),
     ...hires.map((s) => ({ at: s.createdAt, kind: 'Hiring request', text: `${s.company} needs ${s.roles}`, tab: 'hire-requests' })),
     ...contacts.map((s) => ({ at: s.createdAt, kind: 'Message', text: `${s.name}: ${s.subject || s.message}`, tab: 'contacts' })),
     ...alerts.filter((s) => s.confirmed).map((s) => ({ at: s.confirmedAt || s.createdAt, kind: 'Job alert', text: `${s.email} subscribed`, tab: 'job-alerts' })),

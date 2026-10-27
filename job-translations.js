@@ -95,7 +95,15 @@ function create(deps) {
   }
   // Text of every approved, current translation, for search.
   const searchCache = new Map();
+  // Jobs with a published translation, refreshed when translations change.
+  let translated = null;
+  if (db.onChange) db.onChange((c) => { if (c === C) translated = null; });
+  const hasPublished = (jobId) => {
+    if (!translated || !db.onChange) translated = new Set(db.all(C).filter((r) => r.published).map((r) => r.jobId));
+    return translated.has(jobId);
+  };
   function searchText(job) {
+    if (!hasPublished(job.id)) return '';
     const key = `${job.id}|${sourceHash(job)}`;
     if (!searchCache.has(key)) {
       const txt = db.where(C, 'jobId', job.id).filter((r) => r.published && r.published.sourceHash === sourceHash(job)).map((r) => allText(r.published.fields)).join('\n');

@@ -53,6 +53,30 @@ function similarity(a, b) {
   return both / (a.size + b.size - both);
 }
 
+// Which listings could be near-copies of a set of triples, without comparing
+// every pair: two sets with similarity >= t share a triple among the first
+// |s| - ceil(t·|s|) + 1 of each, rarest first ("prefix filtering"), so only
+// listings sharing one of those are compared. The answer is the same as
+// comparing them all. Returns a function: triples -> candidate listings.
+function nearIndex(others, t = NEAR_DUPLICATE) {
+  const df = new Map();
+  for (const o of others) for (const s of o.shingles) df.set(s, (df.get(s) || 0) + 1);
+  const rarestFirst = (set) => [...set].sort((x, y) => (df.get(x) || 0) - (df.get(y) || 0) || (x < y ? -1 : x > y ? 1 : 0));
+  const prefix = (set) => rarestFirst(set).slice(0, set.size - Math.ceil(t * set.size) + 1);
+  const postings = new Map();
+  for (const o of others) {
+    for (const s of prefix(o.shingles)) {
+      if (!postings.has(s)) postings.set(s, []);
+      postings.get(s).push(o);
+    }
+  }
+  return (mine) => {
+    const out = new Set();
+    for (const s of prefix(mine)) for (const o of postings.get(s) || []) out.add(o);
+    return [...out];
+  };
+}
+
 // ---------- signals in a listing's own text ----------
 const EMAIL_RE = /\b[A-Z0-9._%+-]+@([A-Z0-9-]+\.)+[A-Z]{2,}\b/gi;
 const FREE_MAIL = /@(gmail|yahoo|ymail|hotmail|outlook|live|rediffmail|protonmail|icloud|aol|zoho)\./i;
@@ -94,7 +118,8 @@ function jobRules(job, ctx) {
   if (ctx.others && substantial && !out.some((r) => ['impersonation', 'copied', 'duplicate'].includes(r.code))) {
     // Only the later of two near-copies is flagged (posted earlier, or the same day with a lower id).
     const earlier = (o) => String(o.posted || '') < String(job.posted || '') || (String(o.posted || '') === String(job.posted || '') && o.id < job.id);
-    const near = ctx.others.filter((o) => o.id !== job.id && earlier(o) && similarity(mine, o.shingles) >= NEAR_DUPLICATE);
+    const pool = ctx.nearPool ? ctx.nearPool(mine) : ctx.others;
+    const near = pool.filter((o) => o.id !== job.id && earlier(o) && similarity(mine, o.shingles) >= NEAR_DUPLICATE);
     const otherCompany = near.filter((o) => (job.employerId ? o.employerId !== job.employerId : normal(o.company) !== normal(job.company)));
     if (otherCompany.length) add('impersonation', 'critical', "Nearly the same text as another company's listing (possible impersonation)", otherCompany.map((o) => o.id).slice(0, 3).join(', '), 'review-hold');
     else if (near.length) add('near-duplicate', 'medium', 'Nearly the same as another listing of this company', near.map((o) => o.id).slice(0, 3).join(', '), 'duplicate-review');
@@ -196,4 +221,4 @@ function changesOf(before, after, employer) {
   return out.map((c) => ({ ...c, at: iso() }));
 }
 
-module.exports = { store, jobRules, employerRules, employerContext, summarize, shingles, similarity, changesOf, offPlatform, ASSESSMENTS, ACTIONS, LEVELS, SEVERITY, NEAR_DUPLICATE };
+module.exports = { store, jobRules, nearIndex, employerRules, employerContext, summarize, shingles, similarity, changesOf, offPlatform, ASSESSMENTS, ACTIONS, LEVELS, SEVERITY, NEAR_DUPLICATE };

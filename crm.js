@@ -19,7 +19,8 @@ const { parseContract, paiseFrom } = require('./agency');
 
 const DAY = 86400000;
 const iso = () => new Date().toISOString();
-const todayIst = () => new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+const { istDay } = require('./ics');
+const todayIst = () => istDay();
 const sha256 = (s) => crypto.createHash('sha256').update(String(s)).digest('hex');
 const inr = (paise) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 2 }).format((paise || 0) / 100);
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
@@ -947,7 +948,7 @@ function register(app, deps) {
   function report(user, q = {}) {
     const to = validDate(String(q.to || '')) ? q.to : todayIst();
     const from = validDate(String(q.from || '')) ? q.from : new Date(Date.parse(`${to}T00:00:00Z`) - 89 * DAY).toISOString().slice(0, 10);
-    const inRange = (t) => { const d = t ? new Date(t).toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' }) : ''; return d && d >= from && d <= to; };
+    const inRange = (t) => { const d = t ? istDay(t) : ''; return d && d >= from && d <= to; };
     // Representatives see their own numbers; managers and finance see everyone's.
     const all = isManager(user) || !roles.can(user, 'crm.view');
     const L = leads().filter((l) => all || seesLead(user, l));

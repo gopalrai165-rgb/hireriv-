@@ -141,6 +141,7 @@ const textOf = (job) => [...TEXT_FIELDS.map((k) => job[k] || ''), ...LIST_FIELDS
 const normal = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
 const fingerprint = (job) => sha256(`${normal(job.title)}|${normal(job.description).slice(0, 600)}`);
 
+// `others` may carry `byFp` (fingerprint -> listings), built once per scan.
 function flagsFor(job, others) {
   const text = textOf(job);
   const out = [];
@@ -156,7 +157,7 @@ function flagsFor(job, others) {
   // Same title and description as an earlier live listing (the later one is flagged).
   const fp = fingerprint(job);
   const earlier = (o) => String(o.posted || '') < String(job.posted || '') || (String(o.posted || '') === String(job.posted || '') && o.id < job.id);
-  const same = others.filter((o) => o.id !== job.id && o.fp === fp && earlier(o));
+  const same = (others.byFp ? others.byFp.get(fp) || [] : others).filter((o) => o.id !== job.id && o.fp === fp && earlier(o));
   const sameCompany = (o) => (job.employerId ? o.employerId === job.employerId : !o.employerId && normal(o.company) === normal(job.company));
   if (same.some((o) => !sameCompany(o))) out.push({ code: 'copied', severity: 'high', label: "Same text as another company's listing (possible impersonation)", detail: same.filter((o) => !sameCompany(o)).map((o) => o.id).slice(0, 3).join(', ') });
   else if (same.length) out.push({ code: 'duplicate', severity: 'low', label: 'Posted more than once', detail: same.map((o) => o.id).slice(0, 3).join(', ') });
@@ -435,16 +436,24 @@ function register(app, deps) {
     if (j.employerId) tellOwners(j.employerId, { subject: `We are checking "${j.title}" before it shows again`, heading: 'A listing is waiting for a quick check', lines: [`Our automated checks asked a moderator to look at "${j.title}" (${j.id}) before it shows to candidates again. This is a routine check, not a finding against your company, and it usually takes less than one working day.`, 'You do not need to do anything. If the moderator needs something, we will email you.'] });
     return true;
   }
+  // What the job checks read: when none of it changed since the last scan, the
+  // listings are not checked again (each check compares a listing with the others).
+  let lastScanInput = '';
   function scan() {
     const jobs = getJobs();
     const live = jobs.filter((j) => ['open', 'pending', 'paused'].includes(j.status) && !j.sample);
-    const others = live.map((j) => ({ id: j.id, employerId: j.employerId || '', company: j.company, posted: j.posted || '', fp: fingerprint(j), shingles: risk.shingles(j) }));
     const emps = new Map(clients.read().map((e) => [e.id, e]));
     const pol = policy();
     let changed = false;
     let opened = 0;
-    for (const j of live) {
-      const rules = risk.jobRules(j, { flags: flagsFor(j, others), others, employer: emps.get(j.employerId) || null });
+    const input = sha256(JSON.stringify([pol, [...emps.values()], live.map((j) => [j.id, j.status, j.posted || '', j.employerId || '', textOf(j), j.changeSignals || [], j.trustScan || null])]));
+    const same = input === lastScanInput;
+    const others = same ? [] : live.map((j) => ({ id: j.id, employerId: j.employerId || '', company: j.company, posted: j.posted || '', fp: fingerprint(j), shingles: risk.shingles(j) }));
+    others.byFp = new Map();
+    for (const o of others) { if (!others.byFp.has(o.fp)) others.byFp.set(o.fp, []); others.byFp.get(o.fp).push(o); }
+    const nearPool = same ? null : risk.nearIndex(others);
+    for (const j of same ? [] : live) {
+      const rules = risk.jobRules(j, { flags: flagsFor(j, others), others, nearPool, employer: emps.get(j.employerId) || null });
       const flags = toFlags(rules);
       const fp = sha256(`${textOf(j)}|${flags.map((f) => `${f.code}:${f.detail}`).join(',')}`);
       if (!j.trustScan || j.trustScan.fp !== fp) {
@@ -466,6 +475,7 @@ function register(app, deps) {
       changed = true;
     }
     if (changed) saveJobs();
+    lastScanInput = sha256(JSON.stringify([pol, [...emps.values()], live.map((j) => [j.id, j.status, j.posted || '', j.employerId || '', textOf(j), j.changeSignals || [], j.trustScan || null])]));
     for (const emp of emps.values()) if (emp.active && !emp.terminatedAt) opened += assessEmployer(emp, jobs, pol);
     return { scanned: live.length, opened };
   }

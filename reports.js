@@ -5,7 +5,8 @@ const { everReached, firstResponseDays } = require('./history');
 
 const DAY_MS = 86400000;
 const round2 = (n) => Math.round(n * 100) / 100;
-const dayKey = (d) => new Date(d).toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+const { istDay } = require('./ics');
+const dayKey = (d) => istDay(d);
 const monthKey = (d) => dayKey(d).slice(0, 7);
 const sum = (list, f) => round2(list.reduce((n, x) => n + (Number(f(x)) || 0), 0));
 const median = (nums) => {

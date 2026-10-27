@@ -6,6 +6,8 @@ const { DatabaseSync } = require('node:sqlite');
 const fs = require('fs');
 const path = require('path');
 
+const INDEXED = ['employerId', 'entityId', 'jobId'];
+
 function open(file) {
   fs.mkdirSync(path.dirname(file), { recursive: true });
   const db = new DatabaseSync(file);
@@ -39,11 +41,18 @@ function open(file) {
   // reading a whole collection.
   db.exec("CREATE INDEX IF NOT EXISTS records_rk ON records (collection, json_extract(data, '$.rk'))");
   db.exec("CREATE INDEX IF NOT EXISTS records_status ON records (collection, json_extract(data, '$.status'))");
+  // Other fields looked up often enough, on growing collections, to need one
+  // (risk assessments by job, a company's records, a job's applications).
+  for (const f of INDEXED) db.exec(`CREATE INDEX IF NOT EXISTS records_${f} ON records (collection, json_extract(data, '$.${f}'))`);
   const keyFns = {};
   const whereCache = {};
   // Called with the collection's name after each committed write.
   const listeners = [];
-  const changed = (collection) => listeners.forEach((fn) => fn(collection));
+  // Parsed, frozen copies of whole collections for pages that only read them
+  // (snapshot below), dropped on every write to that collection.
+  const snapshots = new Map();
+  const changed = (collection) => { snapshots.delete(collection); listeners.forEach((fn) => fn(collection)); };
+  const freeze = (v) => { if (v && typeof v === 'object' && !Object.isFrozen(v)) { Object.freeze(v); for (const k of Object.keys(v)) freeze(v[k]); } return v; };
   const keyOf = (collection, doc) => (keyFns[collection] ? keyFns[collection](doc) || null : null);
 
   const q = {
@@ -58,6 +67,7 @@ function open(file) {
     metaSet: db.prepare('INSERT INTO meta (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value'),
     sGet: db.prepare('SELECT subject, exp FROM sessions WHERE kind = ? AND key = ?'),
     sSet: db.prepare('INSERT INTO sessions (kind, key, subject, exp) VALUES (?, ?, ?, ?) ON CONFLICT(kind, key) DO UPDATE SET subject = excluded.subject, exp = excluded.exp'),
+    byId: db.prepare('SELECT data FROM records WHERE collection = ? AND id = ? ORDER BY pos LIMIT ? OFFSET ?'),
     sDel: db.prepare('DELETE FROM sessions WHERE kind = ? AND key = ?'),
     sDelSubject: db.prepare('DELETE FROM sessions WHERE kind = ? AND subject = ?'),
     sPurge: db.prepare('DELETE FROM sessions WHERE exp < ?'),
@@ -88,6 +98,7 @@ function open(file) {
     } catch (err) {
       depth = 0;
       db.exec('ROLLBACK');
+      snapshots.clear();
       if (/UNIQUE constraint failed: records\.collection, records\.ukey/.test(err.message)) err.code = 'ERR_UNIQUE';
       throw err;
     }
@@ -98,6 +109,13 @@ function open(file) {
 
   const store = {
     all: (collection) => q.all.all(collection).map((r) => JSON.parse(r.data)),
+    // The same list, parsed once and shared until the collection changes, for
+    // pages that only read it (the admin lists over every application). It is
+    // frozen: copy a document before changing it.
+    snapshot(collection) {
+      if (!snapshots.has(collection)) snapshots.set(collection, freeze(store.all(collection)));
+      return snapshots.get(collection);
+    },
     count: (collection) => q.count.get(collection).n,
 
     // Replace a whole collection atomically, preserving list order.
@@ -128,11 +146,16 @@ function open(file) {
       return n;
     },
 
-    // Documents whose top-level `field` equals `value`, in list order. Only
-    // `rk` and `status` are indexed; other fields scan the collection in SQLite.
+    // Documents whose top-level `field` equals `value`, in list order. `id`
+    // uses the primary key; `rk`, `status` and INDEXED have their own index;
+    // other fields scan the collection in SQLite.
     where(collection, field, value, { limit = -1, offset = 0 } = {}) {
       if (!/^[A-Za-z]+$/.test(field)) throw new Error(`bad field ${field}`);
-      const sql = `SELECT data FROM records WHERE collection = ? AND json_extract(data, '$.${field}') = ? ORDER BY pos LIMIT ? OFFSET ?`;
+      if (field === 'id') return q.byId.all(collection, String(value), limit, offset).map((r) => JSON.parse(r.data)).filter((d) => d && d.id != null && String(d.id) === String(value));
+      // "+pos" stops SQLite ordering by the (collection, pos) index, which made
+      // it read the whole collection instead of using the field's index.
+      const order = ['rk', 'status', ...INDEXED].includes(field) ? '+pos' : 'pos';
+      const sql = `SELECT data FROM records WHERE collection = ? AND json_extract(data, '$.${field}') = ? ORDER BY ${order} LIMIT ? OFFSET ?`;
       const stmt = whereCache[sql] || (whereCache[sql] = db.prepare(sql));
       return stmt.all(collection, value, limit, offset).map((r) => JSON.parse(r.data));
     },

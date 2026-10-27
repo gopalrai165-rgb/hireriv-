@@ -214,6 +214,8 @@ npm test
 ```
 Unit tests cover the billing maths (GST split, amount in words, financial years, payments, TDS, credit notes and refunds), settings and blog validation, skill matching, resume reading, stage history, timesheets and SEO data. End-to-end tests start the real server with a throwaway database, email outbox and uploads folder (your `data/` is never touched) and walk through applying, spam protection, admin sign-in and cross-site protection, closing a job, candidate sign-in links, and recording a placement through to a paid invoice. Run them before every deploy. GitHub Actions (`.github/workflows/ci.yml`) runs them on every push and pull request, with PostgreSQL, a dependency audit and a Docker build.
 
+**Load test:** `npm run load:test` fills a throwaway database with 5,000 jobs and 50,000 applications, starts the server on it and measures the busiest pages under load (`PROFILE=1` also lists the slowest functions). Results and what was fixed: [`docs/PERFORMANCE.md`](docs/PERFORMANCE.md).
+
 **Access control:** [`docs/ACCESS.md`](docs/ACCESS.md) lists every route and who may use it (public, one-time link, candidate, client, team, Admin). `test/access.test.js` reads the routes from the code and fails if that file is out of date, and checks that signed-out visitors and Recruiters are refused wherever they should be. When you add a route, add it to the table. [`docs/AUDIT.md`](docs/AUDIT.md) is the platform audit and backlog for the all-industry plan (office, skilled and field jobs).
 
 ## Email setup

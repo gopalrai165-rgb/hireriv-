@@ -63,8 +63,16 @@ function interviewIcs({ method, interview, candidate, jobTitle, site }) {
 
 // "2026-10-01" + "15:30" entered by a recruiter in India → exact instant.
 const istToDate = (date, time) => new Date(`${date}T${time}:00+05:30`);
+// The India date (YYYY-MM-DD) of a moment. India is UTC+05:30 all year, so
+// this is arithmetic; toLocaleDateString with a time zone builds a formatter
+// on every call, which is far too slow inside loops over every application.
+const IST_OFFSET_MS = 330 * 60000;
+function istDay(d = Date.now()) {
+  const t = new Date(d).getTime();
+  return Number.isNaN(t) ? 'Invalid Date' : new Date(t + IST_OFFSET_MS).toISOString().slice(0, 10);
+}
 
 const formatIst = (d) =>
   new Date(d).toLocaleString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'Asia/Kolkata' }) + ' IST';
 
-module.exports = { interviewIcs, istToDate, formatIst };
+module.exports = { istDay, interviewIcs, istToDate, formatIst };
