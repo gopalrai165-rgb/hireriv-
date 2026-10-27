@@ -489,6 +489,9 @@ Total: 727 routes.
 | POST | `/account/password` | candidate | Needs the current password when one is set; signs out other sessions |
 | POST | `/account/phone/send` | candidate | Code to confirm the mobile on the profile (turns on mobile sign-in) |
 | POST | `/account/phone/verify` | candidate | Confirms it; changing the profile number turns mobile sign-in off |
+| POST | `/account/email/add` | candidate | Mobile-only accounts: sends a link to the new address; same reply whether or not it has an account |
+| GET | `/account/email/confirm/:token` | link | Shows a button (mail scanners prefetch links) |
+| POST | `/account/email/confirm/:token` | link | Works once, 24 hours; moves the account onto the email in one transaction, never into an existing account |
 | POST | `/account/settings` | candidate |  |
 | POST | `/account/sessions/revoke` | candidate | Signs out every session of the candidate's own account |
 | POST | `/account/applications/:id/withdraw` | candidate | Only the candidate's own applications |

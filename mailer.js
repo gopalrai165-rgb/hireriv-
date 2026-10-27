@@ -827,6 +827,32 @@ function createMailer(site) {
       });
     },
 
+    // Adding an email to an account made with only a mobile number.
+    candidateEmailAdd(email, link, hours) {
+      return send(site, {
+        to: email,
+        subject: `Add this email to your ${site.name} account`,
+        heading: 'Confirm your email address',
+        html:
+          p(`Someone signed in to a ${site.name} job-seeker account with a mobile number asked to add this email address to it. Once it is added, you can sign in with this email too, and job alerts and updates can come here.`) +
+          button(link, 'Add this email') +
+          p(`<span style="color:#6b7690;font-size:13px">This link works once and expires in ${hours} hours. Didn't ask for it? Ignore this email and nothing changes.</span>`),
+      });
+    },
+    // The same request for an address that already has an account: nothing is added.
+    candidateEmailTaken(email, signInLink) {
+      return send(site, {
+        to: email,
+        subject: `Your ${site.name} account`,
+        heading: 'This email already has an account',
+        html:
+          p(`Someone signed in to a ${site.name} job-seeker account with a mobile number asked to add this email address to it. This email already has its own account, so nothing was added.`) +
+          p('If it was you, sign in with this email instead. Your applications under the mobile number stay on that account.') +
+          button(signInLink, 'Sign in') +
+          p('<span style="color:#6b7690;font-size:13px">Didn\'t ask for it? You can ignore this email.</span>'),
+      });
+    },
+
     candidatePasswordReset(email, link, minutes) {
       return send(site, {
         to: email,

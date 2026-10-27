@@ -286,3 +286,66 @@ test('sign up with only a mobile number: no email, never emailed, signed in by c
   res = await srv.request('/account/phone/verify', { method: 'POST', cookie: other, form: { code: confirm } });
   assert.match(decodeURIComponent(res.headers.get('location') || ''), /already confirmed on another account/);
 });
+
+async function mobileSignup(phone, name) {
+  const seen = srv.emails().length;
+  await srv.request('/account/register/phone', { method: 'POST', form: { name, phone, agree: '1' } });
+  const code = codeIn(await nextMessage((m) => m.includes(`+91${phone}`), seen));
+  return srv.cookieFrom(await srv.request('/account/register/phone/verify', { method: 'POST', form: { phone, code } }));
+}
+
+test('a mobile-only account adds an email: everything moves onto it, except the audit trail', async () => {
+  const cookie = await mobileSignup('9811122233', 'Sunita Devi');
+  const placeholder = '9811122233@mobile.hireriv.invalid';
+  assert.match(await text('/account/settings', { cookie }), /action="\/account\/email\/add"/);
+
+  let seen = srv.emails().length;
+  let res = await srv.request('/account/email/add', { method: 'POST', cookie, form: { email: 'Sunita.Devi@Example.in' } });
+  assert.match(decodeURIComponent(res.headers.get('location')), /sent a link to sunita\.devi@example\.in/);
+  const mail = decodeEmail(await nextMessage((m) => m.includes('To: sunita.devi@example.in'), seen));
+  const link = mail.match(/\/account\/email\/confirm\/[a-f0-9]+/)[0];
+  assert.ok(srv.records('candidates').some((c) => c.email === placeholder), 'nothing moves before the link is opened');
+
+  assert.match(await text(link), /Add this email/);
+  res = await srv.request(link, { method: 'POST', form: {} });
+  assert.equal(res.status, 302);
+  assert.match(decodeURIComponent(res.headers.get('location')), /sunita\.devi@example\.in is added/);
+  assert.equal((await srv.request(link, { method: 'POST', form: {} })).status, 410, 'the link works once');
+
+  // Every record moved; the account is a normal confirmed one with its number.
+  const c = srv.records('candidates').find((x) => x.email === 'sunita.devi@example.in');
+  assert.ok(c && !c.mobileOnly && c.emailVerifiedAt);
+  assert.equal(c.phoneVerified.phone, '9811122233');
+  for (const coll of ['candidates', 'applications', 'candidate-activity', 'consent-records']) {
+    assert.ok(!JSON.stringify(srv.records(coll)).includes(placeholder), `${coll} still holds the placeholder`);
+  }
+  assert.ok(srv.records('applications').some((a) => a.email === 'sunita.devi@example.in'));
+  // The session that asked keeps working, now on the email.
+  const settings = await text('/account/settings', { cookie });
+  assert.match(settings, /sunita\.devi@example\.in/);
+  assert.doesNotMatch(settings, /action="\/account\/email\/add"/);
+  // The audit trail records the move by account id, without the address.
+  const entry = srv.records('trust-audit').find((e) => e.action === 'candidate-email-added');
+  assert.ok(entry && entry.entityId === c.id);
+  assert.ok(!JSON.stringify(entry).includes('sunita'));
+
+  // Mobile sign-in still opens it.
+  seen = srv.emails().length;
+  await srv.request('/account/login/phone', { method: 'POST', form: { phone: '9811122233' } });
+  const code = codeIn(await nextMessage((m) => m.includes('+919811122233'), seen));
+  res = await srv.request('/account/login/phone/verify', { method: 'POST', form: { phone: '9811122233', code } });
+  assert.match(await text('/account/settings', { cookie: srv.cookieFrom(res) }), /sunita\.devi@example\.in/);
+});
+
+test('adding an email that already has an account changes nothing', async () => {
+  const cookie = await mobileSignup('9811122244', 'Arjun Das');
+  const seen = srv.emails().length;
+  const res = await srv.request('/account/email/add', { method: 'POST', cookie, form: { email: 'meena@example.in' } });
+  assert.match(decodeURIComponent(res.headers.get('location')), /sent a link to meena@example\.in/, 'the same reply');
+  const mail = decodeEmail(await nextMessage((m) => m.includes('To: meena@example.in'), seen));
+  assert.match(mail, /already has its own account/);
+  assert.doesNotMatch(mail, /\/account\/email\/confirm\//);
+  assert.ok(srv.records('candidates').some((c) => c.email === '9811122244@mobile.hireriv.invalid' && c.mobileOnly));
+  // Accounts with an email can't use it.
+  assert.match(decodeURIComponent((await srv.request('/account/email/add', { method: 'POST', cookie: await register('ravi.add@example.in'), form: { email: 'x@example.in' } })).headers.get('location')), /already has an email/);
+});

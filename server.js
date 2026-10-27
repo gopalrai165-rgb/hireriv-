@@ -1658,6 +1658,7 @@ const candidateAccounts = candidates.register(app, {
   vetUpload: resumeCheck.vet, downloadLinks, linkExpired, jobTypes: JOB_TYPES, modes, stateOf: search.stateOf,
   interviewResponded: (...args) => atsDesk.interviewResponded(...args), events, notify,
   recommendFor: (...args) => recommendations.recommend(...args), analytics: siteAnalytics, push, privacy,
+  audit: (...args) => trustDesk.record(...args),
 });
 
 // Recommended jobs with match explanations, saved searches with daily or

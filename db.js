@@ -137,6 +137,33 @@ function open(file) {
       return stmt.all(collection, value, limit, offset).map((r) => JSON.parse(r.data));
     },
 
+    // Swaps exact strings in every document and session subject, in one
+    // transaction (moving a mobile-only account onto a real email,
+    // identity.js). Only for values that belong to one person and can't occur
+    // by chance, such as a placeholder address or a hash of it. `skip` lists
+    // collections that must never be edited (the hash-chained audit trail).
+    replaceEverywhere(pairs, { skip = [] } = {}) {
+      const touched = new Set();
+      let sessions = 0;
+      const find = db.prepare('SELECT collection, id, data FROM records WHERE instr(data, ?) > 0');
+      const move = db.prepare('UPDATE records SET id = ?, data = ?, ukey = ? WHERE collection = ? AND id = ?');
+      const subj = db.prepare('UPDATE sessions SET subject = ? WHERE subject = ?');
+      tx(() => {
+        for (const [from, to] of pairs) {
+          if (!from || from === to) continue;
+          for (const r of find.all(from)) {
+            if (skip.includes(r.collection)) continue;
+            const doc = JSON.parse(r.data.split(from).join(to));
+            move.run(r.id.split(from).join(to), JSON.stringify(doc), keyOf(r.collection, doc), r.collection, r.id);
+            touched.add(r.collection);
+          }
+          sessions += Number(subj.run(to, from).changes);
+        }
+      });
+      touched.forEach((c) => changed(c));
+      return { collections: [...touched].sort(), sessions };
+    },
+
     // Runs fn inside one transaction (see tx above).
     transaction: (fn) => tx(fn),
 

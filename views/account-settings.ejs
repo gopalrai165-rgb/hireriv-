@@ -11,6 +11,14 @@
         <p class="small">You signed up with your mobile number, so you sign in with a code we text to +91 <%= mobile.number %>. Keep this number: it is the only way into this account, so it can't be changed on your profile.</p>
         <p class="small muted">We can't email you, so job alerts and updates reach you as notifications here and on your phone (turn them on under Notifications), and by WhatsApp if you chose it.</p>
       </section>
+      <section class="dash-card" id="email">
+        <div class="dash-head"><h2>Add an email address</h2></div>
+        <p class="small">Add an email to get job alerts and updates by email, and to sign in with it as well as your mobile number. We send a link to the address; the email is added when you open it.</p>
+        <form class="form inline-form" method="post" action="/account/email/add">
+          <label>Email<input type="email" name="email" required maxlength="254" autocomplete="email" inputmode="email"></label>
+          <button class="btn btn-primary btn-sm" type="submit">Send link</button>
+        </form>
+      </section>
       <% } else { %>
       <section class="dash-card" id="password">
         <div class="dash-head"><h2>Password</h2></div>

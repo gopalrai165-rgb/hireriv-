@@ -46,7 +46,7 @@ const ACTIVITY_LABELS = {
   'sessions-revoked': 'Signed out on all devices', 'password-set': 'Password set', 'password-changed': 'Password changed', 'password-reset': 'Password reset by email link',
   'profile-updated': 'Profile updated', 'resume-added': 'Resume uploaded', 'resume-removed': 'Resume deleted', 'settings-changed': 'Settings changed',
   'interview-confirmed': 'Interview confirmed', 'interview-reschedule': 'Asked for another interview time',
-  'saved-search-added': 'Search saved', 'phone-verified': 'Mobile number confirmed', 'registered-mobile': 'Account created with your mobile number',
+  'saved-search-added': 'Search saved', 'phone-verified': 'Mobile number confirmed', 'registered-mobile': 'Account created with your mobile number', 'email-added': 'Email address added',
 };
 
 // Indian mobile numbers as 10 digits (drops +91, 91 or a leading 0), or ''.
@@ -1065,6 +1065,77 @@ function register(app, deps) {
     const iv = a && (a.interviews || []).find((x) => x.id === req.params.ivId && x.status === 'scheduled');
     if (!iv) return next();
     res.type('text/calendar').attachment('interview.ics').send(interviewIcs({ method: 'REQUEST', interview: iv, candidate: a, jobTitle: a.jobTitle, site }));
+  });
+
+  // ---------- adding an email to a mobile-only account ----------
+  // A link goes to the new address; opening it moves the account from its
+  // placeholder (identity.js) onto that email. Every record holding the
+  // placeholder, or a key made from it (notifications, push, the assistant),
+  // is rewritten in one transaction, except the hash-chained audit trail,
+  // which gets an entry for the move instead. The reply is the same whether
+  // or not the email already has an account; one that does is never merged.
+  const EMAIL_ADD_HOURS = 24;
+  const AUDIT_TRAIL = 'trust-audit';
+  const assistantKey = (email) => `cand:${require('./ai-provider').hash(String(email).toLowerCase()).slice(0, 32)}`;
+  function moveAccount(from, to) {
+    const n = require('./notify');
+    return db.replaceEverywhere([
+      [from, to],
+      [n.candidateRk(from), n.candidateRk(to)],
+      [n.addressHash(from), n.addressHash(to)],
+      [assistantKey(from), assistantKey(to)],
+    ], { skip: [AUDIT_TRAIL] });
+  }
+  const emailAddExpired = (res) => loginPage(res, { title: 'Link expired', errors: ['That link has expired or was already used. Sign in with your mobile number and add the email again from Settings.'] }, 410);
+  app.post('/account/email/add', requireCandidate, limit('account-email-add', 5), sameOrigin, (req, res) => {
+    const from = req.candidateEmail;
+    const c = candidateOf(from);
+    if (!c || !c.mobileOnly) return back(res, 'This account already has an email address.', '/account/settings');
+    const to = String(req.body.email || '').trim().toLowerCase().slice(0, 254);
+    if (!EMAIL_RE.test(to) || identity.isMobileOnly(to)) return back(res, 'Please enter a valid email.', '/account/settings');
+    if (candidateOf(to)) mailer.candidateEmailTaken(to, `${baseUrl}/account/login`);
+    else {
+      const token = newToken();
+      db.sessions.set('candidate-email-add', sha(token), JSON.stringify({ from, to }), Date.now() + EMAIL_ADD_HOURS * 3600000);
+      mailer.candidateEmailAdd(to, `${baseUrl}/account/email/confirm/${token}`, EMAIL_ADD_HOURS);
+    }
+    back(res, `We’ve sent a link to ${to}. Open it within ${EMAIL_ADD_HOURS} hours to add the address. Nothing arrived? Check spam, or that the address is right.`, '/account/settings');
+  });
+  // GET shows a button (mail scanners prefetch links); POST makes the move.
+  app.get('/account/email/confirm/:token', (req, res) => {
+    const l = db.sessions.get('candidate-email-add', sha(req.params.token));
+    if (!l) return emailAddExpired(res);
+    let to = '';
+    try { to = JSON.parse(l.subject).to; } catch (e) { return emailAddExpired(res); }
+    page(res, 'account-verify', { title: 'Add your email', heading: 'Add your email', email: to, intro: 'Add this address to your account:', button: 'Add this email' });
+  });
+  app.post('/account/email/confirm/:token', limit('account-email-add', 10), sameOrigin, (req, res) => {
+    const key = sha(req.params.token);
+    const l = db.sessions.get('candidate-email-add', key);
+    db.sessions.delete('candidate-email-add', key);
+    if (!l) return emailAddExpired(res);
+    let from = '';
+    let to = '';
+    try { ({ from, to } = JSON.parse(l.subject)); } catch (e) { return emailAddExpired(res); }
+    const c = candidateOf(from);
+    if (!c || !c.mobileOnly) return emailAddExpired(res);
+    const taken = (msg) => loginPage(res, { errors: [msg] }, 409);
+    if (candidateOf(to)) return taken('That email already has its own account, so it can’t be added. Sign in with it instead.');
+    try {
+      moveAccount(from, to);
+    } catch (err) {
+      if (err.code !== 'ERR_UNIQUE') throw err;
+      return taken('That email has already applied to some of the same jobs, so the accounts can’t be joined here. Contact us and we’ll help.');
+    }
+    const moved = candidateOf(to);
+    moved.mobileOnly = false;
+    moved.emailVerifiedAt = nowIso();
+    saveCandidate(moved);
+    activity(to, 'email-added');
+    // The audit trail never holds the address itself: the account id links the two.
+    if (deps.audit) deps.audit(null, 'candidate-email-added', { entityType: 'candidate', entityId: moved.id, detail: 'Mobile-only account moved onto a confirmed email address' });
+    startSession(res, to);
+    res.redirect(`/account/settings?msg=${encodeURIComponent(`${to} is added. You can now sign in with it or with your mobile number.`)}`);
   });
 
   // Right to erasure: the account, every application and resume for this
