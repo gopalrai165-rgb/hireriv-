@@ -16,7 +16,8 @@
       <% } else { %>
         <h1><%= codeSent ? t('account.enterCode') : t('account.signInTitle') %></h1>
         <% const nextQs = next ? '&next=' + encodeURIComponent(next) : ''; %>
-        <% if (!codeSent) { %>
+        <% if (!smsReady) method = 'email'; %>
+        <% if (!codeSent && smsReady) { %>
           <nav class="segmented" aria-label="<%= t('account.signInWith') %>">
             <a href="/account/login?with=phone<%= nextQs %>"<%- method === 'phone' ? ' aria-current="page"' : '' %>><svg class="i" aria-hidden="true"><use href="#i-phone"/></svg> <%= t('account.withMobile') %></a>
             <a href="/account/login?with=email<%= nextQs %>"<%- method !== 'phone' ? ' aria-current="page"' : '' %>><svg class="i" aria-hidden="true"><use href="#i-mail"/></svg> <%= t('account.withEmail') %></a>

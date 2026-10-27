@@ -354,7 +354,10 @@ function register(app, deps) {
   });
 
   // ---------- sign in ----------
-  const loginPage = (res, locals, status = 200) => page(res, 'account-login', { title: 'Sign in to your account', sent: false, next: '', email: '', method: 'email', phone: '', codeSent: false, ...locals }, status);
+  // Mobile codes need a text-message provider on the live site; without one
+  // they would only be saved to the outbox folder, so the option is hidden.
+  const smsReady = () => sms.configured() || process.env.NODE_ENV !== 'production';
+  const loginPage = (res, locals, status = 200) => page(res, 'account-login', { title: 'Sign in to your account', sent: false, next: '', email: '', method: 'email', phone: '', codeSent: false, smsReady: smsReady(), ...locals }, status);
   app.get('/account/login', (req, res) => {
     if (currentEmail(req)) return sendToNext(res, req.query.next);
     loginPage(res, { next: safeNext(req.query.next), method: req.query.with === 'phone' ? 'phone' : 'email' });
@@ -480,6 +483,7 @@ function register(app, deps) {
 
   const phonePage = (res, locals, status = 200) => loginPage(res, { method: 'phone', ...locals }, status);
   app.post('/account/login/phone', limit('account-otp', 10), sameOrigin, (req, res) => {
+    if (!smsReady()) return loginPage(res, { errors: ['Signing in with a mobile code isn’t available right now. Sign in with your email.'] }, 503);
     const mobile = mobileOf(req.body.phone);
     const next = safeNext(req.body.next);
     if (!mobile) return phonePage(res, { errors: ['Enter your 10-digit mobile number.'], next, phone: String(req.body.phone || '').slice(0, 20) }, 400);
@@ -507,6 +511,7 @@ function register(app, deps) {
   app.post('/account/phone/send', requireCandidate, limit('account-otp', 10), sameOrigin, (req, res) => {
     const c = ensureCandidate(req.candidateEmail);
     const mobile = mobileOf(c.profile.phone);
+    if (!smsReady()) return back(res, 'Text messages aren’t available right now. Please try again later.', '/account/settings');
     if (!mobile) return back(res, 'Add a 10-digit Indian mobile number to your profile first.', '/account/settings');
     if (!sendCode('candidate-phone', mobile, sha(`confirm:${c.id}:${mobile}`))) return back(res, 'Too many codes for this number. Wait 15 minutes and try again.', '/account/settings');
     res.redirect('/account/settings?code=sent#mobile');
