@@ -1,0 +1,25 @@
+# Production on a VPS, next to other sites behind one Caddy/Nginx.
+#   cp .env.example .env   # fill in real values, SITE_URL=https://hireriv.in
+#   docker compose up -d --build
+# Updates: git pull && docker compose up -d --build
+
+services:
+  hireriv:
+    build: .
+    env_file: .env
+    environment:
+      # Everything written at runtime goes to the persistent volume.
+      DB_FILE: /var/lib/hireriv/hireriv.db
+      UPLOADS_DIR: /var/lib/hireriv/uploads
+      OUTBOX_DIR: /var/lib/hireriv/outbox
+      PORT: 3004
+      TRUST_PROXY: 1
+    # Only the reverse proxy on this server can reach it; HTTPS is Caddy's job.
+    ports:
+      - "127.0.0.1:3004:3004"
+    volumes:
+      - hireriv_data:/var/lib/hireriv
+    restart: unless-stopped
+
+volumes:
+  hireriv_data:
