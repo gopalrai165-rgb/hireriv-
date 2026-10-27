@@ -75,4 +75,16 @@ function jobDistance(job, point) {
 // are approximate); under 3 km counts as the same city (null).
 const shownKm = (km) => (km < 3 ? null : km < 20 ? Math.round(km) : Math.round(km / 5) * 5);
 
-module.exports = { CITIES, PIN_PREFIXES, RADII, coordsOf, cityOfPin, distanceKm, parseNear, jobDistance, shownKm };
+// City pages (/jobs/in/<slug>): one per city above. "Delhi NCR" is listed
+// with Delhi rather than as a page of its own.
+const ALSO_IN = { Delhi: ['Delhi NCR'] };
+const citySlug = (city) => String(city).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+const CITY_PAGES = Object.keys(CITIES).filter((c) => c !== 'Delhi NCR').map((name) => ({ name, slug: citySlug(name), locations: [name, ...(ALSO_IN[name] || [])] }));
+const cityPageBySlug = (slug) => CITY_PAGES.find((c) => c.slug === slug) || null;
+const cityPageFor = (location) => CITY_PAGES.find((c) => c.locations.includes(location)) || null;
+// Other city pages within `km` of this one, nearest first.
+const nearbyCities = (name, km = 80) => CITY_PAGES.filter((c) => c.name !== name)
+  .map((c) => ({ ...c, km: Math.round(distanceKm(CITIES[name], CITIES[c.name])) }))
+  .filter((c) => c.km <= km).sort((a, b) => a.km - b.km);
+
+module.exports = { CITY_PAGES, citySlug, cityPageBySlug, cityPageFor, nearbyCities, CITIES, PIN_PREFIXES, RADII, coordsOf, cityOfPin, distanceKm, parseNear, jobDistance, shownKm };

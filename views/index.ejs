@@ -88,7 +88,7 @@
     </div>
     <ul class="city-grid">
       <% topCities.forEach(function (c) { %>
-        <li><a class="city-tile" href="/jobs?location=<%= encodeURIComponent(c.name) %>">
+        <li><a class="city-tile" href="<%= c.href %>">
           <span class="city-initial" aria-hidden="true"><%= c.name.charAt(0) %></span>
           <span><b><%= t('home.jobsIn', { city: c.name }) %></b><span class="muted small"><%= t('home.jobCount', { count: c.count }) %></span></span>
         </a></li>

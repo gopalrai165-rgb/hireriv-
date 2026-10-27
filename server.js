@@ -566,6 +566,8 @@ app.locals.catalog = catalog;
 app.locals.workOf = workOf;
 app.locals.isSample = (j) => j.sample === true;
 app.locals.resumeNeeded = resumeNeeded;
+// Links to the biggest cities' job pages (partials/job-landing-links).
+app.locals.majorCityPages = ['Mumbai', 'Delhi', 'Bengaluru', 'Hyderabad', 'Chennai', 'Pune', 'Kolkata', 'Ahmedabad', 'Jaipur', 'Lucknow', 'Indore', 'Kochi'].map((c) => geo.cityPageBySlug(geo.citySlug(c)));
 app.locals.jobPath = jobPath;
 app.locals.matchWeights = jobMatch.weightsOf;
 app.locals.matchFactors = jobMatch.FACTORS;
@@ -665,8 +667,9 @@ Sitemap: ${BASE_URL}/sitemap.xml
 `)
 );
 
+const cityPagesWithJobs = () => { const live = openJobs().filter((j) => !isSample(j)); return geo.CITY_PAGES.filter((c) => live.some((j) => c.locations.includes(j.location))); };
 app.get('/sitemap.xml', (req, res) =>
-  res.type('application/xml').send(seo.sitemap(BASE_URL, { jobs: openJobs().filter((j) => !isSample(j)), posts: livePosts(), staticPaths: ['/', '/jobs', ...catalog.WORK_PAGES.map((x) => `/jobs/${x.slug}`), ...catalog.JOB_INDUSTRIES.map((x) => `/jobs/industry/${x.slug}`), '/categories', '/hire', '/services', ...catalog.SERVICES.map((x) => `/services/${x.slug}`), '/industries', ...catalog.INDUSTRIES.map((x) => `/industries/${x.slug}`), '/about', '/blog', '/contact', '/privacy', '/terms', '/job-posting-policy', '/help/job-terms', '/accessibility'] }))
+  res.type('application/xml').send(seo.sitemap(BASE_URL, { jobs: openJobs().filter((j) => !isSample(j)), posts: livePosts(), staticPaths: ['/', '/jobs', ...catalog.WORK_PAGES.map((x) => `/jobs/${x.slug}`), ...catalog.JOB_INDUSTRIES.map((x) => `/jobs/industry/${x.slug}`), ...cityPagesWithJobs().map((c) => `/jobs/in/${c.slug}`), '/categories', '/hire', '/services', ...catalog.SERVICES.map((x) => `/services/${x.slug}`), '/industries', ...catalog.INDUSTRIES.map((x) => `/industries/${x.slug}`), '/about', '/blog', '/contact', '/privacy', '/terms', '/job-posting-policy', '/help/job-terms', '/accessibility'] }))
 );
 
 // Things a new install still needs before it is ready for visitors, shown to
@@ -720,10 +723,10 @@ const POPULAR_ROLES = [
 const popularRoles = (live) => POPULAR_ROLES.map(([key, q, icon]) => ({ key, icon, href: `/jobs?q=${encodeURIComponent(q)}`, count: search.searchJobs(live, { q }).jobs.length }));
 function topCities(live, n = 8) {
   const counts = {};
-  for (const j of live) if (geo.coordsOf(j.location) && j.location !== 'Delhi NCR') counts[j.location] = (counts[j.location] || 0) + 1;
+  for (const j of live) { const c = geo.cityPageFor(j.location); if (c) counts[c.name] = (counts[c.name] || 0) + 1; }
   // Big cities fill the grid on a new site with few jobs.
   for (const c of ['Mumbai', 'Delhi', 'Bengaluru', 'Hyderabad', 'Chennai', 'Pune', 'Kolkata', 'Ahmedabad']) if (!(c in counts)) counts[c] = 0;
-  return Object.entries(counts).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).slice(0, n).map(([name, count]) => ({ name, count }));
+  return Object.entries(counts).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).slice(0, n).map(([name, count]) => ({ name, count, href: `/jobs/in/${geo.citySlug(name)}` }));
 }
 
 // Job Categories: the category groups, then every category by kind of work.
@@ -946,26 +949,54 @@ function hrContactFor(job) {
   return { name: '', phone: site.phone, whatsapp: realWhatsapp() ? site.whatsapp : '', desk: true };
 }
 
-// Landing pages for job seekers: a kind of work, or an industry (catalog.js).
+// A city page's text: the jobs there, the common roles and nearby cities.
+function cityLanding(city) {
+  return {
+    slug: city.slug, name: `Jobs in ${city.name}`, h1: `Jobs in ${city.name}`, city: city.name, locations: city.locations,
+    description: `Jobs in ${city.name}: office, skilled and field openings from checked employers, with salary, shift and distance on every listing. Apply in one tap on ${site.name}.`,
+    intro: [
+      `Open jobs in and around ${city.name}, from office and IT roles to delivery, warehouse, security, retail and factory work. Every listing is checked by our team before it goes live and shows the pay when the employer shares it.`,
+      'Search near your PIN code to see the closest jobs first, apply with your saved profile in one tap, and talk to HR after you apply where the employer allows it.',
+    ],
+    tips: [
+      'Use your PIN code on Find Jobs to see how far each job is from home.',
+      'Say which shifts you can work and how far you can travel each day.',
+      `You never pay to get a job through ${site.name}: not for the offer, joining, training or a uniform.`,
+      'You do not need Aadhaar or bank details to apply. Employers ask for joining documents only after an offer.',
+    ],
+    roles: POPULAR_ROLES.map(([key, q]) => ({ label: key === 'dataEntry' ? 'Data entry' : key === 'security' ? 'Security guard' : key[0].toUpperCase() + key.slice(1), href: `/jobs?location=${encodeURIComponent(city.name)}&q=${encodeURIComponent(q)}` })),
+    nearby: geo.nearbyCities(city.name),
+  };
+}
+
+// Landing pages for job seekers: a kind of work, an industry (catalog.js) or a city (geo.js).
 function jobLanding(req, res, landing, kind) {
   const live = openJobs();
-  const list = (kind === 'work' ? live.filter((j) => workOf(j) === landing.work) : live.filter((j) => landing.categories.includes(j.category)))
+  const list = (kind === 'work' ? live.filter((j) => workOf(j) === landing.work) : kind === 'city' ? live.filter((j) => landing.locations.includes(j.location)) : live.filter((j) => landing.categories.includes(j.category)))
     .sort((a, b) => Number(isSample(a)) - Number(isSample(b)) || String(b.posted).localeCompare(String(a.posted)));
-  const path = kind === 'work' ? `/jobs/${landing.slug}` : `/jobs/industry/${landing.slug}`;
+  const path = kind === 'work' ? `/jobs/${landing.slug}` : kind === 'city' ? `/jobs/in/${landing.slug}` : `/jobs/industry/${landing.slug}`;
   const { rows, pager } = paginate(list, { page: req.query.page, size: JOBS_PAGE_SIZE, query: {}, path });
   const desk = kind === 'industry' ? catalog.industryBySlug(landing.desk) : null;
-  const searchHref = kind === 'work' ? `/jobs?work=${landing.work}` : `/jobs?${landing.categories.map((c) => `category=${encodeURIComponent(c)}`).join('&')}`;
+  const searchHref = kind === 'work' ? `/jobs?work=${landing.work}` : kind === 'city' ? `/jobs?location=${encodeURIComponent(landing.city)}` : `/jobs?${landing.categories.map((c) => `category=${encodeURIComponent(c)}`).join('&')}`;
   const trail = [['Home', '/'], ['Jobs', '/jobs'], ...(kind === 'industry' ? [['Industries', '/categories']] : []), [landing.name, path]];
+  const realCount = list.filter((j) => !isSample(j)).length;
   siteAnalytics.track('landing-view', landing.name, req);
   res.render('jobs-landing', {
     title: `${landing.name} in India${pager.page > 1 ? ` – page ${pager.page}` : ''}`, page: 'jobs', landing, kind, results: rows, pager, openCount: list.length, desk, searchHref,
     metaDescription: landing.description, canonical: `${BASE_URL}${path}${pager.page > 1 ? `?page=${pager.page}` : ''}`,
     jsonLd: seo.jobLandingPage(landing, path, trail, BASE_URL, rows.filter((j) => !isSample(j))),
+    // A city with no real openings is a thin page: kept for visitors, out of search engines.
+    noindex: kind === 'city' && !realCount ? 'follow' : false,
   });
 }
 app.get('/jobs/office-professional', (req, res) => jobLanding(req, res, catalog.workPageBySlug('office-professional'), 'work'));
 app.get('/jobs/skilled-technical', (req, res) => jobLanding(req, res, catalog.workPageBySlug('skilled-technical'), 'work'));
 app.get('/jobs/industrial-field-service', (req, res) => jobLanding(req, res, catalog.workPageBySlug('industrial-field-service'), 'work'));
+app.get('/jobs/in/:city', (req, res, next) => {
+  const city = geo.cityPageBySlug(req.params.city);
+  if (!city) return next();
+  jobLanding(req, res, cityLanding(city), 'city');
+});
 app.get('/jobs/industry/:slug', (req, res, next) => {
   const landing = catalog.jobIndustryBySlug(req.params.slug);
   if (!landing) return next();

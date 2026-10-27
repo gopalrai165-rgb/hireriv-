@@ -199,3 +199,27 @@ test('call or WhatsApp HR: only after applying, only a confirmed mobile the comp
     await other.stop();
   }
 });
+
+test('city pages: live jobs there, nearby cities, in the sitemap only with real jobs', async () => {
+  const pune = await text('/jobs/in/pune');
+  assert.match(pune, /<h1>Jobs in Pune<\/h1>/);
+  assert.match(pune, /<link rel="canonical" href="[^"]+\/jobs\/in\/pune">/);
+  assert.doesNotMatch(pune, /name="robots"/);
+  const places = [...pune.matchAll(/<span class="sr-only">Location: <\/span>([^<]+)</g)].map((x) => x[1].trim());
+  assert.ok(places.length && places.every((p) => p === 'Pune'), places.join());
+  assert.match(pune, /"@type":"CollectionPage"/);
+  assert.match(pune, /href="\/jobs\?location=Pune&amp;q=delivery"/);
+  // Mumbai's page links to its neighbours.
+  assert.match(await text('/jobs/in/mumbai'), /href="\/jobs\/in\/navi-mumbai">Jobs in Navi Mumbai<\/a>/);
+  // No real jobs: kept for visitors, out of search engines and the sitemap.
+  const patna = await text('/jobs/in/patna');
+  assert.match(patna, /noindex, follow/);
+  assert.match(patna, /within 100 km of Patna/);
+  const sitemap = await text('/sitemap.xml');
+  assert.match(sitemap, /\/jobs\/in\/pune</);
+  assert.doesNotMatch(sitemap, /\/jobs\/in\/patna</);
+  assert.equal((await srv.request('/jobs/in/atlantis')).status, 404);
+  assert.equal((await srv.request('/jobs/in/delhi-ncr')).status, 404, 'listed under Delhi');
+  // The homepage's city tiles lead to them.
+  assert.match(await text('/'), /class="city-tile" href="\/jobs\/in\/[a-z-]+"/);
+});
