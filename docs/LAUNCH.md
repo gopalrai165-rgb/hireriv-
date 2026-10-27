@@ -17,12 +17,12 @@ Nothing here says Hireriv is "compliant" or "secure". It lists what exists, what
 | 3 | Application security | **Needs work** | CSP with no inline scripts, HSTS, anti-framing, same-origin checks on every form, rate limits, upload type checks and ClamAV scanning, encryption at rest (`vault.js`), SSRF-safe outbound requests (`safe-fetch.js`), dependency audit in CI. | `CLAMAV_HOST` on the live host. Rate limits and security counters are per process (fine for one process). |
 | 4 | Independent security testing | **Not implemented** | — | An external penetration test of sign-in, authorisation (other companies' ids), uploads, payments and the API, with fixes, before public launch (`docs/SECURITY.md` §8). |
 | 5 | Privacy and data protection | **Needs work** | Consent records, data-rights requests, grievance handling, retention by purpose, erasure with a journal, redaction for AI (`docs/SECURITY.md`). | Review by Indian counsel of the DPDP Act and Rules, CERT-In directions (logs in India for 180 days: depends on the host), processor contracts with hosting, email, SMS, payment and AI providers, and the `/privacy` and `/terms` text. |
-| 6 | Data storage, backups and restore | **Needs work** | Daily SQLite backups with an integrity check and retention; **a weekly restore drill** that restores the newest copy into a scratch folder with the app's own `db.open`, checks and counts it and records the time and the copy's age (Admin → Settings → Backups, and the dashboard warns if it fails or stops); `npm run backup:restore-test` for a drill by hand. | Uploads (resumes, documents) are files, not in the database backup: they need a host volume snapshot or sync. The backup folder must be on a second disk or synced off the server (`BACKUP_DIR`). A full restore on the real host has not been rehearsed (section 4). |
+| 6 | Data storage, backups and restore | **Needs work** | Daily SQLite backups with an integrity check and retention; **a weekly restore drill** that restores the newest copy into a scratch folder with the app's own `db.open`, checks and counts it and records the time and the copy's age (Admin → Settings → Backups, and the dashboard warns if it fails or stops); `npm run backup:restore-test` for a drill by hand. Uploaded files (resumes, documents, evidence) are copied with every backup into `BACKUP_DIR/uploads`, each content stored once and kept as long as a backup that holds it; the drill restores them too, checks every file against its SHA-256 and counts files the records name that were already missing; `npm run backup:restore-uploads` puts them back for a real restore. | The backup folder must be on a second disk or synced off the server (`BACKUP_DIR`). A full restore on the real host has not been rehearsed (section 4). |
 | 7 | Disaster recovery (RTO / RPO) | **Needs work** | Targets and the restore runbook in section 3. | The first rehearsal on the live host, with the measured time written into section 3. |
 | 8 | Monitoring, logging and alerting | **Needs work** | `/healthz` (checks the database), `/admin/system-health` (request and error counts per hour, background jobs, cleaned errors, email delivery), security alerts by email, backup and restore-test warnings on the dashboard. | An external uptime monitor and an off-server log store; the in-app counters reset on restart. Targets in section 5. |
 | 9 | Testing and CI | **Ready** | `npm test` (unit and end-to-end against a throwaway server, accessibility checks in English and Hindi, Postgres tests with `TEST_DATABASE_URL`); `.github/workflows/ci.yml` runs them on Node 22.13 and 22 with a Postgres service, `npm audit` for high and critical issues, builds the Docker image, checks it refuses unsafe settings and answers `/healthz`. | Turn on branch protection requiring **CI** on `main` in GitHub. |
 | 10 | Deployment and rollback | **Needs work** | Dockerfile with a health check and a non-root user, Render / Railway instructions, Postgres migrations with matching rollback files. | No staging environment yet. Rollback is "redeploy the previous image"; database changes are additive so far, but a rollback that needs older data means a restore (section 3). |
-| 11 | Performance and capacity | **Needs work** | A repeatable load test (`npm run load:test`, `docs/PERFORMANCE.md`) at 5,000 jobs and 50,000 applications, with the slow paths it found fixed: public pages now answer in 60–600 ms with 20 requests at a time, up from 0.2–29 s. Pagination, cache-busted static files, Save-Data pages, optional Postgres search. | A run on the real host. Admin pages still read every application (about 0.25 s a view at 50,000). One Node process with SQLite (`docs/PERFORMANCE.md` §4). |
+| 11 | Performance and capacity | **Needs work** | A repeatable load test (`npm run load:test`, `docs/PERFORMANCE.md`) at 5,000 jobs and 50,000 applications, with the slow paths it found fixed: public pages now answer in 60–600 ms with 20 requests at a time, up from 0.2–29 s. Pagination, cache-busted static files, Save-Data pages, optional Postgres search. | A run on the real host. The first admin view after the applications change recounts them (about 0.3 s at 50,000). One Node process with SQLite (`docs/PERFORMANCE.md` §4). |
 | 12 | Email, SMS and notifications | **Needs work** | SMTP with plain-text parts, delivery webhooks, a retry queue, push notifications, text messages through MSG91, Twilio or a webhook (`SMS_PROVIDER`, checked at start-up, `npm run sms:test`). | A real sending domain with SPF, DKIM and DMARC (needs DNS: section 7), choosing an SMS provider and TRAI DLT registration of the sender ID and the one code template (README → Text messages), a test of every email on Gmail and Outlook. |
 | 13 | Payments and billing | **Needs work** | Razorpay with server-side orders, signature checks, once-only webhooks, GST invoices (`docs/BILLING.md`). | The accountant's confirmation (`docs/BILLING.md` §8), live keys, and one real end-to-end payment and refund. |
 | 14 | Accessibility, languages and content | **Needs work** | WCAG 2.2 AA work and automated checks, English and Hindi. | The native-speaker Hindi review (`docs/I18N.md` §5), the manual screen-reader checks (`docs/ACCESSIBILITY.md` §3), and replacing the sample jobs, stats and testimonials (dashboard "Needs your attention"). |
@@ -50,7 +50,7 @@ There is deliberately no switch to skip the checks. Fix the setting instead.
 
 | | Target at launch | Based on |
 |---|---|---|
-| **RPO** (data that may be lost) | **24 hours** for the database; **24 hours** for uploads once the host snapshot is set daily | Daily backups (`backups.js`). Tighten to 1 hour later with hourly backups or continuous replication if the volume justifies it. |
+| **RPO** (data that may be lost) | **24 hours** for the database and uploads | Daily backups (`backups.js`). Tighten to 1 hour later with hourly backups or continuous replication if the volume justifies it. |
 | **RTO** (time to be back) | **4 hours** | Restore drill time (seconds for today's database: see Admin → Settings → Backups) plus redeploying the image, restoring uploads and checking. Replace with the measured time after the first rehearsal. |
 
 **Restore runbook** (rehearse once on the live host before launch, then every quarter; record each one as a Low incident marked as an exercise):
@@ -59,7 +59,7 @@ There is deliberately no switch to skip the checks. Fix the setting instead.
 2. Stop the app (or put the proxy in maintenance mode).
 3. Pick the backup: the newest that passed its check (Admin → Settings → Backups, or the files in `BACKUP_DIR`). Run `npm run backup:restore-test -- <file>` against it.
 4. Move the current database aside (keep it as evidence), copy the backup to `DB_FILE`, and delete any `-wal` / `-shm` files next to it.
-5. Restore `UPLOADS_DIR` from the host snapshot of the same time or later.
+5. Restore the uploaded files of the **same** backup into an empty `UPLOADS_DIR`: `npm run backup:restore-uploads -- <UPLOADS_DIR> <the backup's .db name>` (files already there are kept, a damaged copy stops it). A host snapshot of the volume, if there is one, is a second source.
 6. Start the app with the **same** `FILE_ENCRYPTION_KEY` (and any old keys): without it uploaded documents can't be opened.
 7. Erasures done after the backup are re-applied automatically from the erasure journal (`docs/SECURITY.md` §6). Check the start-up log.
 8. Check `/healthz`, sign in, open a job, a resume and an invoice, and write the times into the incident.
@@ -67,7 +67,7 @@ There is deliberately no switch to skip the checks. Fix the setting instead.
 ## 4. Before the first real restore (one-time)
 
 - Put `BACKUP_DIR` on a second disk or a folder synced off the server, and confirm a copy exists outside the host.
-- Turn on daily snapshots of the volume holding `UPLOADS_DIR` (and keep at least 14).
+- Optional: daily snapshots of the volume holding `UPLOADS_DIR` as a second copy of the uploads.
 - Keep `FILE_ENCRYPTION_KEY` in a password manager or secret store, **not** with the backups.
 - Rehearse section 3 end to end and record RTO and RPO as measured.
 
@@ -112,6 +112,6 @@ Nothing here has been changed. **No DNS record will be changed without the owner
 ## 8. Not done in this step
 
 - No penetration test, load test or staging environment: they need the real host.
-- The restore drill checks the database only. Uploads are restored from the host's snapshots, which the app can't see.
+- The restore drill restores into the server's temp folder, so it needs free space there about the size of the uploads.
 - The monitoring targets above are targets: the external monitor, log store and paging have to be set up on the chosen host.
 - The CI workflow has not run on GitHub yet; check its first run and then require it on `main`.

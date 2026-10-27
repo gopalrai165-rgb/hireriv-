@@ -152,7 +152,7 @@ The periods are set under **Admin → Retention** (`/admin/retention`). Changing
 - **Consent records** stay as evidence under a keyed hash.
 
 **Backups and the erasure journal:**
-- Deleted data stays in backups until the last copy holding it is replaced (at most the backup period).
+- Deleted data stays in backups until the last copy holding it is replaced (at most the backup period). Uploaded files follow the same rule: a stored copy is removed when no kept backup lists it any more.
 - Each deletion is also written to `erasures.log` next to the database, outside it and its backups: a keyed hash and the time, no email.
 - If an older backup is restored, the app deletes those accounts again at start-up, unless the person signed up again after the deletion.
 - Keep `erasures.log` with the database when moving servers, and never restore it from a backup.

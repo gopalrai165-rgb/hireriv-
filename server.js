@@ -1661,8 +1661,9 @@ const runRetention = ops.track('data-retention', () => {
 runRetention();
 setInterval(runRetention, 24 * 60 * 60 * 1000).unref();
 
-// Daily database backups, kept next to the database unless BACKUP_DIR says otherwise.
-const backups = backupsModule.create({ db, dir: process.env.BACKUP_DIR ? path.resolve(process.env.BACKUP_DIR) : path.join(path.dirname(DB_FILE), 'backups'), log: team.log, keep: () => privacy.policy().backupDays });
+// Daily backups of the database and the uploads folder, kept next to the
+// database unless BACKUP_DIR says otherwise.
+const backups = backupsModule.create({ db, dir: process.env.BACKUP_DIR ? path.resolve(process.env.BACKUP_DIR) : path.join(path.dirname(DB_FILE), 'backups'), log: team.log, keep: () => privacy.policy().backupDays, uploadsDir: UPLOADS_DIR });
 backups.start();
 
 // Sign-in cookies ride along on cross-site form posts, so every admin write must
