@@ -771,7 +771,8 @@ function register(app, deps) {
     if (!PHONE_RE.test(u.phone || '')) return toSettings(res, 'Add your mobile number first.');
     const code = String(crypto.randomInt(0, 1000000)).padStart(6, '0');
     db.sessions.set('employer-otp', otpKey(u), sha(code), Date.now() + OTP_MINUTES * 60000);
-    sms.send(u.phone, `${code} is your ${site.name} verification code. It expires in ${OTP_MINUTES} minutes. Never share it with anyone.`);
+    // The same words as job seekers' codes: one approved DLT template covers both.
+    sms.send(u.phone, `${code} is your ${site.name} code. It expires in ${OTP_MINUTES} minutes. Never share it with anyone, including ${site.name} staff.`, { code });
     toSettings(res, `We sent a code to ${u.phone}.`, '&code=sent');
   });
   const otpTries = new Map();

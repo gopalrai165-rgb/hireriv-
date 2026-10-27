@@ -5,6 +5,7 @@
 // printed but don't stop it. `npm run check:config` prints the same report
 // for the settings in .env (or the environment) without starting anything.
 const vault = require('./vault');
+const sms = require('./sms');
 
 // The placeholder in .env.example and other values nobody should go live with.
 const WEAK_PASSWORDS = new Set(['change-me-to-a-long-password', 'admin', 'password', 'changeme', 'hireriv']);
@@ -47,6 +48,12 @@ function check(env = process.env) {
   else if (!set('SMTP_USER') || !set('SMTP_PASS')) warnings.push('SMTP_HOST is set without SMTP_USER / SMTP_PASS; most providers refuse unauthenticated mail');
   if (!set('MAIL_FROM')) warnings.push('MAIL_FROM is not set: emails come from the site email in Admin → Settings');
   if (set('EMAIL_WEBHOOK_SECRET') && String(env.EMAIL_WEBHOOK_SECRET).length < MIN_SECRET) errors.push(`EMAIL_WEBHOOK_SECRET must be at least ${MIN_SECRET} characters`);
+
+  // Text messages: mobile sign-in and sign-up are hidden without a provider.
+  const smsGaps = sms.missing(env);
+  if (smsGaps.length) errors.push(`Text messages are half set up (SMS_PROVIDER=${sms.provider(env)}): ${smsGaps.join(', ')} missing`);
+  else if (!sms.provider(env)) warnings.push('No text-message provider (SMS_PROVIDER): signing in and signing up with a mobile code are hidden, and employer mobile codes are only saved to the outbox folder');
+  else if (sms.provider(env) === 'webhook' && !/^https:/.test(String(env.SMS_WEBHOOK_URL))) errors.push('SMS_WEBHOOK_URL must start with https://');
 
   // Payments: all three Razorpay values together, or none.
   const rzp = ['RAZORPAY_KEY_ID', 'RAZORPAY_KEY_SECRET', 'RAZORPAY_WEBHOOK_SECRET'];

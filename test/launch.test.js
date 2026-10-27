@@ -17,6 +17,7 @@ const good = {
   DB_FILE: '/var/lib/hireriv/hireriv.db', UPLOADS_DIR: '/var/lib/hireriv/uploads', BACKUP_DIR: '/mnt/backup/hireriv',
   CLAMAV_HOST: 'clamav', TRUST_PROXY: '1',
   RAZORPAY_KEY_ID: 'rzp_live_x', RAZORPAY_KEY_SECRET: 's', RAZORPAY_WEBHOOK_SECRET: 'w',
+  SMS_PROVIDER: 'msg91', MSG91_AUTH_KEY: 'k', MSG91_TEMPLATE_ID: 't',
 };
 
 test('a complete production configuration passes', () => {

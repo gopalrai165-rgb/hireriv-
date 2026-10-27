@@ -96,7 +96,7 @@ async function startServer(env = {}, seed = {}, { sampleJobs = false } = {}) {
     },
     // Verifies a signed-in employer's mobile with the code from the outbox.
     async verifyEmployerMobile(cookie, headers = {}) {
-      const codes = () => server.emails().filter((m) => m.includes('verification code'));
+      const codes = () => server.emails().filter((m) => /\d{6} is your .* code\./.test(m));
       const before = codes().length;
       const sent = await server.request('/employer/settings/phone/send', { method: 'POST', form: {}, cookie, headers });
       if (sent.status !== 302) throw new Error(`sending the code failed: ${sent.status}`);

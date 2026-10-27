@@ -233,7 +233,18 @@ Without SMTP settings, every email is saved to `data/outbox/*.eml` (open these i
 $env:SMTP_HOST="smtp.gmail.com"; $env:SMTP_USER="you@gmail.com"; $env:SMTP_PASS="app-password"; $env:ADMIN_PASS="secret"; npm start
 ```
 
-**Text messages** (6-digit codes that verify employers' mobile numbers): set `SMS_WEBHOOK_URL` to your SMS provider's HTTP endpoint, or a small relay in front of it. Each message is POSTed as JSON `{"to": "...", "message": "..."}`, with `SMS_WEBHOOK_TOKEN` as a Bearer token. Without it, messages are saved next to the emails in the outbox folder as `.sms.txt` files.
+**Text messages** (6-digit codes for job seekers' mobile sign-in and sign-up, and for employers' mobile checks; `sms.js`). Set `SMS_PROVIDER`:
+- `msg91`: `MSG91_AUTH_KEY` and `MSG91_TEMPLATE_ID` (MSG91's Flow API). Only the code is sent; MSG91 fills it into your approved template's `##OTP##` variable (another name with `MSG91_CODE_VAR`).
+- `twilio`: `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN` and `TWILIO_FROM` (or `TWILIO_MESSAGING_SERVICE_SID`). The full text is sent.
+- `webhook`: `SMS_WEBHOOK_URL` (https) and `SMS_WEBHOOK_TOKEN`; each message is POSTed as JSON `{"to": "+919876543210", "message": "..."}` with the token as a Bearer header. `SMS_WEBHOOK_URL` alone still means this.
+
+Without a provider, messages are saved next to the emails in the outbox folder as `.sms.txt` files, and on the live site the mobile sign-in and sign-up options are hidden. A provider with a setting missing stops a production start (`npm run check:config`). Send yourself one test code with `npm run sms:test -- 9876543210`.
+
+**In India, DLT registration comes first** (TRAI rules; both MSG91 and Twilio need it): register the business as a principal entity on an operator's DLT portal, a 6-letter sender ID (header) and this one content template, then give the template's id to your provider:
+```
+{#var#} is your Hireriv code. It expires in 10 minutes. Never share it with anyone, including Hireriv staff.
+```
+Every code the site sends uses exactly these words (with your site name if it isn't Hireriv), so one template covers them all. Messages that don't match a registered template are dropped by the operators.
 
 ## Customise
 | What | Where |

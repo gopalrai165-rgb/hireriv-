@@ -469,7 +469,7 @@ function register(app, deps) {
     const code = String(crypto.randomInt(0, 1000000)).padStart(6, '0');
     db.sessions.set(purpose, key, sha(`${key}:${code}`), Date.now() + OTP_MINUTES * 60000);
     otpTries.delete(`${purpose}:${key}`);
-    sms.send(`+91${mobile}`, `${code} is your ${site.name} code. It expires in ${OTP_MINUTES} minutes. Never share it with anyone, including ${site.name} staff.`);
+    sms.send(`+91${mobile}`, `${code} is your ${site.name} code. It expires in ${OTP_MINUTES} minutes. Never share it with anyone, including ${site.name} staff.`, { code });
     return true;
   }
   // True once, for the right code. Wrong codes count, and the fifth ends it.
@@ -535,7 +535,7 @@ function register(app, deps) {
     db.sessions.set('candidate-signup', signupKey(mobile), sha(`${signupKey(mobile)}:${code}`), exp);
     db.sessions.set('candidate-signup-data', signupKey(mobile), JSON.stringify(Object.fromEntries(SIGNUP_FIELDS.map((k) => [k, values[k]]))), exp);
     otpTries.delete(`candidate-signup:${signupKey(mobile)}`);
-    sms.send(`+91${mobile}`, `${code} is your ${site.name} code. It expires in ${OTP_MINUTES} minutes. Never share it with anyone, including ${site.name} staff.`);
+    sms.send(`+91${mobile}`, `${code} is your ${site.name} code. It expires in ${OTP_MINUTES} minutes. Never share it with anyone, including ${site.name} staff.`, { code });
     registerPhonePage(res, { codeStep: true, phone: mobile, next, title: 'Enter your code' });
   });
   app.post('/account/register/phone/verify', limit('account-otp-check', 20), sameOrigin, async (req, res) => {

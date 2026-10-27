@@ -10,7 +10,8 @@
     "test": "node --test test/*.test.js",
     "pg:migrate": "node --env-file-if-exists=.env db/postgres/migrate.js",
     "check:config": "node --env-file-if-exists=.env config-check.js",
-    "backup:restore-test": "node --env-file-if-exists=.env backups.js"
+    "backup:restore-test": "node --env-file-if-exists=.env backups.js",
+    "sms:test": "node --env-file-if-exists=.env sms.js"
   },
   "engines": {
     "node": ">=22.13"
