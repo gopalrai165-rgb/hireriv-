@@ -102,7 +102,8 @@ A complete website for a tech-driven staffing and recruitment company, built wit
   - **Appeals** (`/admin/appeals`, `/appeal/:token`): companies can appeal for 30 days against unpublished or removed listings, suspensions, closures and declined sign-ups. Someone who didn't make the decision decides, and overturning reverses it
   - **Audit history** (`/admin/audit-logs`): every audit log in one read-only, searchable view. Trust & safety entries are hash-chained, and the page shows whether the chain is intact
   - **System health** (`/admin/system-health`): no customer content. It shows:
-    - the database, request counts and server-error counts
+    - the database, request counts and server-error counts, kept across restarts and deploys (saved to the database every minute and on shutdown, for 48 hours)
+    - whether the outside heartbeat (`HEARTBEAT_URL`) and JSON logs (`LOG_FORMAT=json`) are on
     - background jobs: last run, failures, overdue
     - recent errors, with personal data stripped
     - the email queue and failed emails, with retry
@@ -305,4 +306,4 @@ The image keeps the database and resumes in the `hireriv-data` volume and checks
 
 **Render / Railway** – create a Node web service from this repo (build: `npm ci`, start: `node server.js`), attach a persistent disk mounted at e.g. `/var/data`, and set `DB_FILE=/var/data/hireriv.db`, `UPLOADS_DIR=/var/data/uploads`, `TRUST_PROXY=1` plus the settings above. Use `/healthz` as the health check path.
 
-**Built in:** security headers (Content-Security-Policy with no inline scripts, anti-framing, nosniff, referrer and permissions policies, HSTS on https), `/healthz` (checks the database), private areas hidden from search engines, and cache-busted CSS/JS.
+**Built in:** security headers (Content-Security-Policy with no inline scripts, anti-framing, nosniff, referrer and permissions policies, HSTS on https), `/healthz` (checks the database), a heartbeat to an outside monitor every 5 minutes (`HEARTBEAT_URL`), JSON log lines for a log store (`LOG_FORMAT=json`), private areas hidden from search engines, and cache-busted CSS/JS.

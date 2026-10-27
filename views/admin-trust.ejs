@@ -428,7 +428,8 @@
           <p><span class="pill <%= h.status === 'ok' ? 'st-hired' : 'st-rejected' %>"><%= h.status === 'ok' ? 'All good' : h.status === 'down' ? 'Down' : 'Needs attention' %></span></p>
           <ul class="plain-list">
             <li>Database: <b><%= h.database.ok ? 'answering' : 'not answering' %></b> (<%= h.database.ms %> ms)</li>
-            <li>Up for <%= Math.round(h.process.uptimeSeconds / 3600) %> h · memory <%= h.process.memoryMb %> MB</li>
+            <li>Up for <%= Math.round(h.process.uptimeSeconds / 3600) %> h · memory <%= h.process.memoryMb %> MB<% if (h.process.countingSince) { %> · counts kept since <%= when(h.process.countingSince) %><% } %></li>
+            <li>Outside monitor: <%= h.monitoring.heartbeat ? 'heartbeat on (see the heartbeat job below)' : 'no heartbeat (set HEARTBEAT_URL)' %> · logs: <%= h.monitoring.jsonLogs ? 'JSON lines' : 'plain text' %></li>
             <li>Requests (24 h): <%= h.requests.last24h %> · server errors <b><%= h.requests.serverErrors24h %></b> (<%= h.requests.serverErrorPercent %>%) · availability <%= h.requests.availabilityPercent %>%</li>
             <% if (h.backups) { %><li>Backups: <%= h.backups.warning || 'last ' + when(h.backups.lastBackupAt) %></li><% } %>
             <li>Audit chain: <%= h.auditTrail.ok ? 'intact' : 'broken (' + h.auditTrail.problem + ')' %></li>

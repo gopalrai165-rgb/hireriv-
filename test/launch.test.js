@@ -18,6 +18,7 @@ const good = {
   CLAMAV_HOST: 'clamav', TRUST_PROXY: '1',
   RAZORPAY_KEY_ID: 'rzp_live_x', RAZORPAY_KEY_SECRET: 's', RAZORPAY_WEBHOOK_SECRET: 'w',
   SMS_PROVIDER: 'msg91', MSG91_AUTH_KEY: 'k', MSG91_TEMPLATE_ID: 't',
+  HEARTBEAT_URL: 'https://hc-ping.com/abc', LOG_FORMAT: 'json',
 };
 
 test('a complete production configuration passes', () => {
@@ -41,6 +42,9 @@ test('each unsafe setting is a blocking error', () => {
     [{ RAZORPAY_WEBHOOK_SECRET: '' }, /half set up: RAZORPAY_WEBHOOK_SECRET/],
     [{ AI_PROVIDER: 'mock' }, /mock/],
     [{ EMAIL_WEBHOOK_SECRET: 'short' }, /EMAIL_WEBHOOK_SECRET/],
+    [{ HEARTBEAT_URL: 'http://hc-ping.com/abc' }, /HEARTBEAT_URL must start/],
+    [{ HEARTBEAT_MINUTES: '0.5' }, /HEARTBEAT_MINUTES/],
+    [{ LOG_FORMAT: 'xml' }, /LOG_FORMAT/],
   ];
   for (const [change, re] of cases) {
     const r = config.check({ ...good, ...change });
@@ -50,9 +54,9 @@ test('each unsafe setting is a blocking error', () => {
 });
 
 test('gaps that are not unsafe are warnings only', () => {
-  const r = config.check({ ...good, BACKUP_DIR: '', CLAMAV_HOST: '', RAZORPAY_KEY_ID: 'rzp_test_x', RESET_OWNER_2FA: '1' });
+  const r = config.check({ ...good, BACKUP_DIR: '', CLAMAV_HOST: '', RAZORPAY_KEY_ID: 'rzp_test_x', RESET_OWNER_2FA: '1', HEARTBEAT_URL: '', LOG_FORMAT: '' });
   assert.equal(r.ok, true);
-  for (const re of [/BACKUP_DIR/, /CLAMAV_HOST/, /sandbox/, /RESET_OWNER_2FA/]) assert.ok(r.warnings.some((w) => re.test(w)), String(re));
+  for (const re of [/BACKUP_DIR/, /CLAMAV_HOST/, /sandbox/, /RESET_OWNER_2FA/, /HEARTBEAT_URL/, /LOG_FORMAT/]) assert.ok(r.warnings.some((w) => re.test(w)), String(re));
   assert.match(config.report(r), /No blocking problems/);
 });
 

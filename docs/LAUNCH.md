@@ -19,7 +19,7 @@ Nothing here says Hireriv is "compliant" or "secure". It lists what exists, what
 | 5 | Privacy and data protection | **Needs work** | Consent records, data-rights requests, grievance handling, retention by purpose, erasure with a journal, redaction for AI (`docs/SECURITY.md`). | Review by Indian counsel of the DPDP Act and Rules, CERT-In directions (logs in India for 180 days: depends on the host), processor contracts with hosting, email, SMS, payment and AI providers, and the `/privacy` and `/terms` text. |
 | 6 | Data storage, backups and restore | **Needs work** | Daily SQLite backups with an integrity check and retention; **a weekly restore drill** that restores the newest copy into a scratch folder with the app's own `db.open`, checks and counts it and records the time and the copy's age (Admin → Settings → Backups, and the dashboard warns if it fails or stops); `npm run backup:restore-test` for a drill by hand. Uploaded files (resumes, documents, evidence) are copied with every backup into `BACKUP_DIR/uploads`, each content stored once and kept as long as a backup that holds it; the drill restores them too, checks every file against its SHA-256 and counts files the records name that were already missing; `npm run backup:restore-uploads` puts them back for a real restore. | The backup folder must be on a second disk or synced off the server (`BACKUP_DIR`). A full restore on the real host has not been rehearsed (section 4). |
 | 7 | Disaster recovery (RTO / RPO) | **Needs work** | Targets and the restore runbook in section 3. | The first rehearsal on the live host, with the measured time written into section 3. |
-| 8 | Monitoring, logging and alerting | **Needs work** | `/healthz` (checks the database), `/admin/system-health` (request and error counts per hour, background jobs, cleaned errors, email delivery), security alerts by email, backup and restore-test warnings on the dashboard. | An external uptime monitor and an off-server log store; the in-app counters reset on restart. Targets in section 5. |
+| 8 | Monitoring, logging and alerting | **Needs work** | `/healthz` (checks the database), `/admin/system-health` (request and error counts per hour, background jobs, cleaned errors, email delivery; kept across restarts), security alerts by email, backup and restore-test warnings on the dashboard; a heartbeat to an outside monitor (`HEARTBEAT_URL`) and JSON log lines on stdout (`LOG_FORMAT=json`) with route patterns and cleaned messages only. | Choosing the outside monitor and setting `HEARTBEAT_URL` and a `/healthz` check there, and pointing the host's log drain at a log store (kept 180 days in India for CERT-In: section 7). Targets in section 5. |
 | 9 | Testing and CI | **Ready** | `npm test` (unit and end-to-end against a throwaway server, accessibility checks in English and Hindi, Postgres tests with `TEST_DATABASE_URL`); `.github/workflows/ci.yml` runs them on Node 22.13 and 22 with a Postgres service, `npm audit` for high and critical issues, builds the Docker image, checks it refuses unsafe settings and answers `/healthz`. | Turn on branch protection requiring **CI** on `main` in GitHub. |
 | 10 | Deployment and rollback | **Needs work** | Dockerfile with a health check and a non-root user, Render / Railway instructions, Postgres migrations with matching rollback files. | No staging environment yet. Rollback is "redeploy the previous image"; database changes are additive so far, but a rollback that needs older data means a restore (section 3). |
 | 11 | Performance and capacity | **Needs work** | A repeatable load test (`npm run load:test`, `docs/PERFORMANCE.md`) at 5,000 jobs and 50,000 applications, with the slow paths it found fixed: public pages now answer in 60–600 ms with 20 requests at a time, up from 0.2–29 s. Pagination, cache-busted static files, Save-Data pages, optional Postgres search. | A run on the real host. The first admin view after the applications change recounts them (about 0.3 s at 50,000). One Node process with SQLite (`docs/PERFORMANCE.md` §4). |
@@ -43,6 +43,7 @@ Run `npm run check:config` before every deploy. With `NODE_ENV=production` the s
 | Some but not all of the three Razorpay values | `DB_FILE`, `UPLOADS_DIR` or `BACKUP_DIR` unset; backups inside the database folder |
 | `AI_PROVIDER=mock` | `CLAMAV_HOST` or `TRUST_PROXY` unset |
 | `EMAIL_WEBHOOK_SECRET` set but under 16 characters | `NOTIFY_WORKER=off` |
+| `HEARTBEAT_URL` not https; `HEARTBEAT_MINUTES` outside 1–60; `LOG_FORMAT` other than `json` or `text` | `HEARTBEAT_URL` unset; `LOG_FORMAT` not `json` |
 
 There is deliberately no switch to skip the checks. Fix the setting instead.
 
@@ -83,6 +84,8 @@ There is deliberately no switch to skip the checks. Fix the setting instead.
 | Background jobs | none failing or overdue | `/admin/system-health` | Shown on the platform report; check daily |
 | Email delivery | under 2% bounced | `/admin/notifications` and the provider | Dashboard "Email delivery" warning |
 | Security | as `docs/SECURITY.md` §4 | Security alerts | Email to people with `security.view` |
+| Heartbeat | a ping every 5 minutes (`HEARTBEAT_URL`) | The outside monitor | No ping for 15 minutes: email + phone to the on-call person |
+| Logs | every request and error as a JSON line (`LOG_FORMAT=json`) | The log store fed by the host's log drain | Alert on more than 20 `"level":"error"` lines in 5 minutes |
 | TLS certificate | more than 14 days left | Uptime monitor | Email |
 | Disk | under 80% full on the data volume | Host metrics | Email |
 
@@ -113,5 +116,5 @@ Nothing here has been changed. **No DNS record will be changed without the owner
 
 - No penetration test, load test or staging environment: they need the real host.
 - The restore drill restores into the server's temp folder, so it needs free space there about the size of the uploads.
-- The monitoring targets above are targets: the external monitor, log store and paging have to be set up on the chosen host.
+- The monitoring targets above are targets: the app sends the heartbeat and writes the JSON logs, but the outside monitor, the log store and paging have to be chosen and set up for the chosen host.
 - The CI workflow has not run on GitHub yet; check its first run and then require it on `main`.

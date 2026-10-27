@@ -45,6 +45,7 @@ const crm = require('./crm');
 const trust = require('./trust');
 // Request and error counts and background-job runs for the operations view.
 const ops = require('./ops-monitor').create();
+const HEARTBEAT_MS = (Number(process.env.HEARTBEAT_MINUTES) || 5) * 60000;
 // Set once trust & safety is registered; job reports become cases.
 const trustHooks = { reportJob: () => null, labelsFor: () => null, hrContactFor: () => null };
 // Set once the CRM is registered; website inquiries and sign-ups become leads.
@@ -94,6 +95,8 @@ fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 // fresh install, and old data/submissions/*.json files are imported once.
 const DB_FILE = process.env.DB_FILE ? path.resolve(process.env.DB_FILE) : path.join(DATA_DIR, 'hireriv.db');
 const db = openDb(DB_FILE);
+// The operations counters survive restarts and deploys (ops-monitor.js).
+ops.persist({ get: () => db.metaGet('ops:state'), set: (v) => db.metaSet('ops:state', v) });
 // Conversion counts for the website (no personal data; see site-analytics.js).
 const siteAnalytics = require('./site-analytics').create({ db });
 const flushAnalytics = ops.track('analytics-flush', () => siteAnalytics.flush(), Number(process.env.ANALYTICS_FLUSH_MS) || 60 * 1000);
@@ -2497,7 +2500,7 @@ app.use((err, req, res, next) => {
     if (req.path.startsWith('/api/') || req.accepts(['html', 'json']) === 'json') return res.status(err.status).json({ ok: false, errors: [err.status === 413 ? 'the request is too large' : 'the request body could not be read'] });
     return res.status(err.status).render('thanks', { title: 'Something was wrong with that request', page: '', ok: false, message: 'Please go back and try again.', noindex: true });
   }
-  console.error(err);
+  if (process.env.LOG_FORMAT !== 'json') console.error(err);
   ops.recordError(req, err);
   siteAnalytics.track('server-error', `/${String(req.path).split('/')[1] || ''}`);
   res.status(500).render('thanks', { title: 'Something went wrong', page: '', ok: false, message: 'Something went wrong on our side. Please try again.', noindex: true });
@@ -2507,9 +2510,21 @@ app.use((err, req, res, next) => {
 for (const signal of ['SIGINT', 'SIGTERM']) {
   process.on(signal, () => {
     try { siteAnalytics.flush(); } catch (e) { console.error(e.message); }
+    try { ops.save(); } catch (e) { console.error(e.message); }
     db.close();
     process.exit(0);
   });
 }
 
-app.listen(PORT, () => console.log(`Hireriv running at http://localhost:${PORT} · email: ${mailer.mode}`));
+// Heartbeat to an outside monitor (HEARTBEAT_URL, e.g. Healthchecks.io or
+// Better Stack): a ping every few minutes while the database answers. The
+// monitor alerts when pings stop, which catches a crashed, frozen or
+// unreachable server that can't report itself.
+if (process.env.HEARTBEAT_URL) {
+  const beat = ops.track('heartbeat', () => ops.heartbeat(process.env.HEARTBEAT_URL, () => { try { db.count('jobs'); return true; } catch (e) { return false; } }), HEARTBEAT_MS);
+  const tick = () => beat().catch((err) => console.error(`[heartbeat] ${err.message}`));
+  setTimeout(tick, 5000).unref();
+  setInterval(tick, HEARTBEAT_MS).unref();
+}
+
+app.listen(PORT, () => (process.env.LOG_FORMAT === 'json' ? ops.log('info', 'started', { port: Number(PORT), email: mailer.mode }) : console.log(`Hireriv running at http://localhost:${PORT} · email: ${mailer.mode}`)));

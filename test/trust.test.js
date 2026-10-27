@@ -124,6 +124,69 @@ test('operational monitoring keeps no personal data and records background jobs'
   assert.deepEqual(m.snapshot().recentErrors.map((e) => [e.route, e.message]), [['GET /jobs/:id', 'Cannot read x of [email]']]);
 });
 
+test('operational counts survive a restart, and JSON logs carry no personal data', async () => {
+  let t = Date.parse('2026-10-28T10:15:00Z');
+  const now = () => t;
+  let stored = null;
+  const store = { get: () => stored, set: (v) => { stored = v; }, everyMs: 0 };
+  const lines = [];
+  const first = ops.create({ now, logFormat: 'json', write: (l) => lines.push(JSON.parse(l)) });
+  first.persist(store);
+  const job = first.track('nightly', () => { throw new Error('failed for a@b.in'); }, 1000);
+  assert.throws(() => job());
+  // A request finishing: the route pattern, never the real path or query.
+  const { EventEmitter } = require('node:events');
+  const res = new EventEmitter();
+  res.statusCode = 503;
+  const req = { method: 'GET', path: '/jobs/123', route: { path: '/jobs/:id' }, baseUrl: '' };
+  first.middleware(req, res, () => {});
+  res.emit('finish');
+  first.recordError(req, new Error('Cannot read x of priya@example.in'));
+  first.save();
+
+  assert.deepEqual(lines.map((l) => [l.level, l.msg]), [['error', 'background job failed'], ['error', 'request'], ['error', 'unhandled error']]);
+  assert.equal(lines[1].route, 'GET /jobs/:id');
+  assert.equal(lines[1].status, 503);
+  assert.equal(lines[2].error, 'Cannot read x of [email]');
+  assert.ok(lines[2].stack.length && lines[2].stack.every((f) => !/[\\/]/.test(f)), 'stack frames keep file names, not folders');
+  assert.doesNotMatch(JSON.stringify(lines), /@|123/);
+
+  // The next process loads what the last one saved.
+  t += 3600000;
+  const second = ops.create({ now, logFormat: 'text', write: () => assert.fail('text mode writes no JSON') });
+  second.persist(store);
+  second.track('nightly', () => 1, 1000);
+  const snap = second.snapshot();
+  assert.equal(snap.requests24h, 1);
+  assert.equal(snap.serverErrors24h, 1);
+  assert.equal(snap.errorsSinceStart, 1);
+  assert.equal(snap.recentErrors[0].message, 'Cannot read x of [email]');
+  assert.equal(snap.countingSince, '2026-10-28T10:15:00.000Z');
+  assert.deepEqual([snap.jobs[0].runs, snap.jobs[0].failures, snap.jobs[0].failing], [1, 1, true]);
+  // Hours older than two days are dropped on load.
+  t += 49 * 3600000;
+  const third = ops.create({ now });
+  third.persist(store);
+  assert.equal(third.snapshot().requests24h, 0);
+});
+
+test('the heartbeat pings the outside monitor only while the database answers', async () => {
+  const http = require('node:http');
+  const hits = [];
+  const server = http.createServer((req, res) => { hits.push(req.url); res.statusCode = req.url === '/down' ? 500 : 200; res.end('OK'); });
+  await new Promise((r) => server.listen(0, r));
+  const url = `http://127.0.0.1:${server.address().port}`;
+  const m = ops.create();
+  try {
+    assert.equal(await m.heartbeat(`${url}/ping`, () => true), 200);
+    await assert.rejects(m.heartbeat(`${url}/ping`, () => false), /database/);
+    await assert.rejects(m.heartbeat(`${url}/down`, () => true), /answered 500/);
+    assert.deepEqual(hits, ['/ping', '/down']);
+  } finally {
+    server.close();
+  }
+});
+
 test('trust roles need two-step sign-in and see only their own pages', async () => {
   // Before two-step sign-in is on, only the set-up page opens.
   const newbie = await member('Nia', 'nia@hireriv.test', 'Support Agent', { twoStep: false });

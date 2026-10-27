@@ -72,6 +72,11 @@ function check(env = process.env) {
   else if (set('DB_FILE') && require('path').resolve(env.BACKUP_DIR).startsWith(require('path').dirname(require('path').resolve(env.DB_FILE)))) warnings.push('BACKUP_DIR is inside the database folder; use a second disk or a synced folder');
   if (!set('CLAMAV_HOST')) warnings.push('CLAMAV_HOST is not set: uploaded files are type-checked but not virus-scanned');
   if (!set('TRUST_PROXY')) warnings.push('TRUST_PROXY is not set: behind a proxy, rate limits and logs would see the proxy\'s address');
+  if (!set('HEARTBEAT_URL')) warnings.push('HEARTBEAT_URL is not set: no outside monitor hears from this server, so a crash or freeze is noticed only by people (docs/LAUNCH.md section 5)');
+  else if (!/^https:\/\//.test(String(env.HEARTBEAT_URL))) errors.push('HEARTBEAT_URL must start with https://');
+  if (set('HEARTBEAT_MINUTES') && !(Number(env.HEARTBEAT_MINUTES) >= 1 && Number(env.HEARTBEAT_MINUTES) <= 60)) errors.push('HEARTBEAT_MINUTES must be between 1 and 60');
+  if (set('LOG_FORMAT') && !['json', 'text'].includes(env.LOG_FORMAT)) errors.push('LOG_FORMAT must be "json" or "text"');
+  else if (env.LOG_FORMAT !== 'json') warnings.push('LOG_FORMAT is not "json": logs are plain text, harder for a log store to search');
   if (env.NOTIFY_WORKER === 'off') warnings.push('NOTIFY_WORKER=off: this server sends no queued emails (fine only if another copy does)');
 
   if (!production) warnings.unshift('NODE_ENV is not "production": these checks only stop the server from starting in production');
