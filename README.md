@@ -202,7 +202,7 @@ Then open http://localhost:3004/admin/login and sign in as `admin` with that pas
 ```bash
 npm test
 ```
-Unit tests cover the billing maths (GST split, amount in words, financial years, payments, TDS, credit notes and refunds), settings and blog validation, skill matching, resume reading, stage history, timesheets and SEO data. End-to-end tests start the real server with a throwaway database, email outbox and uploads folder (your `data/` is never touched) and walk through applying, spam protection, admin sign-in and cross-site protection, closing a job, candidate sign-in links, and recording a placement through to a paid invoice. Run them before every deploy.
+Unit tests cover the billing maths (GST split, amount in words, financial years, payments, TDS, credit notes and refunds), settings and blog validation, skill matching, resume reading, stage history, timesheets and SEO data. End-to-end tests start the real server with a throwaway database, email outbox and uploads folder (your `data/` is never touched) and walk through applying, spam protection, admin sign-in and cross-site protection, closing a job, candidate sign-in links, and recording a placement through to a paid invoice. Run them before every deploy. GitHub Actions (`.github/workflows/ci.yml`) runs them on every push and pull request, with PostgreSQL, a dependency audit and a Docker build.
 
 **Access control:** [`docs/ACCESS.md`](docs/ACCESS.md) lists every route and who may use it (public, one-time link, candidate, client, team, Admin). `test/access.test.js` reads the routes from the code and fails if that file is out of date, and checks that signed-out visitors and Recruiters are refused wherever they should be. When you add a route, add it to the table. [`docs/AUDIT.md`](docs/AUDIT.md) is the platform audit and backlog for the all-industry plan (office, skilled and field jobs).
 
@@ -258,6 +258,8 @@ Set `DATABASE_URL` (e.g. `postgres://hireriv:password@localhost:5432/hireriv` in
 > The testimonials, stats and sample jobs are placeholders. Replace them with real ones before going live.
 
 ## Go-live checklist
+[`docs/LAUNCH.md`](docs/LAUNCH.md) is the launch-gap report: what is ready, what still needs work, recovery targets, monitoring targets, launch gates and the staged rollout. Run `npm run check:config` before every deploy: with `NODE_ENV=production` the server refuses to start on the same errors (a placeholder password, an http `SITE_URL`, no `FILE_ENCRYPTION_KEY` or `SMTP_HOST`, half-set payment keys). `npm run backup:restore-test` restores the newest backup into a scratch folder and checks it; the server also does this every week.
+
 1. **Server settings** (`.env` or your host's dashboard): `NODE_ENV=production`, `SITE_URL` (https), `FILE_ENCRYPTION_KEY` (see docs/SECURITY.md), `CLAMAV_HOST`, `RAZORPAY_KEY_ID` / `RAZORPAY_KEY_SECRET` / `RAZORPAY_WEBHOOK_SECRET` (see docs/BILLING.md), `ANTHROPIC_API_KEY` for the AI assistant (optional; see docs/AI.md), `LANGUAGES` (default `en,hi`; see docs/I18N.md, and have the Hindi reviewed first), `ADMIN_PASS`, `SMTP_HOST` / `SMTP_USER` / `SMTP_PASS`, `MAIL_FROM`, `NOTIFY_EMAIL`, `TRUST_PROXY=1` behind a proxy, and `BACKUP_DIR` on a second disk or synced folder.
 2. **Persistent storage** for the database, `uploads/` and backups (see Deploy).
 3. **Admin → Settings:** real phone, WhatsApp, address and social links; legal name, GSTIN, PAN and bank details; your fee, guarantee, GST and TDS defaults; and decide on **Data retention**. The dashboard's **Needs your attention** list shows what is still missing.
@@ -269,7 +271,7 @@ Set `DATABASE_URL` (e.g. `postgres://hireriv:password@localhost:5432/hireriv` in
 ## Deploy
 Hireriv is one Node.js process with a SQLite file, so any host that runs **Node 22.13+** with a **persistent disk** works. Keep the database and `uploads/` on that disk, and put the site behind HTTPS.
 
-**Settings** – copy `.env.example` to `.env` and fill it in (`SITE_URL` with https, `ADMIN_PASS`, the `SMTP_*` values, `TRUST_PROXY=1` behind a proxy). Run with `npm run start:env`, or set the same variables in your host's dashboard. With `NODE_ENV=production` the server prints a warning at startup for anything important that is missing.
+**Settings** – copy `.env.example` to `.env` and fill it in (`SITE_URL` with https, `ADMIN_PASS`, the `SMTP_*` values, `TRUST_PROXY=1` behind a proxy). Run with `npm run start:env`, or set the same variables in your host's dashboard. With `NODE_ENV=production` the server will not start while an unsafe setting is present, and prints warnings for the rest (see `docs/LAUNCH.md` section 2).
 
 **Docker** (on a VPS):
 ```bash

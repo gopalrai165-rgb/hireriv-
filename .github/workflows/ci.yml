@@ -1,0 +1,72 @@
+# Every push and pull request: install from the lockfile, run the whole test
+# suite (with a throwaway PostgreSQL for the Postgres tests), check the launch
+# configuration rules against a complete example, and build the Docker image.
+# A red run blocks the merge once branch protection requires "CI".
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Tests (Node ${{ matrix.node }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ['22.13', '22']
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: hireriv
+          POSTGRES_PASSWORD: hireriv
+          POSTGRES_DB: hireriv_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U hireriv"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgres://hireriv:hireriv@localhost:5432/hireriv_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - name: Dependency audit (high and critical)
+        run: npm audit --omit=dev --audit-level=high
+
+  docker:
+    name: Docker image
+    runs-on: ubuntu-latest
+    needs: test
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t hireriv:ci .
+      - name: Refuses to start with unsafe production settings
+        run: |
+          set +e
+          docker run --rm -e SITE_URL=http://example.com hireriv:ci
+          test $? -eq 1
+      - name: Starts and answers /healthz with complete settings
+        run: |
+          docker run -d --name hireriv -p 3004:3004 \
+            -e SITE_URL=https://ci.example.com -e ADMIN_PASS=ci-owner-password-long \
+            -e FILE_ENCRYPTION_KEY=$(openssl rand -hex 32) -e SMTP_HOST=localhost \
+            hireriv:ci
+          for i in $(seq 1 30); do curl -fsS http://localhost:3004/healthz && exit 0; sleep 1; done
+          docker logs hireriv; exit 1

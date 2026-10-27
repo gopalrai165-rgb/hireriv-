@@ -68,6 +68,20 @@ const BASE_URL = (process.env.SITE_URL || `http://localhost:${PORT}`).replace(/\
 
 const DATA_DIR = path.join(__dirname, 'data');
 const SUBMISSIONS_DIR = path.join(DATA_DIR, 'submissions');
+
+// ---------- launch configuration (config-check.js) ----------
+// In production the server refuses to start with unsafe settings, before it
+// touches the database or uploads; warnings are printed and it carries on.
+{
+  const config = require('./config-check').check();
+  if (config.production) {
+    console.warn(require('./config-check').report(config));
+    if (!config.ok) {
+      console.error('[config] Not starting: fix the errors above (see docs/LAUNCH.md).');
+      process.exit(1);
+    }
+  }
+}
 const UPLOADS_DIR = process.env.UPLOADS_DIR ? path.resolve(process.env.UPLOADS_DIR) : path.join(__dirname, 'uploads');
 fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 
@@ -129,7 +143,6 @@ const downloadLinks = uploadSafety.links(() => db.metaGet('secret:links'));
   if (process.env.FILE_ENCRYPTION_KEY) vault.configure([process.env.FILE_ENCRYPTION_KEY, ...old, ...(stored ? [stored] : [])]);
   else {
     if (!stored) db.metaSet('secret:files', vault.newKey());
-    if (process.env.NODE_ENV === 'production') console.warn('FILE_ENCRYPTION_KEY is not set: uploaded files are encrypted with a key kept in the database. Set FILE_ENCRYPTION_KEY to keep the key apart from the data.');
     vault.configure([db.metaGet('secret:files'), ...old]);
   }
 }
@@ -1822,7 +1835,7 @@ app.get('/admin', adminAuth, (req, res) => {
     const { rows, pager } = pageOf(test ? all.filter(test) : all);
     return res.render('admin', { ...locals, rows, pager, view, sum: billing.summary(all), statuses: billing.STATUSES, inr: billing.inr, formatYmd: placements.formatYmd, unrecorded: hired, clientById: Object.fromEntries(clients.read().map((c) => [c.id, c])), nameById: Object.fromEntries(all.map((p) => [p.id, p.candidateName])), monthLabel: billing.monthLabel });
   }
-  if (tab === 'settings') return res.render('admin', { ...locals, rows: [], form: { ...site, jobCategories: jobCategories(), jobLocations: site.jobLocations || DEFAULT_JOB_LOCATIONS }, errors: [], social: SOCIAL, billingForm: placements.billingOf(site), retentionPreview: retentionPreviews(), backups: { status: backups.status(), list: backups.list(), dir: backups.dir, keep: backups.keep } });
+  if (tab === 'settings') return res.render('admin', { ...locals, rows: [], form: { ...site, jobCategories: jobCategories(), jobLocations: site.jobLocations || DEFAULT_JOB_LOCATIONS }, errors: [], social: SOCIAL, billingForm: placements.billingOf(site), retentionPreview: retentionPreviews(), backups: { status: backups.status(), drill: backups.drillStatus(), list: backups.list(), dir: backups.dir, keep: backups.keep } });
   if (tab === 'talent') {
     const EXPERIENCE = ['Fresher', '0-1 years', '1-3 years', '3-5 years', '5-10 years', '10+ years'];
     const NOTICE = ['Immediate', '15 days', '30 days', '60 days', '90 days'];
@@ -2055,7 +2068,7 @@ app.post('/admin/settings', adminAuth, requireAdmin, sameOrigin, (req, res) => {
     settings.matchWeights = w.weights;
   }
   if (errors.length) {
-    return res.status(400).render('admin', { title: 'Admin', page: 'admin', tab: 'settings', tabs: tabsFor(req.admin), counts: {}, members: team.members(), memberName: {}, status: '', msg: '', rows: [], form: settings, errors, social: SOCIAL, retentionPreview: retentionPreviews(), backups: { status: backups.status(), list: backups.list(), dir: backups.dir, keep: backups.keep }, billingForm: Object.fromEntries(Object.entries(placements.billingOf(settings)).map(([k, v]) => [k, Number.isNaN(v) ? '' : v])) });
+    return res.status(400).render('admin', { title: 'Admin', page: 'admin', tab: 'settings', tabs: tabsFor(req.admin), counts: {}, members: team.members(), memberName: {}, status: '', msg: '', rows: [], form: settings, errors, social: SOCIAL, retentionPreview: retentionPreviews(), backups: { status: backups.status(), drill: backups.drillStatus(), list: backups.list(), dir: backups.dir, keep: backups.keep }, billingForm: Object.fromEntries(Object.entries(placements.billingOf(settings)).map(([k, v]) => [k, Number.isNaN(v) ? '' : v])) });
   }
   const retentionChanged = settings.retentionMonths !== (site.retentionMonths || 0);
   const weightsChanged = JSON.stringify(jobMatch.weightsOf(settings)) !== JSON.stringify(jobMatch.weightsOf(site));
@@ -2276,16 +2289,6 @@ for (const signal of ['SIGINT', 'SIGTERM']) {
     db.close();
     process.exit(0);
   });
-}
-
-// Warn loudly about settings a live site needs.
-if (process.env.NODE_ENV === 'production') {
-  const missing = [];
-  if (!process.env.SITE_URL) missing.push('SITE_URL (links, sitemap and Google data will say localhost)');
-  if (!ADMIN_PASS && !team.members().length) missing.push('ADMIN_PASS (admin panel is disabled until the owner account can sign in)');
-  if (!process.env.SMTP_HOST) missing.push('SMTP_HOST (emails are only saved to data/outbox)');
-  if (process.env.SITE_URL && !HTTPS) missing.push('SITE_URL should use https://');
-  for (const m of missing) console.warn(`[config] Missing or insecure: ${m}`);
 }
 
 app.listen(PORT, () => console.log(`Hireriv running at http://localhost:${PORT} · email: ${mailer.mode}`));

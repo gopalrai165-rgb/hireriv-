@@ -103,6 +103,10 @@
     <% if (!bs) { %><p class="notice notice-err">No backup has run yet.</p>
     <% } else if (!bs.ok) { %><p class="notice notice-err">The last backup failed (<%= new Date(bs.at).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) %>): <%= bs.error %></p>
     <% } else { %><p>Last backup: <b><%= new Date(bs.at).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit', timeZone: 'Asia/Kolkata' }) %></b> · <%= (bs.size / 1024).toFixed(0) %> KB</p><% } %>
+    <% const dr = backups.drill; %>
+    <% if (dr && !dr.ok) { %><p class="notice notice-err">The last restore test failed (<%= new Date(dr.at).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) %>): <%= dr.error %></p>
+    <% } else if (dr) { %><p class="small">Last restore test: <b><%= new Date(dr.at).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit', timeZone: 'Asia/Kolkata' }) %></b> · <%= dr.name %> restored and checked in <%= (dr.ms / 1000).toFixed(1) %> s (<%= dr.records %> records). The copy was <%= dr.ageHours %> hours old.</p>
+    <% } else { %><p class="muted small">No restore test yet. One runs every week after the backup.</p><% } %>
     <% if (backups.list.length) { %>
       <details class="table-toggle"><summary><%= backups.list.length %> saved cop<%= backups.list.length === 1 ? 'y' : 'ies' %></summary>
         <ul class="backup-list"><% backups.list.forEach(function (b) { %><li><a href="/admin/backups/<%= b.name %>"><%= b.name %></a> <span class="muted small"><%= (b.size / 1024).toFixed(0) %> KB</span></li><% }) %></ul>
