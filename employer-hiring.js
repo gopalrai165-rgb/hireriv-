@@ -269,7 +269,7 @@ function register(app, deps) {
       })),
       allowedMoves: may('applicants.manage') ? ats.allowedMoves(a) : [],
     };
-    if (may('applicants.contact')) Object.assign(v, { email: a.email || '', phone: a.phone || '', linkedin: a.linkedin || '', message: a.message || '', hasResume: Boolean(a.resume) });
+    if (may('applicants.contact')) Object.assign(v, { email: require('./identity').realEmail(a.email), phone: a.phone || '', linkedin: a.linkedin || '', message: a.message || '', hasResume: Boolean(a.resume) });
     // Internal: never shown to candidates.
     if (may('applicants.notes')) v.notes = (a.atsNotes || []).map((n) => ({ id: n.id, at: n.at, by: n.by, text: n.text }));
     if (may('offers.create') || may('offers.approve')) v.offers = (a.offers || []).map((o) => ({ ...o, createdByUserId: undefined, approval: { ...o.approval, userId: undefined } }));

@@ -13,6 +13,7 @@ const path = require('path');
 const { jobPath } = require('./content');
 const { hashPassword, checkPassword } = require('./employers');
 const sms = require('./sms');
+const identity = require('./identity');
 const cp = require('./candidate-profile');
 
 const COOKIE = 'hr_cand';
@@ -45,7 +46,7 @@ const ACTIVITY_LABELS = {
   'sessions-revoked': 'Signed out on all devices', 'password-set': 'Password set', 'password-changed': 'Password changed', 'password-reset': 'Password reset by email link',
   'profile-updated': 'Profile updated', 'resume-added': 'Resume uploaded', 'resume-removed': 'Resume deleted', 'settings-changed': 'Settings changed',
   'interview-confirmed': 'Interview confirmed', 'interview-reschedule': 'Asked for another interview time',
-  'saved-search-added': 'Search saved', 'phone-verified': 'Mobile number confirmed',
+  'saved-search-added': 'Search saved', 'phone-verified': 'Mobile number confirmed', 'registered-mobile': 'Account created with your mobile number',
 };
 
 // Indian mobile numbers as 10 digits (drops +91, 91 or a leading 0), or ''.
@@ -96,6 +97,9 @@ function register(app, deps) {
   const track = (event, label, req) => { if (deps.analytics) deps.analytics.track(event, label, req); };
   const secureCookie = /^https:/.test(baseUrl);
 
+  // Mobile codes need a text-message provider on the live site; without one
+  // they would only be saved to the outbox folder, so the option is hidden.
+  const smsReady = () => sms.configured() || process.env.NODE_ENV !== 'production';
   const mine = (email) => readSubmissions('applications').filter((a) => String(a.email).toLowerCase() === email);
   const nowIso = () => new Date().toISOString();
 
@@ -257,7 +261,9 @@ function register(app, deps) {
   // from this email so recruiters and matching see the latest.
   function updateProfile(email, patch) {
     const c = ensureCandidate(email);
+    const kept = c.mobileOnly ? c.profile.phone : null;
     c.profile = cp.applyPatch(c.profile, patch);
+    if (c.mobileOnly) c.profile.phone = kept;
     saveCandidate(c);
     const flat = cp.applicationFields(c.profile);
     const list = readSubmissions('applications');
@@ -285,7 +291,7 @@ function register(app, deps) {
 
   // ---------- register ----------
   const registerPage = (res, locals, status = 200) =>
-    page(res, 'account-register', { title: 'Create your job-seeker account', values: {}, done: false, next: '', experienceOptions: EXPERIENCE, noticeOptions: NOTICE, ...locals }, status);
+    page(res, 'account-register', { title: 'Create your job-seeker account', values: {}, done: false, next: '', experienceOptions: EXPERIENCE, noticeOptions: NOTICE, method: 'email', codeStep: false, phone: '', smsReady: smsReady(), locations: jobLocations(), ...locals }, status);
 
   // Shared by the form and POST /api/auth/register. Returns errors, or [] once
   // the welcome email is on its way.
@@ -331,7 +337,7 @@ function register(app, deps) {
 
   app.get('/account/register', (req, res) => {
     if (currentEmail(req)) return sendToNext(res, req.query.next);
-    registerPage(res, { next: safeNext(req.query.next) });
+    registerPage(res, { next: safeNext(req.query.next), method: req.query.with === 'phone' && smsReady() ? 'phone' : 'email' });
   });
 
   app.post('/account/register', limit('account-register', 5), sameOrigin, (req, res) => {
@@ -354,9 +360,6 @@ function register(app, deps) {
   });
 
   // ---------- sign in ----------
-  // Mobile codes need a text-message provider on the live site; without one
-  // they would only be saved to the outbox folder, so the option is hidden.
-  const smsReady = () => sms.configured() || process.env.NODE_ENV !== 'production';
   const loginPage = (res, locals, status = 200) => page(res, 'account-login', { title: 'Sign in to your account', sent: false, next: '', email: '', method: 'email', phone: '', codeSent: false, smsReady: smsReady(), ...locals }, status);
   app.get('/account/login', (req, res) => {
     if (currentEmail(req)) return sendToNext(res, req.query.next);
@@ -448,7 +451,7 @@ function register(app, deps) {
   // Settings) can sign in, so a mistyped number on a profile never opens
   // someone else's account. The reply is the same whether or not the number
   // is on an account, and codes are kept only as hashes.
-  const phoneConfirmed = (c) => Boolean(c && c.emailVerifiedAt && c.phoneVerified && c.phoneVerified.phone === mobileOf(c.profile && c.profile.phone));
+  const phoneConfirmed = (c) => Boolean(c && (c.emailVerifiedAt || c.mobileOnly) && c.phoneVerified && c.phoneVerified.phone === mobileOf(c.profile && c.profile.phone));
   const accountsForMobile = (mobile) => readSubmissions('candidates').filter((c) => phoneConfirmed(c) && c.phoneVerified.phone === mobile);
   const otpSends = new Map();
   const otpTries = new Map();
@@ -506,6 +509,79 @@ function register(app, deps) {
     sendToNext(res, next);
   });
 
+  // ---------- sign up with only a mobile number ----------
+  // Name, mobile and consent, then a code by text message. The details wait
+  // (with the code's hash) until the code is entered. A number already
+  // confirmed on an account signs in to that account instead of making a
+  // second one, and the reply is the same either way.
+  const SIGNUP_FIELDS = ['name', 'location', 'whatsapp', 'considered'];
+  const signupKey = (mobile) => sha(`signup:${mobile}`);
+  const registerPhonePage = (res, locals, status = 200) => registerPage(res, { method: 'phone', ...locals }, status);
+  app.post('/account/register/phone', limit('account-register-phone', 5), sameOrigin, (req, res) => {
+    const next = safeNext(req.body.next);
+    if (isBot(req.body)) return registerPhonePage(res, { codeStep: true, phone: '', next });
+    const values = { name: String(req.body.name || '').trim().slice(0, 120), location: String(req.body.location || '').trim().slice(0, 120), phone: String(req.body.phone || '').trim().slice(0, 20), whatsapp: req.body.whatsapp === '1', considered: req.body.considered === '1' };
+    const mobile = mobileOf(values.phone);
+    const errors = [];
+    if (!smsReady()) errors.push('Signing up with a mobile code isn’t available right now. Use your email instead.');
+    if (!values.name) errors.push('Please enter your name.');
+    if (!mobile) errors.push('Enter your 10-digit mobile number.');
+    if (req.body.agree !== '1') errors.push('Please agree to the Privacy Policy and Terms to create an account.');
+    if (errors.length) return registerPhonePage(res, { values, errors, next }, 400);
+    if (!countSend(mobile)) return registerPhonePage(res, { values, errors: ['Too many codes for this number. Wait 15 minutes and try again.'], next }, 429);
+    // countSend was used above, so send without counting twice.
+    const code = String(crypto.randomInt(0, 1000000)).padStart(6, '0');
+    const exp = Date.now() + OTP_MINUTES * 60000;
+    db.sessions.set('candidate-signup', signupKey(mobile), sha(`${signupKey(mobile)}:${code}`), exp);
+    db.sessions.set('candidate-signup-data', signupKey(mobile), JSON.stringify(Object.fromEntries(SIGNUP_FIELDS.map((k) => [k, values[k]]))), exp);
+    otpTries.delete(`candidate-signup:${signupKey(mobile)}`);
+    sms.send(`+91${mobile}`, `${code} is your ${site.name} code. It expires in ${OTP_MINUTES} minutes. Never share it with anyone, including ${site.name} staff.`);
+    registerPhonePage(res, { codeStep: true, phone: mobile, next, title: 'Enter your code' });
+  });
+  app.post('/account/register/phone/verify', limit('account-otp-check', 20), sameOrigin, async (req, res) => {
+    const mobile = mobileOf(req.body.phone);
+    const next = safeNext(req.body.next);
+    const again = (msg, status) => registerPhonePage(res, { codeStep: true, phone: mobile, next, title: 'Enter your code', errors: [msg] }, status);
+    if (!mobile) return registerPhonePage(res, { errors: ['Enter your 10-digit mobile number.'], next }, 400);
+    const key = signupKey(mobile);
+    const pending = db.sessions.get('candidate-signup-data', key);
+    if (!checkCode('candidate-signup', key, req.body.code)) return again('That code is wrong or has expired. Check it, or start again for a new one.', 401);
+    db.sessions.delete('candidate-signup-data', key);
+    // Already confirmed on an account: that account, not a new one.
+    const existing = accountsForMobile(mobile);
+    if (existing.length === 1) {
+      startSession(res, existing[0].email);
+      activity(existing[0].email, 'signed-in', 'mobile code');
+      return sendToNext(res, next);
+    }
+    if (existing.length > 1) return loginPage(res, { errors: ['This number is on more than one account. Sign in with your email instead.'], next }, 409);
+    let details = {};
+    try { details = JSON.parse((pending && pending.subject) || '{}'); } catch (e) { details = {}; }
+    if (!details.name) return again('Those details have expired. Please start again.', 410);
+    const email = identity.mobileEmail(mobile);
+    try {
+      if (!candidateOf(email)) {
+        await saveApplication({ jobId: 'general', name: details.name, email, phone: mobile, location: details.location || '', source: 'account' }, null, null, { registeredAt: nowIso() });
+        const c = ensureCandidate(email);
+        Object.assign(c, { mobileOnly: true, phoneVerified: { phone: mobile, at: nowIso() }, consentAt: nowIso() });
+        c.comms.whatsapp = Boolean(details.whatsapp);
+        c.privacy.visibleToRecruiters = Boolean(details.considered);
+        saveCandidate(c);
+        privacy.consent(email, 'account', true, 'mobile registration');
+        privacy.consent(email, 'recruiter-visibility', Boolean(details.considered), 'mobile registration');
+        privacy.consent(email, 'whatsapp', Boolean(details.whatsapp), 'mobile registration');
+        activity(email, 'registered-mobile');
+        track('candidate-registration', 'Mobile only', req);
+      }
+    } catch (e) {
+      console.error(e);
+      return again('Could not create your account. Please try again.', 500);
+    }
+    startSession(res, email);
+    activity(email, 'signed-in', 'mobile code');
+    sendToNext(res, next, '/account?welcome=1');
+  });
+
   // Confirming the mobile number on the account (Settings) turns on signing
   // in with it. Changing the number on the profile turns it off again.
   app.post('/account/phone/send', requireCandidate, limit('account-otp', 10), sameOrigin, (req, res) => {
@@ -522,6 +598,7 @@ function register(app, deps) {
     if (!mobile || !checkCode('candidate-phone', sha(`confirm:${c.id}:${mobile}`), req.body.code)) {
       return res.redirect(`/account/settings?code=sent&msg=${encodeURIComponent('That code is wrong or has expired. Check it, or send a new one.')}#mobile`);
     }
+    if (accountsForMobile(mobile).some((x) => x.id !== c.id)) return back(res, 'This number is already confirmed on another account. Sign in with it to use that account.', '/account/settings');
     c.phoneVerified = { phone: mobile, at: nowIso() };
     saveCandidate(c);
     activity(c.email, 'phone-verified');
@@ -626,6 +703,8 @@ function register(app, deps) {
     } else if (section === 'education') {
       input = { education: [...c.profile.education, { level: req.body.level, course: req.body.course, institution: req.body.institution, year: req.body.year }] };
     } else return next();
+    // A mobile-only account's number is its sign-in and isn't on the form.
+    if (c.mobileOnly && 'phone' in input) input.phone = c.profile.phone;
     const { patch, errors } = cp.parsePatch(input, profileContext());
     if (errors.length) return to(errors.join(' '), section);
     updateProfile(email, patch);

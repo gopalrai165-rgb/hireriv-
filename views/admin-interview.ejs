@@ -4,7 +4,7 @@
   <div class="container narrow">
     <a href="/admin?tab=applications" class="back-link">← Applications</a>
     <h1>Schedule interview</h1>
-    <p class="lead"><b><%= a.name %></b> for <%= a.jobTitle %> <% if (a.email) { %>· <a href="mailto:<%= a.email %>"><%= a.email %></a> <% } %>· <a href="tel:<%= a.phone %>"><%= a.phone %></a></p>
+    <p class="lead"><b><%= a.name %></b> for <%= a.jobTitle %> <% if (realEmail(a.email)) { %>· <a href="mailto:<%= a.email %>"><%= a.email %></a> <% } %>· <a href="tel:<%= a.phone %>"><%= a.phone %></a></p>
     <% if (errors.length) { %><p class="notice notice-err" role="alert">Please fix: <%= errors.join(', ') %></p><% } %>
     <form class="form form-card" method="post" action="/admin/applications/<%= a.id %>/interview">
       <div class="form-grid">

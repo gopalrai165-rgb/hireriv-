@@ -44,7 +44,7 @@
               <span class="input-prefix"><span aria-hidden="true">+91</span><input type="tel" name="phone" required inputmode="numeric" autocomplete="tel-national" maxlength="14" value="<%= phone %>" aria-describedby="login-mobile-note<%= errors.length ? ' login-error' : '' %>"<%- errors.length ? ' aria-invalid="true"' : '' %>></span>
             </label>
             <button class="btn btn-primary btn-block" type="submit"><%= t('account.sendCode') %></button>
-            <p class="small muted form-note" id="login-mobile-note"><%= t('account.mobileNote') %></p>
+            <p class="small muted form-note" id="login-mobile-note"><%= t('account.mobileNote') %> <a href="/account/register?with=phone<%= nextQs %>"><%= t('account.signUpMobile') %></a></p>
           </form>
         <% } else { %>
         <form class="form" method="post" action="/account/login">

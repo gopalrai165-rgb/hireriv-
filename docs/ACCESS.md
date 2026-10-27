@@ -458,6 +458,8 @@ Total: 727 routes.
 | --- | --- | --- | --- |
 | GET | `/account/register` | public |  |
 | POST | `/account/register` | public | Same reply whether or not the email has an account; opened only by the emailed link |
+| POST | `/account/register/phone` | public | Sign up with only a mobile number: name, number and consent, then a 6-digit code; 3 codes per number in 15 minutes; hidden on the live site without a text-message provider |
+| POST | `/account/register/phone/verify` | public | 5 tries per code, 10 minutes; a number already confirmed on one account signs in to it instead of making a second |
 | GET | `/account/login` | public |  |
 | POST | `/account/login` | public | Password (8 wrong tries per email pause it for 15 minutes) or an emailed link; same reply whether or not the email has an account |
 | POST | `/account/login/phone` | public | Sends a 6-digit code only to a mobile confirmed on an account; same reply either way; 3 codes per number in 15 minutes |

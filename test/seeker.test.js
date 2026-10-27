@@ -223,3 +223,66 @@ test('city pages: live jobs there, nearby cities, in the sitemap only with real 
   // The homepage's city tiles lead to them.
   assert.match(await text('/'), /class="city-tile" href="\/jobs\/in\/[a-z-]+"/);
 });
+
+test('sign up with only a mobile number: no email, never emailed, signed in by code', async () => {
+  const page = await text('/account/register?with=phone');
+  assert.match(page, /action="\/account\/register\/phone"/);
+  assert.match(page, /No email needed/);
+  // Missing details stay on the form.
+  let res = await srv.request('/account/register/phone', { method: 'POST', form: { name: 'Sunil', phone: '123' } });
+  assert.equal(res.status, 400);
+  assert.match(await res.text(), /10-digit mobile number/);
+
+  let seen = srv.emails().length;
+  res = await srv.request('/account/register/phone', { method: 'POST', form: { name: 'Sunil Yadav', phone: '+91 97000 12345', location: 'Pune', agree: '1', whatsapp: '1' } });
+  assert.equal(res.status, 200);
+  assert.match(await res.text(), /action="\/account\/register\/phone\/verify"/);
+  const code = codeIn(await nextMessage((m) => m.includes('+919700012345'), seen));
+  const wrong = code === '000000' ? '111111' : '000000';
+  res = await srv.request('/account/register/phone/verify', { method: 'POST', form: { phone: '9700012345', code: wrong } });
+  assert.equal(res.status, 401);
+  assert.ok(!srv.records('candidates').some((c) => c.mobileOnly && c.profile.phone === '9700012345'), 'no account before the right code');
+  res = await srv.request('/account/register/phone/verify', { method: 'POST', form: { phone: '9700012345', code } });
+  assert.equal(res.status, 302);
+  assert.equal(res.headers.get('location'), '/account?welcome=1');
+  const cookie = srv.cookieFrom(res);
+
+  const c = srv.records('candidates').find((x) => x.email === '9700012345@mobile.hireriv.invalid');
+  assert.ok(c && c.mobileOnly);
+  assert.equal(c.phoneVerified.phone, '9700012345');
+  assert.equal(c.comms.whatsapp, true);
+  assert.ok(srv.records('consent-records').some((x) => x.subject === c.email && x.purpose === 'account' && x.status === 'granted'));
+
+  // Pages show the number, never the placeholder address.
+  const settings = await text('/account/settings', { cookie });
+  assert.match(settings, /\+91 97000 12345/);
+  assert.match(settings, /You signed up with your mobile number/);
+  assert.doesNotMatch(settings, /mobile\.hireriv\.invalid/);
+  assert.doesNotMatch(await text('/account', { cookie }), /mobile\.hireriv\.invalid/);
+
+  // Editing the profile keeps the sign-in number.
+  res = await srv.request('/account/profile', { method: 'POST', cookie, form: { section: 'basics', name: 'Sunil Y', city: 'Pune' } });
+  assert.ok(res.status < 400, String(res.status));
+  assert.equal(srv.records('candidates').find((x) => x.email === c.email).profile.phone, '9700012345');
+
+  // Nothing is ever emailed to the placeholder.
+  await new Promise((r) => setTimeout(r, 300));
+  assert.ok(!srv.emails().some((m) => /To:[^\n]*mobile\.hireriv\.invalid/.test(m)));
+
+  // Signing up again with the same number signs in to the same account
+  // (the same lookup the mobile sign-in uses).
+  seen = srv.emails().length;
+  await srv.request('/account/register/phone', { method: 'POST', form: { name: 'Someone Else', phone: '9700012345', agree: '1' } });
+  const again = codeIn(await nextMessage((m) => m.includes('+919700012345'), seen));
+  res = await srv.request('/account/register/phone/verify', { method: 'POST', form: { phone: '9700012345', code: again } });
+  assert.equal(res.status, 302);
+  assert.equal(srv.records('candidates').filter((x) => x.phoneVerified && x.phoneVerified.phone === '9700012345').length, 1);
+
+  // Another account can't confirm the same number.
+  const other = await register('sunil.other@example.in', { phone: '9700012345' });
+  seen = srv.emails().length;
+  await srv.request('/account/phone/send', { method: 'POST', cookie: other, form: {} });
+  const confirm = codeIn(await nextMessage((m) => m.includes('+919700012345'), seen));
+  res = await srv.request('/account/phone/verify', { method: 'POST', cookie: other, form: { code: confirm } });
+  assert.match(decodeURIComponent(res.headers.get('location') || ''), /already confirmed on another account/);
+});

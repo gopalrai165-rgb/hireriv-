@@ -1323,6 +1323,7 @@ main:focus { outline: none; }
 @media (max-width: 900px) { .register-wrap { grid-template-columns: 1fr; gap: 24px; } }
 .check-row { display: flex; gap: 10px; align-items: flex-start; font-weight: 500; font-size: .92rem; }
 .check-row input { width: auto; margin-top: 4px; flex: none; }
+.form-grid .check-row { flex-direction: row; }
 .notice p { margin: 0; }
 .one-click { display: grid; gap: 10px; }
 .one-click p { margin: 0; }

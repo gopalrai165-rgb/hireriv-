@@ -27,7 +27,45 @@
         <p class="small muted"><%= t('account.haveAccount') %> <a href="/account/login<%= next ? '?next=' + encodeURIComponent(next) : '' %>"><%= t('account.signIn') %></a></p>
       </div>
       <div class="form-card auth-card">
+        <% const nextQs = next ? '&next=' + encodeURIComponent(next) : ''; %>
+        <% if (smsReady && !codeStep) { %>
+          <nav class="segmented" aria-label="<%= t('account.signUpWith') %>">
+            <a href="/account/register?with=phone<%= nextQs %>"<%- method === 'phone' ? ' aria-current="page"' : '' %>><svg class="i" aria-hidden="true"><use href="#i-phone"/></svg> <%= t('account.withMobile') %></a>
+            <a href="/account/register?with=email<%= nextQs %>"<%- method !== 'phone' ? ' aria-current="page"' : '' %>><svg class="i" aria-hidden="true"><use href="#i-mail"/></svg> <%= t('account.withEmail') %></a>
+          </nav>
+        <% } %>
         <% if (errors.length) { %><div class="notice notice-err" role="alert" tabindex="-1" data-error-summary><% errors.forEach(function (e) { %><p><%= tm(e) %></p><% }) %></div><% } %>
+        <% if (method === 'phone' && codeStep) { %>
+          <h2 class="h3"><%= t('account.enterCode') %></h2>
+          <p class="notice" role="status"><%= t('account.signupCodeSent', { phone: phone ? '+91 ' + phone.slice(0, 5) + ' ' + phone.slice(5) : '' }) %></p>
+          <form class="form" method="post" action="/account/register/phone/verify">
+            <% if (next) { %><input type="hidden" name="next" value="<%= next %>"><% } %>
+            <input type="hidden" name="phone" value="<%= phone %>">
+            <label><%= t('account.code') %><input class="otp-input" name="code" required inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="one-time-code" autofocus></label>
+            <button class="btn btn-primary btn-block" type="submit"><%= t('account.createWithCode') %></button>
+          </form>
+          <p class="small muted"><%= t('account.noCode') %> <a href="/account/register?with=phone<%= nextQs %>"><%= t('account.startAgain') %></a></p>
+        <% } else if (method === 'phone') { %>
+          <form class="form" method="post" action="/account/register/phone">
+            <%- include('partials/honeypot') %>
+            <% if (next) { %><input type="hidden" name="next" value="<%= next %>"><% } %>
+            <p class="small muted"><%= t('common.requiredNote') %></p>
+            <div class="form-grid">
+              <label class="span-2"><%= t('account.fullName') %>*<input name="name" required maxlength="120" autocomplete="name" value="<%= values.name || '' %>"></label>
+              <label class="span-2"><%= t('account.mobile') %>*
+                <span class="input-prefix"><span aria-hidden="true">+91</span><input type="tel" name="phone" required inputmode="numeric" autocomplete="tel-national" maxlength="14" value="<%= values.phone || '' %>"></span>
+              </label>
+              <label class="span-2"><%= t('account.city') %>
+                <select name="location"><option value=""><%= t('account.select') %></option><% locations.filter(function (l) { return l !== 'Remote' && l !== 'Multiple locations'; }).forEach(function (l) { %><option<%= values.location === l ? ' selected' : '' %>><%= l %></option><% }) %></select>
+              </label>
+              <p class="span-2 muted small"><%= t('account.mobileOnlyNote') %></p>
+              <label class="span-2 check-row"><input type="checkbox" name="agree" value="1" required> <span><%- th('account.agree', { terms: html('<a href="/terms">' + esc(t('footer.terms')) + '</a>'), privacy: html('<a href="/privacy">' + esc(t('footer.privacy')) + '</a>') }) %></span></label>
+              <label class="span-2 check-row"><input type="checkbox" name="considered" value="1"<%= values.considered ? ' checked' : '' %>> <span><%= t('account.considered', { site: site.name }) %> <span class="muted small"><%= t('common.optional') %></span></span></label>
+              <label class="span-2 check-row"><input type="checkbox" name="whatsapp" value="1"<%= values.whatsapp ? ' checked' : '' %>> <span><%= t('account.whatsapp') %> <span class="muted small"><%= t('account.whatsappNote') %></span></span></label>
+            </div>
+            <button class="btn btn-primary btn-block" type="submit"><%= t('account.sendCode') %></button>
+          </form>
+        <% } else { %>
         <form class="form" method="post" action="/account/register" enctype="multipart/form-data">
           <%- include('partials/honeypot') %>
           <% if (next) { %><input type="hidden" name="next" value="<%= next %>"><% } %>
@@ -61,6 +99,7 @@
           <button class="btn btn-primary btn-block" type="submit"><%= t('account.create') %></button>
           <p class="muted small form-note"><%= t('account.createNote') %></p>
         </form>
+        <% } %>
       </div>
     <% } %>
   </div>

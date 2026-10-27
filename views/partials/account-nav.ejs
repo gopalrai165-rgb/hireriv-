@@ -5,7 +5,7 @@
   <div>
     <span class="eyebrow"><%= t('account.myAccount') %></span>
     <h1><%= tm(heading) %></h1>
-    <p class="muted"><%= t('account.signedInAs', { email: email }) %></p>
+    <p class="muted"><%= t('account.signedInAs', { email: contactLabel(email) }) %></p>
   </div>
   <div class="row-actions">
     <%- include('notification-bell', { as: 'candidate', bellQuery: '?as=candidate', bellClass: 'btn btn-outline btn-sm' }) %>

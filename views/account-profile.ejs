@@ -13,7 +13,7 @@
         <form class="form" method="post" action="/account/profile/basics">
           <div class="form-grid">
             <label class="span-2">Full name*<input name="name" required maxlength="120" autocomplete="name" value="<%= p.name %>"></label>
-            <label>Mobile number*<input type="tel" name="phone" required maxlength="20" autocomplete="tel" inputmode="tel" value="<%= p.phone %>"></label>
+            <% if (candidate.mobileOnly) { %><label>Mobile number <span class="muted small">(you sign in with it)</span><input type="tel" value="<%= p.phone %>" readonly aria-readonly="true"></label><% } else { %><label>Mobile number*<input type="tel" name="phone" required maxlength="20" autocomplete="tel" inputmode="tel" value="<%= p.phone %>"></label><% } %>
             <label>Experience
               <select name="experienceLevel"><option value="">Select…</option><% opts.EXPERIENCE.forEach(function (o) { %><option<%= o === p.experienceLevel ? ' selected' : '' %>><%= o %></option><% }) %></select>
             </label>

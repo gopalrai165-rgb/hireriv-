@@ -186,7 +186,7 @@
         <% } else if (account && !account.missing.length) { %>
           <div class="one-click">
             <p class="small muted"><%= t('job.oneClickIntro') %></p>
-            <p><b><%= account.name %></b><br><span class="small"><%= account.email %> · <%= account.phone %><%= account.hasResume ? ' · ' + t('job.resumeOnFile') : '' %></span></p>
+            <p><b><%= account.name %></b><br><span class="small"><%= realEmail(account.email) ? realEmail(account.email) + ' · ' : '' %><%= account.phone %><%= account.hasResume ? ' · ' + t('job.resumeOnFile') : '' %></span></p>
             <form method="post" action="/account/apply/<%= job.id %>"><button class="btn btn-primary btn-block" type="submit"><%= t('job.oneClick') %></button></form>
             <p class="small muted"><%= t('job.outOfDate') %> <a href="/account#profile"><%= t('job.outOfDateLink') %></a> <%= t('job.outOfDateAfter') %></p>
           </div>

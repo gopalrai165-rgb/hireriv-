@@ -4,7 +4,7 @@
   <div class="container narrow">
     <a href="/admin?tab=placements" class="back-link">← Placements</a>
     <h1><%= p.id ? 'Edit placement' : 'Record placement' %></h1>
-    <p class="lead"><b><%= a.name %></b> for <%= a.jobTitle %> <% if (a.email) { %>· <a href="mailto:<%= a.email %>"><%= a.email %></a><% } else { %>· <a href="tel:<%= a.phone %>"><%= a.phone %></a><% } %></p>
+    <p class="lead"><b><%= a.name %></b> for <%= a.jobTitle %> <% if (realEmail(a.email)) { %>· <a href="mailto:<%= a.email %>"><%= a.email %></a><% } else { %>· <a href="tel:<%= a.phone %>"><%= a.phone %></a><% } %></p>
     <% if (errors.length) { %><p class="notice notice-err" role="alert">Please fix: <%= errors.join(', ') %></p><% } %>
     <% if (p.invoice) { %><p class="notice" role="note">Invoice <%= p.invoice.number %> is issued. Changes here update the placement only. To bill a different amount, cancel the invoice (if nothing is paid) or issue a credit note from Payments.</p><% } %>
     <% if (replaces) { %><p class="notice" role="note">Replacement for <b><%= replaces.candidateName %></b> (<%= replaces.status.toLowerCase() %>, joined <%= replaces.joiningDate %>). Replacements under the guarantee are usually free: keep “Free replacement” unless your agreement says otherwise.</p><% } %>

@@ -9,6 +9,7 @@ const seo = require('./seo');
 const { skillMatch, buildPool, searchPool, phoneKey, candidateKey } = require('./match');
 const search = require('./search');
 const geo = require('./geo');
+const identity = require('./identity');
 const suggest = require('./suggest');
 const uploadSafety = require('./uploads');
 const vault = require('./vault');
@@ -566,6 +567,9 @@ app.locals.catalog = catalog;
 app.locals.workOf = workOf;
 app.locals.isSample = (j) => j.sample === true;
 app.locals.resumeNeeded = resumeNeeded;
+// Mobile-only job seekers (identity.js): no email to show or write to.
+app.locals.realEmail = identity.realEmail;
+app.locals.contactLabel = identity.contactLabel;
 // Links to the biggest cities' job pages (partials/job-landing-links).
 app.locals.majorCityPages = ['Mumbai', 'Delhi', 'Bengaluru', 'Hyderabad', 'Chennai', 'Pune', 'Kolkata', 'Ahmedabad', 'Jaipur', 'Lucknow', 'Indore', 'Kochi'].map((c) => geo.cityPageBySlug(geo.citySlug(c)));
 app.locals.jobPath = jobPath;

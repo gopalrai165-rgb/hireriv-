@@ -5,6 +5,13 @@
   <div class="container">
     <%- include('partials/account-nav', { heading: 'Settings' }) %>
     <div class="dash-grid">
+      <% if (c.mobileOnly) { %>
+      <section class="dash-card" id="password">
+        <div class="dash-head"><h2>Signing in</h2></div>
+        <p class="small">You signed up with your mobile number, so you sign in with a code we text to +91 <%= mobile.number %>. Keep this number: it is the only way into this account, so it can't be changed on your profile.</p>
+        <p class="small muted">We can't email you, so job alerts and updates reach you as notifications here and on your phone (turn them on under Notifications), and by WhatsApp if you chose it.</p>
+      </section>
+      <% } else { %>
       <section class="dash-card" id="password">
         <div class="dash-head"><h2>Password</h2></div>
         <p class="small muted"><%= c.passwordHash ? 'You can sign in with your password or an email link.' : "You sign in with a link we email you. Add a password if you'd rather type one; email links keep working." %></p>
@@ -19,6 +26,7 @@
           <button class="btn btn-primary btn-sm" type="submit"><%= c.passwordHash ? 'Change password' : 'Set password' %></button>
         </form>
       </section>
+      <% } %>
 
       <section class="dash-card" id="mobile">
         <div class="dash-head"><h2>Mobile sign-in</h2></div>

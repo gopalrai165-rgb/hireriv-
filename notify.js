@@ -268,7 +268,7 @@ function create({ db, now = () => Date.now(), log = console }) {
     try {
       const r = await t.resolve(d.refs || {}, { ...(d.to || {}), rk: d.rk });
       if (!r) return save(d, { status: 'skipped', lastError: 'nothing to send (the record changed or was deleted)' });
-      if (!r.to) return save(d, { status: 'skipped', lastError: 'no email address' });
+      if (!r.to || require('./identity').isMobileOnly(r.to)) return save(d, { status: 'skipped', lastError: 'no email address' });
       if (suppressed(r.to)) return save(d, { status: 'skipped', lastError: 'the address bounced or reported spam before' });
       result = await r.send();
     } catch (e) {

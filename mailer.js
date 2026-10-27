@@ -1,6 +1,7 @@
 // Email notifications. Sends through SMTP when SMTP_HOST is set; otherwise every
 // message is written to data/outbox/*.eml so it can be previewed during development.
 const nodemailer = require('nodemailer');
+const identity = require('./identity');
 const path = require('path');
 const fs = require('fs');
 const { jobPath } = require('./content');
@@ -87,6 +88,8 @@ let sent = 0;
 // outbox), so delivery reports can be matched to it; false when there is no
 // address or sending failed.
 async function send(site, { to, subject, heading, html, replyTo, headers, icalEvent, preheader, footer }) {
+  // Mobile-only job seekers have a placeholder address (identity.js): skip it.
+  if (to) to = String(to).split(',').map((x) => x.trim()).filter((x) => x && !identity.isMobileOnly(x)).join(', ');
   if (!to) return false;
   const order = `${Date.now()}-${String(++sent).padStart(6, '0')}`;
   try {

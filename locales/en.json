@@ -487,7 +487,13 @@
     "resendCode": "Send again",
     "changeNumber": "Use another number",
     "sendCode": "Send code",
-    "mobileNote": "Works once you’ve confirmed your mobile number in Settings. New here? Create a free account with your email first."
+    "mobileNote": "Works once your mobile number is confirmed on your account.",
+    "signUpWith": "Sign up with",
+    "signupCodeSent": "We’ve sent a 6-digit code to {phone}. It expires in 10 minutes.",
+    "createWithCode": "Create my account",
+    "startAgain": "Start again",
+    "mobileOnlyNote": "No email needed. You’ll sign in with a code sent to this number, so use a number you keep.",
+    "signUpMobile": "Sign up with your mobile"
   },
   "saved": {
     "eyebrow": "Your shortlist",
