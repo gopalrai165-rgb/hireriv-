@@ -703,9 +703,17 @@ Sitemap: ${BASE_URL}/sitemap.xml
 `)
 );
 
+// Role pages, and role pages in a city, that have real live jobs.
+function rolePagesWithJobs() {
+  const live = openJobs().filter((j) => !isSample(j));
+  return ROLE_PAGES.flatMap((r) => {
+    const found = roleJobs(live, r);
+    return found.length ? [rolePath(r), ...geo.CITY_PAGES.filter((c) => found.some((j) => c.locations.includes(j.location))).map((c) => rolePath(r, c))] : [];
+  });
+}
 const cityPagesWithJobs = () => { const live = openJobs().filter((j) => !isSample(j)); return geo.CITY_PAGES.filter((c) => live.some((j) => c.locations.includes(j.location))); };
 app.get('/sitemap.xml', (req, res) =>
-  res.type('application/xml').send(seo.sitemap(BASE_URL, { jobs: openJobs().filter((j) => !isSample(j)), posts: livePosts(), staticPaths: ['/', '/jobs', ...catalog.WORK_PAGES.map((x) => `/jobs/${x.slug}`), ...catalog.JOB_INDUSTRIES.map((x) => `/jobs/industry/${x.slug}`), ...cityPagesWithJobs().map((c) => `/jobs/in/${c.slug}`), '/categories', '/hire', '/services', ...catalog.SERVICES.map((x) => `/services/${x.slug}`), '/industries', ...catalog.INDUSTRIES.map((x) => `/industries/${x.slug}`), '/about', '/blog', '/contact', '/privacy', '/terms', '/job-posting-policy', '/help/job-terms', '/accessibility'] }))
+  res.type('application/xml').send(seo.sitemap(BASE_URL, { jobs: openJobs().filter((j) => !isSample(j)), posts: livePosts(), staticPaths: ['/', '/jobs', ...catalog.WORK_PAGES.map((x) => `/jobs/${x.slug}`), ...catalog.JOB_INDUSTRIES.map((x) => `/jobs/industry/${x.slug}`), ...cityPagesWithJobs().map((c) => `/jobs/in/${c.slug}`), ...rolePagesWithJobs(), '/categories', '/hire', '/services', ...catalog.SERVICES.map((x) => `/services/${x.slug}`), '/industries', ...catalog.INDUSTRIES.map((x) => `/industries/${x.slug}`), '/about', '/blog', '/contact', '/privacy', '/terms', '/job-posting-policy', '/help/job-terms', '/accessibility'] }))
 );
 
 // Things a new install still needs before it is ready for visitors, shown to
@@ -756,7 +764,17 @@ const POPULAR_ROLES = [
   ['dataEntry', 'data entry', 'i-chart'], ['warehouse', 'warehouse', 'i-box'], ['security', 'security', 'i-shield'], ['electrician', 'electrician', 'i-hardhat'],
   ['cook', 'cook', 'i-utensils'], ['accountant', 'accountant', 'i-finance'], ['nurse', 'nurse', 'i-health'], ['developer', 'developer', 'i-code'],
 ];
-const popularRoles = (live) => POPULAR_ROLES.map(([key, q, icon]) => ({ key, icon, href: `/jobs?q=${encodeURIComponent(q)}`, count: search.searchJobs(live, { q }).jobs.length }));
+// Each role also has its own pages, /jobs/role/<slug> and /jobs/role/<slug>/in/<city>.
+const ROLE_PAGES = POPULAR_ROLES.map(([key, q, icon]) => {
+  const label = { dataEntry: 'Data entry', security: 'Security guard' }[key] || key[0].toUpperCase() + key.slice(1);
+  return { key, q, icon, label, slug: label.toLowerCase().replace(/ /g, '-') };
+});
+const rolePageBySlug = (slug) => ROLE_PAGES.find((r) => r.slug === slug) || null;
+const rolePath = (role, city) => `/jobs/role/${role.slug}${city ? `/in/${city.slug}` : ''}`;
+app.locals.rolePages = ROLE_PAGES;
+const popularRoles = (live) => ROLE_PAGES.map((r) => ({ key: r.key, icon: r.icon, href: rolePath(r), count: search.searchJobs(live, { q: r.q }).jobs.length }));
+// Live jobs for a role, as its keyword search finds them, optionally in one city.
+const roleJobs = (live, role, city) => search.searchJobs(live, { q: role.q }).jobs.filter((j) => !city || city.locations.includes(j.location));
 function topCities(live, n = 8) {
   const counts = {};
   for (const j of live) { const c = geo.cityPageFor(j.location); if (c) counts[c.name] = (counts[c.name] || 0) + 1; }
@@ -988,7 +1006,7 @@ function hrContactFor(job) {
 // A city page's text: the jobs there, the common roles and nearby cities.
 function cityLanding(city) {
   return {
-    slug: city.slug, name: `Jobs in ${city.name}`, h1: `Jobs in ${city.name}`, city: city.name, locations: city.locations,
+    slug: city.slug, name: `Jobs in ${city.name}`, h1: `Jobs in ${city.name}`, title: `Jobs in ${city.name}`, city: city.name, locations: city.locations,
     description: `Jobs in ${city.name}: office, skilled and field openings from checked employers, with salary, shift and distance on every listing. Apply in one tap on ${site.name}.`,
     intro: [
       `Open jobs in and around ${city.name}, from office and IT roles to delivery, warehouse, security, retail and factory work. Every listing is checked by our team before it goes live and shows the pay when the employer shares it.`,
@@ -1000,29 +1018,59 @@ function cityLanding(city) {
       `You never pay to get a job through ${site.name}: not for the offer, joining, training or a uniform.`,
       'You do not need Aadhaar or bank details to apply. Employers ask for joining documents only after an offer.',
     ],
-    roles: POPULAR_ROLES.map(([key, q]) => ({ label: key === 'dataEntry' ? 'Data entry' : key === 'security' ? 'Security guard' : key[0].toUpperCase() + key.slice(1), href: `/jobs?location=${encodeURIComponent(city.name)}&q=${encodeURIComponent(q)}` })),
+    roles: ROLE_PAGES.map((r) => ({ label: r.label, href: rolePath(r, city) })),
     nearby: geo.nearbyCities(city.name),
   };
 }
 
-// Landing pages for job seekers: a kind of work, an industry (catalog.js) or a city (geo.js).
+// A role's page, across India or in one city: the jobs its keyword search
+// finds, the same role in other cities, and other roles.
+function roleLanding(role, city) {
+  const name = city ? `${role.label} jobs in ${city.name}` : `${role.label} jobs`;
+  const where = city ? `in and around ${city.name}` : 'across India';
+  return {
+    slug: `role-${role.slug}${city ? `-${city.slug}` : ''}`, name, h1: city ? name : `${role.label} jobs in India`, title: city ? name : `${role.label} jobs in India`,
+    role, cityPage: city || null, city: city ? city.name : '', locations: city ? city.locations : null,
+    description: `${role.label} jobs ${where}: openings from checked employers with salary, shift and location on every listing. Apply in one tap on ${site.name}.`,
+    intro: [
+      `Open ${role.label.toLowerCase()} jobs ${where}. Every listing is checked by our team before it goes live and shows the pay when the employer shares it.`,
+      'Apply with your saved profile in one tap, and talk to HR after you apply where the employer allows it.',
+    ],
+    tips: [
+      city ? `Search near your PIN code to see the closest ${role.label.toLowerCase()} jobs first.` : 'Use your PIN code on Find Jobs to see how far each job is from home.',
+      'Say which shifts you can work and how far you can travel each day.',
+      `You never pay to get a job through ${site.name}: not for the offer, joining, training or a uniform.`,
+      'You do not need Aadhaar or bank details to apply. Employers ask for joining documents only after an offer.',
+    ],
+    roles: ROLE_PAGES.filter((r) => r !== role).map((r) => ({ label: r.label, href: rolePath(r, city) })),
+    // The same role in nearby cities, or in the big cities.
+    places: city
+      ? geo.nearbyCities(city.name).map((c) => ({ label: `${role.label} jobs in ${c.name}`, href: rolePath(role, c), km: c.km }))
+      : app.locals.majorCityPages.map((c) => ({ label: `${role.label} jobs in ${c.name}`, href: rolePath(role, c) })),
+    path: rolePath(role, city),
+    searchHref: `/jobs?q=${encodeURIComponent(role.q)}${city ? `&location=${encodeURIComponent(city.name)}` : ''}`,
+    trail: city ? [[`${role.label} jobs`, rolePath(role)], [name, rolePath(role, city)]] : [[name, rolePath(role)]],
+  };
+}
+
+// Landing pages for job seekers: a kind of work, an industry (catalog.js), a city (geo.js) or a role.
 function jobLanding(req, res, landing, kind) {
   const live = openJobs();
-  const list = (kind === 'work' ? live.filter((j) => workOf(j) === landing.work) : kind === 'city' ? live.filter((j) => landing.locations.includes(j.location)) : live.filter((j) => landing.categories.includes(j.category)))
+  const list = (kind === 'role' ? roleJobs(live, landing.role, landing.cityPage) : kind === 'work' ? live.filter((j) => workOf(j) === landing.work) : kind === 'city' ? live.filter((j) => landing.locations.includes(j.location)) : live.filter((j) => landing.categories.includes(j.category)))
     .sort((a, b) => Number(isSample(a)) - Number(isSample(b)) || String(b.posted).localeCompare(String(a.posted)));
-  const path = kind === 'work' ? `/jobs/${landing.slug}` : kind === 'city' ? `/jobs/in/${landing.slug}` : `/jobs/industry/${landing.slug}`;
+  const path = kind === 'role' ? landing.path : kind === 'work' ? `/jobs/${landing.slug}` : kind === 'city' ? `/jobs/in/${landing.slug}` : `/jobs/industry/${landing.slug}`;
   const { rows, pager } = paginate(list, { page: req.query.page, size: JOBS_PAGE_SIZE, query: {}, path });
   const desk = kind === 'industry' ? catalog.industryBySlug(landing.desk) : null;
-  const searchHref = kind === 'work' ? `/jobs?work=${landing.work}` : kind === 'city' ? `/jobs?location=${encodeURIComponent(landing.city)}` : `/jobs?${landing.categories.map((c) => `category=${encodeURIComponent(c)}`).join('&')}`;
-  const trail = [['Home', '/'], ['Jobs', '/jobs'], ...(kind === 'industry' ? [['Industries', '/categories']] : []), [landing.name, path]];
+  const searchHref = kind === 'role' ? landing.searchHref : kind === 'work' ? `/jobs?work=${landing.work}` : kind === 'city' ? `/jobs?location=${encodeURIComponent(landing.city)}` : `/jobs?${landing.categories.map((c) => `category=${encodeURIComponent(c)}`).join('&')}`;
+  const trail = [['Home', '/'], ['Jobs', '/jobs'], ...(kind === 'industry' ? [['Industries', '/categories']] : []), ...(kind === 'role' ? landing.trail : [[landing.name, path]])];
   const realCount = list.filter((j) => !isSample(j)).length;
   siteAnalytics.track('landing-view', landing.name, req);
   res.render('jobs-landing', {
-    title: `${landing.name} in India${pager.page > 1 ? ` – page ${pager.page}` : ''}`, page: 'jobs', landing, kind, results: rows, pager, openCount: list.length, desk, searchHref,
+    title: `${landing.title || `${landing.name} in India`}${pager.page > 1 ? ` – page ${pager.page}` : ''}`, page: 'jobs', landing, kind, results: rows, pager, openCount: list.length, desk, searchHref,
     metaDescription: landing.description, canonical: `${BASE_URL}${path}${pager.page > 1 ? `?page=${pager.page}` : ''}`,
     jsonLd: seo.jobLandingPage(landing, path, trail, BASE_URL, rows.filter((j) => !isSample(j))),
     // A city with no real openings is a thin page: kept for visitors, out of search engines.
-    noindex: kind === 'city' && !realCount ? 'follow' : false,
+    noindex: ['city', 'role'].includes(kind) && !realCount ? 'follow' : false,
   });
 }
 app.get('/jobs/office-professional', (req, res) => jobLanding(req, res, catalog.workPageBySlug('office-professional'), 'work'));
@@ -1032,6 +1080,17 @@ app.get('/jobs/in/:city', (req, res, next) => {
   const city = geo.cityPageBySlug(req.params.city);
   if (!city) return next();
   jobLanding(req, res, cityLanding(city), 'city');
+});
+app.get('/jobs/role/:role', (req, res, next) => {
+  const role = rolePageBySlug(req.params.role);
+  if (!role) return next();
+  jobLanding(req, res, roleLanding(role), 'role');
+});
+app.get('/jobs/role/:role/in/:city', (req, res, next) => {
+  const role = rolePageBySlug(req.params.role);
+  const city = geo.cityPageBySlug(req.params.city);
+  if (!role || !city) return next();
+  jobLanding(req, res, roleLanding(role, city), 'role');
 });
 app.get('/jobs/industry/:slug', (req, res, next) => {
   const landing = catalog.jobIndustryBySlug(req.params.slug);

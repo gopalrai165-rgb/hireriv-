@@ -1783,3 +1783,175 @@ input[type="checkbox"], input[type="radio"] { min-width: 20px; min-height: 20px;
 @media (min-width: 1000px) { .role-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); } }
 .form > label + .btn { margin-top: 14px; }
 .landing-nearby { margin-top: 14px; }
+
+/* Homepage: a more editorial, high-contrast look for the job-search journey. */
+.page-home {
+  --home-ink: #13253f;
+  --home-muted: #637087;
+  --home-paper: #fbfaf7;
+  --home-gold: #e8bd72;
+  --home-border: #e7e5df;
+}
+.page-home .hero {
+  padding: clamp(64px, 7vw, 104px) 0 142px;
+  color: #fff;
+  background:
+    radial-gradient(ellipse at 82% 17%, rgba(63, 97, 142, .36), transparent 34%),
+    radial-gradient(ellipse at 12% 100%, rgba(33, 65, 103, .6), transparent 42%),
+    #101f35;
+}
+.page-home .hero-bg::before {
+  width: 380px;
+  height: 380px;
+  left: 36%;
+  top: -190px;
+  background: #52749b;
+  opacity: .16;
+}
+.page-home .hero-bg::after {
+  width: 300px;
+  height: 300px;
+  right: -120px;
+  bottom: -180px;
+  background: var(--home-gold);
+  opacity: .12;
+}
+.page-home .hero-grid { gap: clamp(32px, 4vw, 64px); }
+.page-home .hero-copy { max-width: 660px; }
+.page-home .hero h1 {
+  max-width: 13em;
+  color: #fff;
+  font-size: clamp(2.8rem, 5.2vw, 4.65rem);
+  line-height: 1.04;
+  letter-spacing: -.055em;
+}
+.page-home .hero h1 .grad {
+  color: var(--home-gold);
+  background: none;
+  -webkit-text-fill-color: currentColor;
+}
+.page-home .hero .lead { max-width: 560px; color: #c8d2df; font-size: 1.08rem; }
+.page-home .hero .eyebrow {
+  color: #f0cb8b;
+  background: rgba(232, 189, 114, .1);
+  border: 1px solid rgba(232, 189, 114, .25);
+}
+.page-home .hero .eyebrow::before { background: currentColor; }
+.page-home .hero-search-seek {
+  max-width: 680px;
+  padding: 8px;
+  border: 1px solid rgba(255, 255, 255, .72);
+  border-radius: 17px;
+  background: #fff;
+  box-shadow: 0 22px 55px rgba(2, 13, 30, .32);
+}
+.page-home .hero-search-seek .hs-field { min-height: 54px; }
+.page-home .hero-search-seek .hs-field .i { color: #7b8797; }
+.page-home .hero-search-seek input,
+.page-home .hero-search-seek select { color: var(--home-ink); }
+.page-home .hero-search-seek input::placeholder { color: #7b8797; opacity: 1; }
+.page-home .hero-search-seek .btn {
+  min-height: 52px;
+  padding-inline: 24px;
+  border-radius: 12px;
+  background: #d7a951;
+  color: #17243a;
+  box-shadow: none;
+}
+.page-home .hero-search-seek .btn:hover { background: #efc778; filter: none; }
+.page-home .hero-near { color: #d8e0e9; }
+.page-home .hero-near a { color: #d9e2ed; text-underline-offset: 3px; }
+.page-home .hero-near .btn-outline {
+  border-color: rgba(255, 255, 255, .32);
+  background: rgba(255, 255, 255, .08);
+  color: #fff;
+}
+.page-home .hero-near .btn-outline:hover { background: rgba(255, 255, 255, .16); }
+.page-home .hero-popular { gap: 7px; color: #c4cfdd; }
+.page-home .hero-popular a {
+  padding: .25em .75em;
+  border-color: rgba(255, 255, 255, .18);
+  background: rgba(255, 255, 255, .07);
+  color: #f4f6f9;
+}
+.page-home .hero-popular a:hover { border-color: var(--home-gold); color: var(--home-gold); }
+.page-home .hero-points { color: #e2e8ef; gap: 8px 18px; }
+.page-home .hero-points .i.ok { color: #8ed0ae; }
+.page-home .hero-employer { color: #c1ccda; }
+.page-home .hero-employer a { color: #f0cb8b; }
+.page-home .hero-visual { max-width: 530px; padding: 22px 28px 34px; }
+.page-home .photo-arch {
+  aspect-ratio: 9 / 10;
+  border-radius: 47% 47% 24px 24px;
+  box-shadow: 0 28px 70px rgba(1, 10, 23, .42);
+}
+.page-home .hero-visual::before {
+  inset: 9% 0 0 12%;
+  border-radius: 47% 47% 28px 28px;
+  background: linear-gradient(145deg, #d6aa61, #657e99 68%, #405e7d);
+  opacity: .85;
+  transform: rotate(4deg);
+}
+.page-home .hero-visual .deco-dots { opacity: .2; }
+.page-home .hero-visual .deco-ring { border-color: var(--home-gold); opacity: .45; }
+.page-home .fc-main { left: -8%; bottom: 12%; }
+.page-home .fc-small { box-shadow: 0 18px 42px rgba(2, 13, 30, .24); }
+.page-home .stats { margin-top: -66px; }
+.page-home .stats-grid {
+  max-width: calc(var(--container) - 48px);
+  padding: 12px;
+  gap: 8px;
+  border-color: rgba(19, 37, 63, .08);
+  border-radius: 20px;
+  box-shadow: 0 18px 45px rgba(20, 34, 53, .12);
+}
+.page-home .stat,
+.page-home .stat:nth-child(n) { padding: 21px 12px; background: #fff; }
+.page-home .stat + .stat { border-left: 1px solid var(--home-border); border-radius: 0; }
+.page-home .stat b,
+.page-home .stat:nth-child(n) b { color: var(--home-ink); }
+.page-home .stat > span { color: var(--home-muted); }
+.page-home .section-tint { background: var(--home-paper); }
+.page-home .section-head h2 { color: var(--home-ink); letter-spacing: -.04em; }
+.page-home .section-head p { color: var(--home-muted); }
+.page-home .role-tile,
+.page-home .city-tile {
+  border-color: var(--home-border);
+  border-radius: 14px;
+  box-shadow: 0 3px 12px rgba(19, 37, 63, .025);
+}
+.page-home .role-tile { padding: 18px; }
+.page-home .role-icon,
+.page-home .city-initial { background: #f2eee5; color: #8a6935; }
+.page-home .role-tile:hover,
+.page-home .city-tile:hover {
+  border-color: #c9a15c;
+  box-shadow: 0 12px 26px rgba(19, 37, 63, .09);
+  transform: translateY(-3px);
+}
+.page-home .job-card {
+  border-color: var(--home-border);
+  border-radius: 16px;
+  box-shadow: 0 4px 16px rgba(19, 37, 63, .035);
+}
+.page-home .job-card:hover { border-color: #c9a15c; box-shadow: 0 16px 34px rgba(19, 37, 63, .1); }
+.page-home .btn-outline { border-color: #d7d9de; }
+@media (max-width: 960px) {
+  .page-home .hero { padding-bottom: 112px; }
+  .page-home .hero-visual { max-width: 470px; }
+}
+@media (max-width: 760px) {
+  .page-home .hero { padding: 54px 0 104px; }
+  .page-home .hero h1 { font-size: clamp(2.55rem, 10vw, 3.65rem); }
+  .page-home .stats { margin-top: -48px; }
+  .page-home .stats-grid { padding: 8px; gap: 4px; }
+  .page-home .stat,
+  .page-home .stat:nth-child(n) { padding: 16px 8px; }
+  .page-home .stat + .stat { border-left: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .page-home .hero-bg::before,
+  .page-home .hero-bg::after,
+  .page-home .fc-main,
+  .page-home .fc-small { animation: none; }
+}

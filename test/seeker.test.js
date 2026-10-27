@@ -208,7 +208,8 @@ test('city pages: live jobs there, nearby cities, in the sitemap only with real 
   const places = [...pune.matchAll(/<span class="sr-only">Location: <\/span>([^<]+)</g)].map((x) => x[1].trim());
   assert.ok(places.length && places.every((p) => p === 'Pune'), places.join());
   assert.match(pune, /"@type":"CollectionPage"/);
-  assert.match(pune, /href="\/jobs\?location=Pune&amp;q=delivery"/);
+  assert.match(pune, /<title>Jobs in Pune \|/);
+  assert.match(pune, /href="\/jobs\/role\/delivery\/in\/pune">Delivery<\/a>/);
   // Mumbai's page links to its neighbours.
   assert.match(await text('/jobs/in/mumbai'), /href="\/jobs\/in\/navi-mumbai">Jobs in Navi Mumbai<\/a>/);
   // No real jobs: kept for visitors, out of search engines and the sitemap.
@@ -222,6 +223,36 @@ test('city pages: live jobs there, nearby cities, in the sitemap only with real 
   assert.equal((await srv.request('/jobs/in/delhi-ncr')).status, 404, 'listed under Delhi');
   // The homepage's city tiles lead to them.
   assert.match(await text('/'), /class="city-tile" href="\/jobs\/in\/[a-z-]+"/);
+});
+
+test('role pages: the role\'s jobs across India and in a city, in the sitemap only with real jobs', async () => {
+  const all = await text('/jobs/role/delivery');
+  assert.match(all, /<h1>Delivery jobs in India<\/h1>/);
+  assert.match(all, /<title>Delivery jobs in India \|/);
+  assert.match(all, /<link rel="canonical" href="[^"]+\/jobs\/role\/delivery">/);
+  assert.doesNotMatch(all, /name="robots"/);
+  assert.match(all, /href="\/jobs\/role\/delivery\/in\/mumbai">Delivery jobs in Mumbai<\/a>/);
+  assert.match(all, /href="\/jobs\/role\/driver">Driver<\/a>/, 'other roles');
+  assert.match(all, /"@type":"CollectionPage"/);
+  const city = await text('/jobs/role/delivery/in/bengaluru');
+  assert.match(city, /<h1>Delivery jobs in Bengaluru<\/h1>/);
+  assert.match(city, /› <a href="\/jobs\/role\/delivery">Delivery jobs<\/a> › <span aria-current="page">Delivery jobs in Bengaluru/);
+  const places = [...city.matchAll(/<span class="sr-only">Location: <\/span>([^<]+)</g)].map((x) => x[1].trim());
+  assert.ok(places.length && places.every((p) => p === 'Bengaluru'), places.join());
+  assert.ok(Number(all.match(/(\d+) open jobs?/)[1]) >= places.length);
+  assert.match(city, /href="\/jobs\?q=delivery&amp;location=Bengaluru"/);
+  // No real jobs: kept for visitors, out of search engines and the sitemap.
+  const empty = await text('/jobs/role/driver/in/patna');
+  assert.match(empty, /noindex, follow/);
+  assert.match(empty, /driver jobs within 100 km of Patna/);
+  const sitemap = await text('/sitemap.xml');
+  assert.match(sitemap, /\/jobs\/role\/delivery</);
+  assert.match(sitemap, /\/jobs\/role\/delivery\/in\/bengaluru</);
+  assert.doesNotMatch(sitemap, /\/jobs\/role\/driver\/in\/patna</);
+  assert.equal((await srv.request('/jobs/role/pilot')).status, 404);
+  assert.equal((await srv.request('/jobs/role/driver/in/atlantis')).status, 404);
+  // The homepage's popular roles lead to them.
+  assert.match(await text('/'), /href="\/jobs\/role\/security-guard"/);
 });
 
 test('sign up with only a mobile number: no email, never emailed, signed in by code', async () => {

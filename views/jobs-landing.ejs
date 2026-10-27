@@ -2,7 +2,7 @@
 
 <section class="page-hero">
   <div class="container">
-    <nav class="breadcrumbs small" aria-label="Breadcrumb"><a href="/">Home</a> › <a href="/jobs">Jobs</a><% if (kind === 'industry') { %> › <a href="/categories">Industries</a><% } %> › <span aria-current="page"><%= landing.name %></span></nav>
+    <nav class="breadcrumbs small" aria-label="Breadcrumb"><a href="/">Home</a> › <a href="/jobs">Jobs</a><% if (kind === 'industry') { %> › <a href="/categories">Industries</a><% } %><% if (kind === 'role') { landing.trail.slice(0, -1).forEach(function (t) { %> › <a href="<%= t[1] %>"><%= t[0] %></a><% }) } %> › <span aria-current="page"><%= landing.name %></span></nav>
     <span class="eyebrow"><%= openCount %> open <%= openCount === 1 ? 'job' : 'jobs' %></span>
     <h1><%= landing.h1 || landing.name + ' in India' %></h1>
     <% landing.intro.forEach(function (p, i) { %><p class="<%= i === 0 ? 'lead' : '' %>"><%= p %></p><% }) %>
@@ -11,6 +11,7 @@
       <a href="/account/register" class="btn btn-outline btn-lg">Create a free account</a>
     </div>
     <% if (landing.roles) { %><div class="chips" aria-label="Common roles"><% landing.roles.forEach(function (r) { %><% if (typeof r === 'string') { %><a class="chip chip-link" href="/jobs?q=<%= encodeURIComponent(r) %>"><%= r %></a><% } else { %><a class="chip chip-link" href="<%= r.href %>"><%= r.label %></a><% } %><% }) %></div><% } %>
+    <% if (landing.places && landing.places.length) { %><p class="small landing-nearby"><%= landing.cityPage ? 'Nearby' : 'By city' %>: <% landing.places.forEach(function (c, i) { %><a href="<%= c.href %>"><%= c.label %></a><% if (c.km) { %> <span class="muted">(~<%= c.km %> km)</span><% } %><%= i < landing.places.length - 1 ? ' · ' : '' %><% }) %></p><% } %>
     <% if (landing.nearby && landing.nearby.length) { %><p class="small landing-nearby">Nearby: <% landing.nearby.forEach(function (c, i) { %><a href="/jobs/in/<%= c.slug %>">Jobs in <%= c.name %></a> <span class="muted">(~<%= c.km %> km)</span><%= i < landing.nearby.length - 1 ? ' · ' : '' %><% }) %></p><% } %>
   </div>
 </section>
@@ -26,7 +27,7 @@
     <% if (!results.length) { %>
       <div class="dash-card">
         <p>There are no open <%= landing.city ? 'jobs in ' + landing.city : landing.name.toLowerCase() %> right now. New jobs are added every week.</p>
-        <% if (landing.city) { %><p><a href="/jobs?near=<%= encodeURIComponent(landing.city) %>&amp;within=100">See jobs within 100 km of <%= landing.city %></a></p><% } %>
+        <% if (landing.city) { %><p><a href="/jobs?near=<%= encodeURIComponent(landing.city) %>&amp;within=100<%= landing.role ? '&q=' + encodeURIComponent(landing.role.q) : '' %>">See <%= landing.role ? landing.role.label.toLowerCase() + ' jobs' : 'jobs' %> within 100 km of <%= landing.city %></a></p><% } %><% if (landing.role && landing.city) { %><p><a href="/jobs/role/<%= landing.role.slug %>">See <%= landing.role.label.toLowerCase() %> jobs across India</a></p><% } %>
         <p><a href="/jobs#alerts">Set up a job alert</a>, or <a href="/jobs#register">send us your details</a> and a recruiter will call you when something suitable opens.</p>
       </div>
     <% } else { %>
