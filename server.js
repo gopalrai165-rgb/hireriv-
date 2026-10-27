@@ -21,6 +21,7 @@ const paymentGateway = require('./payment-gateway');
 const pgMirror = require('./pg');
 const { jobSlug, jobPath, findJobBySlug, parsePost, parseSettings, SOCIAL, DEFAULT_JOB_CATEGORIES, DEFAULT_JOB_LOCATIONS, SAMPLE_TESTIMONIALS, MAX_TESTIMONIALS, WORK_KINDS, WORK_KEYS, CATEGORY_WORK, workOf, workOfCategory, RESUME_OPTIONS, resumeNeeded, JOB_GROUPS, inGroup } = require('./content');
 const interviews = require('./interviews');
+const { totals: appTotals } = require('./app-totals');
 const employers = require('./employers');
 const candidates = require('./candidates');
 const { SHIFTS, INDIAN_STATES } = require('./candidate-profile');
@@ -1922,7 +1923,10 @@ app.get('/admin', adminAuth, (req, res) => {
   // A shared read-only copy (db.snapshot): parsing every application on each
   // admin page view held up every other request. Copy a row before changing it.
   const applications = db.snapshot('applications');
-  const counts = { dashboard: '', reports: '', settings: '', activity: '', templates: templates.read().length, team: team.members().length, blog: posts.length, interviews: interviews.upcoming(applications).length, placements: billing.read().length, clients: clients.read().length, jobs: jobs.length, talent: new Set(applications.map((a) => String(a.email).toLowerCase())).size, ...Object.fromEntries(FORM_TYPES.map((t) => [t, readSubmissions(t).length])) };
+  // Counts kept until the applications change (app-totals.js); the tab counts
+  // come from SQLite instead of reading every submission.
+  const totals = appTotals(applications);
+  const counts = { dashboard: '', reports: '', settings: '', activity: '', templates: templates.read().length, team: team.members().length, blog: posts.length, interviews: interviews.upcoming(totals.withInterviews).length, placements: billing.read().length, clients: clients.read().length, jobs: jobs.length, talent: totals.people, ...Object.fromEntries(FORM_TYPES.map((t) => [t, db.count(t)])) };
   const members = team.members();
   const memberName = Object.fromEntries(members.map((u) => [u.id, u.name]));
   const tabGroups = TAB_GROUPS.map(([label, list]) => [label, list.filter((t) => tabs.includes(t))]).filter(([, list]) => list.length);
@@ -1930,7 +1934,7 @@ app.get('/admin', adminAuth, (req, res) => {
   // Long tables are shown 50 rows at a time; CSV exports still include everything.
   const pageOf = (list) => paginate(list, { page: req.query.page, size: ADMIN_PAGE_SIZE, query: req.query, path: '/admin' });
 
-  if (tab === 'dashboard') return res.render('admin', { ...locals, rows: [], dash: buildDashboard(applications, req.admin), setupTodo: req.admin.role === 'Admin' ? setupTodo() : [] });
+  if (tab === 'dashboard') return res.render('admin', { ...locals, rows: [], dash: buildDashboard(applications, req.admin, totals), setupTodo: req.admin.role === 'Admin' ? setupTodo() : [] });
   if (tab === 'team') return res.render('admin', { ...locals, rows: team.list(), roles: team.ROLES, roleInfo: agencyRoles.ROLE_INFO, requires2fa: team.requires2fa(), my2fa: team.has2fa(req.admin.id) });
   if (tab === 'templates') return res.render('admin', { ...locals, rows: templates.read(), placeholders: bulk.PLACEHOLDERS });
   if (tab === 'reports') return res.render('admin', { ...locals, rows: [], report: reports.build({ period: String(req.query.period || ''), isAdmin: agencyRoles.can(req.admin, 'money.view') }), inr: billing.inr });
@@ -1940,8 +1944,7 @@ app.get('/admin', adminAuth, (req, res) => {
     return res.render('admin', { ...locals, rows, pager, who, people: team.list() });
   }
   if (tab === 'jobs') {
-    const applicants = {};
-    for (const a of applications) applicants[a.jobId] = (applicants[a.jobId] || 0) + 1;
+    const applicants = totals.perJob;
     const owner = ownerFilter(req);
     const { rows, pager } = pageOf(owner ? jobs.filter((j) => matchesOwner(j.ownerId || '', owner, req.admin)) : jobs);
     return res.render('admin', { ...locals, rows, pager, applicants, owner, isStaleJob, jobAgeDays, staleDays: STALE_JOB_DAYS });
@@ -1949,7 +1952,7 @@ app.get('/admin', adminAuth, (req, res) => {
   if (tab === 'applications') {
     const placedApps = new Set(billing.read().map((p) => p.appId));
     const statusOf = (a) => a.status || 'New';
-    const statusCounts = Object.fromEntries(APP_STATUSES.map((s) => [s, applications.filter((a) => statusOf(a) === s).length]));
+    const statusCounts = Object.fromEntries(APP_STATUSES.map((s) => [s, totals.count(s)]));
     const status = APP_STATUSES.includes(req.query.status) ? req.query.status : '';
     const sort = req.query.sort === 'match' ? 'match' : '';
     const owner = ownerFilter(req);
@@ -1973,9 +1976,10 @@ app.get('/admin', adminAuth, (req, res) => {
     return res.render('admin', { ...locals, rows, inr: billing.inr });
   }
   if (tab === 'interviews') {
-    const up = interviews.upcoming(applications);
-    const past = interviews.allInterviews(applications).filter((iv) => !up.some((u) => u.id === iv.id)).sort((a, b) => b.at.localeCompare(a.at));
-    return res.render('admin', { ...locals, rows: up, past, due: interviews.feedbackDue(applications), formatIst: interviews.formatIst });
+    const withIv = totals.withInterviews;
+    const up = interviews.upcoming(withIv);
+    const past = interviews.allInterviews(withIv).filter((iv) => !up.some((u) => u.id === iv.id)).sort((a, b) => b.at.localeCompare(a.at));
+    return res.render('admin', { ...locals, rows: up, past, due: interviews.feedbackDue(withIv), formatIst: interviews.formatIst });
   }
   if (tab === 'placements') {
     const all = billing.read().map(billing.describe);
@@ -2005,7 +2009,7 @@ app.get('/admin', adminAuth, (req, res) => {
     };
     const job = jobs.find((j) => j.id === f.jobId) || null;
     const { rows, pager } = pageOf(searchPool(buildPool(searchableApplications(applications)), { ...f, job }));
-    const unread = applications.filter((a) => a.resume && a.resumeText === undefined).length;
+    const unread = totals.unreadResumes;
     return res.render('admin', { ...locals, rows, pager, f, unread, matchJob: job, jobOptions: jobs, statuses: APP_STATUSES, experienceOptions: EXPERIENCE, noticeOptions: NOTICE });
   }
   const { rows, pager } = pageOf(readSubmissions(tab));
@@ -2017,7 +2021,7 @@ const DAY_MS = 86400000;
 // Day buckets follow India time so "today" matches the recruiters' calendar.
 const dayKey = (d) => istDay(d);
 
-function buildDashboard(applications, user) {
+function buildDashboard(applications, user, totals = appTotals(applications)) {
   const hires = readSubmissions('hire-requests');
   const contacts = readSubmissions('contacts');
   const alerts = readSubmissions('job-alerts');
@@ -2030,15 +2034,10 @@ function buildDashboard(applications, user) {
     const d = new Date(Date.now() - i * DAY_MS);
     days.push({ key: dayKey(d), label: d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', timeZone: 'Asia/Kolkata' }), count: 0 });
   }
-  const byKey = Object.fromEntries(days.map((d) => [d.key, d]));
-  // Only the last 15 days can land in the chart (ISO times compare as text).
-  const since = new Date(Date.now() - 15 * DAY_MS).toISOString();
-  for (const a of applications) if (String(a.createdAt) >= since && byKey[dayKey(a.createdAt)]) byKey[dayKey(a.createdAt)].count++;
+  for (const d of days) d.count = totals.byDay[d.key] || 0;
 
   const jobById = new Map(jobs.map((j) => [j.id, j]));
-  const perJob = {};
-  for (const a of applications) perJob[a.jobId] = (perJob[a.jobId] || 0) + 1;
-  const topJobs = Object.entries(perJob)
+  const topJobs = Object.entries(totals.perJob)
     .map(([id, count]) => ({ id, count, job: jobById.get(id) }))
     .filter((t) => t.job)
     .sort((a, b) => b.count - a.count)
@@ -2060,9 +2059,9 @@ function buildDashboard(applications, user) {
     kpis: [
       ...(isAdmin ? [] : [{ label: 'My candidates', value: mine.length, note: `${mine.filter((a) => statusOf(a) === 'New').length} new to review`, tab: 'applications&owner=me' }]),
       { label: 'Open jobs', value: openJobs().length, note: jobs.some(isStaleJob) ? `${jobs.filter(isStaleJob).length} open ${STALE_JOB_DAYS}+ days` : `${jobs.length - openJobs().length} closed`, tab: 'jobs', alert: jobs.some(isStaleJob) },
-      { label: 'Applications', value: applications.length, note: `+${lastWeek(applications)} this week`, tab: 'applications' },
-      { label: 'In progress', value: applications.filter((a) => ['Screening', 'Shortlisted', 'Interview', 'Offered', 'On hold'].includes(statusOf(a))).length, note: `${applications.filter((a) => statusOf(a) === 'New').length} new to review`, tab: 'applications' },
-      { label: 'Hired', value: applications.filter((a) => statusOf(a) === 'Hired').length, note: 'placements', tab: 'applications' },
+      { label: 'Applications', value: totals.total, note: `+${totals.since(weekAgo)} this week`, tab: 'applications' },
+      { label: 'In progress', value: ['Screening', 'Shortlisted', 'Interview', 'Offered', 'On hold'].reduce((n, s) => n + totals.count(s), 0), note: `${totals.count('New')} new to review`, tab: 'applications' },
+      { label: 'Hired', value: totals.count('Hired'), note: 'placements', tab: 'applications' },
       { label: 'Hiring requests', value: hires.length, note: `+${lastWeek(hires)} this week`, tab: 'hire-requests' },
       { label: 'Alert subscribers', value: alerts.filter((a) => a.confirmed).length, note: `${alerts.filter((a) => !a.confirmed).length} unconfirmed`, tab: 'job-alerts' },
       ...(!isAdmin ? [] : [{ label: `Billed FY ${money.fy}`, value: money.billedFy, display: billing.inr(money.billedFy), note: `${money.toInvoice} placement${money.toInvoice === 1 ? '' : 's'} to invoice`, tab: 'placements' },
@@ -2071,11 +2070,11 @@ function buildDashboard(applications, user) {
     // Recruiters see joinings, guarantees and replacements, not money.
     followUps: billing.followUps().filter((f) => isAdmin || ['Joining', 'Confirm joining', 'Guarantee ends', 'Find replacement'].includes(f.kind)),
     days,
-    funnel: APP_STATUSES.map((s) => ({ status: s, count: applications.filter((a) => statusOf(a) === s).length })),
+    funnel: APP_STATUSES.map((s) => ({ status: s, count: totals.count(s) })),
     topJobs,
     recent,
-    interviews: interviews.upcoming(applications, 5),
-    feedbackDue: interviews.feedbackDue(applications).slice(0, 5),
+    interviews: interviews.upcoming(totals.withInterviews, 5),
+    feedbackDue: interviews.feedbackDue(totals.withInterviews).slice(0, 5),
   };
 }
 

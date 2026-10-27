@@ -69,3 +69,44 @@ test('lookups by id and by indexed fields: same documents, and the index is used
   raw.close();
   fs.rmSync(dir, { recursive: true, force: true });
 });
+
+test('application totals match counting every application, and are kept until the list changes', () => {
+  const { totals } = require('../app-totals');
+  const interviews = require('../interviews');
+  const rand = rng(7);
+  const stages = ['New', 'Screening', 'Shortlisted', 'Interview', 'Offered', 'Hired', 'On hold', 'Rejected', undefined];
+  const now = Date.now();
+  const apps = Array.from({ length: 2000 }, (_, i) => ({
+    id: `a${i}`,
+    jobId: `job${Math.floor(rand() * 40)}`,
+    email: `p${Math.floor(rand() * 900)}@x.in`.replace(/^p1/, 'P1'),
+    status: stages[Math.floor(rand() * stages.length)],
+    createdAt: i % 97 === 0 ? 'not a date' : new Date(now - rand() * 30 * 86400000).toISOString(),
+    resume: rand() < 0.3 ? 'cv.pdf' : '',
+    ...(rand() < 0.5 ? { resumeText: 'text' } : {}),
+    interviews: rand() < 0.1 ? [{ id: `iv${i}`, status: 'scheduled', at: new Date(now + (rand() - 0.5) * 20 * 86400000).toISOString(), duration: 30, feedback: [] }] : [],
+  }));
+  Object.freeze(apps);
+  const t = totals(apps);
+  const statusOf = (a) => a.status || 'New';
+  for (const s of stages.filter(Boolean)) assert.equal(t.count(s), apps.filter((a) => statusOf(a) === s).length, s);
+  assert.equal(t.count('Withdrawn'), 0);
+  assert.equal(t.total, apps.length);
+  assert.equal(t.people, new Set(apps.map((a) => String(a.email).toLowerCase())).size);
+  assert.equal(t.unreadResumes, apps.filter((a) => a.resume && a.resumeText === undefined).length);
+  const perJob = {};
+  for (const a of apps) perJob[a.jobId] = (perJob[a.jobId] || 0) + 1;
+  assert.deepEqual({ ...t.perJob }, perJob);
+  const byDay = {};
+  for (const a of apps) if (!Number.isNaN(Date.parse(a.createdAt))) byDay[istDay(a.createdAt)] = (byDay[istDay(a.createdAt)] || 0) + 1;
+  assert.deepEqual({ ...t.byDay }, byDay);
+  for (const days of [0, 1, 7, 14, 40]) {
+    const since = now - days * 86400000;
+    assert.equal(t.since(since), apps.filter((a) => new Date(a.createdAt) >= since).length, `${days} days`);
+  }
+  assert.deepEqual(interviews.upcoming(t.withInterviews), interviews.upcoming(apps));
+  assert.deepEqual(interviews.feedbackDue(t.withInterviews), interviews.feedbackDue(apps));
+  assert.deepEqual(interviews.allInterviews(t.withInterviews), interviews.allInterviews(apps));
+  assert.equal(totals(apps), t, 'the same list is not counted twice');
+  assert.notEqual(totals(Object.freeze(apps.slice(1))), t, 'a new list after a change is counted again');
+});

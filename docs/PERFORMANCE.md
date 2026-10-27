@@ -45,12 +45,13 @@ while 19 other requests are being served.
 | City page `/jobs/in/:city` | 69 | 268 ms | 227 | 76 ms | 119 ms |
 | Search suggestions `/api/suggest` | 51 | 430 ms | 1,014 | 19 ms | 26 ms |
 | Sitemap | 82 | 252 ms | 81 | 241 ms | 303 ms |
-| Admin dashboard | 5 | 71.8 s | 4 | 5.5 s | 5.5 s |
-| Admin applications list | failed | — | 5 | 3.8 s | 5.0 s |
+| Admin dashboard | 5 | 71.8 s | 26 | 700 ms | 882 ms |
+| Admin applications list | failed | — | 39 | 501 ms | 568 ms |
 
-"Before" is the code at Step 73. The admin rows are 20 staff loading the
-heaviest page at the same moment; one person opening it waits about a quarter
-of a second.
+"Before" is the code at Step 73, "after" Step 74 and, for the admin rows,
+Step 75 (at Step 74 they were 5.5 s and 3.8 s). The admin rows are 20 staff
+loading the heaviest page at the same moment; one person opening it waits
+65 ms (dashboard) or 34 ms (applications).
 
 ## 3. What was slow, and what changed
 
@@ -89,13 +90,23 @@ less obvious ones against the slow version).
    from an index, and the 14-day chart reads only the last 15 days.
 9. **Admin pages parsed every application per view.** They share one
    parsed, frozen copy (`db.snapshot`) until the applications change.
+10. **Admin pages counted every application several times per view** (Step
+    75), and the tab counts read every submission list in full just to count
+    it. The counts by stage, job, day and person, the résumés not read yet
+    and the applications with interviews are now worked out in one pass
+    (`app-totals.js`) the first time a page asks after the applications
+    change, and shared until the next change; the tab counts come from
+    SQLite (`db.count`).
 
 ## 4. What is left
 
-- **Admin pages still go through every application** for their counts:
-  about a quarter of a second per view at 50,000. Fine for a small team;
-  past a few hundred thousand applications the counts should be kept as
-  running totals or moved to the PostgreSQL copy.
+- **The first admin view after an application changes** reads the
+  applications again and recounts them: about 0.3 s at 50,000 (0.2 s to
+  read, 0.1 s to count), once per change, not per view. Past a few hundred
+  thousand applications, or with applications changing every second, the
+  counts should be updated with each write or moved to the PostgreSQL copy.
+  The talent search and CSV exports still go through every application, as
+  they must.
 - **One process.** Everything runs in one Node process with SQLite, so the
   numbers above are the whole site's capacity on that machine: roughly 50 to
   300 page views a second depending on the page, which is far above what a
