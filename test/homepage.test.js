@@ -23,8 +23,15 @@ test('header: Find Jobs, Job Categories, Staffing Solutions, Employers, Career R
   assert.match(home, /href="\/account\/login"/);
   assert.match(home, /href="\/employer\/login"/);
   assert.match(home, /href="\/post-a-job"[^>]*>[^<]*Post a Job/);
-  assert.match(home, /Find Your Next Opportunity\./);
-  assert.match(home, /<select id="hero-cat" name="category">/);
+  // Job seekers first: search by job and city, near me, popular roles, top cities.
+  assert.match(home, /Find jobs near you\./);
+  assert.match(home, /<input id="hero-q" name="q"[^>]*data-suggest/);
+  assert.match(home, /<select id="hero-loc" name="location">/);
+  assert.match(home, /data-near-me/);
+  assert.match(home, /class="role-tile" href="\/jobs\?q=delivery"/);
+  assert.match(home, /class="city-tile" href="\/jobs\?location=Mumbai"/);
+  assert.match(home, /href="\/account\/login\?with=phone"/);
+  assert.match(home, /<nav class="bottom-nav"/);
   assert.doesNotMatch(home, /(white|blue|grey)[- ]collar/i);
 });
 

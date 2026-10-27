@@ -42,7 +42,12 @@
     "myAccount": "My account",
     "register": "Register",
     "postJob": "Post a Job",
-    "homeLink": "{site} home"
+    "homeLink": "{site} home",
+    "quick": "Quick links",
+    "home": "Home",
+    "jobs": "Jobs",
+    "nearMe": "Near me",
+    "me": "Me"
   },
   "footer": {
     "newsTitle": "Get new roles & hiring insights",
@@ -109,7 +114,29 @@
     "jobCount": {
       "one": "{count} job",
       "other": "{count} jobs"
-    }
+    },
+    "seekTitle1": "Find jobs near you.",
+    "seekTitle2": "Apply in one tap.",
+    "seekLead": "Office, skilled and field jobs from checked employers across India. Search by job and city, see how far each job is, and talk to HR after you apply.",
+    "pointFree": "Free for job seekers",
+    "pointChecked": "Every listing checked by our team",
+    "pointHr": "Call HR after applying, where the employer allows",
+    "rolesTitle": "Popular jobs",
+    "rolesText": "Pick a job to see openings near you.",
+    "seeJobs": "See jobs",
+    "citiesTitle": "Jobs in top cities",
+    "citiesText": "Live openings in India’s biggest job markets.",
+    "jobsIn": "Jobs in {city}",
+    "howTitle": "Get a job in three steps",
+    "how1Title": "Search near you",
+    "how1Text": "Type a job, a PIN code or a city, or use your location to see the nearest jobs first.",
+    "how2Title": "Apply in one tap",
+    "how2Text": "Save your profile once, then apply to any job with a single tap.",
+    "how3Title": "Talk to HR",
+    "how3Text": "After you apply, call or WhatsApp the hiring contact where the employer allows it.",
+    "createProfile": "Create your free profile",
+    "signInMobile": "Sign in with mobile",
+    "hiring": "Hiring?"
   },
   "jobs": {
     "eyebrow": "Find jobs",
@@ -199,7 +226,9 @@
     "experience": "Experience:",
     "salary": "Salary:",
     "viewExample": "View example",
-    "viewApply": "View & apply"
+    "viewApply": "View & apply",
+    "applied": "Applied",
+    "oneTap": "Apply now"
   },
   "time": {
     "today": "Today",
@@ -329,7 +358,14 @@
     "translatedBy": "Translated into {language} and approved by {company} on {date}. Pay, place and other job details come from the original listing.",
     "translatedByAgency": "Translated into {language} and approved by {site} on {date}. Pay, place and other job details come from the original listing.",
     "original": "Read the original ({language})",
-    "originalTitle": "Original listing"
+    "originalTitle": "Original listing",
+    "hrDesk": "Talk to the {site} recruiter for this job",
+    "hrNamed": "Talk to {name}, who is hiring for this job",
+    "hrPerson": "Talk to the person hiring for this job",
+    "callHr": "Call HR",
+    "whatsappHr": "WhatsApp HR",
+    "hrWhatsappText": "Hello, I applied for {title} on {site}.",
+    "hrNote": "Shown because you applied. Please call during working hours. {site} never asks for money for a job."
   },
   "apply": {
     "quickNote": "Takes a minute. No resume or email needed: a recruiter will call you.",
@@ -439,7 +475,19 @@
     "tabPrivacy": "Privacy & data",
     "languageTitle": "Language",
     "languageText": "The language for {site}'s pages when you're signed in, on any device.",
-    "languageSave": "Save language"
+    "languageSave": "Save language",
+    "signInWith": "Sign in with",
+    "withMobile": "Mobile number",
+    "withEmail": "Email",
+    "enterCode": "Enter your code",
+    "codeSent": "If {phone} is a confirmed number on a Hireriv account, we’ve sent it a 6-digit code. It expires in 10 minutes.",
+    "code": "6-digit code",
+    "verifyCode": "Sign in",
+    "noCode": "No code?",
+    "resendCode": "Send again",
+    "changeNumber": "Use another number",
+    "sendCode": "Send code",
+    "mobileNote": "Works once you’ve confirmed your mobile number in Settings. New here? Create a free account with your email first."
   },
   "saved": {
     "eyebrow": "Your shortlist",
@@ -572,7 +620,15 @@
     "restored": "We kept what you typed on this device until you send it or sign out.",
     "removeSaved": "Remove from saved jobs",
     "saveJob": "Save job",
-    "savedLabel": "Saved"
+    "savedLabel": "Saved",
+    "nearFinding": "Finding your location…",
+    "nearDenied": "Location is off for this site. Type a PIN code or choose a city instead.",
+    "nearFailed": "We couldn’t find your location. Type a PIN code or choose a city instead.",
+    "suggestLabel": "Suggestions",
+    "suggestTitle": "Job",
+    "suggestSkill": "Skill",
+    "suggestCity": "City",
+    "suggestCategory": "Category"
   },
   "values": {
     "type": {},
@@ -598,5 +654,43 @@
       "Your applications, profile and messages are never stored on this device, so sign in again once you're back online to see them."
     ],
     "retry": "Try again"
+  },
+  "near": {
+    "label": "Near",
+    "placeholder": "PIN code or city",
+    "hint": "Type a 6-digit PIN code or a city to see the nearest jobs first.",
+    "within": "Distance",
+    "anyDistance": "Any distance",
+    "withinKm": "Within {km} km",
+    "useLocation": "Use my location",
+    "usingLocation": "Your location",
+    "sortNearest": "Nearest first",
+    "errOutside": "That location is outside India. Type a PIN code or choose a city.",
+    "errPin": "We can’t place PIN code {pin} yet. Try a nearby city instead.",
+    "errFormat": "Type a 6-digit PIN code or a city name.",
+    "chip": "Near {place}",
+    "chipWithin": "Within {km} km of {place}",
+    "yourLocation": "your location",
+    "inYourCity": "In your city",
+    "away": "~{km} km away",
+    "jobsNearMe": "Jobs near me",
+    "byPin": "or search by PIN code",
+    "showing": "Nearest jobs to {place} first.",
+    "showingWithin": "Jobs within {km} km of {place}, nearest first.",
+    "clear": "Clear"
+  },
+  "roles": {
+    "delivery": "Delivery",
+    "driver": "Driver",
+    "telecaller": "Telecaller",
+    "sales": "Sales",
+    "dataEntry": "Data entry",
+    "warehouse": "Warehouse",
+    "security": "Security guard",
+    "electrician": "Electrician",
+    "cook": "Cook",
+    "accountant": "Accountant",
+    "nurse": "Nurse",
+    "developer": "Developer"
   }
 }

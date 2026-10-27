@@ -14,8 +14,38 @@
         <p class="notice" role="status"><%= t('account.linkSent') %></p>
         <p class="small auth-links"><%= t('account.noLink') %> <a href="/account/login"><%= t('account.tryAgain') %></a>.</p>
       <% } else { %>
-        <h1><%= t('account.signInTitle') %></h1>
+        <h1><%= codeSent ? t('account.enterCode') : t('account.signInTitle') %></h1>
+        <% const nextQs = next ? '&next=' + encodeURIComponent(next) : ''; %>
+        <% if (!codeSent) { %>
+          <nav class="segmented" aria-label="<%= t('account.signInWith') %>">
+            <a href="/account/login?with=phone<%= nextQs %>"<%- method === 'phone' ? ' aria-current="page"' : '' %>><svg class="i" aria-hidden="true"><use href="#i-phone"/></svg> <%= t('account.withMobile') %></a>
+            <a href="/account/login?with=email<%= nextQs %>"<%- method !== 'phone' ? ' aria-current="page"' : '' %>><svg class="i" aria-hidden="true"><use href="#i-mail"/></svg> <%= t('account.withEmail') %></a>
+          </nav>
+        <% } %>
         <% if (errors.length) { %><p class="notice notice-err" role="alert" id="login-error"><%= errors.map(function (e) { return tm(e); }).join(' ') %></p><% } %>
+        <% if (method === 'phone' && codeSent) { %>
+          <p class="notice" role="status"><%= t('account.codeSent', { phone: '+91 ' + phone.slice(0, 5) + ' ' + phone.slice(5) }) %></p>
+          <form class="form" method="post" action="/account/login/phone/verify">
+            <% if (next) { %><input type="hidden" name="next" value="<%= next %>"><% } %>
+            <input type="hidden" name="phone" value="<%= phone %>">
+            <label><%= t('account.code') %><input class="otp-input" name="code" required inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="one-time-code" autofocus<%- errors.length ? ' aria-invalid="true" aria-describedby="login-error"' : '' %>></label>
+            <button class="btn btn-primary btn-block" type="submit"><%= t('account.verifyCode') %></button>
+          </form>
+          <form class="form inline-form" method="post" action="/account/login/phone">
+            <% if (next) { %><input type="hidden" name="next" value="<%= next %>"><% } %>
+            <input type="hidden" name="phone" value="<%= phone %>">
+            <p class="small muted"><%= t('account.noCode') %> <button class="link-btn" type="submit"><%= t('account.resendCode') %></button> · <a href="/account/login?with=phone<%= nextQs %>"><%= t('account.changeNumber') %></a></p>
+          </form>
+        <% } else if (method === 'phone') { %>
+          <form class="form" method="post" action="/account/login/phone">
+            <% if (next) { %><input type="hidden" name="next" value="<%= next %>"><% } %>
+            <label><%= t('account.mobile') %>
+              <span class="input-prefix"><span aria-hidden="true">+91</span><input type="tel" name="phone" required inputmode="numeric" autocomplete="tel-national" maxlength="14" value="<%= phone %>" aria-describedby="login-mobile-note<%= errors.length ? ' login-error' : '' %>"<%- errors.length ? ' aria-invalid="true"' : '' %>></span>
+            </label>
+            <button class="btn btn-primary btn-block" type="submit"><%= t('account.sendCode') %></button>
+            <p class="small muted form-note" id="login-mobile-note"><%= t('account.mobileNote') %></p>
+          </form>
+        <% } else { %>
         <form class="form" method="post" action="/account/login">
           <% if (next) { %><input type="hidden" name="next" value="<%= next %>"><% } %>
           <div class="form-grid">
@@ -25,6 +55,7 @@
           <button class="btn btn-primary btn-block" type="submit"><%= t('account.signIn') %></button>
           <p class="small muted form-note" id="login-pw-note"><%= t('account.noPassword') %> <a href="/account/forgot"><%= t('account.forgot') %></a></p>
         </form>
+        <% } %>
         <p class="small auth-links"><%= t('account.newHere') %> <a href="/account/register<%= next ? '?next=' + encodeURIComponent(next) : '' %>"><%= t('account.createFree') %></a> · <a href="/jobs"><%= t('common.browseJobs') %></a></p>
       <% } %>
     </div>

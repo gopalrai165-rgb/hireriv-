@@ -73,6 +73,8 @@
         <label class="span-2">Licences or certificates needed <span class="muted small">(one per line, optional, e.g. "Forklift licence", "Two-wheeler driving licence"; shown to candidates as must-haves, apart from the match score)</span><textarea name="mustHave" rows="2"><%= (job.mustHave || []).join('\n') %></textarea></label>
         <label class="span-2">Physical work <span class="muted small">(optional; only what the work really involves, e.g. "Lifting boxes up to 20 kg", "Standing for the whole shift")</span><input name="physical" maxlength="200" value="<%= job.physical || '' %>"></label>
         <label class="span-2 check-row"><input type="checkbox" name="immediate" value="1"<%= job.immediate ? ' checked' : '' %>> <span>Needs people who can start straight away</span></label>
+        <input type="hidden" name="hrCallShown" value="1">
+        <label class="span-2 check-row"><input type="checkbox" name="hrCall" value="1"<%= job.hrCall === true || job.hrCall === '1' ? ' checked' : '' %>> <span>Let people who applied call or WhatsApp us <span class="muted small">(the confirmed mobile of the person who created this job, shown only to people who applied to it while it is live; untick to stop at any time)</span></span></label>
         <label class="span-2">Benefits <span class="muted small">(one per line)</span><textarea name="benefits" rows="3"><%= (job.benefits || []).join('\n') %></textarea></label>
       </div>
       <p class="muted small">Listings must be real vacancies with honest pay, and may never ask candidates for money or for Aadhaar or bank details to apply. Read the <a href="/job-posting-policy" target="_blank" rel="noopener">job posting rules</a>. The <%= site.name %> team checks every job before it goes live.</p>

@@ -20,6 +20,24 @@
         </form>
       </section>
 
+      <section class="dash-card" id="mobile">
+        <div class="dash-head"><h2>Mobile sign-in</h2></div>
+        <% if (!mobile.number) { %>
+          <p class="small muted">Add a 10-digit Indian mobile number to <a href="/account/profile">your profile</a> to sign in with a code sent by text message.</p>
+        <% } else if (mobile.confirmed) { %>
+          <p class="small"><svg class="i ok" aria-hidden="true"><use href="#i-check"/></svg> +91 <%= mobile.number %> is confirmed. You can sign in with a code sent to it. Changing the number on your profile turns this off until you confirm the new one.</p>
+        <% } else { %>
+          <p class="small muted">Confirm +91 <%= mobile.number %> with a code to sign in with it instead of an email link. Only a confirmed number can sign in, so nobody else can use a number typed by mistake.</p>
+          <% if (mobile.codeSent) { %>
+            <form class="form inline-form" method="post" action="/account/phone/verify">
+              <label>6-digit code<input class="otp-input" name="code" required inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="one-time-code"></label>
+              <button class="btn btn-primary btn-sm" type="submit">Confirm</button>
+            </form>
+          <% } %>
+          <form method="post" action="/account/phone/send"><button class="btn btn-outline btn-sm" type="submit"><%= mobile.codeSent ? 'Send a new code' : 'Send a code' %></button></form>
+        <% } %>
+      </section>
+
       <section class="dash-card" id="privacy">
         <div class="dash-head"><h2>Privacy &amp; messages</h2></div>
         <form class="form" method="post" action="/account/settings">

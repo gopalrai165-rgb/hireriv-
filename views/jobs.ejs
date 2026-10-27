@@ -10,7 +10,7 @@
       <div class="filter-search">
         <svg class="i" aria-hidden="true"><use href="#i-search"/></svg>
         <label class="sr-only" for="f-q"><%= t('jobs.keyword') %></label>
-        <input id="f-q" name="q" type="search" value="<%= filters.q %>" placeholder="<%= t('jobs.keywordPlaceholder') %>" aria-describedby="f-q-hint" enterkeyhint="search">
+        <input id="f-q" name="q" type="search" autocomplete="off" data-suggest value="<%= filters.q %>" placeholder="<%= t('jobs.keywordPlaceholder') %>" aria-describedby="f-q-hint" enterkeyhint="search">
         <% if (voiceInput) { %><button type="button" class="voice-btn" data-voice-for="f-q" hidden aria-label="<%= t('jobs.voiceSearch') %>" title="<%= t('jobs.voiceSearch') %>"><svg class="i" aria-hidden="true"><use href="#i-mic"/></svg></button><% } %>
       </div>
       <label class="sr-only" for="f-loc"><%= t('jobs.location') %></label>
@@ -26,6 +26,25 @@
       </select>
       <button class="btn btn-primary" type="submit"><%= t('jobs.search') %></button>
       <p class="filter-hint small" id="f-q-hint"><%= t('jobs.keywordHint') %></p>
+      <% const placed = near && !near.error; const gps = placed && near.kind === 'gps'; %>
+      <div class="near-row">
+        <label for="f-near"><svg class="i" aria-hidden="true"><use href="#i-pin"/></svg> <%= t('near.label') %></label>
+        <% if (gps) { %>
+          <input type="hidden" name="near" value="<%= near.value %>">
+          <span class="near-using"><%= t('near.usingLocation') %></span>
+        <% } else { %>
+          <input id="f-near" name="near" value="<%= filters.near %>" maxlength="40" placeholder="<%= t('near.placeholder') %>" autocomplete="postal-code" aria-describedby="f-near-hint"<%- near && near.error ? ' aria-invalid="true"' : '' %>>
+        <% } %>
+        <label class="sr-only" for="f-within"><%= t('near.within') %></label>
+        <select id="f-within" name="within">
+          <option value=""><%= t('near.anyDistance') %></option>
+          <% radii.forEach(function (r) { %><option value="<%= r %>" <%= filters.within === r ? 'selected' : '' %>><%= t('near.withinKm', { km: r }) %></option><% }) %>
+        </select>
+        <button type="button" class="btn btn-outline btn-sm" data-near-me hidden><svg class="i" aria-hidden="true"><use href="#i-pin"/></svg> <%= t('near.useLocation') %></button>
+        <span id="f-near-hint" class="sr-only"><%= t('near.hint') %></span>
+      </div>
+      <% if (near && near.error) { %><p class="notice notice-err small" role="alert"><%= t('near.' + near.error, { pin: near.pin || '' }) %></p><% } %>
+      <p class="near-status small" role="status" data-near-status></p>
       <% const moreCount = filters.categories.length + ['experience', 'minPay', 'type', 'mode', 'shift', 'company'].filter(function (k) { return filters[k]; }).length + ((filters.skills || []).length ? 1 : 0); %>
       <details class="more-filters" open data-more-filters="<%= moreCount %>">
       <summary><%= t('jobs.filtersSummary') %><% if (moreCount) { %> <span class="count"><%= moreCount %></span><% } %></summary>
@@ -78,6 +97,7 @@
           <option value="relevance" <%= sort === 'relevance' ? 'selected' : '' %>><%= t('jobs.sortRelevance') %></option>
           <option value="newest" <%= sort === 'newest' ? 'selected' : '' %>><%= t('jobs.sortNewest') %></option>
           <option value="salary" <%= sort === 'salary' ? 'selected' : '' %>><%= t('jobs.sortPay') %></option>
+          <% if (near && !near.error) { %><option value="distance" <%= sort === 'distance' ? 'selected' : '' %>><%= t('near.sortNearest') %></option><% } %>
         </select>
         <button class="btn btn-primary more-filters-apply" type="submit"><%= t('jobs.showJobs') %></button>
       </div>
@@ -110,6 +130,7 @@
         <% if (active.length) { %><a href="/jobs" class="small"><%= t('jobs.clearAll') %></a><% } %>
       </div>
     </div>
+    <% if (near && !near.error) { %><p class="muted small near-showing"><svg class="i" aria-hidden="true"><use href="#i-pin"/></svg> <%= t(filters.within ? 'near.showingWithin' : 'near.showing', { place: near.kind === 'gps' ? t('near.yourLocation') : near.label, km: filters.within }) %> <a href="<%= active.length && active[active.length - 1].href %>"><%= t('near.clear') %></a></p><% } %>
     <% if (understood && (understood.q || understood.place)) { %><p class="muted small"><%= understood.q ? t('jobs.translatedQuery', { q: understood.q }) : '' %><%= understood.place ? ' ' + t('jobs.translatedPlace', { place: understood.place }) : '' %></p><% } %>
     <% if (corrected) { %><p class="notice" role="status"><%- th('jobs.corrected', { from: corrected.from, to: html('<b>“' + esc(corrected.to) + '”</b>') }) %></p><% } %>
     <% if (results.length) { %>

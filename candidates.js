@@ -12,11 +12,18 @@ const vault = require('./vault');
 const path = require('path');
 const { jobPath } = require('./content');
 const { hashPassword, checkPassword } = require('./employers');
+const sms = require('./sms');
 const cp = require('./candidate-profile');
 
 const COOKIE = 'hr_cand';
 const LINK_MINUTES = 30;
 const RESET_MINUTES = 30;
+// Mobile sign-in codes: 6 digits, valid 10 minutes, 5 tries, 3 sent to one
+// number in 15 minutes.
+const OTP_MINUTES = 10;
+const OTP_TRIES = 5;
+const OTP_SENDS = 3;
+const OTP_WINDOW_MS = 15 * 60 * 1000;
 const WELCOME_HOURS = 24; // the link in the welcome email after registering
 const SESSION_DAYS = 7;
 const MAX_RESUMES = 3;
@@ -38,8 +45,16 @@ const ACTIVITY_LABELS = {
   'sessions-revoked': 'Signed out on all devices', 'password-set': 'Password set', 'password-changed': 'Password changed', 'password-reset': 'Password reset by email link',
   'profile-updated': 'Profile updated', 'resume-added': 'Resume uploaded', 'resume-removed': 'Resume deleted', 'settings-changed': 'Settings changed',
   'interview-confirmed': 'Interview confirmed', 'interview-reschedule': 'Asked for another interview time',
-  'saved-search-added': 'Search saved',
+  'saved-search-added': 'Search saved', 'phone-verified': 'Mobile number confirmed',
 };
+
+// Indian mobile numbers as 10 digits (drops +91, 91 or a leading 0), or ''.
+function mobileOf(value) {
+  let d = String(value || '').replace(/\D/g, '');
+  if (d.length === 12 && d.startsWith('91')) d = d.slice(2);
+  if (d.length === 11 && d.startsWith('0')) d = d.slice(1);
+  return /^[6-9]\d{9}$/.test(d) ? d : '';
+}
 
 const sha = (s) => crypto.createHash('sha256').update(String(s)).digest('hex');
 const newToken = () => crypto.randomBytes(32).toString('hex');
@@ -227,6 +242,17 @@ function register(app, deps) {
     return { email, name: profile.name || '', phone: profile.phone || '', hasResume: Boolean(profile.resume), applied: applied ? applied.createdAt : null, missing };
   }
 
+  // One-tap apply from job lists: for a signed-in job seeker, which jobs they
+  // already applied to and whether their profile has what a quick application
+  // needs (jobs that need a resume also need one on file). Null when signed out.
+  function oneTapFor(req) {
+    const email = currentEmail(req);
+    if (!email) return null;
+    const profile = profileFor(email);
+    const applied = new Set(mine(email).filter((a) => !a.withdrawnAt).map((a) => a.jobId));
+    return { applied: [...applied], ready: Boolean(profile.name && profile.phone), hasResume: Boolean(profile.resume) };
+  }
+
   // Saves profile changes, and copies the flat details onto every application
   // from this email so recruiters and matching see the latest.
   function updateProfile(email, patch) {
@@ -328,10 +354,10 @@ function register(app, deps) {
   });
 
   // ---------- sign in ----------
-  const loginPage = (res, locals, status = 200) => page(res, 'account-login', { title: 'Sign in to your account', sent: false, next: '', email: '', ...locals }, status);
+  const loginPage = (res, locals, status = 200) => page(res, 'account-login', { title: 'Sign in to your account', sent: false, next: '', email: '', method: 'email', phone: '', codeSent: false, ...locals }, status);
   app.get('/account/login', (req, res) => {
     if (currentEmail(req)) return sendToNext(res, req.query.next);
-    loginPage(res, { next: safeNext(req.query.next) });
+    loginPage(res, { next: safeNext(req.query.next), method: req.query.with === 'phone' ? 'phone' : 'email' });
   });
 
   // Wrong passwords per email (in memory). Unknown emails count the same way,
@@ -412,6 +438,89 @@ function register(app, deps) {
     endSession(req, res);
     if (email) activity(email, 'signed-out');
     res.redirect('/account/login');
+  });
+
+  // ---------- sign in with a mobile code ----------
+  // Only a number the job seeker confirmed with a code while signed in (in
+  // Settings) can sign in, so a mistyped number on a profile never opens
+  // someone else's account. The reply is the same whether or not the number
+  // is on an account, and codes are kept only as hashes.
+  const phoneConfirmed = (c) => Boolean(c && c.emailVerifiedAt && c.phoneVerified && c.phoneVerified.phone === mobileOf(c.profile && c.profile.phone));
+  const accountsForMobile = (mobile) => readSubmissions('candidates').filter((c) => phoneConfirmed(c) && c.phoneVerified.phone === mobile);
+  const otpSends = new Map();
+  const otpTries = new Map();
+  const recentSends = (mobile) => (otpSends.get(mobile) || []).filter((t) => t > Date.now() - OTP_WINDOW_MS);
+  setInterval(() => { for (const [k] of otpSends) if (!recentSends(k).length) otpSends.delete(k); }, OTP_WINDOW_MS).unref();
+  // Counts a code for this number; false when it has had too many lately.
+  function countSend(mobile) {
+    if (recentSends(mobile).length >= OTP_SENDS) return false;
+    otpSends.set(mobile, [...recentSends(mobile), Date.now()]);
+    return true;
+  }
+  // Sends a code for `purpose` (signing in, or confirming the number on an account).
+  function sendCode(purpose, mobile, key) {
+    if (!countSend(mobile)) return false;
+    const code = String(crypto.randomInt(0, 1000000)).padStart(6, '0');
+    db.sessions.set(purpose, key, sha(`${key}:${code}`), Date.now() + OTP_MINUTES * 60000);
+    otpTries.delete(`${purpose}:${key}`);
+    sms.send(`+91${mobile}`, `${code} is your ${site.name} code. It expires in ${OTP_MINUTES} minutes. Never share it with anyone, including ${site.name} staff.`);
+    return true;
+  }
+  // True once, for the right code. Wrong codes count, and the fifth ends it.
+  function checkCode(purpose, key, code) {
+    const s = db.sessions.get(purpose, key);
+    const n = (otpTries.get(`${purpose}:${key}`) || 0) + 1;
+    otpTries.set(`${purpose}:${key}`, n);
+    if (!s || n > OTP_TRIES) { db.sessions.delete(purpose, key); return false; }
+    const typed = String(code || '').trim();
+    const ok = /^\d{6}$/.test(typed) && crypto.timingSafeEqual(Buffer.from(s.subject), Buffer.from(sha(`${key}:${typed}`)));
+    if (ok) { db.sessions.delete(purpose, key); otpTries.delete(`${purpose}:${key}`); }
+    return ok;
+  }
+
+  const phonePage = (res, locals, status = 200) => loginPage(res, { method: 'phone', ...locals }, status);
+  app.post('/account/login/phone', limit('account-otp', 10), sameOrigin, (req, res) => {
+    const mobile = mobileOf(req.body.phone);
+    const next = safeNext(req.body.next);
+    if (!mobile) return phonePage(res, { errors: ['Enter your 10-digit mobile number.'], next, phone: String(req.body.phone || '').slice(0, 20) }, 400);
+    // A number on no account is counted the same way, so the replies match.
+    const sent = accountsForMobile(mobile).length ? sendCode('candidate-otp', mobile, sha(`mobile:${mobile}`)) : countSend(mobile);
+    if (!sent) return phonePage(res, { errors: ['Too many codes for this number. Wait 15 minutes, or sign in with your email.'], next, phone: mobile }, 429);
+    phonePage(res, { codeSent: true, next, phone: mobile, title: 'Enter your code' });
+  });
+  app.post('/account/login/phone/verify', limit('account-otp-check', 20), sameOrigin, (req, res) => {
+    const mobile = mobileOf(req.body.phone);
+    const next = safeNext(req.body.next);
+    if (!mobile) return phonePage(res, { errors: ['Enter your 10-digit mobile number.'], next }, 400);
+    if (!checkCode('candidate-otp', sha(`mobile:${mobile}`), req.body.code)) {
+      return phonePage(res, { codeSent: true, next, phone: mobile, title: 'Enter your code', errors: ['That code is wrong or has expired. Check it, or ask for a new one.'] }, 401);
+    }
+    const accounts = accountsForMobile(mobile);
+    if (accounts.length !== 1) return loginPage(res, { errors: ['This number is on more than one account. Sign in with your email instead.'], next }, 409);
+    startSession(res, accounts[0].email);
+    activity(accounts[0].email, 'signed-in', 'mobile code');
+    sendToNext(res, next);
+  });
+
+  // Confirming the mobile number on the account (Settings) turns on signing
+  // in with it. Changing the number on the profile turns it off again.
+  app.post('/account/phone/send', requireCandidate, limit('account-otp', 10), sameOrigin, (req, res) => {
+    const c = ensureCandidate(req.candidateEmail);
+    const mobile = mobileOf(c.profile.phone);
+    if (!mobile) return back(res, 'Add a 10-digit Indian mobile number to your profile first.', '/account/settings');
+    if (!sendCode('candidate-phone', mobile, sha(`confirm:${c.id}:${mobile}`))) return back(res, 'Too many codes for this number. Wait 15 minutes and try again.', '/account/settings');
+    res.redirect('/account/settings?code=sent#mobile');
+  });
+  app.post('/account/phone/verify', requireCandidate, limit('account-otp-check', 20), sameOrigin, (req, res) => {
+    const c = ensureCandidate(req.candidateEmail);
+    const mobile = mobileOf(c.profile.phone);
+    if (!mobile || !checkCode('candidate-phone', sha(`confirm:${c.id}:${mobile}`), req.body.code)) {
+      return res.redirect(`/account/settings?code=sent&msg=${encodeURIComponent('That code is wrong or has expired. Check it, or send a new one.')}#mobile`);
+    }
+    c.phoneVerified = { phone: mobile, at: nowIso() };
+    saveCandidate(c);
+    activity(c.email, 'phone-verified');
+    back(res, 'Mobile number confirmed. You can now sign in with a code sent to it.', '/account/settings');
   });
 
   // ---------- forgot / reset password ----------
@@ -653,7 +762,9 @@ function register(app, deps) {
     }
     saveApplication(data, file, job, { oneClick: true }, { announce: true })
       .then(({ updated }) => {
-        if (!updated) track('application-submitted', 'One-click', req);
+        if (!updated) track('application-submitted', req.body.from === 'card' ? 'One-tap' : 'One-click', req);
+        // From a job list, the job page shows what's next (and the hiring contact, where the employer shares it).
+        if (req.body.from === 'card') return toJob(`Applied for ${job.title}. A recruiter will be in touch within 2 working days.`);
         back(res, `Applied for ${job.title}. A recruiter will be in touch within 2 working days.`);
       })
       .catch((e) => {
@@ -757,7 +868,9 @@ function register(app, deps) {
     const email = req.candidateEmail;
     const log = readSubmissions('candidate-activity').filter((e) => e.email === email).slice(0, 20)
       .map((e) => ({ at: e.createdAt, label: ACTIVITY_LABELS[e.event] || e.event, detail: e.event === 'signed-in' ? e.detail : '' }));
-    page(res, 'account-settings', { title: 'Account settings', ...shell(email, 'settings'), log, marketingOn: marketingOn(email), msg: String(req.query.msg || ''), errors: [] });
+    const c = candidateOf(email);
+    const mobile = { number: mobileOf(c && c.profile.phone), confirmed: phoneConfirmed(c), codeSent: req.query.code === 'sent' };
+    page(res, 'account-settings', { title: 'Account settings', ...shell(email, 'settings'), log, marketingOn: marketingOn(email), msg: String(req.query.msg || ''), errors: [], mobile });
   });
   app.post('/account/password', requireCandidate, limit('account-password', 10), sameOrigin, (req, res) => {
     const c = ensureCandidate(req.candidateEmail);
@@ -1065,7 +1178,7 @@ function register(app, deps) {
   const helpers = {
     requireCandidate, requireCandidateApi, candidateOf, saveCandidate, ensureCandidate, profileFor, updateProfile, profileContext, shell, page, back, mine, savedOf, activity,
   };
-  return { requireCandidate, currentEmail, accountForJob, hiddenFromSearch, pruneAccounts, deleteEverything, helpers };
+  return { requireCandidate, currentEmail, accountForJob, oneTapFor, hiddenFromSearch, pruneAccounts, deleteEverything, helpers };
 }
 
 module.exports = { register, CANDIDATE_STAGE, safeNext };

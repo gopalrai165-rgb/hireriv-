@@ -187,6 +187,15 @@ A complete website for a tech-driven staffing and recruitment company, built wit
   - **Export CSV** on every tab (Excel-ready)
 - **Email notifications**: your team is alerted on every application, hiring request and contact message (Reply-To is the sender), candidates get an "application received" email, and recruiters can email a candidate when they move to Interview, Offered, Hired or Rejected. Every email is sent with a plain-text version alongside the HTML, for text-only mail apps and better spam scores Emails to anyone other than the candidate leave the candidate's name out of the subject line, and each email has a short preview line, works on phones and says why it was sent
 
+## For job seekers on phones (Step 69)
+- **Home:** search by job and city, **Jobs near me**, popular jobs (delivery, driver, telecaller…) and the top cities, each with live counts, three how-it-works steps, and a bottom bar on phones (Home, Jobs, Near me, Saved, Login/Me).
+- **Jobs near me** (`geo.js`): `/jobs?near=` takes a 6-digit PIN code, a city, or the browser's position (asked only after a tap, rounded to about a kilometre, never stored); nearest first with "~12 km away" on each card, and a radius (5–100 km). Distances are from city centres, and PIN codes are placed by postal district, so they are approximate. PIN codes outside the listed districts are not guessed.
+- **Instant search** (`suggest.js`, `GET /api/suggest`): job titles, skills, categories and cities from live public listings while you type, in English, Hindi or Telugu, with keyboard support.
+- **One-tap apply** from job lists for signed-in job seekers whose profile is complete; the job page then shows what's next.
+- **Call or WhatsApp HR** after applying: only when the employer ticks it on the job, only the confirmed mobile (and first name) of the person who created the job, only to people who applied while it is live. For jobs Hireriv posts, the recruitment desk's number from Settings.
+- **Sign in with a mobile code:** 6-digit codes by text message (`SMS_WEBHOOK_URL`), only for a number the job seeker first confirmed in Settings, so a mistyped number on a profile can't open someone else's account. Same reply whether or not the number is on an account; 3 codes per number in 15 minutes, 5 tries per code.
+- **Faster pages:** public job pages are prefetched the moment a link is pressed (Speculation Rules, `/speculation-rules.json`), and pages change with a short cross-fade where the browser supports view transitions (not with reduced motion).
+
 ## Run it
 ```bash
 npm install

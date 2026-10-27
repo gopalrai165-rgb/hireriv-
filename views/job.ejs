@@ -171,7 +171,18 @@
         <% if (msg) { %><p class="notice" role="status"><%= tm(msg) %></p><% } %>
         <% if (account && account.applied) { %>
           <p class="notice"><%= t('job.appliedOn', { date: formatDate(account.applied) }) %></p>
-          <a href="/account" class="btn btn-primary btn-block"><%= t('job.trackIt') %></a>
+          <% if (hrContact) { %>
+            <div class="hr-contact">
+              <p class="small"><b><%= hrContact.desk ? t('job.hrDesk', { site: site.name }) : hrContact.name ? t('job.hrNamed', { name: hrContact.name }) : t('job.hrPerson') %></b></p>
+              <div class="hr-actions">
+                <a class="btn btn-primary" href="tel:<%= hrContact.phone.replace(/[^\d+]/g, '') %>"><svg class="i" aria-hidden="true"><use href="#i-phone"/></svg> <%= t('job.callHr') %></a>
+                <% const wa = hrContact.desk ? (hrContact.whatsapp ? 'https://wa.me/' + hrContact.whatsapp : '') : waLink(hrContact.phone); %>
+                <% if (wa) { %><a class="btn btn-whatsapp" href="<%= wa %>?text=<%= encodeURIComponent(t('job.hrWhatsappText', { title: job.title, site: site.name })) %>" target="_blank" rel="noopener"><svg class="i" aria-hidden="true"><use href="#i-whatsapp"/></svg> <%= t('job.whatsappHr') %></a><% } %>
+              </div>
+              <p class="small muted"><%= t('job.hrNote', { site: site.name }) %></p>
+            </div>
+          <% } %>
+          <a href="/account" class="btn btn-outline btn-block"><%= t('job.trackIt') %></a>
         <% } else if (account && !account.missing.length) { %>
           <div class="one-click">
             <p class="small muted"><%= t('job.oneClickIntro') %></p>

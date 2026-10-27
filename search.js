@@ -130,7 +130,8 @@ function relevance(job, terms, more = '') {
 }
 
 // ---------- the search ----------
-const SORTS = ['relevance', 'newest', 'salary'];
+// 'distance' is applied by the caller (geo.js) on top of the newest-first order.
+const SORTS = ['relevance', 'newest', 'salary', 'distance'];
 const MIN_PAY_OPTIONS = [10000, 15000, 20000, 30000, 50000, 100000, 200000];
 
 const lc = (s) => String(s || '').trim().toLowerCase();

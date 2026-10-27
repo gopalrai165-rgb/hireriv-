@@ -756,3 +756,115 @@ if (document.querySelector('[data-voice-for], [data-read-aloud]') && ('speechSyn
   script.defer = true;
   document.body.append(script);
 }
+
+// ---------- jobs near me ----------
+// The browser's position is asked for only when a "near me" button or link is
+// pressed, rounded to about a kilometre (2 decimals) and sent only in the
+// search address; it is never stored. A PIN code or city works without it.
+function searchNearMe(params, report) {
+  report(say('nearFinding', 'Finding your location…'));
+  navigator.geolocation.getCurrentPosition((pos) => {
+    params.set('near', `${pos.coords.latitude.toFixed(2)},${pos.coords.longitude.toFixed(2)}`);
+    params.set('sort', 'distance');
+    for (const k of ['location', 'page']) params.delete(k);
+    for (const [k, v] of [...params]) if (!v) params.delete(k);
+    window.location.href = `/jobs?${params}`;
+  }, (err) => {
+    report(err.code === 1 ? say('nearDenied', 'Location is off for this site. Type a PIN code or choose a city instead.') : say('nearFailed', 'We couldn’t find your location. Type a PIN code or choose a city instead.'), true);
+  }, { enableHighAccuracy: false, timeout: 10000, maximumAge: 600000 });
+}
+if ('geolocation' in navigator) {
+  document.querySelectorAll('[data-near-me]').forEach((btn) => {
+    btn.hidden = false;
+    btn.addEventListener('click', () => {
+      const form = btn.dataset.nearForm ? document.querySelector(btn.dataset.nearForm) : btn.closest('form');
+      const status = (btn.parentElement && btn.parentElement.querySelector('[data-near-status]')) || (form && form.querySelector('[data-near-status]'));
+      btn.disabled = true;
+      searchNearMe(new URLSearchParams(form ? new FormData(form) : undefined), (text, failed) => {
+        if (status) status.textContent = text;
+        if (failed) btn.disabled = false;
+      });
+    });
+  });
+  document.querySelectorAll('[data-near-me-link]').forEach((a) => a.addEventListener('click', (e) => {
+    e.preventDefault();
+    searchNearMe(new URLSearchParams(), (text) => toast(text));
+  }));
+}
+
+// ---------- search suggestions ----------
+// While typing in a job search box: words from live jobs (GET /api/suggest)
+// in a list under the box. Arrow keys move, Enter opens the highlighted one,
+// Escape closes. Searching works the same without it.
+const SUGGEST_TYPES = { title: say('suggestTitle', 'Job'), skill: say('suggestSkill', 'Skill'), city: say('suggestCity', 'City'), category: say('suggestCategory', 'Category') };
+document.querySelectorAll('input[data-suggest]').forEach((input) => {
+  const list = document.createElement('ul');
+  list.className = 'suggest-list';
+  list.id = `${input.id}-suggest`;
+  list.setAttribute('role', 'listbox');
+  list.setAttribute('aria-label', say('suggestLabel', 'Suggestions'));
+  list.hidden = true;
+  input.setAttribute('role', 'combobox');
+  input.setAttribute('aria-autocomplete', 'list');
+  input.setAttribute('aria-expanded', 'false');
+  input.setAttribute('aria-controls', list.id);
+  input.parentElement.classList.add('has-suggest');
+  input.parentElement.append(list);
+  let items = [];
+  let active = -1;
+  let timer;
+  let asked = '';
+  const close = () => {
+    list.hidden = true;
+    input.setAttribute('aria-expanded', 'false');
+    input.removeAttribute('aria-activedescendant');
+    active = -1;
+  };
+  const highlight = (i) => {
+    active = i;
+    [...list.children].forEach((li, n) => li.setAttribute('aria-selected', String(n === i)));
+    if (i >= 0) input.setAttribute('aria-activedescendant', `${list.id}-${i}`);
+    else input.removeAttribute('aria-activedescendant');
+  };
+  const paint = () => {
+    list.replaceChildren(...items.map((it, i) => {
+      const li = document.createElement('li');
+      li.id = `${list.id}-${i}`;
+      li.setAttribute('role', 'option');
+      li.setAttribute('aria-selected', 'false');
+      const b = document.createElement('span');
+      b.textContent = it.text;
+      const kind = document.createElement('span');
+      kind.className = 'suggest-kind';
+      kind.textContent = SUGGEST_TYPES[it.type] || '';
+      li.append(b, kind);
+      li.addEventListener('mousedown', (e) => e.preventDefault());
+      li.addEventListener('click', () => { window.location.href = it.href; });
+      return li;
+    }));
+    list.hidden = !items.length;
+    input.setAttribute('aria-expanded', String(Boolean(items.length)));
+    highlight(-1);
+  };
+  const ask = async () => {
+    const q = input.value.trim();
+    if (q.length < 2) { items = []; paint(); return; }
+    if (q === asked) return;
+    asked = q;
+    try {
+      const res = await fetch(`/api/suggest?q=${encodeURIComponent(q)}`, { headers: { accept: 'application/json' } });
+      if (!res.ok || input.value.trim() !== q) return;
+      items = (await res.json()).items || [];
+      paint();
+    } catch { /* offline: just type */ }
+  };
+  input.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(ask, 150); });
+  input.addEventListener('keydown', (e) => {
+    if (list.hidden) return;
+    if (e.key === 'ArrowDown') { e.preventDefault(); highlight((active + 1) % items.length); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); highlight(active <= 0 ? items.length - 1 : active - 1); }
+    else if (e.key === 'Enter' && active >= 0) { e.preventDefault(); window.location.href = items[active].href; }
+    else if (e.key === 'Escape') { e.preventDefault(); close(); }
+  });
+  input.addEventListener('blur', () => setTimeout(close, 100));
+});

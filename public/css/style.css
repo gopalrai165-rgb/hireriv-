@@ -177,12 +177,13 @@ img { max-width: 100%; display: block; }
 .main-nav a.active { color: var(--primary-600); }
 .nav-cta { margin-left: 12px; }
 .nav-toggle { display: none; background: none; border: 0; padding: 8px; color: var(--ink); cursor: pointer; }
+.site-header .logo { flex-shrink: 0; }
 .nav-toggle .i { width: 28px; height: 28px; }
 @media (min-width: 961px) {
   .main-nav a:not(.btn), .nav-login summary { white-space: nowrap; }
   .main-nav { flex: 1; justify-content: flex-end; }
 }
-@media (min-width: 961px) and (max-width: 1180px) {
+@media (min-width: 961px) and (max-width: 1440px) {
   .main-nav a:not(.btn) { padding: .5em .35em; font-size: .82rem; }
   .nav-login summary { padding: .5em .45em; font-size: .82rem; }
   .nav-cta { margin-left: 4px; }
@@ -1652,3 +1653,131 @@ input[type="checkbox"], input[type="radio"] { min-width: 20px; min-height: 20px;
 }
 @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
 .offline-alt { margin-top: 28px; padding-top: 20px; border-top: 1px solid var(--line); }
+
+/* ============ Job seeker first (Step 69) ============ */
+/* Smooth page changes in browsers that support cross-document view
+   transitions; others (and reduced motion) just load the page. */
+@media (prefers-reduced-motion: no-preference) {
+  @view-transition { navigation: auto; }
+  ::view-transition-old(root), ::view-transition-new(root) { animation-duration: .18s; }
+}
+.section-tight { padding-top: clamp(36px, 5vw, 56px); padding-bottom: clamp(36px, 5vw, 56px); }
+
+/* Hero: job title, city, search, then "near me". */
+.hero-search-seek { padding: 7px; gap: 0; border-radius: 18px; }
+.hero-search-seek .hs-field { display: flex; align-items: center; gap: 8px; flex: 1 1 0; min-width: 0; padding: 0 14px; position: relative; }
+.hero-search-seek .hs-field + .hs-field { border-left: 1px solid var(--line); }
+.hero-search-seek select { flex: 1; border: 0; padding-left: 0; }
+.hero-search-seek .btn { flex: 0 0 auto; }
+.hero-near { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; margin-top: 14px; }
+.near-status { color: var(--muted); margin: 0; }
+.near-status:empty { display: none; }
+.hero-points { list-style: none; display: flex; flex-wrap: wrap; gap: 6px 18px; padding: 0; margin: 18px 0 0; color: var(--ink); }
+.hero-points li { display: inline-flex; align-items: center; gap: 6px; }
+.i.ok { color: var(--ok); }
+.fc-facts { list-style: none; padding: 0; margin: 10px 0 12px; display: grid; gap: 4px; }
+.fc-facts li { display: flex; align-items: center; gap: 8px; }
+.fc-facts .i { color: var(--primary); }
+.fc-actions { display: flex; gap: 8px; }
+@media (max-width: 760px) {
+  .hero-search-seek { flex-direction: column; align-items: stretch; padding: 8px; }
+  .hero-search-seek .hs-field { padding: 8px 10px; }
+  .hero-search-seek .hs-field + .hs-field { border-left: 0; border-top: 1px solid var(--line); }
+  .hero-search-seek .btn { width: 100%; margin-top: 6px; }
+}
+
+/* Popular roles and top cities. */
+.role-grid, .city-grid { list-style: none; padding: 0; margin: 0; display: grid; gap: 12px; }
+.role-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+.city-grid { grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); }
+.role-tile, .city-tile {
+  display: flex; height: 100%; border: 1px solid var(--line); border-radius: var(--radius); background: #fff; color: var(--ink);
+  transition: border-color .2s, box-shadow .2s, transform .2s;
+}
+.role-tile { flex-direction: column; align-items: flex-start; gap: 4px; padding: 16px; }
+.city-tile { align-items: center; gap: 12px; padding: 14px 16px; }
+.city-tile > span:last-child { display: flex; flex-direction: column; }
+.role-tile:hover, .city-tile:hover { color: var(--ink); border-color: var(--primary); box-shadow: var(--shadow); transform: translateY(-2px); }
+.role-icon, .city-initial { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 12px; background: var(--primary-50); color: var(--primary); font-weight: 800; flex-shrink: 0; }
+.role-icon .i { width: 22px; height: 22px; }
+.role-tile b { margin-top: 6px; line-height: 1.3; }
+@media (max-width: 480px) { .role-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .city-grid { grid-template-columns: 1fr; } }
+
+/* How it works. */
+.how-steps { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; counter-reset: none; }
+.how-steps li { position: relative; display: flex; flex-direction: column; gap: 6px; padding: 24px 22px 22px; border-radius: var(--radius); background: var(--tint); }
+.how-steps li > .i { width: 28px; height: 28px; color: var(--primary); }
+.how-steps b { color: var(--ink); font-size: 1.08rem; }
+.how-num { position: absolute; top: 14px; right: 18px; font-size: 2rem; font-weight: 800; color: rgba(31, 107, 194, .18); }
+.how-cta { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; margin-top: 28px; }
+
+/* Find Jobs: near me. */
+.near-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; margin-top: 12px; }
+.near-row > label:first-child { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; color: var(--ink); }
+.near-row input { flex: 0 1 200px; min-width: 0; }
+.near-row select { flex: 0 1 170px; }
+.near-using { font-weight: 600; color: var(--primary-600); }
+.job-distance { color: var(--primary-600); font-weight: 600; }
+
+/* Job cards: view, and one-tap apply for signed-in job seekers. */
+.job-card-actions { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: auto; flex-wrap: wrap; }
+.job-card-actions .card-link { margin-top: 0; }
+.one-tap { margin: 0; }
+.pill .i { width: 1em; height: 1em; }
+
+/* After applying: call or WhatsApp the hiring contact. */
+.hr-contact { border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 14px; margin: 12px 0; background: var(--primary-50); }
+.hr-contact p { margin: 0 0 8px; }
+.hr-contact p:last-child { margin: 8px 0 0; }
+.hr-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.hr-actions .btn { flex: 1 1 140px; justify-content: center; }
+.btn-whatsapp { background: #1f8f4e; color: #fff; }
+.btn-whatsapp:hover { color: #fff; background: #17783f; }
+
+/* Sign in: email or mobile, and codes. */
+.segmented { display: flex; gap: 4px; padding: 4px; margin: 0 0 18px; background: var(--tint); border-radius: 12px; }
+.segmented a { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; border-radius: 9px; font-weight: 600; color: var(--text); }
+.segmented a[aria-current] { background: #fff; color: var(--primary-600); box-shadow: var(--shadow); }
+.input-prefix { display: flex; align-items: stretch; margin-top: 6px; }
+.input-prefix > span { display: grid; place-items: center; padding: 0 12px; border: 1px solid var(--line); border-right: 0; border-radius: var(--radius-sm) 0 0 var(--radius-sm); background: var(--tint); font-weight: 600; color: var(--ink); }
+.input-prefix input { flex: 1; min-width: 0; margin-top: 0; border-radius: 0 var(--radius-sm) var(--radius-sm) 0; }
+.otp-input { font-size: 1.5rem; letter-spacing: .4em; text-align: center; font-variant-numeric: tabular-nums; max-width: 12ch; }
+
+/* Search suggestions under a search box. */
+.has-suggest { position: relative; }
+.suggest-list {
+  position: absolute; z-index: 30; left: 0; right: 0; top: calc(100% + 8px); list-style: none; margin: 0; padding: 6px;
+  background: #fff; border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow-lg); max-height: 320px; overflow-y: auto; text-align: left;
+}
+.suggest-list li { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; border-radius: 8px; color: var(--ink); cursor: pointer; min-height: 44px; }
+.suggest-list li[aria-selected="true"], .suggest-list li:hover { background: var(--primary-50); }
+.suggest-kind { font-size: .78rem; color: var(--muted); white-space: nowrap; }
+
+/* Phones: bottom navigation for job seekers. */
+.bottom-nav { display: none; }
+@media (max-width: 760px) {
+  .bottom-nav {
+    display: grid; grid-template-columns: repeat(5, 1fr); position: fixed; z-index: 60; left: 0; right: 0; bottom: 0;
+    background: rgba(255, 255, 255, .97); border-top: 1px solid var(--line); padding: 4px 4px calc(4px + env(safe-area-inset-bottom));
+    backdrop-filter: blur(10px);
+  }
+  .bottom-nav a { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; min-height: 52px; font-size: .72rem; font-weight: 600; color: var(--muted); border-radius: 10px; }
+  .bottom-nav a .i { width: 22px; height: 22px; }
+  .bottom-nav a[aria-current] { color: var(--primary-600); background: var(--primary-50); }
+  body:has(.bottom-nav) { padding-bottom: calc(64px + env(safe-area-inset-bottom)); }
+  body:has(.bottom-nav) .app-bar, body:has(.bottom-nav) .toast { bottom: calc(72px + env(safe-area-inset-bottom)); }
+}
+@media print { .bottom-nav { display: none; } }
+@media (forced-colors: active) { .bottom-nav a[aria-current], .segmented a[aria-current], .suggest-list li[aria-selected="true"] { outline: 2px solid CanvasText; } }
+.hero-employer { margin: 14px 0 0; color: var(--muted); }
+.near-showing { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+
+/* Find Jobs: the "near" row and its messages take the whole width of the filter box. */
+.job-filters .near-row, .job-filters .near-status, .job-filters > .notice { grid-column: 1 / -1; }
+.job-filters .near-row { padding: 10px 0 2px; border-top: 1px solid var(--line); margin-top: 0; }
+.job-filters .near-row input, .job-filters .near-row select { width: auto; border: 1px solid var(--line); border-radius: var(--radius-sm); padding: .55em .7em; }
+.job-filters .near-row input { flex: 0 1 220px; }
+/* Phones: the search and popular jobs come first; the photo is for wide screens. */
+@media (max-width: 760px) { .hero-seek .hero-visual { display: none; } }
+@media (min-width: 1000px) { .role-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); } }
+.form > label + .btn { margin-top: 14px; }

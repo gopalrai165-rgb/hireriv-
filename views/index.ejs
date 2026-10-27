@@ -2,59 +2,113 @@
 <%# Sections for employers are in English only for now: lang="en" tells screen readers. %>
 <% const enOnly = locale !== 'en' ? ' lang="en"' : ''; %>
 
-<!-- HERO -->
-<section class="hero">
+<!-- HERO: search by job and place, near me -->
+<section class="hero hero-seek">
   <div class="hero-bg" aria-hidden="true"></div>
   <div class="container hero-grid">
     <div class="hero-copy">
       <span class="eyebrow"><svg class="i" aria-hidden="true"><use href="#i-spark"/></svg> <%= t('home.eyebrow') %></span>
-      <h1><%= t('home.title1') %> <span class="grad"><%= t('home.title2') %></span></h1>
-      <p class="lead"><%= t('home.lead') %></p>
-      <div class="hero-ctas">
-        <a href="/jobs" class="btn btn-primary btn-lg"><%= t('home.findJobs') %> <svg class="i" aria-hidden="true"><use href="#i-arrow"/></svg></a>
-        <a href="/hire" class="btn btn-outline btn-lg"><%= t('home.hireTalent') %></a>
-        <a href="/hire?service=contract-staffing#requirement" class="btn btn-outline btn-lg"><%= t('home.requestStaffing') %></a>
-      </div>
-      <form class="hero-search" action="/jobs" method="get" role="search">
-        <svg class="i" aria-hidden="true"><use href="#i-search"/></svg>
-        <label class="sr-only" for="hero-q"><%= t('home.searchLabel') %></label>
-        <input id="hero-q" name="q" type="search" placeholder="<%= t('home.searchPlaceholder') %>" enterkeyhint="search">
-        <label class="sr-only" for="hero-loc"><%= t('jobs.location') %></label>
-        <select id="hero-loc" name="location">
-          <option value=""><%= t('home.anyLocation') %></option>
-          <% locations.forEach(function (l) { %><option><%= l %></option><% }) %>
-        </select>
-        <label class="sr-only" for="hero-cat"><%= t('home.categoryLabel') %></label>
-        <select id="hero-cat" name="category">
-          <option value=""><%= t('home.anyCategory') %></option>
-          <% categoryGroups.forEach(function (g) { %><optgroup label="<%= tv('work', g.key) === g.key ? g.label : tv('work', g.key) %>"><% g.categories.forEach(function (c) { %><option value="<%= c %>"><%= tv('category', c) %></option><% }) %></optgroup><% }) %>
-        </select>
+      <h1><%= t('home.seekTitle1') %> <span class="grad"><%= t('home.seekTitle2') %></span></h1>
+      <p class="lead"><%= t('home.seekLead') %></p>
+      <form class="hero-search hero-search-seek" action="/jobs" method="get" role="search">
+        <div class="hs-field">
+          <svg class="i" aria-hidden="true"><use href="#i-search"/></svg>
+          <label class="sr-only" for="hero-q"><%= t('home.searchLabel') %></label>
+          <input id="hero-q" name="q" type="search" placeholder="<%= t('home.searchPlaceholder') %>" enterkeyhint="search" autocomplete="off" data-suggest>
+        </div>
+        <div class="hs-field">
+          <svg class="i" aria-hidden="true"><use href="#i-pin"/></svg>
+          <label class="sr-only" for="hero-loc"><%= t('jobs.location') %></label>
+          <select id="hero-loc" name="location">
+            <option value=""><%= t('home.anyLocation') %></option>
+            <% locations.forEach(function (l) { %><option><%= l %></option><% }) %>
+          </select>
+        </div>
         <button class="btn btn-accent" type="submit"><%= t('home.searchButton') %></button>
       </form>
-      <p class="hero-popular small"><%= t('home.popular') %>
-        <a href="/jobs?q=developer"><%= t('home.popularDeveloper') %></a> <a href="/jobs?q=accountant"><%= t('home.popularAccountant') %></a> <a href="/jobs?q=sales"><%= t('home.popularSales') %></a> <a href="/jobs?q=electrician"><%= t('home.popularElectrician') %></a> <a href="/jobs?q=driver"><%= t('home.popularDriver') %></a> <a href="/jobs?q=warehouse"><%= t('home.popularWarehouse') %></a>
-      </p>
-      <% const placed = site.stats[1] || site.stats[0]; %>
-      <div class="trust">
-        <div class="trust-avatars" aria-hidden="true"><% [1, 2, 3, 4, 5].forEach(function (n) { %><img src="/img/photos/avatar-<%= n %>.webp" alt="" width="44" height="44"><% }) %></div>
-        <p><span class="stars" aria-hidden="true">★★★★★</span><% if (placed) { %><b><%= placed.value.toLocaleString('en-IN') %><%= placed.suffix %> <span<%- enOnly %>><%= placed.label.toLowerCase() %></span></b><% } %> <%= t('home.trustLine') %></p>
+      <div class="hero-near">
+        <button type="button" class="btn btn-outline btn-sm" data-near-me data-near-form=".hero-search-seek" hidden><svg class="i" aria-hidden="true"><use href="#i-locate"/></svg> <%= t('near.jobsNearMe') %></button>
+        <a class="small" href="/jobs#f-near"><%= t('near.byPin') %></a>
+        <span class="near-status small" role="status" data-near-status></span>
       </div>
+      <p class="hero-popular small"><%= t('home.popular') %>
+        <% popularRoles.slice(0, 6).forEach(function (r) { %><a href="<%= r.href %>"><%= t('roles.' + r.key) %></a> <% }) %>
+      </p>
+      <ul class="hero-points small">
+        <li><svg class="i ok" aria-hidden="true"><use href="#i-check"/></svg> <%= t('home.pointFree') %></li>
+        <li><svg class="i ok" aria-hidden="true"><use href="#i-check"/></svg> <%= t('home.pointChecked') %></li>
+        <li><svg class="i ok" aria-hidden="true"><use href="#i-check"/></svg> <%= t('home.pointHr') %></li>
+      </ul>
+      <p class="hero-employer small"><%= t('home.hiring') %> <a href="/hire"><%= t('home.hireTalent') %></a> · <a href="/hire?service=contract-staffing#requirement"><%= t('home.requestStaffing') %></a> · <a href="/post-a-job"><%= t('nav.postJob') %></a></p>
     </div>
     <div class="hero-visual" aria-hidden="true">
       <span class="deco deco-dots"></span>
       <span class="deco deco-ring"></span>
       <span class="deco deco-spark"></span>
-      <span class="deco deco-spark violet"></span>
       <figure class="photo-arch"><img src="/img/photos/hero-team.webp" alt="" width="900" height="1040" fetchpriority="high"></figure>
       <div class="float-card fc-main">
-        <div class="fc-head"><img src="/img/photos/hero-person.webp" alt="" width="44" height="44"><div><b>Senior Cloud Engineer</b><span class="muted small">Shortlisted for FinPay</span></div></div>
-        <div class="match"><span>Profile match</span><b>94%</b></div>
-        <div class="bar"><i style="width:94%"></i></div>
-        <div class="chips"><span class="chip">AWS</span><span class="chip">Kubernetes</span><span class="chip">Terraform</span></div>
+        <div class="fc-head"><span class="job-logo">W</span><div><b>Warehouse Associate</b><span class="muted small">Logistics company · Pune</span></div></div>
+        <ul class="fc-facts small"><li><svg class="i"><use href="#i-wallet"/></svg>₹18,000 – 22,000 a month</li><li><svg class="i"><use href="#i-pin"/></svg>~4 km away</li><li><svg class="i"><use href="#i-clock"/></svg>Day shift</li></ul>
+        <div class="fc-actions"><span class="btn btn-primary btn-sm">Applied</span><span class="btn btn-whatsapp btn-sm"><svg class="i"><use href="#i-phone"/></svg>Call HR</span></div>
       </div>
-      <div class="float-card fc-small fc-a"><svg class="i ok"><use href="#i-check"/></svg><div><b>Background check</b><span class="muted small">Verified</span></div></div>
-      <div class="float-card fc-small fc-b"><svg class="i sun"><use href="#i-clock"/></svg><div><b>Avg. time to shortlist</b><span class="muted small">72 hours</span></div></div>
+      <div class="float-card fc-small fc-a"><svg class="i ok"><use href="#i-check"/></svg><div><b>Verified employer</b><span class="muted small">Checked by our team</span></div></div>
+      <div class="float-card fc-small fc-b"><svg class="i sun"><use href="#i-clock"/></svg><div><b>Apply in one tap</b><span class="muted small">With your saved profile</span></div></div>
     </div>
+  </div>
+</section>
+
+<!-- POPULAR ROLES -->
+<section class="section section-tight" aria-labelledby="roles-title">
+  <div class="container">
+    <div class="section-head row">
+      <div>
+        <h2 id="roles-title"><%= t('home.rolesTitle') %></h2>
+        <p><%= t('home.rolesText') %></p>
+      </div>
+      <a href="/categories" class="btn btn-outline"><%= t('home.allCategories') %> <svg class="i" aria-hidden="true"><use href="#i-arrow"/></svg></a>
+    </div>
+    <ul class="role-grid">
+      <% popularRoles.forEach(function (r) { %>
+        <li><a class="role-tile" href="<%= r.href %>">
+          <span class="role-icon" aria-hidden="true"><svg class="i"><use href="#<%= r.icon %>"/></svg></span>
+          <b><%= t('roles.' + r.key) %></b>
+          <span class="muted small"><%= r.count ? t('home.jobCount', { count: r.count }) : t('home.seeJobs') %></span>
+        </a></li>
+      <% }) %>
+    </ul>
+  </div>
+</section>
+
+<!-- TOP CITIES -->
+<section class="section section-tint section-tight" aria-labelledby="cities-title">
+  <div class="container">
+    <div class="section-head">
+      <h2 id="cities-title"><%= t('home.citiesTitle') %></h2>
+      <p><%= t('home.citiesText') %></p>
+    </div>
+    <ul class="city-grid">
+      <% topCities.forEach(function (c) { %>
+        <li><a class="city-tile" href="/jobs?location=<%= encodeURIComponent(c.name) %>">
+          <span class="city-initial" aria-hidden="true"><%= c.name.charAt(0) %></span>
+          <span><b><%= t('home.jobsIn', { city: c.name }) %></b><span class="muted small"><%= t('home.jobCount', { count: c.count }) %></span></span>
+        </a></li>
+      <% }) %>
+    </ul>
+  </div>
+</section>
+
+<!-- HOW IT WORKS (job seekers) -->
+<section class="section section-tight" aria-labelledby="how-title">
+  <div class="container">
+    <div class="section-head center">
+      <h2 id="how-title"><%= t('home.howTitle') %></h2>
+    </div>
+    <ol class="how-steps">
+      <li><span class="how-num" aria-hidden="true">1</span><svg class="i" aria-hidden="true"><use href="#i-locate"/></svg><b><%= t('home.how1Title') %></b><span class="small muted"><%= t('home.how1Text') %></span></li>
+      <li><span class="how-num" aria-hidden="true">2</span><svg class="i" aria-hidden="true"><use href="#i-check"/></svg><b><%= t('home.how2Title') %></b><span class="small muted"><%= t('home.how2Text') %></span></li>
+      <li><span class="how-num" aria-hidden="true">3</span><svg class="i" aria-hidden="true"><use href="#i-phone"/></svg><b><%= t('home.how3Title') %></b><span class="small muted"><%= t('home.how3Text') %></span></li>
+    </ol>
+    <p class="center how-cta"><a class="btn btn-primary btn-lg" href="/account/register"><%= t('home.createProfile') %></a> <a class="btn btn-outline btn-lg" href="/account/login?with=phone"><%= t('home.signInMobile') %></a></p>
   </div>
 </section>
 
@@ -65,18 +119,6 @@
       <div class="stat">
         <b><span class="counter" data-target="<%= s.value %>"><%= s.value.toLocaleString('en-IN') %></span><%= s.suffix %></b>
         <span><%= s.label %></span>
-      </div>
-    <% }) %>
-  </div>
-</section>
-
-<!-- ROLES WE HIRE FOR (scrolling strip; the copy is for the seamless loop) -->
-<% const marqueeRoles = catalog.INDUSTRIES.flatMap(function (ind) { return ind.roles.slice(0, 2).map(function (r) { return { role: r, icon: ind.icon }; }); }); %>
-<section class="marquee-band" aria-label="<%= t('home.rolesLabel') %>">
-  <div class="marquee">
-    <% [false, true].forEach(function (copy) { %>
-      <div class="marquee-track"<%- copy ? ' aria-hidden="true"' : '' %>>
-        <% marqueeRoles.forEach(function (m) { %><span class="marquee-item"><svg class="i"><use href="#<%= m.icon %>"/></svg><%= m.role %></span><% }) %>
       </div>
     <% }) %>
   </div>

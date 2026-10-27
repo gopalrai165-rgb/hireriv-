@@ -73,6 +73,17 @@
   <svg class="i" aria-hidden="true"><use href="#i-whatsapp"/></svg>
 </a><% } %>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
+<% if (!ws) { %>
+<%# Phones: the job seeker's main places one thumb away (hidden on wide screens). %>
+<% const signedIn = typeof candidateSignedIn !== 'undefined' && candidateSignedIn; %>
+<nav class="bottom-nav" aria-label="<%= t('nav.quick') %>">
+  <a href="/"<%- page === 'home' ? ' aria-current="page"' : '' %>><svg class="i" aria-hidden="true"><use href="#i-home"/></svg><span><%= t('nav.home') %></span></a>
+  <a href="/jobs"<%- page === 'jobs' ? ' aria-current="page"' : '' %>><svg class="i" aria-hidden="true"><use href="#i-search"/></svg><span><%= t('nav.jobs') %></span></a>
+  <a href="/jobs?sort=distance#f-near" data-near-me-link><svg class="i" aria-hidden="true"><use href="#i-locate"/></svg><span><%= t('nav.nearMe') %></span></a>
+  <a href="/saved"<%- page === 'saved' ? ' aria-current="page"' : '' %>><svg class="i" aria-hidden="true"><use href="#i-bookmark"/></svg><span><%= t('nav.saved') %></span></a>
+  <a href="<%= signedIn ? '/account' : '/account/login?with=phone' %>"<%- page === 'account' ? ' aria-current="page"' : '' %>><svg class="i" aria-hidden="true"><use href="#i-user"/></svg><span><%= signedIn ? t('nav.me') : t('nav.login') %></span></a>
+</nav>
+<% } %>
 <div class="app-bar" id="app-update" role="status" hidden>
   <span><%= t('footer.updateReady', { site: site.name }) %></span>
   <button type="button" class="btn btn-primary btn-sm" data-app-reload><%= t('footer.reload') %></button>

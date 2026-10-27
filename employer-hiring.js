@@ -67,7 +67,13 @@ function register(app, deps) {
       body[k] = Array.isArray(src[k]) ? src[k].join(k === 'skills' ? ', ' : '\n') : String(src[k]);
       if (['salaryMin', 'salaryMax'].includes(k)) body.salary = '';
     }
-    return parseJob({ ...body, company: emp.company, employerId: emp.id, ownerId: existing ? existing.ownerId : '', status: 'open' });
+    const out = parseJob({ ...body, company: emp.company, employerId: emp.id, ownerId: existing ? existing.ownerId : '', status: 'open' });
+    // Whether people who applied may call or WhatsApp the person who created
+    // the job (their confirmed mobile; company-trust.js hrContactFor). The form
+    // sends hrCallShown so an unticked box turns it off; the API sends hrCall.
+    const tick = (v) => v === true || ['1', 'on', 'true'].includes(String(v));
+    out.job.hrCall = src.hrCall !== undefined || src.hrCallShown ? tick(src.hrCall) : Boolean(existing && existing.hrCall);
+    return out;
   }
   const employerJobView = (j) => ({ ...publicJob(j), status: j.status, statusLabel: STATUS_LABELS[j.status] || j.status, submittedAt: j.submittedAt || null, rejectedReason: j.status === 'rejected' ? j.rejectedReason || '' : null });
   // A job of this company that this member may see (404 for anything else).

@@ -371,6 +371,7 @@ Total: 727 routes.
 | GET | `/sw.js` | public | Service worker: keeps public files only (CSS, script, images, the offline page); never pages, API answers or resumes. Always revalidated |
 | GET | `/offline` | public | Shown by the service worker without a connection; the same for everyone, never shows who is signed in |
 | GET | `/healthz` | public | Uptime check |
+| GET | `/speculation-rules.json` | public | Prefetch rules for public job pages (no personal data) |
 | GET | `/og/site.png` | public |  |
 | GET | `/og/jobs/:id.png` | public |  |
 | GET | `/robots.txt` | public |  |
@@ -406,6 +407,7 @@ Total: 727 routes.
 | POST | `/api/public/employer-inquiries` | public | Bot trap, 5 per 10 minutes per IP, validated; kept as a hire request and added to the sales CRM (a repeat goes to the existing lead) |
 | POST | `/api/contact` | public |  |
 | GET | `/api/jobs` | public | Open, published jobs only (no samples); validated filters; 120 a minute per IP |
+| GET | `/api/suggest` | public | Search suggestions from live public listings only (titles, skills, categories, cities); the typed text is not stored; 240 a minute per IP |
 | GET | `/api/public/jobs` | public | Same as GET /api/jobs: live, real jobs only |
 | GET | `/api/public/jobs/:slug` | public | One live job by its address or id; 410 once it has closed; never applications or employer details |
 | GET | `/api/public/industries` | public | Kinds of work, industries and recruitment desks with open-job counts |
@@ -457,6 +459,8 @@ Total: 727 routes.
 | POST | `/account/register` | public | Same reply whether or not the email has an account; opened only by the emailed link |
 | GET | `/account/login` | public |  |
 | POST | `/account/login` | public | Password (8 wrong tries per email pause it for 15 minutes) or an emailed link; same reply whether or not the email has an account |
+| POST | `/account/login/phone` | public | Sends a 6-digit code only to a mobile confirmed on an account; same reply either way; 3 codes per number in 15 minutes |
+| POST | `/account/login/phone/verify` | public | 5 tries per code, 10 minutes; signs in only when exactly one account has that confirmed number |
 | POST | `/account/logout` | public |  |
 | GET | `/account/forgot` | public | Same reply whether or not the email has an account |
 | POST | `/account/forgot` | public | Same reply whether or not the email has an account |
@@ -480,6 +484,8 @@ Total: 727 routes.
 | POST | `/account/interviews/:appId/:ivId/reschedule` | candidate | Only the candidate's own upcoming interviews; tells whoever runs the hiring |
 | GET | `/account/settings` | candidate |  |
 | POST | `/account/password` | candidate | Needs the current password when one is set; signs out other sessions |
+| POST | `/account/phone/send` | candidate | Code to confirm the mobile on the profile (turns on mobile sign-in) |
+| POST | `/account/phone/verify` | candidate | Confirms it; changing the profile number turns mobile sign-in off |
 | POST | `/account/settings` | candidate |  |
 | POST | `/account/sessions/revoke` | candidate | Signs out every session of the candidate's own account |
 | POST | `/account/applications/:id/withdraw` | candidate | Only the candidate's own applications |

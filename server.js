@@ -8,6 +8,8 @@ const { open: openDb } = require('./db');
 const seo = require('./seo');
 const { skillMatch, buildPool, searchPool, phoneKey, candidateKey } = require('./match');
 const search = require('./search');
+const geo = require('./geo');
+const suggest = require('./suggest');
 const uploadSafety = require('./uploads');
 const vault = require('./vault');
 const privacyModule = require('./privacy');
@@ -42,7 +44,7 @@ const trust = require('./trust');
 // Request and error counts and background-job runs for the operations view.
 const ops = require('./ops-monitor').create();
 // Set once trust & safety is registered; job reports become cases.
-const trustHooks = { reportJob: () => null, labelsFor: () => null };
+const trustHooks = { reportJob: () => null, labelsFor: () => null, hrContactFor: () => null };
 // Set once the CRM is registered; website inquiries and sign-ups become leads.
 const leadCapture = { capture: () => null };
 const { can: employerCan } = require('./employer-team');
@@ -474,12 +476,28 @@ app.use((req, res, next) => {
     'Referrer-Policy': 'strict-origin-when-cross-origin',
     // Speaking instead of typing (VOICE_INPUT, on by default) needs the
     // microphone on this site's own pages; never in frames or other sites.
-    'Permissions-Policy': `camera=(), microphone=${VOICE_INPUT ? '(self)' : '()'}, geolocation=(), payment=()`,
+    // Geolocation only for "Use my location" on Find Jobs, after a tap.
+    'Permissions-Policy': `camera=(), microphone=${VOICE_INPUT ? '(self)' : '()'}, geolocation=(self), payment=()`,
+    // Public job pages start loading as a link is pressed (speculation-rules.json).
+    'Speculation-Rules': '"/speculation-rules.json"',
     'Cross-Origin-Opener-Policy': 'same-origin',
   });
   if (HTTPS) res.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
   next();
 });
+
+// Speculation rules for browsers that support them: fetch a public job page
+// or job list the moment a link to it is pressed ("conservative"), so it
+// opens faster. Only public pages; nothing signed-in, no forms, no files. A
+// prefetch becomes the real visit, so page counts stay right.
+const SPECULATION_RULES = JSON.stringify({
+  prefetch: [{
+    source: 'document',
+    where: { and: [{ href_matches: ['/', '/jobs', '/jobs/*', '/categories', '/companies/*'] }, { not: { selector_matches: '[download], [rel~="nofollow"], [target="_blank"]' } }] },
+    eagerness: 'conservative',
+  }],
+});
+app.get('/speculation-rules.json', (req, res) => res.type('application/speculationrules+json').set('Cache-Control', 'public, max-age=3600').send(SPECULATION_RULES));
 
 // Health check for hosts and uptime monitors: confirms the database answers.
 app.use(ops.middleware);
@@ -547,6 +565,7 @@ app.locals.site = site;
 app.locals.catalog = catalog;
 app.locals.workOf = workOf;
 app.locals.isSample = (j) => j.sample === true;
+app.locals.resumeNeeded = resumeNeeded;
 app.locals.jobPath = jobPath;
 app.locals.matchWeights = jobMatch.weightsOf;
 app.locals.matchFactors = jobMatch.FACTORS;
@@ -686,10 +705,26 @@ app.get('/', (req, res) => {
   res.render('index', {
     title: 'Find Jobs & Hire Staff Across India', page: 'home', jobs: featured, posts: livePosts().slice(0, 3), locations: jobLocations(),
     categoryGroups: groupCategories(jobCategories()), groups: groupCounts(live), jsonLd: seo.homePage(site, BASE_URL),
+    popularRoles: popularRoles(live.filter((j) => !isSample(j))), topCities: topCities(live.filter((j) => !isSample(j))),
   });
 });
 
 const groupCounts = (list) => JOB_GROUPS.map((g) => ({ ...g, count: list.filter((j) => inGroup(g, j)).length }));
+// The homepage's quick ways in: common roles (each a keyword search, named in
+// the page's language under "roles") and the cities with the most live jobs.
+const POPULAR_ROLES = [
+  ['delivery', 'delivery', 'i-box'], ['driver', 'driver', 'i-steering'], ['telecaller', 'telecaller', 'i-headset'], ['sales', 'sales', 'i-cart'],
+  ['dataEntry', 'data entry', 'i-chart'], ['warehouse', 'warehouse', 'i-box'], ['security', 'security', 'i-shield'], ['electrician', 'electrician', 'i-hardhat'],
+  ['cook', 'cook', 'i-utensils'], ['accountant', 'accountant', 'i-finance'], ['nurse', 'nurse', 'i-health'], ['developer', 'developer', 'i-code'],
+];
+const popularRoles = (live) => POPULAR_ROLES.map(([key, q, icon]) => ({ key, icon, href: `/jobs?q=${encodeURIComponent(q)}`, count: search.searchJobs(live, { q }).jobs.length }));
+function topCities(live, n = 8) {
+  const counts = {};
+  for (const j of live) if (geo.coordsOf(j.location) && j.location !== 'Delhi NCR') counts[j.location] = (counts[j.location] || 0) + 1;
+  // Big cities fill the grid on a new site with few jobs.
+  for (const c of ['Mumbai', 'Delhi', 'Bengaluru', 'Hyderabad', 'Chennai', 'Pune', 'Kolkata', 'Ahmedabad']) if (!(c in counts)) counts[c] = 0;
+  return Object.entries(counts).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).slice(0, n).map(([name, count]) => ({ name, count }));
+}
 
 // Job Categories: the category groups, then every category by kind of work.
 app.get('/categories', (req, res) => {
@@ -740,7 +775,15 @@ function jobFilters(query) {
     company: one('company').value,
     shift: pick(['shift'], (v) => SHIFTS.includes(v)),
     sort: pick(['sort'], (v) => search.SORTS.includes(v)),
+    // Jobs near me (geo.js): a rounded position, a PIN code or a city, and a radius in km.
+    near: one('near').value,
+    within: 0,
   };
+  const within = one('within').value;
+  if (within) {
+    if (geo.RADII.includes(Number(within))) f.within = Number(within);
+    else errors.push('within is invalid');
+  }
   // Skills: repeated (?skill=Forklift&skill=Excel) or comma-separated (?skills=Forklift, Excel).
   const skillList = [].concat(query.skill ?? [], String([].concat(query.skills ?? []).join(',')).split(',')).map((x) => String(x).trim()).filter(Boolean);
   for (const sk of skillList) {
@@ -790,8 +833,20 @@ function correctedFilters(list, f) {
   return better ? { ...f, q: better } : null;
 }
 // The filters as query parameters (repeated for several categories and skills).
-const filterQuery = (f) => ({ q: f.q, group: f.group, work: f.work, category: f.categories, location: f.location, mode: f.mode, type: f.type, experience: f.experience, minPay: f.minPay || '', skill: f.skills || [], company: f.company || '', shift: f.shift || '', sort: f.sort });
-const hasFilters = (f) => Boolean(f.q || f.group || f.work || f.categories.length || f.location || f.mode || f.type || f.experience || f.minPay || (f.skills || []).length || f.company || f.shift);
+const filterQuery = (f) => ({ q: f.q, group: f.group, work: f.work, category: f.categories, location: f.location, mode: f.mode, type: f.type, experience: f.experience, minPay: f.minPay || '', skill: f.skills || [], company: f.company || '', shift: f.shift || '', near: f.near || '', within: f.within || '', sort: f.sort });
+const hasFilters = (f) => Boolean(f.q || f.group || f.work || f.categories.length || f.location || f.mode || f.type || f.experience || f.minPay || (f.skills || []).length || f.company || f.shift || f.near);
+// Jobs near a place: each job's distance, only those within the radius (when
+// one is chosen), and nearest first unless another order was asked for.
+// Remote jobs and jobs in several places have no distance and go last.
+function nearJobs(list, f) {
+  const near = geo.parseNear(f.near);
+  if (!near || near.error) return { list, near, distances: {} };
+  const distances = {};
+  for (const j of list) { const km = geo.jobDistance(j, near.point); if (km !== null) distances[j.id] = Math.round(km); }
+  let out = f.within ? list.filter((j) => distances[j.id] !== undefined && distances[j.id] <= f.within) : list;
+  if (!f.sort || f.sort === 'distance') out = out.map((j, i) => [j, i]).sort((a, b) => (distances[a[0].id] ?? Infinity) - (distances[b[0].id] ?? Infinity) || a[1] - b[1]).map((x) => x[0]);
+  return { list: out, near, distances };
+}
 
 app.get('/jobs', (req, res) => {
   const live = openJobs();
@@ -805,7 +860,9 @@ app.get('/jobs', (req, res) => {
     if (retry && retry.jobs.length) { corrected = { from: f.q, to: better.q }; f = better; found = retry; }
   }
   // Kind-of-work counts follow the other filters, so each tab says what it would show.
-  const workCounts = findJobs(live, f, { skipWork: true }).jobs.reduce((n, j) => ({ ...n, [workOf(j)]: (n[workOf(j)] || 0) + 1 }), {});
+  const workCounts = nearJobs(findJobs(live, f, { skipWork: true }).jobs, f).list.reduce((n, j) => ({ ...n, [workOf(j)]: (n[workOf(j)] || 0) + 1 }), {});
+  const nearby = nearJobs(found.jobs, f);
+  found = { ...found, jobs: nearby.list, sort: nearby.near && !nearby.near.error && (!f.sort || f.sort === 'distance') ? 'distance' : found.sort };
   const { rows, pager } = paginate(found.jobs, { page: req.query.page, size: JOBS_PAGE_SIZE, query: filterQuery(f), path: '/jobs' });
   // Each active filter, with the link that removes it, for the "no results" help.
   const removeLink = (patch) => paginate([], { size: 1, query: { ...filterQuery(f), ...patch }, path: '/jobs' }).pager.urlFor(1);
@@ -823,6 +880,7 @@ app.get('/jobs', (req, res) => {
     ...f.skills.map((sk) => ({ label: sk, href: removeLink({ skill: f.skills.filter((x) => x !== sk) }) })),
     f.company && { label: f.company, href: removeLink({ company: '' }) },
     f.shift && { label: `${f.shift} shift`, href: removeLink({ shift: '' }) },
+    nearby.near && !nearby.near.error && { label: req.t.t(f.within ? 'near.chipWithin' : 'near.chip', { km: f.within, place: nearby.near.kind === 'gps' ? req.t.t('near.yourLocation') : nearby.near.label }), href: removeLink({ near: '', within: '', sort: f.sort === 'distance' ? '' : f.sort }) },
   ].filter(Boolean);
   // Signed-in candidates can save this search and get alerts for it.
   const candidateEmail = candidateAccounts.currentEmail(req);
@@ -841,6 +899,10 @@ app.get('/jobs', (req, res) => {
     metaDescription: `Find jobs across India on ${site.name}: ${live.length} open roles in office, IT, finance and sales work, and skilled, factory, warehouse, delivery, retail and hospitality jobs. Salary, location and job type on every listing.`,
     filters: { ...f, category: f.categories[0] || '' },
     sort: found.sort,
+    near: nearby.near,
+    distances: nearby.distances,
+    radii: geo.RADII,
+    oneTap: candidateAccounts.oneTapFor(req),
     active,
     corrected,
     understood: (() => { const x = localFilters(f); return x !== f ? { q: x.q, place: x.location !== f.location ? x.location : '' } : null; })(),
@@ -872,6 +934,17 @@ app.get('/jobs', (req, res) => {
 const realWhatsapp = () => /^\d{10,15}$/.test(site.whatsapp || '') && !/^\d{2}0+$/.test(site.whatsapp);
 const whatsappApplyLink = (job) =>
   realWhatsapp() ? `https://wa.me/${site.whatsapp}?text=${encodeURIComponent(`Hi ${site.name}, I want to apply for ${job.title} in ${job.location} (job ${job.id}). My name is `)}` : '';
+
+// The hiring contact shown to someone who applied: the employer's confirmed
+// mobile when they share it, or our recruitment desk for jobs we post.
+function hrContactFor(job) {
+  if (job.createdBy === 'employer') {
+    const c = trustHooks.hrContactFor(job);
+    return c ? { ...c, desk: false } : null;
+  }
+  if (isSample(job) || !site.phone || /0{5}/.test(site.phone)) return null;
+  return { name: '', phone: site.phone, whatsapp: realWhatsapp() ? site.whatsapp : '', desk: true };
+}
 
 // Landing pages for job seekers: a kind of work, or an industry (catalog.js).
 function jobLanding(req, res, landing, kind) {
@@ -932,6 +1005,8 @@ app.get('/jobs/:id', (req, res, next) => {
     reportReasons: REPORT_REASONS,
     quick: !resumeNeeded(job),
     whatsappApply: whatsappApplyLink(job),
+    // After applying: call or WhatsApp the hiring contact, where they share it.
+    hrContact: account && account.applied && open ? hrContactFor(job) : null,
     metaDescription: `${job.title} (${job.type}, ${job.mode}) in ${job.location}${job.experience ? `, ${job.experience}` : ''}${job.salary ? `, ${job.salary}` : ''}. ${job.description}`.slice(0, 300),
     // Google requires expired postings to drop their JobPosting markup.
     // A verified employer's own job names that employer; agency jobs name Hireriv.
@@ -1264,6 +1339,14 @@ async function jobsApi(req, res) {
   send(r.total, r.sort, r.list, corrected);
 }
 app.get('/api/jobs', limit('job-search', 120, 60 * 1000), (req, res) => jobsApi(req, res));
+// Suggestions while typing in a job search box (suggest.js): public listing
+// words only, so the answer can be cached briefly and is the same for everyone.
+app.get('/api/suggest', limit('job-suggest', 240, 60 * 1000), (req, res) => {
+  const items = suggest.suggestions(String(req.query.q || ''), {
+    jobs: openJobs().filter((j) => !isSample(j)), cities: jobLocations(), categories: jobCategories(), translate: (q) => i18n.searchTerms(q),
+  });
+  res.set('Cache-Control', 'public, max-age=60').json({ items });
+});
 
 // ---------- public website API (/api/public/*) ----------
 // The same data the public pages show; never applications, candidates,
@@ -1610,6 +1693,7 @@ const companyTrust = require('./company-trust').register(app, {
   uploadsDir: UPLOADS_DIR, vetDocument: resumeCheck.vetDocument, trust: trustDesk, isLive,
 });
 trustHooks.labelsFor = companyTrust.labelsFor;
+trustHooks.hrContactFor = companyTrust.hrContactFor;
 
 // The public API (/api/v1) for companies' own systems: credentials, tokens,
 // scopes, signed webhooks, the sandbox and the developer portal (integrations.js).

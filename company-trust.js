@@ -165,6 +165,14 @@ function register(app, deps) {
     const onDomain = site && !isFreeEmail(u.email) && String(u.email).toLowerCase().endsWith(`@${site}`);
     return { label: onDomain ? 'Recruiter uses a work email on the company domain' : "Recruiter's email and mobile confirmed", explain: onDomain ? `The person who posted this job confirmed an email address on ${site} and a mobile number.` : 'The person who posted this job confirmed their email address and mobile number.' };
   }
+  // "Call HR" for people who applied: the confirmed mobile and first name of
+  // the person who created the job, when the company chose to share it.
+  function hrContactFor(job) {
+    if (!job || !job.hrCall || job.createdBy !== 'employer' || job.status !== 'open') return null;
+    const u = job.createdByUser && team.userById(job.createdByUser);
+    if (!u || u.active === false || !u.phone || !u.phoneVerifiedAt) return null;
+    return { name: String(u.name || '').trim().split(/\s+/)[0] || '', phone: u.phone };
+  }
   function labelsFor(job) {
     if (!job || job.sample) return null;
     const emp = job.employerId ? clients.read().find((e) => e.id === job.employerId) : null;
@@ -213,7 +221,7 @@ function register(app, deps) {
   }
   setInterval(() => { try { prune(); } catch (e) { console.error('Verification document retention failed:', e.message); } }, DAY).unref();
 
-  return { labelsFor, companyBadge, submitVerification, prune, DOC_TYPES };
+  return { labelsFor, hrContactFor, companyBadge, submitVerification, prune, DOC_TYPES };
 }
 
 module.exports = { register, DOC_TYPES, NOT_A_GUARANTEE };
