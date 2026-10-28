@@ -2,7 +2,7 @@
 
 <section class="page-hero">
   <div class="container">
-    <nav class="breadcrumbs small" aria-label="Breadcrumb"><a href="/">Home</a> › <a href="/jobs">Jobs</a><% if (kind === 'industry') { %> › <a href="/categories">Industries</a><% } %><% if (kind === 'role') { landing.trail.slice(0, -1).forEach(function (t) { %> › <a href="<%= t[1] %>"><%= t[0] %></a><% }) } %> › <span aria-current="page"><%= landing.name %></span></nav>
+    <nav class="breadcrumbs small" aria-label="Breadcrumb"><a href="/">Home</a> › <a href="/jobs">Jobs</a><% if (kind === 'industry') { %> › <a href="/categories">Industries</a><% } %><% if (kind === 'role' || kind === 'need') { landing.trail.slice(0, -1).forEach(function (t) { %> › <a href="<%= t[1] %>"><%= t[0] %></a><% }) } %> › <span aria-current="page"><%= landing.name %></span></nav>
     <span class="eyebrow"><%= openCount %> open <%= openCount === 1 ? 'job' : 'jobs' %></span>
     <h1><%= landing.h1 || landing.name + ' in India' %></h1>
     <% landing.intro.forEach(function (p, i) { %><p class="<%= i === 0 ? 'lead' : '' %>"><%= p %></p><% }) %>

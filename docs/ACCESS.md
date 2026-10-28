@@ -388,6 +388,8 @@ Total: 727 routes.
 | GET | `/jobs/in/:city` | public | City job pages (geo.js); a city without real live jobs is noindex and left out of the sitemap |
 | GET | `/jobs/role/:role` | public | Role job pages (the homepage's popular roles); a role without real live jobs is noindex and left out of the sitemap |
 | GET | `/jobs/role/:role/in/:city` | public | A role's jobs in one city, same rules |
+| GET | `/jobs/${need.slug}` | public | Popular searches (`NEED_PAGES`): `/jobs/work-from-home`, `/part-time`, `/night-shift`, `/freshers`, `/walk-in`, `/no-english`; live public jobs only |
+| GET | `/jobs/${need.slug}/in/:city` | public | The same in one city (not work from home); same rules, noindex when the city has none |
 | GET | `/jobs/:id` | public |  |
 | GET | `/saved` | public |  |
 | GET | `/saved/cards` | public |  |

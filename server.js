@@ -725,9 +725,18 @@ function rolePagesWithJobs() {
     return found.length ? [rolePath(r), ...geo.CITY_PAGES.filter((c) => found.some((j) => c.locations.includes(j.location))).map((c) => rolePath(r, c))] : [];
   });
 }
+// Need pages, and need pages in a city, that have real live jobs.
+function needPagesWithJobs() {
+  const live = openJobs().filter((j) => !isSample(j));
+  return NEED_PAGES.flatMap((x) => {
+    const found = needJobs(live, x);
+    if (!found.length) return [];
+    return [needPath(x), ...(x.noCity ? [] : geo.CITY_PAGES.filter((c) => found.some((j) => c.locations.includes(j.location))).map((c) => needPath(x, c)))];
+  });
+}
 const cityPagesWithJobs = () => { const live = openJobs().filter((j) => !isSample(j)); return geo.CITY_PAGES.filter((c) => live.some((j) => c.locations.includes(j.location))); };
 app.get('/sitemap.xml', (req, res) =>
-  res.type('application/xml').send(seo.sitemap(BASE_URL, { jobs: openJobs().filter((j) => !isSample(j)), posts: livePosts(), staticPaths: ['/', '/jobs', ...catalog.WORK_PAGES.map((x) => `/jobs/${x.slug}`), ...catalog.JOB_INDUSTRIES.map((x) => `/jobs/industry/${x.slug}`), ...cityPagesWithJobs().map((c) => `/jobs/in/${c.slug}`), ...rolePagesWithJobs(), '/categories', '/hire', '/services', ...catalog.SERVICES.map((x) => `/services/${x.slug}`), '/industries', ...catalog.INDUSTRIES.map((x) => `/industries/${x.slug}`), '/about', '/blog', '/contact', '/privacy', '/terms', '/job-posting-policy', '/help/job-terms', '/accessibility'] }))
+  res.type('application/xml').send(seo.sitemap(BASE_URL, { jobs: openJobs().filter((j) => !isSample(j)), posts: livePosts(), staticPaths: ['/', '/jobs', ...catalog.WORK_PAGES.map((x) => `/jobs/${x.slug}`), ...catalog.JOB_INDUSTRIES.map((x) => `/jobs/industry/${x.slug}`), ...cityPagesWithJobs().map((c) => `/jobs/in/${c.slug}`), ...rolePagesWithJobs(), ...needPagesWithJobs(), '/categories', '/hire', '/services', ...catalog.SERVICES.map((x) => `/services/${x.slug}`), '/industries', ...catalog.INDUSTRIES.map((x) => `/industries/${x.slug}`), '/about', '/blog', '/contact', '/privacy', '/terms', '/job-posting-policy', '/help/job-terms', '/accessibility'] }))
 );
 
 // Things a new install still needs before it is ready for visitors, shown to
@@ -787,6 +796,34 @@ const rolePageBySlug = (slug) => ROLE_PAGES.find((r) => r.slug === slug) || null
 const rolePath = (role, city) => `/jobs/role/${role.slug}${city ? `/in/${city.slug}` : ''}`;
 app.locals.rolePages = ROLE_PAGES;
 const popularRoles = (live) => ROLE_PAGES.map((r) => ({ key: r.key, icon: r.icon, href: rolePath(r), count: search.searchJobs(live, { q: r.q }).jobs.length }));
+// Pages for what job seekers ask for first: working from home, part-time,
+// night shifts, jobs for freshers, walk-in interviews and jobs that need no
+// English. /jobs/<slug>, and (except working from home) /jobs/<slug>/in/<city>.
+const NEED_PAGES = [
+  { slug: 'work-from-home', label: 'Work from home', name: 'Work from home jobs', noCity: true, query: 'mode=Remote', matches: (j) => j.mode === 'Remote',
+    about: 'Jobs you do from home: telecalling, customer support, data entry, content, IT and more, with the pay and hours on every listing.',
+    tip: 'A real work-from-home job never asks you to pay for a kit, a laptop, training or "registration". Report any that does.' },
+  { slug: 'part-time', label: 'Part-time', name: 'Part-time jobs', query: 'type=Part-time', matches: (j) => j.type === 'Part-time',
+    about: 'Part-time jobs for students, home-makers and anyone who wants a few hours of work a day, with the hours and pay on every listing.',
+    tip: 'Check the working hours and days on the listing, and say which hours suit you when you apply.' },
+  { slug: 'night-shift', label: 'Night shift', name: 'Night shift jobs', query: 'shift=Night', matches: (j) => j.shift === 'Night',
+    about: 'Night shift jobs in warehouses, security, hospitals, hotels, BPOs and factories. Many pay a night allowance or give transport.',
+    tip: 'Ask whether the employer gives transport or a night allowance, and check the listing for the hours.' },
+  { slug: 'freshers', label: 'Freshers', name: 'Jobs for freshers', query: 'experience=fresher', matches: (j) => search.searchJobs([j], { experience: 'fresher' }).jobs.length > 0,
+    about: 'Jobs that take freshers: no work experience needed. Many train you on the job, from delivery and retail to office and IT roles.',
+    tip: 'No experience? Make a resume from your profile and say what work you want and what you are good at.' },
+  { slug: 'walk-in', label: 'Walk-in interviews', name: 'Walk-in interview jobs', query: 'walkin=1', matches: (j) => jobNeeds.walkInOpen(j, todayIst()),
+    about: 'Jobs with walk-in interviews: go to the address on the listing on the walk-in days and meet the employer the same day.',
+    tip: 'Take a photo ID and your resume if you have one. Check the walk-in days and time on the listing before you go.' },
+  { slug: 'no-english', label: 'No English needed', name: 'Jobs with no English needed', query: 'english=none', matches: (j) => j.english === 'None',
+    about: 'Jobs where the employer says no English is needed: driving, delivery, warehouse, security, housekeeping, cooking, factory and more.',
+    tip: 'Search in Hindi if you like: "ड्राइवर दिल्ली" finds driver jobs in Delhi.' },
+];
+const needPageBySlug = (slug) => NEED_PAGES.find((x) => x.slug === slug) || null;
+const needPath = (need, city) => `/jobs/${need.slug}${city && !need.noCity ? `/in/${city.slug}` : ''}`;
+app.locals.needPages = NEED_PAGES;
+// Live jobs for a need, optionally in one city.
+const needJobs = (live, need, city) => live.filter((j) => need.matches(j) && (!city || city.locations.includes(j.location)));
 // Live jobs for a role, as its keyword search finds them, optionally in one city.
 const roleJobs = (live, role, city) => search.searchJobs(live, { q: role.q }).jobs.filter((j) => !city || city.locations.includes(j.location));
 function topCities(live, n = 8) {
@@ -1076,16 +1113,41 @@ function roleLanding(role, city) {
   };
 }
 
-// Landing pages for job seekers: a kind of work, an industry (catalog.js), a city (geo.js) or a role.
+// A need's page, across India or in one city.
+function needLanding(need, city) {
+  const name = city ? `${need.name} in ${city.name}` : need.name;
+  return {
+    slug: `need-${need.slug}${city ? `-${city.slug}` : ''}`, name, h1: city ? name : `${need.name} in India`, title: city ? name : `${need.name} in India`,
+    need, cityPage: city || null, city: city ? city.name : '', locations: city ? city.locations : null,
+    description: `${name}${city ? '' : ' across India'}: openings from checked employers with salary, shift and location on every listing. Apply in one tap on ${site.name}.`,
+    intro: [need.about, `Every listing is checked by our team before it goes live${city ? `, and these are in and around ${city.name}` : ''}. Apply with your saved profile in one tap, and talk to HR after you apply where the employer allows it.`],
+    tips: [
+      need.tip,
+      'Say which shifts you can work and how far you can travel each day.',
+      `You never pay to get a job through ${site.name}: not for the offer, joining, training or a uniform.`,
+      'You do not need Aadhaar or bank details to apply. Employers ask for joining documents only after an offer.',
+    ],
+    // Other needs, in the same city where they have city pages.
+    roles: NEED_PAGES.filter((x) => x !== need).map((x) => ({ label: city && !x.noCity ? `${x.name} in ${city.name}` : x.name, href: needPath(x, x.noCity ? null : city) })),
+    places: need.noCity ? [] : city
+      ? geo.nearbyCities(city.name).map((c) => ({ label: `${need.name} in ${c.name}`, href: needPath(need, c), km: c.km }))
+      : app.locals.majorCityPages.map((c) => ({ label: `${need.name} in ${c.name}`, href: needPath(need, c) })),
+    path: needPath(need, city),
+    searchHref: `/jobs?${need.query}${city ? `&location=${encodeURIComponent(city.name)}` : ''}`,
+    trail: city ? [[need.name, needPath(need)], [name, needPath(need, city)]] : [[name, needPath(need)]],
+  };
+}
+
+// Landing pages for job seekers: a kind of work, an industry (catalog.js), a city (geo.js), a role or a need.
 function jobLanding(req, res, landing, kind) {
   const live = openJobs();
-  const list = (kind === 'role' ? roleJobs(live, landing.role, landing.cityPage) : kind === 'work' ? live.filter((j) => workOf(j) === landing.work) : kind === 'city' ? live.filter((j) => landing.locations.includes(j.location)) : live.filter((j) => landing.categories.includes(j.category)))
+  const list = (kind === 'role' ? roleJobs(live, landing.role, landing.cityPage) : kind === 'need' ? needJobs(live, landing.need, landing.cityPage) : kind === 'work' ? live.filter((j) => workOf(j) === landing.work) : kind === 'city' ? live.filter((j) => landing.locations.includes(j.location)) : live.filter((j) => landing.categories.includes(j.category)))
     .sort((a, b) => Number(isSample(a)) - Number(isSample(b)) || String(b.posted).localeCompare(String(a.posted)));
-  const path = kind === 'role' ? landing.path : kind === 'work' ? `/jobs/${landing.slug}` : kind === 'city' ? `/jobs/in/${landing.slug}` : `/jobs/industry/${landing.slug}`;
+  const path = kind === 'role' || kind === 'need' ? landing.path : kind === 'work' ? `/jobs/${landing.slug}` : kind === 'city' ? `/jobs/in/${landing.slug}` : `/jobs/industry/${landing.slug}`;
   const { rows, pager } = paginate(list, { page: req.query.page, size: JOBS_PAGE_SIZE, query: {}, path });
   const desk = kind === 'industry' ? catalog.industryBySlug(landing.desk) : null;
-  const searchHref = kind === 'role' ? landing.searchHref : kind === 'work' ? `/jobs?work=${landing.work}` : kind === 'city' ? `/jobs?location=${encodeURIComponent(landing.city)}` : `/jobs?${landing.categories.map((c) => `category=${encodeURIComponent(c)}`).join('&')}`;
-  const trail = [['Home', '/'], ['Jobs', '/jobs'], ...(kind === 'industry' ? [['Industries', '/categories']] : []), ...(kind === 'role' ? landing.trail : [[landing.name, path]])];
+  const searchHref = kind === 'role' || kind === 'need' ? landing.searchHref : kind === 'work' ? `/jobs?work=${landing.work}` : kind === 'city' ? `/jobs?location=${encodeURIComponent(landing.city)}` : `/jobs?${landing.categories.map((c) => `category=${encodeURIComponent(c)}`).join('&')}`;
+  const trail = [['Home', '/'], ['Jobs', '/jobs'], ...(kind === 'industry' ? [['Industries', '/categories']] : []), ...(kind === 'role' || kind === 'need' ? landing.trail : [[landing.name, path]])];
   const realCount = list.filter((j) => !isSample(j)).length;
   siteAnalytics.track('landing-view', landing.name, req);
   res.render('jobs-landing', {
@@ -1093,7 +1155,7 @@ function jobLanding(req, res, landing, kind) {
     metaDescription: landing.description, canonical: `${BASE_URL}${path}${pager.page > 1 ? `?page=${pager.page}` : ''}`,
     jsonLd: seo.jobLandingPage(landing, path, trail, BASE_URL, rows.filter((j) => !isSample(j))),
     // A city with no real openings is a thin page: kept for visitors, out of search engines.
-    noindex: ['city', 'role'].includes(kind) && !realCount ? 'follow' : false,
+    noindex: ['city', 'role', 'need'].includes(kind) && !realCount ? 'follow' : false,
   });
 }
 app.get('/jobs/office-professional', (req, res) => jobLanding(req, res, catalog.workPageBySlug('office-professional'), 'work'));
@@ -1115,6 +1177,15 @@ app.get('/jobs/role/:role/in/:city', (req, res, next) => {
   if (!role || !city) return next();
   jobLanding(req, res, roleLanding(role, city), 'role');
 });
+for (const need of NEED_PAGES) {
+  app.get(`/jobs/${need.slug}`, (req, res) => jobLanding(req, res, needLanding(need), 'need'));
+  if (need.noCity) continue;
+  app.get(`/jobs/${need.slug}/in/:city`, (req, res, next) => {
+    const city = geo.cityPageBySlug(req.params.city);
+    if (!city) return next();
+    jobLanding(req, res, needLanding(need, city), 'need');
+  });
+}
 app.get('/jobs/industry/:slug', (req, res, next) => {
   const landing = catalog.jobIndustryBySlug(req.params.slug);
   if (!landing) return next();
