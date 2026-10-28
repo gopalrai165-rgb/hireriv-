@@ -120,3 +120,25 @@ less obvious ones against the slow version).
 - **The real host** has not been measured. Run `npm run load:test` there
   (or against a copy of the live database size) before going wide, and
   write the numbers here.
+
+## 4. Smaller downloads (Step 94)
+
+Pages, API answers and other text are sent compressed (`compress.js`, no
+library: zstd, Brotli and gzip are built into Node 24). Each answer uses the
+best encoding the browser offers: zstd at a fast level for pages made on each
+request, Brotli at its best level for the CSS and JS, which are compressed
+once and kept in memory. Answers under 1 KB, files, downloads and anything
+marked `no-transform` are sent as they are. `COMPRESSION=off` turns it off
+when a proxy or CDN in front already compresses.
+
+| What | Plain | Compressed |
+|---|---:|---:|
+| Homepage HTML | 64.6 KB | 14.8 KB (zstd) |
+| `style.css` | 149.6 KB | 25.0 KB (Brotli) |
+| `main.js` | 42.8 KB | 11.2 KB (Brotli) |
+
+CSS and JS asked for with their fingerprint (`?v=`, which changes with every
+change to them) are cached by browsers for a year (`immutable`), so a return
+visit downloads neither. Pages also send `103 Early Hints` naming the
+stylesheet, so the browser fetches it while the server is still making the
+page (`EARLY_HINTS=off` turns it off).

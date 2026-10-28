@@ -491,6 +491,11 @@ app.set('views', path.join(__dirname, 'views'));
 // does the same elsewhere, so the load test measures what the live site does.
 if (process.env.VIEW_CACHE === '1') app.set('view cache', true);
 app.disable('x-powered-by');
+// Pages, API answers and other text sent compressed: zstd, Brotli or gzip,
+// whichever the browser takes (compress.js). COMPRESSION=off turns it off
+// when a proxy in front already compresses.
+const compress = require('./compress');
+app.use(compress.pages({ disabled: /^(off|0|false|no)$/i.test(process.env.COMPRESSION || '') }));
 app.use(express.urlencoded({ extended: false, limit: '100kb' }));
 // Webhook signatures (email and payments) cover the exact bytes sent, so keep them.
 app.use(express.json({ limit: '100kb', verify: (req, res, buf) => { if (req.url.startsWith('/webhooks/') || req.url.startsWith('/api/webhooks/')) req.rawBody = Buffer.from(buf); } }));
@@ -527,6 +532,15 @@ app.use((req, res, next) => {
     'Cross-Origin-Opener-Policy': 'same-origin',
   });
   if (HTTPS) res.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+  next();
+});
+// 103 Early Hints: a browser opening a page starts fetching the stylesheet
+// while the page is still being put together. EARLY_HINTS=off turns it off.
+const EARLY_HINTS = !/^(off|0|false|no)$/i.test(process.env.EARLY_HINTS || '');
+app.use((req, res, next) => {
+  if (EARLY_HINTS && req.method === 'GET' && typeof res.writeEarlyHints === 'function' && /text\/html/.test(req.get('Accept') || '') && !/^\/(api|css|js|img|og|uploads)\//.test(req.path)) {
+    try { res.writeEarlyHints({ link: `</css/style.css?v=${app.locals.assetVersion}>; rel=preload; as=style` }); } catch { /* the connection may not allow it */ }
+  }
   next();
 });
 
@@ -567,10 +581,16 @@ app.use((req, res, next) => {
   if (req.method === 'GET') res.vary('Save-Data');
   next();
 });
+// The CSS and JS, compressed once at the best level (compress.js).
+if (!/^(off|0|false|no)$/i.test(process.env.COMPRESSION || '')) app.use(compress.assets(path.join(__dirname, 'public')));
 app.use(express.static(path.join(__dirname, 'public'), {
   maxAge: '1h',
-  // App icons change rarely; a new version gets a new file name.
-  setHeaders: (res, file) => { if (file.includes(`${path.sep}icons${path.sep}`)) res.set('Cache-Control', 'public, max-age=604800'); },
+  // App icons change rarely; a new version gets a new file name. Files asked
+  // for with their fingerprint (?v=) never change, so browsers keep them a year.
+  setHeaders: (res, file) => {
+    if (file.includes(`${path.sep}icons${path.sep}`)) res.set('Cache-Control', 'public, max-age=604800');
+    if (res.req && res.req.query && res.req.query.v) res.set('Cache-Control', compress.YEAR);
+  },
 }));
 
 // The interface language (i18n.js): ?lang=, the hr_lang cookie from the

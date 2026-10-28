@@ -2043,3 +2043,20 @@ input[type="checkbox"], input[type="radio"] { min-width: 20px; min-height: 20px;
   .page-home .fc-main,
   .page-home .fc-small { animation: none; }
 }
+
+/* ---------- Newer CSS, used where the browser has it ---------- */
+/* Headings break into even lines; paragraphs avoid a lone last word. */
+h1, h2, h3 { text-wrap: balance; }
+p, li, dd { text-wrap: pretty; }
+/* Text boxes grow with what is typed, between a few lines and most of the screen. */
+@supports (field-sizing: content) {
+  textarea { field-sizing: content; min-height: 5.5em; max-height: 60vh; }
+}
+/* Folded sections ("More details", filters, FAQs) open smoothly. */
+@supports (interpolate-size: allow-keywords) {
+  @media (prefers-reduced-motion: no-preference) {
+    :root { interpolate-size: allow-keywords; }
+    details::details-content { height: 0; overflow: clip; transition: height .2s ease, content-visibility .2s allow-discrete; }
+    details[open]::details-content { height: auto; }
+  }
+}

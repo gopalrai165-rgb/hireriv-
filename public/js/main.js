@@ -1,5 +1,15 @@
 document.documentElement.classList.add('js');
 
+  // The installed app's icon shows the unread notifications (Badging API).
+  try {
+    var bells = document.querySelectorAll('.nav-bell[data-unread]');
+    if (bells.length && 'setAppBadge' in navigator) {
+      var unread = 0;
+      bells.forEach(function (b) { unread = Math.max(unread, Number(b.getAttribute('data-unread')) || 0); });
+      (unread ? navigator.setAppBadge(unread) : navigator.clearAppBadge()).catch(function () {});
+    }
+  } catch (e) { /* not available */ }
+
 // Words the script shows, in the page's language (from the page itself; see
 // partials/foot.ejs). English when they are missing.
 const L = (() => {
