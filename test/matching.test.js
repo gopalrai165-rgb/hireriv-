@@ -68,7 +68,7 @@ test('missing details are unknown, never a mismatch', () => {
 
 test('only work details are used: personal characteristics change nothing', () => {
   const facts = jm.facts(ashaProfile);
-  assert.deepEqual(Object.keys(facts).sort(), ['arrangements', 'availableFrom', 'categories', 'certifications', 'city', 'education', 'english', 'expectedMonthly', 'locations', 'noticePeriod', 'relocate', 'roles', 'shifts', 'skills', 'state', 'types', 'years'].sort());
+  assert.deepEqual(Object.keys(facts).sort(), ['arrangements', 'availableFrom', 'categories', 'certifications', 'city', 'education', 'english', 'expectedMonthly', 'has', 'locations', 'noticePeriod', 'relocate', 'roles', 'shifts', 'skills', 'state', 'types', 'years'].sort());
   const withPersonal = { ...ashaProfile, name: 'Someone Else', gender: 'female', dateOfBirth: '1990-01-01', religion: 'x', caste: 'y', maritalStatus: 'married', disability: 'yes', photo: 'p.jpg' };
   assert.deepEqual(jm.explain(jm.facts(withPersonal), forklift), jm.explain(jm.facts(ashaProfile), forklift));
 });

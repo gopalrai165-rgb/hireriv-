@@ -620,7 +620,8 @@ app.locals.resumeNeeded = resumeNeeded;
 app.locals.walkInOf = (j) => jobNeeds.walkInOf(j, todayIst());
 app.locals.walkInDays = (w) => jobNeeds.walkInDays(w, todayIst());
 app.locals.perksOf = jobNeeds.perksOf;
-app.locals.jobExtras = { EDUCATION: jobNeeds.EDUCATION, PERKS: jobNeeds.PERKS };
+app.locals.itemsOf = jobNeeds.itemsOf;
+app.locals.jobExtras = { EDUCATION: jobNeeds.EDUCATION, PERKS: jobNeeds.PERKS, ITEMS: jobNeeds.ITEMS };
 app.locals.educationOf = jobNeeds.educationOf;
 // Mobile-only job seekers (identity.js): no email to show or write to.
 app.locals.realEmail = identity.realEmail;
@@ -909,6 +910,8 @@ function jobFilters(query) {
     education: pick(['education'], (v) => ['below', ...jobNeeds.EDUCATION_KEYS.filter((k) => k !== 'none')].includes(v)),
     // Perks every job must give: ?perk=food&perk=stay or ?perks=food,stay.
     perks: [],
+    // Things the person doesn't have: ?without=bike&without=laptop leaves out jobs needing them.
+    without: [],
     // Walk-in interviews that haven't ended.
     walkin: pick(['walkin', 'walkIn'], (v) => ['1', 'true', 'yes'].includes(v)) ? '1' : '',
     sort: pick(['sort'], (v) => search.SORTS.includes(v)),
@@ -918,6 +921,9 @@ function jobFilters(query) {
   };
   for (const p of [].concat(query.perk ?? [], String([].concat(query.perks ?? []).join(',')).split(',')).map((x) => String(x).trim()).filter(Boolean).slice(0, 10)) {
     if (jobNeeds.PERK_KEYS.includes(p)) { if (!f.perks.includes(p)) f.perks.push(p); } else errors.push('perk is invalid');
+  }
+  for (const k of [].concat(query.without ?? []).flatMap((x) => String(x).split(',')).map((x) => x.trim()).filter(Boolean).slice(0, 10)) {
+    if (jobNeeds.ITEM_KEYS.includes(k)) { if (!f.without.includes(k)) f.without.push(k); } else errors.push('without is invalid');
   }
   const within = one('within').value;
   if (within) {
@@ -966,7 +972,8 @@ function findJobs(list, f, { skipWork = false } = {}) {
       && (!f.english || jobNeeds.fitsEnglish(j, jobNeeds.englishFromKey(f.english)))
       && (!f.walkin || jobNeeds.walkInOpen(j, todayIst()))
       && (!f.education || jobNeeds.fitsEducation(j, f.education))
-      && (!(f.perks || []).length || jobNeeds.hasPerks(j, f.perks)),
+      && (!(f.perks || []).length || jobNeeds.hasPerks(j, f.perks))
+      && (!(f.without || []).length || jobNeeds.needsNoneOf(j, f.without)),
     moreText: jobTranslations ? (j) => jobTranslations.searchText(j) : null,
   });
 }
@@ -977,8 +984,8 @@ function correctedFilters(list, f) {
   return better ? { ...f, q: better } : null;
 }
 // The filters as query parameters (repeated for several categories and skills).
-const filterQuery = (f) => ({ q: f.q, group: f.group, work: f.work, category: f.categories, location: f.location, mode: f.mode, type: f.type, experience: f.experience, minPay: f.minPay || '', skill: f.skills || [], company: f.company || '', shift: f.shift || '', english: f.english || '', walkin: f.walkin || '', education: f.education || '', perk: f.perks || [], near: f.near || '', within: f.within || '', sort: f.sort });
-const hasFilters = (f) => Boolean(f.q || f.group || f.work || f.categories.length || f.location || f.mode || f.type || f.experience || f.minPay || (f.skills || []).length || f.company || f.shift || f.english || f.walkin || f.education || (f.perks || []).length || f.near);
+const filterQuery = (f) => ({ q: f.q, group: f.group, work: f.work, category: f.categories, location: f.location, mode: f.mode, type: f.type, experience: f.experience, minPay: f.minPay || '', skill: f.skills || [], company: f.company || '', shift: f.shift || '', english: f.english || '', walkin: f.walkin || '', education: f.education || '', perk: f.perks || [], without: f.without || [], near: f.near || '', within: f.within || '', sort: f.sort });
+const hasFilters = (f) => Boolean(f.q || f.group || f.work || f.categories.length || f.location || f.mode || f.type || f.experience || f.minPay || (f.skills || []).length || f.company || f.shift || f.english || f.walkin || f.education || (f.perks || []).length || (f.without || []).length || f.near);
 // Jobs near a place: each job's distance, only those within the radius (when
 // one is chosen), and nearest first unless another order was asked for.
 // Remote jobs and jobs in several places have no distance and go last.
@@ -1028,6 +1035,7 @@ app.get('/jobs', (req, res) => {
     f.walkin && { label: req.t.t('needs.walkInFilter'), href: removeLink({ walkin: '' }) },
     f.education && { label: req.t.t('jobs.educationOption', { level: req.t.t(`needs.edu_${f.education}`) }), href: removeLink({ education: '' }) },
     ...(f.perks || []).map((p) => ({ label: req.t.t(`needs.perk_${p}`), href: removeLink({ perk: f.perks.filter((x) => x !== p) }) })),
+    ...(f.without || []).map((k) => ({ label: req.t.t('jobs.withoutChip', { item: req.t.t(`needs.item_${k}`) }), href: removeLink({ without: f.without.filter((x) => x !== k) }) })),
     nearby.near && !nearby.near.error && { label: req.t.t(f.within ? 'near.chipWithin' : 'near.chip', { km: f.within, place: nearby.near.kind === 'gps' ? req.t.t('near.yourLocation') : nearby.near.label }), href: removeLink({ near: '', within: '', sort: f.sort === 'distance' ? '' : f.sort }) },
   ].filter(Boolean);
   // Signed-in candidates can save this search and get alerts for it.
@@ -1060,6 +1068,7 @@ app.get('/jobs', (req, res) => {
     englishLevels: jobNeeds.ENGLISH_LEVELS,
     educationLevels: ['below', ...jobNeeds.EDUCATION_KEYS.filter((k) => k !== 'none')],
     perkKeys: jobNeeds.PERK_KEYS,
+    itemKeys: jobNeeds.ITEM_KEYS,
     companies: [...new Set(live.filter((j) => !isSample(j)).map((j) => j.company))].sort((a, b) => a.localeCompare(b)),
     experienceLevels: search.EXPERIENCE_LEVELS,
     minPayOptions: search.MIN_PAY_OPTIONS.map((n) => ({ value: n, label: req.t.t('jobs.payOption', { amount: n.toLocaleString('en-IN') }) })),
@@ -1604,6 +1613,7 @@ const publicJob = (j) => ({
   englishNeeded: j.english || null,
   minEducation: jobNeeds.educationOf(j) || null,
   perks: jobNeeds.perksOf(j),
+  needsToHave: jobNeeds.itemsOf(j),
   eligibility: j.eligibility || [],
   benefits: j.benefits || [],
   requirements: { licences: j.mustHave || [], startsImmediately: Boolean(j.immediate), physical: j.physical || null },
@@ -1631,7 +1641,7 @@ async function jobsApi(req, res) {
   });
   // Postgres when it's connected and up to date; the same search in memory otherwise.
   const viaPg = async (filters) => {
-    if (!(pg && pg.usable()) || filters.english || filters.walkin || filters.education || (filters.perks || []).length) return null;
+    if (!(pg && pg.usable()) || filters.english || filters.walkin || filters.education || (filters.perks || []).length || (filters.without || []).length) return null;
     try {
       await pg.flush();
       const found = pg.usable() && (await pg.search(filters, { page, size }));
@@ -2392,6 +2402,7 @@ function parseJob(body) {
     // Minimum education from the list, and perks ticked (job-needs.js).
     minEducation: extras.minEducation,
     perks: extras.perks,
+    bring: extras.bring,
     eligibility: lines(data.eligibility),
     // Must-haves shown apart from the match score: licences or certificates
     // the work legally or practically needs, starting straight away, and

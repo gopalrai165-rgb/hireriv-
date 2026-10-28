@@ -223,7 +223,10 @@
     "anyEducation": "Any education",
     "educationOption": "My education: {level}",
     "perks": "Perks",
-    "perksHint": "Jobs that give all you tick"
+    "perksHint": "Jobs that give all you tick",
+    "without": "Things I don't have",
+    "withoutHint": "Hides jobs that need them",
+    "withoutChip": "No {item} needed"
   },
   "card": {
     "sample": "Sample listing",
@@ -701,7 +704,13 @@
     "perk_incentives": "Incentives",
     "perk_insurance": "Health insurance",
     "educationNeeded": "Education",
-    "perksTitle": "Perks"
+    "perksTitle": "Perks",
+    "item_bike": "Own two-wheeler",
+    "item_licence": "Driving licence",
+    "item_smartphone": "Smartphone",
+    "item_laptop": "Laptop",
+    "itemsTitle": "You need to have",
+    "itemTag": "Needs: {item}"
   },
   "near": {
     "label": "Near",

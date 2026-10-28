@@ -38,7 +38,7 @@ test('perks come from the ticks and the benefits, never from the costs the worke
   assert.deepEqual(needs.perksOf({ perks: ['nonsense'] }), []);
   assert.equal(needs.hasPerks({ perks: ['food', 'stay'] }, ['stay']), true);
   assert.equal(needs.hasPerks({ perks: ['food'] }, ['food', 'stay']), false);
-  assert.deepEqual(needs.parseExtras({ minEducation: 'iti', perks: ['stay', 'food'] }), { minEducation: 'iti', perks: ['food', 'stay'], errors: [] });
+  assert.deepEqual(needs.parseExtras({ minEducation: 'iti', perks: ['stay', 'food'] }), { minEducation: 'iti', perks: ['food', 'stay'], bring: [], errors: [] });
   assert.deepEqual(needs.parseExtras({ perks: 'transport, pf' }).perks, ['transport', 'pf']);
   const bad = needs.parseExtras({ minEducation: 'phd', perks: ['gym'] });
   assert.equal(bad.errors.length, 2);

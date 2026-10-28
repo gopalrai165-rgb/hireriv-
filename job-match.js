@@ -96,6 +96,7 @@ function facts(profile = {}, extra = {}) {
     categories: prefs.categories || [],
     roles: prefs.roles || '',
     relocate: Boolean(prefs.relocate),
+    has: prefs.has || [],
     expectedMonthly: expected,
     noticePeriod: availability.noticePeriod || extra.noticePeriod || '',
     availableFrom: availability.availableFrom || '',
@@ -211,6 +212,7 @@ function requirementsOf(f, job, today = new Date().toISOString().slice(0, 10)) {
   }
   const edu = jobNeeds.educationMet(job, f.education);
   if (edu) out.push({ key: 'education', label: `${jobNeeds.educationLabel(edu.need)} or more`, met: edu.met, detail: edu.met === null ? 'Add your education to your profile' : edu.met ? 'Your education fits' : 'Your profile doesn\u2019t show this education yet' });
+  for (const item of jobNeeds.itemsMet(job, f.has, f.certifications)) out.push({ key: `item-${item.key}`, label: item.label, met: item.met, detail: item.met ? 'On your profile' : 'Tick it under "Things you have for work" on your profile if you have one' });
   if (job.physical) out.push({ key: 'physical', label: job.physical, met: null, detail: 'Part of the job; check it suits you' });
   return out;
 }

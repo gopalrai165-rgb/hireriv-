@@ -682,7 +682,7 @@ function register(app, deps) {
   const SECTION_INPUT = {
     basics: (b) => ({ name: b.name, phone: b.phone, city: b.city, state: b.state, headline: b.headline, linkedin: b.linkedin, experienceLevel: b.experienceLevel }),
     preferences: (b) => ({
-      preferences: { roles: b.roles, categories: b.categories, locations: b.locations, types: b.types, arrangements: b.arrangements, shifts: b.shifts, relocate: b.relocate },
+      preferences: { roles: b.roles, categories: b.categories, locations: b.locations, types: b.types, arrangements: b.arrangements, shifts: b.shifts, relocate: b.relocate, has: b.has },
       salary: { expected: b.salaryExpected, period: b.salaryPeriod },
       availability: { noticePeriod: b.noticePeriod, availableFrom: b.availableFrom },
     }),

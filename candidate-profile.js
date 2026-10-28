@@ -9,6 +9,7 @@ const NOTICE = ['Immediate', '15 days', '30 days', '60 days', '90 days'];
 const EDUCATION_LEVELS = ['Below 10th', '10th pass', '12th pass', 'ITI', 'Diploma', 'Graduate', 'Post-graduate', 'Doctorate'];
 const LANGUAGE_LEVELS = ['Basic', 'Conversational', 'Fluent', 'Native'];
 const SHIFTS = ['Day', 'Night', 'Rotational', 'Flexible'];
+const { ITEMS, ITEM_KEYS } = require('./job-needs');
 const SALARY_PERIODS = ['month', 'year'];
 const INDIAN_STATES = [
   'Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar', 'Chhattisgarh', 'Goa', 'Gujarat', 'Haryana', 'Himachal Pradesh', 'Jharkhand',
@@ -25,7 +26,7 @@ const LIMITS = { categories: 5, locations: 5, skills: 30, certifications: 20, la
 function emptyProfile() {
   return {
     name: '', phone: '', city: '', state: '', headline: '', linkedin: '', experienceLevel: '',
-    preferences: { roles: '', categories: [], locations: [], types: [], arrangements: [], shifts: [], relocate: false },
+    preferences: { roles: '', categories: [], locations: [], types: [], arrangements: [], shifts: [], relocate: false, has: [] },
     salary: { expected: null, period: 'month' },
     availability: { noticePeriod: '', availableFrom: '' },
     skills: [], certifications: [], languages: [], experiences: [], education: [],
@@ -99,6 +100,8 @@ function parsePatch(input, ctx) {
       arrangements: pickList('Work arrangements', p.arrangements, ctx.modes, ctx.modes.length),
       shifts: pickList('Shifts', p.shifts, SHIFTS, SHIFTS.length),
       relocate: bool(p.relocate),
+      // A two-wheeler, driving licence, smartphone or laptop (job-needs.js ITEMS).
+      has: pickList('Things you have', p.has, ITEM_KEYS, ITEM_KEYS.length),
     };
   }
   if (has('salary')) {
@@ -204,6 +207,6 @@ function applicationFields(p) {
 }
 
 module.exports = {
-  EXPERIENCE, NOTICE, EDUCATION_LEVELS, INDIAN_STATES, LANGUAGE_LEVELS, SHIFTS, SALARY_PERIODS, LIMITS, PHONE_RE,
+  ITEMS, EXPERIENCE, NOTICE, EDUCATION_LEVELS, INDIAN_STATES, LANGUAGE_LEVELS, SHIFTS, SALARY_PERIODS, LIMITS, PHONE_RE,
   emptyProfile, defaultPrivacy, defaultComms, parsePatch, applyPatch, completion, applicationFields, SECTIONS,
 };

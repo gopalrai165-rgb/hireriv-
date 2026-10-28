@@ -223,7 +223,10 @@
     "anyEducation": "कोई भी पढ़ाई",
     "educationOption": "मेरी पढ़ाई: {level}",
     "perks": "सुविधाएँ",
-    "perksHint": "वे नौकरियाँ जो चुनी गई सभी सुविधाएँ देती हैं"
+    "perksHint": "वे नौकरियाँ जो चुनी गई सभी सुविधाएँ देती हैं",
+    "without": "जो मेरे पास नहीं है",
+    "withoutHint": "जिन नौकरियों में ये चाहिए, वे छिप जाएँगी",
+    "withoutChip": "{item} ज़रूरी नहीं"
   },
   "card": {
     "sample": "नमूना विज्ञापन",
@@ -1030,7 +1033,13 @@
     "perk_incentives": "इंसेंटिव",
     "perk_insurance": "स्वास्थ्य बीमा",
     "educationNeeded": "पढ़ाई",
-    "perksTitle": "सुविधाएँ"
+    "perksTitle": "सुविधाएँ",
+    "item_bike": "अपना टू-व्हीलर",
+    "item_licence": "ड्राइविंग लाइसेंस",
+    "item_smartphone": "स्मार्टफ़ोन",
+    "item_laptop": "लैपटॉप",
+    "itemsTitle": "आपके पास होना चाहिए",
+    "itemTag": "ज़रूरी: {item}"
   },
   "near": {
     "label": "पास में",

@@ -155,18 +155,54 @@ const hasPerks = (job, keys) => {
   const have = perksOf(job);
   return keys.every((k) => have.includes(k));
 };
-// From a form or API body: minEducation and perks (a list, or repeated fields).
+// ---------- things the worker must have ----------
+// A vehicle, a licence or a device the job can't be done without (delivery,
+// field sales, work from home). Ticked on the form, and also read from the
+// requirement lines (licences needed, requirements, who can apply).
+const ITEMS = [
+  { key: 'bike', label: 'Own two-wheeler', re: /\b(own|personal|your)\s+(bike|two[- ]?wheeler|scooty|scooter|motorcycle|vehicle)\b|\b(bike|two[- ]?wheeler|scooty|scooter|motorcycle)\s+(is\s+)?(required|needed|must|compulsory|mandatory)\b/i },
+  { key: 'licence', label: 'Driving licence', re: /\b(driving|driver'?s?)\s+licen[cs]e\b|\bDL\b/ },
+  { key: 'smartphone', label: 'Smartphone', re: /\b(smart\s?phone|android\s+(phone|mobile))\b/i },
+  { key: 'laptop', label: 'Laptop', re: /\b(own|personal|your)\s+laptop\b|\blaptop\s+(is\s+)?(required|needed|must|compulsory|mandatory)\b/i },
+];
+const ITEM_KEYS = ITEMS.map((i) => i.key);
+const itemLabel = (key) => (ITEMS.find((i) => i.key === key) || {}).label || '';
+function itemsOf(job) {
+  if (!job) return [];
+  const ticked = (Array.isArray(job.bring) ? job.bring : []).filter((k) => ITEM_KEYS.includes(k));
+  const text = [...(job.mustHave || []), ...(job.qualifications || []), ...(job.eligibility || [])].join(' \n ');
+  const read = ITEMS.filter((i) => i.re.test(text)).map((i) => i.key);
+  return ITEM_KEYS.filter((k) => ticked.includes(k) || read.includes(k));
+}
+// "I don't have X": jobs that need none of them.
+const needsNoneOf = (job, keys) => {
+  const need = itemsOf(job);
+  return !keys.some((k) => need.includes(k));
+};
+// For the profile match: each thing the job needs, and whether the person
+// said they have it (null: not said; a licence also counts from certificates).
+function itemsMet(job, has, certificates = []) {
+  const said = (has || []).filter((k) => ITEM_KEYS.includes(k));
+  const licenceListed = certificates.some((c) => /\b(driving|driver'?s?)\s+licen[cs]e\b|\bDL\b|\b(LMV|MCWG|two[- ]?wheeler licen[cs]e)\b/i.test(String(c)));
+  return itemsOf(job).map((key) => ({ key, label: itemLabel(key), met: said.includes(key) || (key === 'licence' && licenceListed) ? true : null }));
+}
+
+// A list of keys from a form or API body: an array, repeated fields or commas.
+const keyList = (v) => [].concat(v ?? []).flatMap((x) => String(x).split(',')).map((x) => x.trim()).filter(Boolean);
+// From a form or API body: minEducation, perks and the things to have.
 function parseExtras(body) {
   const errors = [];
   const minEducation = String(body.minEducation ?? '').trim();
   if (minEducation && !EDUCATION_KEYS.includes(minEducation)) errors.push(`minimum education must be one of: ${EDUCATION_KEYS.join(', ')}`);
-  const raw = [].concat(body.perks ?? []).flatMap((x) => String(x).split(',')).map((x) => x.trim()).filter(Boolean);
-  const unknown = raw.filter((k) => !PERK_KEYS.includes(k));
-  if (unknown.length) errors.push(`perks must be from: ${PERK_KEYS.join(', ')}`);
-  return { minEducation: EDUCATION_KEYS.includes(minEducation) ? minEducation : '', perks: PERK_KEYS.filter((k) => raw.includes(k)), errors };
+  const raw = keyList(body.perks);
+  if (raw.some((k) => !PERK_KEYS.includes(k))) errors.push(`perks must be from: ${PERK_KEYS.join(', ')}`);
+  const bring = keyList(body.bring);
+  if (bring.some((k) => !ITEM_KEYS.includes(k))) errors.push(`things the worker must have must be from: ${ITEM_KEYS.join(', ')}`);
+  return { minEducation: EDUCATION_KEYS.includes(minEducation) ? minEducation : '', perks: PERK_KEYS.filter((k) => raw.includes(k)), bring: ITEM_KEYS.filter((k) => bring.includes(k)), errors };
 }
 
 module.exports = {
   ENGLISH_LEVELS, ENGLISH_LABELS, englishKey, englishFromKey, fitsEnglish, parse, walkInOf, walkInOpen, walkInDays, englishGap, validDate,
   EDUCATION, EDUCATION_KEYS, educationLabel, educationOf, educationNeeds, fitsEducation, educationFromProfile, educationMet, PERKS, PERK_KEYS, perkLabel, perksOf, hasPerks, parseExtras,
+  ITEMS, ITEM_KEYS, itemLabel, itemsOf, needsNoneOf, itemsMet,
 };

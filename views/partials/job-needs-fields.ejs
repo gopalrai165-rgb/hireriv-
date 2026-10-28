@@ -10,6 +10,9 @@
 <fieldset class="span-2 check-set"><legend>Perks the job gives <span class="muted small">(tick all that apply; job seekers filter by these)</span></legend>
   <div class="check-grid"><% jn.PERKS.forEach(function (p) { %><label class="check-row"><input type="checkbox" name="perks" value="<%= p.key %>"<%= (job.perks || []).includes(p.key) ? ' checked' : '' %>> <span><%= p.label %></span></label><% }) %></div>
 </fieldset>
+<fieldset class="span-2 check-set"><legend>The worker must have <span class="muted small">(only what the job can't be done without; job seekers who don't have it can hide the job)</span></legend>
+  <div class="check-grid"><% jn.ITEMS.forEach(function (i) { %><label class="check-row"><input type="checkbox" name="bring" value="<%= i.key %>"<%= (job.bring || []).includes(i.key) ? ' checked' : '' %>> <span><%= i.label %></span></label><% }) %></div>
+</fieldset>
 <label class="span-2 check-row"><input type="checkbox" name="walkIn" value="1"<%= job.walkIn ? ' checked' : '' %>> <span>Walk-in interviews at this address</span></label>
 <fieldset class="span-2 pay-fields walkin-fields">
   <legend>Walk-in details <span class="muted small">(optional)</span></legend>

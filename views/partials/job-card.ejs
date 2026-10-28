@@ -13,6 +13,8 @@
   <% const cardWalkIn = walkInOf(job); %>
   <% if (cardWalkIn && cardWalkIn.state !== 'over') { %><span class="tag tag-walkin"><%= t('needs.walkInBadge') %><%= walkInDays(cardWalkIn) ? ': ' + walkInDays(cardWalkIn) : '' %></span><% } %>
   <% if (job.english) { %><span class="tag tag-english"><%= t('needs.english' + job.english) %></span><% } %>
+  <% const cardItems = itemsOf(job).filter(function (k) { return k === 'bike' || k === 'laptop'; }); %>
+  <% cardItems.forEach(function (k) { %><span class="tag tag-item"><%= t('needs.itemTag', { item: t('needs.item_' + k) }) %></span><% }) %>
   <% const cardPerks = perksOf(job).filter(function (p) { return ['food', 'stay', 'transport', 'pf'].includes(p); }).slice(0, 3); %>
   <% if (cardPerks.length) { %><span class="perk-tags"><% cardPerks.forEach(function (p) { %><span class="tag tag-perk"><%= t('needs.perk_' + p) %></span><% }) %></span><% } %>
   <ul class="job-meta">

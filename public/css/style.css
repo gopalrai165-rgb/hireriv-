@@ -514,6 +514,7 @@ img { max-width: 100%; display: block; }
 .perk-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
 .perk-tags .tag { margin: 0; }
 .tag-perk { background: #e8f6ee; color: #146c43; }
+.tag-item { background: #fff4e0; color: #8a4b00; }
 .perk-list { list-style: none; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: 4px 14px; }
 .perk-list li { display: inline-flex; align-items: center; gap: 4px; }
 .perk-list .i { color: #146c43; width: 16px; height: 16px; }

@@ -98,6 +98,8 @@
         <div><dt><%= t('job.fExperience') %></dt><dd><%= job.experience ? tv('experience', job.experience) : t('job.notSpecified') %></dd></div>
         <% const minEdu = job.minEducation ? t('needs.edu_' + job.minEducation) : ''; %>
         <% if (minEdu || job.education) { %><div><dt><%= t('job.fEducation') %></dt><dd><%= [minEdu, job.education].filter(Boolean).join(' · ') %></dd></div><% } %>
+        <% const jobItems = itemsOf(job); %>
+        <% if (jobItems.length) { %><div><dt><%= t('needs.itemsTitle') %></dt><dd><%= jobItems.map(function (k) { return t('needs.item_' + k); }).join(' · ') %></dd></div><% } %>
         <% const jobPerks = perksOf(job); %>
         <% if (jobPerks.length) { %><div><dt><%= t('needs.perksTitle') %></dt><dd><ul class="perk-list"><% jobPerks.forEach(function (p) { %><li><svg class="i" aria-hidden="true"><use href="#i-check"/></svg> <%= t('needs.perk_' + p) %></li><% }) %></ul></dd></div><% } %>
         <% if (job.english) { %><div><dt><%= t('job.fEnglish') %></dt><dd><%= t('needs.english' + job.english) %></dd></div><% } %>
