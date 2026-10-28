@@ -9,7 +9,8 @@ const { startServer, decodeEmail } = require('./helpers');
 
 let srv;
 before(async () => {
-  srv = await startServer();
+  // Hindi is off by default; these tests also check the Hindi pages.
+  srv = await startServer({ LANGUAGES: 'en,hi' });
 });
 after(() => srv && srv.stop());
 

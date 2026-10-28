@@ -17,7 +17,7 @@ let ip = 0;
 const get = (url, cookie) => srv.request(url, { cookie, headers: { 'x-forwarded-for': `10.8.0.${++ip % 250}` } });
 
 before(async () => {
-  srv = await startServer({ TRUST_PROXY: '1' }, {
+  srv = await startServer({ TRUST_PROXY: '1', LANGUAGES: 'en,hi' }, {
     jobs: [JOB],
     candidates: [{ id: 'c-1', email: 'meena@example.in', createdAt: iso(), emailVerifiedAt: iso(), passwordHash: hashPassword('meena long password'), profile: { ...cp.emptyProfile(), name: 'Meena' }, privacy: cp.defaultPrivacy(), comms: cp.defaultComms(), resumes: [], defaultResumeId: null }],
   });

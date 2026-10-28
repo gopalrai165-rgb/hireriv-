@@ -16,7 +16,7 @@ const fs = require('fs');
 const path = require('path');
 
 // Every language Hireriv plans to support. A language is offered in the
-// selector when it is listed in LANGUAGES (default "en,hi") and has a locale
+// selector when it is listed in LANGUAGES (default "en": English only; "en,hi" adds Hindi) and has a locale
 // file. The others are listed here so adding one needs no code changes.
 const LANGUAGES = {
   en: { name: 'English', native: 'English', tag: 'en-IN', script: 'Latn' },
@@ -43,7 +43,7 @@ const LOCALES = loadLocales();
 
 // The languages offered in the selector, English always first.
 function offered(env = process.env) {
-  const asked = String(env.LANGUAGES || 'en,hi').split(',').map((s) => s.trim().toLowerCase()).filter(Boolean);
+  const asked = String(env.LANGUAGES || 'en').split(',').map((s) => s.trim().toLowerCase()).filter(Boolean);
   return [DEFAULT, ...asked.filter((c) => c !== DEFAULT)].filter((c, i, a) => LANGUAGES[c] && LOCALES[c] && a.indexOf(c) === i);
 }
 

@@ -56,7 +56,7 @@ const seedJobs = [
 let srv;
 let admin;
 before(async () => {
-  srv = await startServer({}, { jobs: seedJobs });
+  srv = await startServer({ LANGUAGES: 'en,hi' }, { jobs: seedJobs });
   admin = await srv.adminLogin();
 });
 after(() => srv && srv.stop());
