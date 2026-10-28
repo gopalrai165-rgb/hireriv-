@@ -59,13 +59,20 @@
         <label>Shift
           <select name="shift"><option value="">Not specified</option><% shifts.forEach(function (sh) { %><option<%= job.shift === sh ? ' selected' : '' %>><%= sh %></option><% }) %></select>
         </label>
-        <label>Working hours <span class="muted small">(optional)</span><input name="hours" maxlength="120" value="<%= job.hours || '' %>" placeholder="e.g. 9 am – 6 pm, 48 hours a week"></label>
-        <label>Work days <span class="muted small">(optional)</span><input name="schedule" maxlength="200" value="<%= job.schedule || '' %>" placeholder="e.g. Mon–Sat, Sunday off"></label>
-        <label class="span-2">Overtime <span class="muted small">(optional; when it happens and how it is paid, e.g. "Up to 2 hours a day, paid at double the hourly rate")</span><input name="overtime" maxlength="200" value="<%= job.overtime || '' %>"></label>
-        <label class="span-2">Costs the worker pays <span class="muted small">(optional; e.g. "None", "Uniform deposit ₹500, returned when you leave", "Room ₹1,500 a month if you use the hostel")</span><input name="workerCosts" maxlength="300" value="<%= job.workerCosts || '' %>"></label>
+        <%# Optional details, folded so the form is shorter; open when any is filled in or the form came back with problems. %>
+        <% const moreOpen = errors.length || job.hours || job.schedule || job.overtime || job.workerCosts; %>
+        <details class="span-2 more-details"<%= moreOpen ? ' open' : '' %>>
+          <summary>More details: working hours, work days, overtime, costs the worker pays <span class="muted small">(optional, but job seekers look for these)</span></summary>
+          <div class="form-grid">
+            <label>Working hours <span class="muted small">(optional)</span><input name="hours" maxlength="120" value="<%= job.hours || '' %>" placeholder="e.g. 9 am – 6 pm, 48 hours a week"></label>
+            <label>Work days <span class="muted small">(optional)</span><input name="schedule" maxlength="200" value="<%= job.schedule || '' %>" placeholder="e.g. Mon–Sat, Sunday off"></label>
+            <label class="span-2">Overtime <span class="muted small">(optional; when it happens and how it is paid, e.g. "Up to 2 hours a day, paid at double the hourly rate")</span><input name="overtime" maxlength="200" value="<%= job.overtime || '' %>"></label>
+            <label class="span-2">Costs the worker pays <span class="muted small">(optional; e.g. "None", "Uniform deposit ₹500, returned when you leave", "Room ₹1,500 a month if you use the hostel")</span><input name="workerCosts" maxlength="300" value="<%= job.workerCosts || '' %>"></label>
+          </div>
+        </details>
         <label>Last day to apply <span class="muted small">(optional)</span><input type="date" name="closesOn" value="<%= job.closesOn || '' %>"></label>
         <label class="span-2">About the role*<textarea name="description" rows="3" required maxlength="2000"><%= job.description || '' %></textarea></label>
-        <p class="span-2 muted small">Before a job goes for review it needs its main responsibilities, the pay or how pay is decided, and for industrial, field and service work the working hours or shift. Candidates decide on these.</p>
+        <p class="span-2 muted small">Before a job goes for review it needs its main responsibilities, the pay or how pay is decided, and for industrial, field and service work the shift (above) or the working hours (under More details). Candidates decide on these.</p>
         <label class="span-2">Responsibilities* <span class="muted small">(one per line)</span><textarea name="responsibilities" rows="4"><%= (job.responsibilities || []).join('\n') %></textarea></label>
         <label class="span-2">Requirements <span class="muted small">(one per line)</span><textarea name="qualifications" rows="3"><%= (job.qualifications || []).join('\n') %></textarea></label>
         <label class="span-2">Key skills <span class="muted small">(comma separated)</span><input name="skills" value="<%= (job.skills || []).join(', ') %>"></label>

@@ -1419,6 +1419,10 @@ form .check-row { min-height: 44px; padding: 6px 0; cursor: pointer; }
 .pay-fields .span-all { grid-column: 1 / -1; }
 /* Phones: pay from / up to, and walk-in first / last day, side by side. */
 @media (max-width: 560px) { .pay-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 10px; } }
+.more-details { border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 4px 14px; }
+.more-details > summary { cursor: pointer; font-weight: 600; padding: 10px 0; min-height: 44px; }
+.more-details[open] > summary { margin-bottom: 6px; }
+.more-details > .form-grid { padding-bottom: 12px; }
 /* Walk-in details only once walk-in interviews are ticked (browsers without :has show them always). */
 .form-grid:has(input[name="walkIn"]:not(:checked)) .walkin-fields { display: none; }
 .nav-login-menu .nav-login-extra { font-size: .85rem; color: var(--primary); font-weight: 600; }

@@ -94,3 +94,12 @@ test('job posting form: walk-in details only once ticked, pay from/up to side by
   assert.match(css, /\.form-grid:has\(input\[name="walkIn"\]:not\(:checked\)\) \.walkin-fields \{ display: none; \}/);
   assert.match(css, /@media \(max-width: 560px\) \{ \.pay-fields \{ grid-template-columns: repeat\(2, minmax\(0, 1fr\)\);/);
 });
+
+test('job posting form: optional details fold under "More details", open when filled or after problems', () => {
+  const form = fs.readFileSync(path.join(ROOT, 'views/employer-job.ejs'), 'utf8');
+  const fold = form.slice(form.indexOf('<details class="span-2 more-details"'), form.indexOf('</details>', form.indexOf('more-details')));
+  for (const name of ['hours', 'schedule', 'overtime', 'workerCosts']) assert.ok(fold.includes(`name="${name}"`), name);
+  assert.ok(!fold.includes('name="shift"'), 'the shift stays in view');
+  assert.match(form, /const moreOpen = errors\.length \|\| job\.hours \|\| job\.schedule \|\| job\.overtime \|\| job\.workerCosts;/);
+  assert.match(form, /the shift \(above\) or the working hours \(under More details\)/);
+});
