@@ -494,6 +494,8 @@ app.disable('x-powered-by');
 app.use(express.urlencoded({ extended: false, limit: '100kb' }));
 // Webhook signatures (email and payments) cover the exact bytes sent, so keep them.
 app.use(express.json({ limit: '100kb', verify: (req, res, buf) => { if (req.url.startsWith('/webhooks/') || req.url.startsWith('/api/webhooks/')) req.rawBody = Buffer.from(buf); } }));
+// Express 5 leaves req.body undefined when nothing was parsed; the routes expect an object.
+app.use((req, res, next) => { if (req.body === undefined) req.body = {}; next(); });
 // Security headers. The CSP only allows our own scripts (no inline JS), Google
 // Fonts for type, and never lets another site frame these pages.
 const CSP = [

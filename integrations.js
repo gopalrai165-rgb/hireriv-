@@ -561,7 +561,7 @@ function create(deps) {
     res.json(page(list.map((e) => ({ id: e.id, type: e.type, created_at: e.createdAt, data: e.data })), req));
   });
   // Anything else under /api/v1 is a clear 404 in the same shape.
-  app.all('/api/v1/*', (req, res) => { res.set('Cache-Control', 'no-store'); fail(res, 404, 'not_found', 'no such endpoint; see /developers'); });
+  app.all('/api/v1/{*rest}', (req, res) => { res.set('Cache-Control', 'no-store'); fail(res, 404, 'not_found', 'no such endpoint; see /developers'); });
 
   // ---------- the company's Integrations page ----------
   const view = (req, res, locals = {}, status = 200) => {

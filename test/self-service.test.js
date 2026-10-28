@@ -38,7 +38,7 @@ test('candidates can download their data and their own resume, nobody else\'s', 
   const cookie = await signIn('priya@example.in');
   const res = await srv.request('/account/my-data.json', { cookie });
   assert.equal(res.status, 200);
-  assert.match(res.headers.get('content-disposition'), /attachment; filename="my-data-/);
+  assert.match(res.headers.get('content-disposition'), /attachment; filename="?my-data-/);
   const data = await res.json();
   assert.equal(data.email, 'priya@example.in');
   assert.equal(data.applications.length, 1);
