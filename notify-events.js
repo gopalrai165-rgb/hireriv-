@@ -440,6 +440,14 @@ function create(deps) {
       email: { template: 'job-invite', refs: { candidateId: c.id, jobId: job.id } },
     });
   }
+  // A verified employer unlocked a candidate's mobile number (contact-credits.js).
+  // Once per company and candidate, in the app.
+  function contactUnlocked(c, emp) {
+    return emit({
+      key: `contact-unlocked:${emp.id}:${c.id}`, type: 'contact-unlocked', to: [{ kind: 'candidate', email: c.email }],
+      inApp: { title: `${emp.company} can now see your mobile number`, body: 'They may call or WhatsApp you about a job. Nobody genuine asks you to pay. You can stop showing your number in Settings.', link: '/account/settings#privacy' },
+    });
+  }
   // A staffing request (public form or client portal): everyone on the team sees it.
   function staffingRequest(entry) {
     emit({ key: `staffing-request:${entry.id}`, type: 'staffing-request', to: team.members().map((u) => ({ kind: 'team', userId: u.id })), inApp: { title: `Staffing request from ${entry.company}`, body: `${entry.roles}${entry.headcount ? ` · ${entry.headcount} people` : ''}${entry.location ? ` · ${entry.location}` : ''}`, link: '/admin?tab=hire-requests' } });
@@ -467,7 +475,7 @@ function create(deps) {
 
   return {
     applicationSubmitted, newApplication, stageMoved, statusEmail, interviewBooked, interviewRescheduled, interviewCancelled, interviewReminder, interviewAnswered,
-    feedbackDueScan, offerCreated, offerApproved, offerAnswered, offerDeadlineScan, assigned, jobDecision, jobExpired, jobSubmitted, jobAlerts, jobDigest, jobInvite, staffingRequest, agencyAssigned,
+    feedbackDueScan, offerCreated, offerApproved, offerAnswered, offerDeadlineScan, assigned, jobDecision, jobExpired, jobSubmitted, jobAlerts, jobDigest, jobInvite, contactUnlocked, staffingRequest, agencyAssigned,
     accountSecurity, scan, JOB_ALERTS_PER_DAY,
   };
 }

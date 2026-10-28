@@ -16,6 +16,8 @@ const vault = require('./vault');
 const privacyModule = require('./privacy');
 const securityModule = require('./security');
 const subscriptions = require('./subscriptions');
+// Free candidate contacts each month and contact credit packs (contact-credits.js).
+const contactCredits = require('./contact-credits');
 const billingRoutes = require('./billing-routes');
 const paymentGateway = require('./payment-gateway');
 const pgMirror = require('./pg');
@@ -1936,7 +1938,7 @@ setInterval(() => { try { recommendations.digestScan(); } catch (e) { console.er
 // Finding candidates who agreed to be found, for verified employers.
 employerDiscovery.register(app, {
   readSubmissions, saveSubmission, sameOrigin, limit, site, getJobs: () => jobs, isLive, isSample, jobPath, clients, events, paginate,
-  stateOf: search.stateOf, jobTypes: JOB_TYPES,
+  stateOf: search.stateOf, jobTypes: JOB_TYPES, contacts: () => contacts,
 });
 
 // Recruitment agency and staffing: contracts, requisitions, assignments, invoice drafts, reports.
@@ -2044,9 +2046,10 @@ const plansStore = subscriptions.create({ db, site, gateway, validGstin: employe
 plansStore.seedPlans();
 hiring.hooks.jobLimit = (emp) => plansStore.limitsOf(emp).jobs;
 clients.hooks.seatLimit = (emp) => plansStore.limitsOf(emp).seats;
+const contacts = contactCredits.create({ db, store: plansStore });
 const billingDesk = billingRoutes.register(app, {
   db, site, mailer, notify, store: plansStore, gateway, team, clients, placements: billing, getJobs: () => jobs, adminAuth, sameOrigin, limit, requireConfirmed,
-  trust: trustDesk, baseUrl: BASE_URL, sendCsv, ops,
+  trust: trustDesk, baseUrl: BASE_URL, sendCsv, ops, contacts,
 });
 if (gateway.ready && process.env.NODE_ENV === 'production' && gateway.sandbox) console.warn('Payments: using the provider sandbox (test keys) on the live site');
 if (gateway.ready && !gateway.webhooks) console.warn('Payments: set the webhook secret so payments confirmed by the provider are recorded even if the browser closes');

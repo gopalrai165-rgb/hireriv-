@@ -9,7 +9,7 @@
     <% } else if (!verified) { %>
       <p class="notice">Finding candidates opens once the <%= site.name %> team has verified your company. <a href="/employer/company">Check your company's verification</a>.</p>
     <% } else { %>
-      <p class="muted small">Only people who chose to let verified employers find them appear here, with their first name and initial, skills, experience and the work they want. You see their contact details and resume only if they apply. Invite someone to one of your open jobs and they decide. A match score is a guide for sorting, never a reason to turn anyone away.</p>
+      <p class="muted small">Only people who chose to let verified employers find them appear here, with their first name and initial, skills, experience and the work they want. You see their contact details and resume only if they apply, or their name and mobile number when they chose to show it and you unlock them. Invite someone to one of your open jobs and they decide. A match score is a guide for sorting, never a reason to turn anyone away.</p>
 
       <form class="form filter-bar" method="get" action="/employer/candidates" role="search">
         <label>Keywords<input name="q" maxlength="100" value="<%= f.q %>" placeholder="e.g. warehouse, accounts"></label>
@@ -25,6 +25,9 @@
           <select name="shift"><option value="">Any shift</option><% shifts.forEach(function (s) { %><option<%= f.shift === s ? ' selected' : '' %>><%= s %></option><% }) %></select>
         </label>
         <label class="check-row"><input type="checkbox" name="available" value="now"<%= f.available === 'now' ? ' checked' : '' %>> <span>Can start within a week</span></label>
+        <label>Mobile number
+          <select name="contact"><option value="">Anyone</option><option value="shared"<%= f.contact === 'shared' ? ' selected' : '' %>>Shows their number</option><option value="unlocked"<%= f.contact === 'unlocked' ? ' selected' : '' %>>Numbers you unlocked</option></select>
+        </label>
         <label>Match to your job
           <select name="job"><option value="">No job (newest profiles first)</option><% jobs.forEach(function (j) { %><option value="<%= j.id %>"<%= f.job === j.id ? ' selected' : '' %>><%= j.title %> · <%= j.location %></option><% }) %></select>
         </label>
@@ -37,12 +40,13 @@
       </form>
 
       <p class="small muted"><b><%= pager ? pager.total : 0 %></b> <%= pager && pager.total === 1 ? 'candidate' : 'candidates' %> · <%= invitesLeft %> invitations left today</p>
+      <p class="small contact-credits">Contacts: <b><%= credits.freeLeft %></b> of <%= credits.free %> free this month left · <b><%= credits.credits %></b> contact <%= credits.credits === 1 ? 'credit' : 'credits' %><% if (!credits.freeLeft && !credits.credits) { %> · <a href="/employer/billing#credits">Get more contacts</a><% } %></p>
       <% if (!rows.length) { %>
         <p class="muted dash-empty">No candidates match. Try fewer filters.</p>
       <% } else { %>
         <ul class="cand-list">
           <% rows.forEach(function (c) { %>
-            <li class="dash-card cand-card">
+            <li class="dash-card cand-card" id="cand-<%= c.id %>">
               <div class="cand-head">
                 <div>
                   <b><%= c.displayName %></b><% if (c.headline) { %> · <%= c.headline %><% } %>
@@ -60,6 +64,16 @@
               </p>
               <% if (c.match) { %>
                 <details class="rec-why"><summary>How they match <%= job.title %></summary><%- include('partials/match-explain', { m: c.match, note: 'A relevance estimate from what the candidate shared, not a prediction. Review every candidate yourself.' }) %></details>
+              <% } %>
+              <% if (c.contact) { %>
+                <p class="cand-contact"><b><%= c.contact.name %></b> · <a href="tel:<%= c.contact.tel %>"><%= c.contact.phone %></a><% if (!c.contact.confirmed) { %> <span class="muted small">(not yet confirmed by SMS)</span><% } %>
+                  <a class="btn btn-outline btn-sm" href="tel:<%= c.contact.tel %>">Call</a> <a class="btn btn-outline btn-sm" href="<%= c.contact.whatsapp %>" target="_blank" rel="noopener noreferrer">WhatsApp</a></p>
+                <p class="small muted">Say who you are and which job it is. Never ask a job seeker for money.</p>
+              <% } else if (c.sharesContact) { %>
+                <form class="form" method="post" action="/employer/candidates/<%= c.id %>/unlock">
+                  <% if (f.contact === 'unlocked') { %><input type="hidden" name="back" value="unlocked"><% } %>
+                  <button class="btn btn-primary btn-sm" type="submit"<%= !credits.freeLeft && !credits.credits ? ' disabled' : '' %>>Unlock mobile number<%= credits.freeLeft ? ' (free)' : credits.credits ? ' (1 credit)' : '' %></button>
+                </form>
               <% } %>
               <% if (jobs.length) { %>
                 <form class="form invite-form" method="post" action="/employer/candidates/<%= c.id %>/invite">

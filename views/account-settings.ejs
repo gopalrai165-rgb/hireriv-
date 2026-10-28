@@ -61,6 +61,8 @@
             <label class="check-row"><input type="checkbox" name="visibleToRecruiters" value="1"<%= c.privacy.visibleToRecruiters ? ' checked' : '' %>> <span>Let <%= site.name %> recruiters find my profile for other jobs that fit</span></label>
             <label class="check-row"><input type="checkbox" name="discoverable" value="1"<%= c.privacy.discoverable ? ' checked' : '' %>> <span>Let verified employers on <%= site.name %> find my profile and invite me to apply</span></label>
             <p class="small muted">Recruiters off: they see you only for jobs you apply to. Employers on: companies checked by our team see your skills, experience, city, education level and the work you want, with your first name and initial only. Never your email, phone, resume or past employers: they get those only if you apply. Off by default; switch it off any time.</p>
+            <label class="check-row"><input type="checkbox" name="shareContact" value="1"<%= c.privacy.shareContact ? ' checked' : '' %>> <span>Also show my name and mobile number to verified employers who unlock my profile, so they can call or WhatsApp me</span></label>
+            <p class="small muted">Only with the choice above on. We tell you each company that unlocks your number, and switching this off hides it again straight away. Never your email or resume. A real employer never asks you to pay for a job or an interview.</p>
           </fieldset>
           <fieldset class="check-set"><legend>How we may contact you</legend>
             <p class="small muted">We always email you about your applications and account.</p>

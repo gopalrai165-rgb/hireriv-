@@ -64,6 +64,9 @@
               <% if (e.kind !== 'package') { %>
                 <label>Jobs live at a time (blank: no limit, up to 50)<input name="jobLimit" inputmode="numeric" maxlength="3" value="<%= e.jobLimit != null ? e.jobLimit : '' %>"></label>
                 <label>Team seats (blank: no limit, up to 50)<input name="seatLimit" inputmode="numeric" maxlength="3" value="<%= e.seatLimit != null ? e.seatLimit : '' %>"></label>
+                <label>Free candidate contacts a month (blank: up to 500)<input name="contactUnlocks" inputmode="numeric" maxlength="3" value="<%= e.contactUnlocks != null ? e.contactUnlocks : e.id && e.contactUnlocks === undefined ? 5 : '' %>"></label>
+              <% } else { %>
+                <label>Contact credits in this pack (0: not a credit pack)<input name="credits" inputmode="numeric" maxlength="5" value="<%= e.credits || 0 %>"></label>
               <% } %>
               <label class="span-2">Features (one per line)<textarea name="features" rows="4"><%= (e.features || []).join('\n') %></textarea></label>
               <label>Order on the page<input name="sort" inputmode="numeric" maxlength="3" value="<%= e.sort != null ? e.sort : 50 %>"></label>
@@ -76,7 +79,7 @@
         </section>
       <% } %>
       <div class="table-wrap"><table>
-        <thead><tr><th>Plan</th><th class="num">Price</th><th>Billing</th><th class="num">Jobs</th><th class="num">Seats</th><th>GST · SAC</th><th>Offered</th><th></th></tr></thead>
+        <thead><tr><th>Plan</th><th class="num">Price</th><th>Billing</th><th class="num">Jobs</th><th class="num">Seats</th><th class="num">Contacts</th><th>GST · SAC</th><th>Offered</th><th></th></tr></thead>
         <tbody><% plans.forEach(function (p) { %>
           <tr>
             <td><b><%= p.name %></b><br><span class="muted small"><%= p.code %> · <%= p.kind === 'package' ? 'service package' : 'subscription' %></span></td>
@@ -84,6 +87,7 @@
             <td><%= p.kind === 'package' ? 'One time' : intervals[p.interval] %></td>
             <td class="num"><%= p.jobLimit != null ? p.jobLimit : '–' %></td>
             <td class="num"><%= p.seatLimit != null ? p.seatLimit : '–' %></td>
+            <td class="num"><%= p.kind === 'package' ? (p.credits ? p.credits + ' credits' : '–') : p.contactUnlocks === null ? '500' : p.contactUnlocks === undefined ? 5 : p.contactUnlocks %><%= p.kind === 'package' ? '' : '/mo' %></td>
             <td><%= p.gstPercent %>% · <%= p.sac || '' %><% if (!p.sac && !p.custom && p.pricePaise) { %><span class="pill st-rejected">SAC missing</span><% } %></td>
             <td><%= p.active ? 'Yes' : 'No' %></td>
             <td><% if (can('plans.manage')) { %><a class="small" href="/admin/billing/plans/<%= p.id %>">Edit</a><% } %></td>

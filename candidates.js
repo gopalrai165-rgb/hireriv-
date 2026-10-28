@@ -1001,9 +1001,9 @@ function register(app, deps) {
   const marketingOn = (email) => notify.prefsOf(notify.candidateRk(email)).marketing.email === true;
   // Saves visibility and contact choices, recording each change as consent given or withdrawn.
   function saveChoices(c, nextPrivacy, nextComms, source, marketing) {
-    const purposes = [['recruiter-visibility', nextPrivacy.visibleToRecruiters], ['employer-discovery', nextPrivacy.discoverable], ['whatsapp', nextComms.whatsapp], ['sms', nextComms.sms]];
-    const was = { 'recruiter-visibility': c.privacy.visibleToRecruiters, 'employer-discovery': c.privacy.discoverable, whatsapp: c.comms.whatsapp, sms: c.comms.sms };
-    c.privacy = { visibleToRecruiters: Boolean(nextPrivacy.visibleToRecruiters), discoverable: Boolean(nextPrivacy.discoverable) };
+    const purposes = [['recruiter-visibility', nextPrivacy.visibleToRecruiters], ['employer-discovery', nextPrivacy.discoverable], ['employer-contact', nextPrivacy.shareContact], ['whatsapp', nextComms.whatsapp], ['sms', nextComms.sms]];
+    const was = { 'recruiter-visibility': c.privacy.visibleToRecruiters, 'employer-discovery': c.privacy.discoverable, 'employer-contact': c.privacy.shareContact, whatsapp: c.comms.whatsapp, sms: c.comms.sms };
+    c.privacy = { visibleToRecruiters: Boolean(nextPrivacy.visibleToRecruiters), discoverable: Boolean(nextPrivacy.discoverable), shareContact: Boolean(nextPrivacy.shareContact) };
     c.comms = { whatsapp: Boolean(nextComms.whatsapp), sms: Boolean(nextComms.sms), offers: Boolean(nextComms.offers) };
     saveCandidate(c);
     for (const [purpose, on] of purposes) if (Boolean(on) !== Boolean(was[purpose])) privacy.consent(c.email, purpose, Boolean(on), source);
@@ -1037,7 +1037,7 @@ function register(app, deps) {
   app.post('/account/settings', requireCandidate, limit('account-settings', 20), sameOrigin, (req, res) => {
     const c = ensureCandidate(req.candidateEmail);
     const on = (k) => req.body[k] === '1';
-    saveChoices(c, { visibleToRecruiters: on('visibleToRecruiters'), discoverable: on('discoverable') }, { whatsapp: on('whatsapp'), sms: on('sms'), offers: on('offers') }, 'account settings', on('offers'));
+    saveChoices(c, { visibleToRecruiters: on('visibleToRecruiters'), discoverable: on('discoverable'), shareContact: on('shareContact') }, { whatsapp: on('whatsapp'), sms: on('sms'), offers: on('offers') }, 'account settings', on('offers'));
     activity(c.email, 'settings-changed');
     back(res, 'Settings saved.', '/account/settings');
   });
@@ -1101,6 +1101,7 @@ function register(app, deps) {
         const job = getJobs().find((j) => j.id === i.jobId);
         return { at: i.createdAt, job: job ? job.title : 'A job that was removed', company: job ? job.company : '' };
       }) : [],
+      employersWhoSawYourNumber: c ? readSubmissions('contact-unlocks').filter((u) => u.candidateId === c.id).map((u) => ({ at: u.createdAt, company: u.company || '' })) : [],
       newsletter: subs('newsletter').map((s) => ({ since: s.createdAt })),
       notifications: notify.list({ rk: notify.candidateRk(email) }, { limit: 1000 }).items.map((n) => ({ at: n.createdAt, title: n.title, text: n.body, readAt: n.readAt })),
       notificationSettings: notify.prefsOf(notify.candidateRk(email)),
@@ -1216,6 +1217,9 @@ function register(app, deps) {
       const invites = readSubmissions('candidate-invites');
       const rest = invites.filter((i) => i.candidateId !== c.id);
       if (rest.length !== invites.length) writeSubmissions('candidate-invites', rest);
+      // Unlocks stay counted against the company's month, without saying whose.
+      const unlocks = readSubmissions('contact-unlocks');
+      if (unlocks.some((u) => u.candidateId === c.id)) writeSubmissions('contact-unlocks', unlocks.map((u) => (u.candidateId === c.id ? { ...u, candidateId: 'erased' } : u)));
     }
     for (const type of ['job-alerts', 'newsletter', 'saved-jobs', 'candidates', 'candidate-activity']) {
       const subs = readSubmissions(type);
@@ -1324,7 +1328,7 @@ function register(app, deps) {
       if (!v || typeof v !== 'object' || Object.keys(v).some((k) => !keys.includes(k) || typeof v[k] !== 'boolean')) { errors.push(`${label} takes ${keys.join(', ')} as true or false`); return null; }
       return v;
     };
-    const p = flags(privacy, ['visibleToRecruiters', 'discoverable'], 'privacy');
+    const p = flags(privacy, ['visibleToRecruiters', 'discoverable', 'shareContact'], 'privacy');
     const m = flags(comms, ['whatsapp', 'sms', 'offers'], 'comms');
     if (errors.length) return jsonErrors(res, 400, errors);
     if (Object.keys(patch).length) updateProfile(req.candidateEmail, patch);

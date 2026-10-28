@@ -27,8 +27,9 @@ package under **Admin → Plans & payments → Plans**, without code changes. Ea
 change is versioned and recorded in the hash-chained audit history with its
 reason.
 
-The first plans are written once at start-up (`seedPlans`, data version 1 in
-`meta` key `billing:plans-seeded`). `unseedPlans()` removes the seeded plans
+The first plans are written once at start-up (`seedPlans`, data version 2 in
+`meta` key `billing:plans-seeded`; version 2 added the contact credit packs and
+the free contacts on the seeded plans). `unseedPlans()` removes the seeded plans
 that no company or payment has used and resets the version, so the change can
 be undone. The collections need no schema migration (they are documents in the
 existing `records` table); the PostgreSQL mirror still covers jobs only.
@@ -48,6 +49,17 @@ existing `records` table); the PostgreSQL mirror still covers jobs only.
   beyond the cap, unless the team gives them a plan.
 - Moving to a smaller plan never closes jobs or removes people. New jobs and
   invitations wait until there is room.
+- **Candidate contacts** (`contact-credits.js`): free unlocks of a job
+  seeker's mobile number each calendar month (India time), set per plan as
+  "Free candidate contacts a month" (seeded: Starter 5, Growth 30, Business
+  100; blank means up to 500; plans saved before this existed count as 5).
+  After those, each unlock uses one **contact credit**. Credits come from
+  packages with "Contact credits in this pack" set, bought through the same
+  checkout with a GST invoice; they never expire, are added once per payment,
+  and a pack refunded in full takes back the credits not yet used. The
+  seeded packs (25 credits for ₹499, 100 for ₹1,499, without GST) start
+  switched off until an Admin confirms the price and SAC. Unlocking the same
+  person again is free.
 
 ## 3. Who can see and do what
 

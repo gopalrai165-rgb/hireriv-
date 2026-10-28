@@ -24,6 +24,7 @@ const crypto = require('crypto');
 const { billingOf, amountInWords, formatYmd, financialYear } = require('./placements');
 const { can: employerCan } = require('./employer-team');
 const agencyRoles = require('./agency-roles');
+const { HARD_UNLOCK_CAP, DEFAULT_MONTHLY, MAX_PACK } = require('./contact-credits');
 
 const PLANS = 'subscription-plans';
 const SUBS = 'employer-subscriptions';
@@ -46,7 +47,8 @@ const SETTINGS_KEY = 'billing:subscription-settings';
 const SETTINGS_DEFAULTS = { graceDays: 7, reminderDays: [7, 3, 1] };
 const SEED_KEY = 'billing:plans-seeded';
 // Version of the first plans written by seedPlans (see docs/BILLING.md).
-const SEED_VERSION = 1;
+// 2 added the contact credit packs (Step 85).
+const SEED_VERSION = 2;
 
 // States and union territories with their GST state codes (first two digits of a GSTIN).
 const STATES = [
@@ -64,17 +66,22 @@ const stateName = (code) => (STATES.find(([c]) => c === code) || ['', ''])[1];
 function defaultPlans(gstPercent) {
   const plan = (p) => ({ kind: 'subscription', currency: CURRENCY, interval: 'month', custom: false, active: true, gstPercent, sac: '', summary: '', features: [], ...p });
   return [
-    plan({ code: 'starter', name: 'Starter', pricePaise: 0, jobLimit: 3, seatLimit: 3, sort: 1, summary: 'Free for small teams getting started',
-      features: ['3 jobs live at a time', '3 team members', 'Applicant tracking and interview scheduling', 'Email support'] }),
-    plan({ code: 'growth', name: 'Growth', pricePaise: 199900, jobLimit: 10, seatLimit: 5, sort: 2, summary: 'For companies hiring every month',
-      features: ['10 jobs live at a time', '5 team members', 'Find candidates who agreed to be found', 'Hiring reports'] }),
-    plan({ code: 'business', name: 'Business', pricePaise: 499900, jobLimit: 30, seatLimit: 15, sort: 3, summary: 'For larger hiring teams',
-      features: ['30 jobs live at a time', '15 team members', 'Analytics and exports', 'Priority support'] }),
+    plan({ code: 'starter', name: 'Starter', pricePaise: 0, jobLimit: 3, seatLimit: 3, contactUnlocks: 5, sort: 1, summary: 'Free for small teams getting started',
+      features: ['3 jobs live at a time', '3 team members', '5 candidate contacts a month', 'Applicant tracking and interview scheduling', 'Email support'] }),
+    plan({ code: 'growth', name: 'Growth', pricePaise: 199900, jobLimit: 10, seatLimit: 5, contactUnlocks: 30, sort: 2, summary: 'For companies hiring every month',
+      features: ['10 jobs live at a time', '5 team members', 'Find candidates who agreed to be found', '30 candidate contacts a month', 'Hiring reports'] }),
+    plan({ code: 'business', name: 'Business', pricePaise: 499900, jobLimit: 30, seatLimit: 15, contactUnlocks: 100, sort: 3, summary: 'For larger hiring teams',
+      features: ['30 jobs live at a time', '15 team members', '100 candidate contacts a month', 'Analytics and exports', 'Priority support'] }),
     plan({ code: 'enterprise', name: 'Enterprise', pricePaise: null, custom: true, jobLimit: null, seatLimit: null, sort: 4, summary: 'Custom limits, terms and services',
       features: ['Limits agreed with you', 'An account manager', 'Staffing and placement services', 'Invoices on agreed terms'] }),
     // A one-time service package; switched off until the team sets its price and SAC.
     plan({ code: 'assisted-hiring', kind: 'package', name: 'Assisted hiring (one role)', pricePaise: 999900, interval: null, jobLimit: null, seatLimit: null, sort: 10, active: false, sac: '998512',
       summary: 'A Hireriv recruiter screens applicants and shortlists for one role', features: ['Screening calls', 'A shortlist within 10 working days', 'Interviews arranged for you'] }),
+    // Contact credit packs (contact-credits.js); switched off until the team sets their price and SAC.
+    plan({ code: 'contact-credits-25', kind: 'package', name: '25 contact credits', pricePaise: 49900, interval: null, jobLimit: null, seatLimit: null, credits: 25, sort: 11, active: false,
+      summary: 'See the mobile numbers of 25 more job seekers who agreed to it', features: ['Call or WhatsApp them directly', 'Credits never expire', 'Unlocking someone again is free'] }),
+    plan({ code: 'contact-credits-100', kind: 'package', name: '100 contact credits', pricePaise: 149900, interval: null, jobLimit: null, seatLimit: null, credits: 100, sort: 12, active: false,
+      summary: 'See the mobile numbers of 100 more job seekers who agreed to it', features: ['Call or WhatsApp them directly', 'Credits never expire', 'Unlocking someone again is free'] }),
   ];
 }
 
@@ -159,7 +166,10 @@ function create({ db, site, gateway, validGstin = () => true }) {
     let n = 0;
     db.transaction(() => {
       for (const p of defaultPlans(gst)) {
-        if (find(PLANS, 'code', p.code)) continue;
+        const had = find(PLANS, 'code', p.code);
+        // Plans seeded before version 2 get the free contacts their defaults include.
+        if (had && had.seeded && had.contactUnlocks === undefined && p.contactUnlocks !== undefined) put(PLANS, { ...had, contactUnlocks: p.contactUnlocks });
+        if (had) continue;
         db.prepend(PLANS, { id: crypto.randomUUID(), ...p, version: 1, seeded: SEED_VERSION, createdAt: iso(), updatedAt: iso() });
         n++;
       }
@@ -184,7 +194,8 @@ function create({ db, site, gateway, validGstin = () => true }) {
   const publicPlan = (p) => ({
     id: p.id, code: p.code, kind: p.kind, name: p.name, summary: p.summary, custom: Boolean(p.custom),
     price: p.pricePaise == null ? null : { amountPaise: p.pricePaise, currency: p.currency, display: inr(p.pricePaise), gstPercent: p.gstPercent, excludesGst: true },
-    interval: p.interval, intervalLabel: INTERVALS[p.interval] || 'One time', jobLimit: p.jobLimit, seatLimit: p.seatLimit, features: p.features || [],
+    interval: p.interval, intervalLabel: INTERVALS[p.interval] || 'One time', jobLimit: p.jobLimit, seatLimit: p.seatLimit, contactUnlocks: p.kind === 'package' ? null : p.contactUnlocks === undefined ? DEFAULT_MONTHLY : p.contactUnlocks,
+    credits: p.kind === 'package' ? p.credits || 0 : null, features: p.features || [],
   });
 
   // Checks a plan form; returns { errors, plan }.
@@ -209,6 +220,8 @@ function create({ db, site, gateway, validGstin = () => true }) {
       interval: kind === 'package' ? null : INTERVALS[body.interval] ? body.interval : '',
       jobLimit: intOrNull('jobLimit', 'Job limit', HARD_JOB_CAP),
       seatLimit: intOrNull('seatLimit', 'Team seats', HARD_SEAT_CAP),
+      contactUnlocks: kind === 'package' ? null : intOrNull('contactUnlocks', 'Candidate contacts a month', HARD_UNLOCK_CAP),
+      credits: kind === 'package' ? intOrNull('credits', 'Contact credits', MAX_PACK) || 0 : 0,
       features: String(body.features || '').split('\n').map((f) => clip(f, 120)).filter(Boolean).slice(0, 12),
       gstPercent: Number(clip(body.gstPercent, 6)),
       sac: clip(body.sac, 8),
@@ -285,10 +298,10 @@ function create({ db, site, gateway, validGstin = () => true }) {
     const { sub, plan, managed } = currentPlan(emp);
     const o = (sub && sub.overrides) || {};
     const pick = (k, cap) => {
-      const v = o[k] != null ? o[k] : plan ? plan[k] : null;
+      const v = o[k] != null ? o[k] : plan ? (plan[k] === undefined && k === 'contactUnlocks' ? DEFAULT_MONTHLY : plan[k]) : null;
       return v == null ? cap : Math.min(v, cap);
     };
-    return { jobs: pick('jobLimit', HARD_JOB_CAP), seats: pick('seatLimit', HARD_SEAT_CAP), planName: plan ? plan.name : managed ? 'Managed account' : 'No plan', managed: Boolean(managed) };
+    return { jobs: pick('jobLimit', HARD_JOB_CAP), seats: pick('seatLimit', HARD_SEAT_CAP), contactUnlocks: pick('contactUnlocks', HARD_UNLOCK_CAP), planName: plan ? plan.name : managed ? 'Managed account' : 'No plan', managed: Boolean(managed) };
   }
   function changeSub(emp, sub, patch, event, by = '') {
     const before = sub ? sub.planId : null;
@@ -298,7 +311,7 @@ function create({ db, site, gateway, validGstin = () => true }) {
     next.history = [{ at: iso(), event, from: before, to: next.planId, by: clip(by, 120) }, ...(next.history || [])].slice(0, 100);
     return put(SUBS, next);
   }
-  const snapshot = (p) => ({ code: p.code, name: p.name, pricePaise: p.pricePaise, currency: p.currency, interval: p.interval, jobLimit: p.jobLimit, seatLimit: p.seatLimit, gstPercent: p.gstPercent, sac: p.sac });
+  const snapshot = (p) => ({ code: p.code, name: p.name, pricePaise: p.pricePaise, currency: p.currency, interval: p.interval, jobLimit: p.jobLimit, seatLimit: p.seatLimit, contactUnlocks: p.contactUnlocks, gstPercent: p.gstPercent, sac: p.sac });
   // Back to the free plan (cancelled, unpaid after the grace period, or refunded).
   function toFree(emp, sub, event, by) {
     const free = freePlan();
@@ -388,5 +401,5 @@ function create({ db, site, gateway, validGstin = () => true }) {
 
 module.exports = {
   create, defaultPlans, addInterval, addDays, daysBetween, taxOf, paiseIn, inr, rupees, perMonth, todayIst, stateCode, stateName,
-  STATES, INTERVALS, TXN_STATUSES, SETTLED, REFUND_REASONS, OFFLINE_MODES, HARD_JOB_CAP, HARD_SEAT_CAP, SEED_VERSION, CURRENCY, amountInWords, employerCan, agencyRoles,
+  STATES, INTERVALS, TXN_STATUSES, SETTLED, REFUND_REASONS, OFFLINE_MODES, HARD_JOB_CAP, HARD_SEAT_CAP, HARD_UNLOCK_CAP, SEED_VERSION, CURRENCY, amountInWords, employerCan, agencyRoles,
 };

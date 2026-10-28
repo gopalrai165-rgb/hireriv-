@@ -33,7 +33,7 @@ function emptyProfile() {
 }
 // Recruiters on the Hireriv team may find a profile unless the person says no;
 // employers only when the person says yes.
-const defaultPrivacy = () => ({ visibleToRecruiters: true, discoverable: false });
+const defaultPrivacy = () => ({ visibleToRecruiters: true, discoverable: false, shareContact: false });
 const defaultComms = () => ({ whatsapp: false, sms: false, offers: false });
 
 const newId = () => crypto.randomBytes(6).toString('hex');

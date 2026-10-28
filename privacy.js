@@ -33,6 +33,7 @@ const PURPOSES = {
   account: { label: 'Your account and applications', text: 'Keeping your profile and resume, sending each application to the employer you applied to, and telling you what happens next. Needed for the service; withdrawn by deleting your account.' },
   'recruiter-visibility': { label: 'Considered for other jobs', text: 'Hireriv recruiters may look at your profile for other jobs that fit and contact you about them.' },
   'employer-discovery': { label: 'Findable by verified employers', text: 'Verified employers on Hireriv may find your profile (without your contact details) and invite you to apply.' },
+  'employer-contact': { label: 'Mobile number for verified employers', text: 'Verified employers who find your profile may unlock your name and mobile number to call or WhatsApp you about a job. You are told which companies did.' },
   'job-alerts': { label: 'Job alert emails', text: 'Emails about new jobs matching an alert or saved search you set up.' },
   'marketing-email': { label: 'News and career tips', text: 'Occasional emails about Hireriv and career advice. Never needed for applying.' },
   whatsapp: { label: 'WhatsApp updates', text: 'Job matches and updates on WhatsApp.' },

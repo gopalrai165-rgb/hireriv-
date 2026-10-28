@@ -191,6 +191,9 @@ Suggested order: 2 → 1 → 3 → 4, which makes Hireriv usable for skilled and
   | job_matches | Not stored: worked out when asked from the current profile and job (`job-match.js`, `MATCH_VERSION` 1), so a score can never be stale |
   | match weights | Settings (`matchWeights`), Admins only, changes logged |
   | candidate discovery consent | `candidates.privacy.discoverable` (off by default), in the data export |
+  | contact sharing consent | `candidates.privacy.shareContact` (off by default, works only with discovery on), consent purpose `employer-contact` |
+  | contact_unlocks | `contact-unlocks`: company, candidate, member, free or credit, month; in the candidate's data export; the candidate is replaced by `erased` when their account is deleted |
+  | contact credits | `contact-credit-ledger`: +N per pack paid (once per payment) or -1 per unlock beyond the free ones, -N for a refunded pack's unused credits |
   | candidate_invites | `candidate-invites`: company, job, candidate, time; deleted with the candidate's account |
   | job requirements | `jobs.mustHave`, `immediate`, `physical` |
   | PostgreSQL | migration 004 adds indexes for company and shift; skills use `job_skills`. Every migration now has a rollback file (`npm run pg:migrate -- --rollback` undoes the newest) |

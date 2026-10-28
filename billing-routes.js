@@ -12,7 +12,7 @@ const iso = () => new Date().toISOString();
 const clip = (v, n) => String(v ?? '').trim().slice(0, n);
 
 function register(app, deps) {
-  const { db, site, mailer, notify, store, gateway, team, clients, placements, getJobs, adminAuth, sameOrigin, limit, requireConfirmed, trust, baseUrl, sendCsv, ops } = deps;
+  const { db, site, mailer, notify, store, gateway, team, clients, placements, getJobs, adminAuth, sameOrigin, limit, requireConfirmed, trust, baseUrl, sendCsv, ops, contacts } = deps;
   const { requireEmployer, requireEmployerApi } = clients;
   const { TXNS, INVOICES, REFUNDS, EVENTS, SUBS } = store;
   const { find, put, add } = store;
@@ -67,6 +67,7 @@ function register(app, deps) {
       nextPlan: next ? { id: next.id, name: next.name } : null,
       limits: store.limitsOf(emp),
       usage: usageOf(emp),
+      contacts: contacts.status(emp),
       renewal: renewable ? { planId: renewable.plan.id, amountPaise: renewable.q.totalPaise, display: inr(renewable.q.totalPaise), from: renewable.q.period.from } : null,
       graceDays: s.graceDays,
       payments: { provider: gateway.name, online: gateway.ready, sandbox: Boolean(gateway.sandbox) },
@@ -258,7 +259,9 @@ function register(app, deps) {
     }
     const plan = store.planById(txn.planId);
     const invoice = store.issueInvoice(emp, { kind: txn.purpose === 'package' ? 'package' : 'subscription', q: txn.quote, transactionId: txn.id, payment });
-    if (txn.purpose === 'package') return { invoice };
+    // A contact credit pack adds its credits (once per payment).
+    if (txn.purpose === 'package' && plan && plan.credits > 0) contacts.grant(emp.id, plan.credits, { reason: 'pack', transactionId: txn.id, by: `payment ${txn.paymentId}` });
+    if (txn.purpose === 'package') return { invoice, plan };
     const sub = store.subOf(emp.id);
     const period = txn.quote.period;
     store.changeSub(emp, sub, {
@@ -276,7 +279,9 @@ function register(app, deps) {
       subject: `Payment received: ${txn.label}`, intro: `thank you, we received ${inr(txn.amountPaise)} for ${txn.label}.`,
       rows: [['Payment reference', txn.paymentId], ...(invoice ? [['Invoice', invoice.number]] : [])],
     });
-    if (txn.purpose === 'package') tellFinance(`billing:${txn.id}:package`, 'Service package bought', `${emp.company} bought ${txn.label}. Arrange the service with them.`);
+    const pack = txn.purpose === 'package' && (store.planById(txn.planId) || {}).credits > 0;
+    if (pack) clients.team.audit(emp.id, null, 'contact-credits-added', txn.label);
+    if (txn.purpose === 'package' && !pack) tellFinance(`billing:${txn.id}:package`, 'Service package bought', `${emp.company} bought ${txn.label}. Arrange the service with them.`);
   }
 
   // The browser's report after checkout: the signature must match AND the
@@ -503,6 +508,8 @@ function register(app, deps) {
         const sub = store.subOf(emp.id);
         if (sub && sub.planId === t.planId) store.toFree(emp, sub, 'refunded', user.name);
       }
+      // Refunded in full: a contact credit pack's unused credits go too.
+      if (emp && t.purpose === 'package' && t.status === 'refunded') contacts.revoke(emp.id, t.id, user.name);
       return { t, cn, emp };
     });
     trust.record(user, 'billing-refund-approved', { entityType: 'payment', entityId: txn.id, reason: rec.reason, detail: `${inr(rec.amountPaise)} · provider refund ${sent.id}${result.cn ? ` · credit note ${result.cn.number}` : ''}${rec.endPlan ? ' · plan ended' : ''}` });
@@ -687,7 +694,8 @@ function register(app, deps) {
     const all = store.plans().filter((p) => p.active);
     res.status(status).render('employer-billing', {
       title: `${emp.company} · Billing`, page: 'employer', noindex: true, tab: 'billing', errors: [], msg: clip(req.query.msg, 300), ...extra,
-      sub, plans: all.filter((p) => p.kind === 'subscription').map(store.publicPlan), packages: all.filter((p) => p.kind === 'package').map(store.publicPlan),
+      sub, plans: all.filter((p) => p.kind === 'subscription').map(store.publicPlan), packages: all.filter((p) => p.kind === 'package' && !(p.credits > 0)).map(store.publicPlan),
+      creditPacks: all.filter((p) => p.kind === 'package' && p.credits > 0).map(store.publicPlan),
       invoices: store.invoicesOf(emp.id), staffing: placements.forClient(emp), payments: db.where(TXNS, 'employerId', emp.id).filter((t) => t.status !== 'created').slice(0, 50),
       profile: extra.profile || store.profileOf(emp), states: S.STATES.map(([, n]) => n), inr, manage: S.employerCan(req.member, 'billing.manage'), gateway: { ready: gateway.ready, sandbox: gateway.sandbox, script: gateway.checkoutScript || '' },
       balanceOf: store.balanceOf, reasons: [],

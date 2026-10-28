@@ -617,6 +617,8 @@ Total: 727 routes.
 | POST | `/employer/candidates/:id/invite` | employer | Invites a findable candidate to one of the company's own open jobs; once per candidate and job, 30 a day per company; recorded in the activity log |
 | GET | `/api/employers/candidates` | employer | JSON; same rules as the page; a job to match must be one of the company's own |
 | POST | `/api/employers/candidates/:id/invites` | employer | JSON; same rules as the page |
+| POST | `/employer/candidates/:id/unlock` | employer | Same people as the search; only candidates who chose to be found and to show their mobile number (409 otherwise); a free contact from the plan this month, else one contact credit (402 when none); unlocking again is free; recorded in the activity log and the candidate is told |
+| POST | `/api/employers/candidates/:id/unlock` | employer | JSON; same rules as the page; returns the name, number and the company's contacts left |
 | GET | `/employer/jobs` | employer | Jobs this member may see: all for owners and viewers, assigned or own jobs for others |
 | GET | `/employer/jobs/new` | employer | Owners and hiring managers |
 | POST | `/employer/jobs` | employer | Owners and hiring managers |
