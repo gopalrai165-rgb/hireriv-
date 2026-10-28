@@ -11,6 +11,7 @@
 // stands in for them. Missing information counts as unknown: that factor is
 // left out of the score instead of counting against the person.
 const { norm } = require('./match');
+const jobNeeds = require('./job-needs');
 const search = require('./search');
 
 const MATCH_VERSION = 1;
@@ -98,7 +99,17 @@ function facts(profile = {}, extra = {}) {
     expectedMonthly: expected,
     noticePeriod: availability.noticePeriod || extra.noticePeriod || '',
     availableFrom: availability.availableFrom || '',
+    // English from the languages on the profile; unknown when it isn't listed.
+    english: englishFromLanguages(p.languages),
   };
+}
+
+// Profile language levels (Basic, Conversational, Fluent, Native) as the
+// English a job asks for (job-needs.js).
+const ENGLISH_FROM_LEVEL = { Basic: 'Basic', Conversational: 'Good', Fluent: 'Fluent', Native: 'Fluent' };
+function englishFromLanguages(languages) {
+  const en = (languages || []).find((l) => /^english$/i.test(String(l && l.name).trim()));
+  return en ? ENGLISH_FROM_LEVEL[en.level] || '' : '';
 }
 
 // ---------- the factors ----------
@@ -190,6 +201,11 @@ function requirementsOf(f, job, today = new Date().toISOString().slice(0, 10)) {
     const soon = new Date(Date.parse(today) + 7 * 86400000).toISOString().slice(0, 10);
     const met = f.noticePeriod === 'Immediate' || (f.availableFrom && f.availableFrom <= soon) ? true : f.noticePeriod || f.availableFrom ? false : null;
     out.push({ key: 'immediate', label: 'Can start straight away', met, detail: met ? 'You can start now' : met === false ? `You said: ${f.noticePeriod || `from ${f.availableFrom}`}` : 'Add when you can start' });
+  }
+  if (job.english && job.english !== 'None') {
+    const gap = jobNeeds.englishGap(job, f.english);
+    const label = jobNeeds.ENGLISH_LABELS[job.english];
+    out.push({ key: 'english', label, met: !f.english ? null : !gap, detail: !f.english ? 'Add English to the languages on your profile' : gap ? `Your profile says ${jobNeeds.ENGLISH_LABELS[f.english].toLowerCase()}` : 'Your English is enough' });
   }
   if (job.physical) out.push({ key: 'physical', label: job.physical, met: null, detail: 'Part of the job; check it suits you' });
   return out;

@@ -1198,6 +1198,13 @@ code { background: var(--tint); padding: 0 .3em; border-radius: 4px; font-size: 
 /* Keyboard users can jump past the header. */
 .skip-link { position: absolute; left: 16px; top: -60px; z-index: 100; background: var(--navy); color: #fff; padding: .7em 1.2em; border-radius: var(--radius-sm); font-weight: 700; transition: top .15s; }
 .skip-link:focus { top: 12px; color: #fff; }
+/* Walk-in interviews and English needed (job-needs.js). */
+.tag-walkin { background: #E7F6EC; color: #145C2E; }
+.tag-english { background: var(--tint); color: var(--ink); }
+.walkin-box { border: 1px solid #BFE3CB; background: #F3FBF5; border-radius: var(--radius-sm); padding: 14px 16px; margin: 18px 0; }
+.walkin-box.is-over { border-color: var(--line); background: var(--tint); }
+.walkin-box h2 { margin-top: 0; font-size: 1.05rem; }
+.filter-check { align-self: center; white-space: nowrap; }
 /* Resume builder (account-resume-builder.ejs): the preview looks like a sheet of paper. */
 .resume-sheet { background: #fff; border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 20px; box-shadow: 0 1px 3px rgba(16, 42, 76, .08); }
 .resume-sheet .resume-name { font-size: 1.4rem; font-weight: 800; color: var(--ink); margin: 0; }

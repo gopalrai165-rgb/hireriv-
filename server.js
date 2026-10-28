@@ -25,6 +25,8 @@ const { totals: appTotals } = require('./app-totals');
 const employers = require('./employers');
 const candidates = require('./candidates');
 const { SHIFTS, INDIAN_STATES } = require('./candidate-profile');
+// How much English a job needs, and walk-in interview days (job-needs.js).
+const jobNeeds = require('./job-needs');
 const employerHiring = require('./employer-hiring');
 const i18n = require('./i18n');
 const employerAts = require('./employer-ats');
@@ -608,6 +610,9 @@ app.locals.catalog = catalog;
 app.locals.workOf = workOf;
 app.locals.isSample = (j) => j.sample === true;
 app.locals.resumeNeeded = resumeNeeded;
+// Walk-in days and the English a job needs, for cards and the job page.
+app.locals.walkInOf = (j) => jobNeeds.walkInOf(j, todayIst());
+app.locals.walkInDays = (w) => jobNeeds.walkInDays(w, todayIst());
 // Mobile-only job seekers (identity.js): no email to show or write to.
 app.locals.realEmail = identity.realEmail;
 app.locals.contactLabel = identity.contactLabel;
@@ -840,6 +845,10 @@ function jobFilters(query) {
     skills: [],
     company: one('company').value,
     shift: pick(['shift'], (v) => SHIFTS.includes(v)),
+    // "My English is …": jobs that need that much or less.
+    english: pick(['english'], (v) => Boolean(jobNeeds.englishFromKey(v))).toLowerCase(),
+    // Walk-in interviews that haven't ended.
+    walkin: pick(['walkin', 'walkIn'], (v) => ['1', 'true', 'yes'].includes(v)) ? '1' : '',
     sort: pick(['sort'], (v) => search.SORTS.includes(v)),
     // Jobs near me (geo.js): a rounded position, a PIN code or a city, and a radius in km.
     near: one('near').value,
@@ -888,7 +897,9 @@ function localFilters(f) {
 function findJobs(list, f, { skipWork = false } = {}) {
   const group = JOB_GROUPS.find((g) => g.key === f.group);
   return search.searchJobs(list, localFilters(f), {
-    extra: (j) => (!group || inGroup(group, j)) && (skipWork || !f.work || workOf(j) === f.work),
+    extra: (j) => (!group || inGroup(group, j)) && (skipWork || !f.work || workOf(j) === f.work)
+      && (!f.english || jobNeeds.fitsEnglish(j, jobNeeds.englishFromKey(f.english)))
+      && (!f.walkin || jobNeeds.walkInOpen(j, todayIst())),
     moreText: jobTranslations ? (j) => jobTranslations.searchText(j) : null,
   });
 }
@@ -899,8 +910,8 @@ function correctedFilters(list, f) {
   return better ? { ...f, q: better } : null;
 }
 // The filters as query parameters (repeated for several categories and skills).
-const filterQuery = (f) => ({ q: f.q, group: f.group, work: f.work, category: f.categories, location: f.location, mode: f.mode, type: f.type, experience: f.experience, minPay: f.minPay || '', skill: f.skills || [], company: f.company || '', shift: f.shift || '', near: f.near || '', within: f.within || '', sort: f.sort });
-const hasFilters = (f) => Boolean(f.q || f.group || f.work || f.categories.length || f.location || f.mode || f.type || f.experience || f.minPay || (f.skills || []).length || f.company || f.shift || f.near);
+const filterQuery = (f) => ({ q: f.q, group: f.group, work: f.work, category: f.categories, location: f.location, mode: f.mode, type: f.type, experience: f.experience, minPay: f.minPay || '', skill: f.skills || [], company: f.company || '', shift: f.shift || '', english: f.english || '', walkin: f.walkin || '', near: f.near || '', within: f.within || '', sort: f.sort });
+const hasFilters = (f) => Boolean(f.q || f.group || f.work || f.categories.length || f.location || f.mode || f.type || f.experience || f.minPay || (f.skills || []).length || f.company || f.shift || f.english || f.walkin || f.near);
 // Jobs near a place: each job's distance, only those within the radius (when
 // one is chosen), and nearest first unless another order was asked for.
 // Remote jobs and jobs in several places have no distance and go last.
@@ -946,6 +957,8 @@ app.get('/jobs', (req, res) => {
     ...f.skills.map((sk) => ({ label: sk, href: removeLink({ skill: f.skills.filter((x) => x !== sk) }) })),
     f.company && { label: f.company, href: removeLink({ company: '' }) },
     f.shift && { label: `${f.shift} shift`, href: removeLink({ shift: '' }) },
+    f.english && { label: req.t.t('jobs.englishOption', { level: req.t.t(`needs.english${jobNeeds.englishFromKey(f.english)}`) }), href: removeLink({ english: '' }) },
+    f.walkin && { label: req.t.t('needs.walkInFilter'), href: removeLink({ walkin: '' }) },
     nearby.near && !nearby.near.error && { label: req.t.t(f.within ? 'near.chipWithin' : 'near.chip', { km: f.within, place: nearby.near.kind === 'gps' ? req.t.t('near.yourLocation') : nearby.near.label }), href: removeLink({ near: '', within: '', sort: f.sort === 'distance' ? '' : f.sort }) },
   ].filter(Boolean);
   // Signed-in candidates can save this search and get alerts for it.
@@ -975,6 +988,7 @@ app.get('/jobs', (req, res) => {
     canSaveSearch: Boolean(candidateEmail),
     savedSearchQuery: filterQuery(f),
     shifts: SHIFTS,
+    englishLevels: jobNeeds.ENGLISH_LEVELS,
     companies: [...new Set(live.filter((j) => !isSample(j)).map((j) => j.company))].sort((a, b) => a.localeCompare(b)),
     experienceLevels: search.EXPERIENCE_LEVELS,
     minPayOptions: search.MIN_PAY_OPTIONS.map((n) => ({ value: n, label: req.t.t('jobs.payOption', { amount: n.toLocaleString('en-IN') }) })),
@@ -1420,6 +1434,8 @@ const publicJob = (j) => ({
   openings: j.openings || null,
   workplaceAddress: j.address || null,
   walkIn: Boolean(j.walkIn),
+  walkInDetails: j.walkIn ? { from: j.walkInFrom || null, to: j.walkInTo || null, time: j.walkInTime || null, contact: j.walkInContact || null, open: jobNeeds.walkInOpen(j, todayIst()) } : null,
+  englishNeeded: j.english || null,
   eligibility: j.eligibility || [],
   benefits: j.benefits || [],
   requirements: { licences: j.mustHave || [], startsImmediately: Boolean(j.immediate), physical: j.physical || null },
@@ -1447,7 +1463,7 @@ async function jobsApi(req, res) {
   });
   // Postgres when it's connected and up to date; the same search in memory otherwise.
   const viaPg = async (filters) => {
-    if (!(pg && pg.usable())) return null;
+    if (!(pg && pg.usable()) || filters.english || filters.walkin) return null;
     try {
       await pg.flush();
       const found = pg.usable() && (await pg.search(filters, { page, size }));
@@ -2169,6 +2185,8 @@ function parseJob(body) {
   if (data.openings && !(/^\d{1,4}$/.test(data.openings) && Number(data.openings) >= 1)) errors.push('number of openings must be a whole number from 1 to 9999');
   const walkIn = ['1', 'on', 'true'].includes(String(body.walkIn ?? ''));
   if (walkIn && !data.address) errors.push('add the workplace address for walk-in interviews');
+  const needs = jobNeeds.parse(body, { walkIn, today: todayIst(), closed: data.status === 'closed' });
+  errors.push(...needs.errors);
   const job = {
     title: data.title,
     company: data.company,
@@ -2195,6 +2213,11 @@ function parseJob(body) {
     openings: data.openings ? Number(data.openings) : null,
     address: data.address.slice(0, 300),
     walkIn,
+    walkInFrom: needs.walkInFrom,
+    walkInTo: needs.walkInTo,
+    walkInTime: needs.walkInTime,
+    walkInContact: needs.walkInContact,
+    english: needs.english,
     eligibility: lines(data.eligibility),
     // Must-haves shown apart from the match score: licences or certificates
     // the work legally or practically needs, starting straight away, and

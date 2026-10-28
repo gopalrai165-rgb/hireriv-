@@ -68,7 +68,7 @@
         <label class="span-2">Costs the worker pays <span class="muted small">(optional; e.g. "None", "Uniform deposit ₹500, returned when you leave", "Room ₹1,500 a month if you use the hostel")</span><input name="workerCosts" maxlength="300" value="<%= job.workerCosts || '' %>"></label>
         <label>Openings <span class="muted small">(optional)</span><input name="openings" inputmode="numeric" maxlength="4" value="<%= job.openings || '' %>"></label>
         <label class="span-2">Workplace address <span class="muted small">(optional)</span><input name="address" maxlength="300" value="<%= job.address || '' %>"></label>
-        <label class="span-2 check-row"><input type="checkbox" name="walkIn" value="1"<%= job.walkIn ? ' checked' : '' %>> <span>Walk-in interviews at this address</span></label>
+        <%- include('partials/job-needs-fields', { job: job }) %>
         <label>Client <span class="muted small">(lets this client see the job in their portal)</span>
           <select name="employerId">
             <option value="">No client (Hireriv job)</option>

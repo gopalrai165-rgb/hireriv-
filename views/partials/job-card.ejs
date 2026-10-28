@@ -10,6 +10,9 @@
   <h3><a href="<%= jobPath(job) %>"<%- jt.lang ? ' lang="' + jt.lang + '"' : '' %>><%= jt.text %></a></h3>
   <p class="muted small"><%= job.company %> · <%= tv('category', job.category) %></p>
   <span class="tag tag-<%= job.mode.toLowerCase().replace(/[^a-z]+/g, '-') %>"><%= tv('mode', job.mode) %></span>
+  <% const cardWalkIn = walkInOf(job); %>
+  <% if (cardWalkIn && cardWalkIn.state !== 'over') { %><span class="tag tag-walkin"><%= t('needs.walkInBadge') %><%= walkInDays(cardWalkIn) ? ': ' + walkInDays(cardWalkIn) : '' %></span><% } %>
+  <% if (job.english) { %><span class="tag tag-english"><%= t('needs.english' + job.english) %></span><% } %>
   <ul class="job-meta">
     <li><svg class="i" aria-hidden="true"><use href="#i-pin"/></svg><span class="sr-only"><%= t('card.location') %> </span><%= job.location %></li>
     <li><svg class="i" aria-hidden="true"><use href="#i-clock"/></svg><span class="sr-only"><%= t('card.type') %> </span><%= tv('type', job.type) %></li>

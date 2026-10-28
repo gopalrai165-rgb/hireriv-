@@ -45,7 +45,7 @@
       </div>
       <% if (near && near.error) { %><p class="notice notice-err small" role="alert"><%= t('near.' + near.error, { pin: near.pin || '' }) %></p><% } %>
       <p class="near-status small" role="status" data-near-status></p>
-      <% const moreCount = filters.categories.length + ['experience', 'minPay', 'type', 'mode', 'shift', 'company'].filter(function (k) { return filters[k]; }).length + ((filters.skills || []).length ? 1 : 0); %>
+      <% const moreCount = filters.categories.length + ['experience', 'minPay', 'type', 'mode', 'shift', 'english', 'walkin', 'company'].filter(function (k) { return filters[k]; }).length + ((filters.skills || []).length ? 1 : 0); %>
       <details class="more-filters" open data-more-filters="<%= moreCount %>">
       <summary><%= t('jobs.filtersSummary') %><% if (moreCount) { %> <span class="count"><%= moreCount %></span><% } %></summary>
       <div class="filter-row">
@@ -85,6 +85,12 @@
           <option value=""><%= t('jobs.anyShift') %></option>
           <% shifts.forEach(function (sh) { %><option value="<%= sh %>" <%= filters.shift === sh ? 'selected' : '' %>><%= t('jobs.shiftOption', { shift: tv('shift', sh) }) %></option><% }) %>
         </select>
+        <label class="sr-only" for="f-english"><%= t('jobs.english') %></label>
+        <select id="f-english" name="english">
+          <option value=""><%= t('jobs.anyEnglish') %></option>
+          <% englishLevels.forEach(function (l) { %><option value="<%= l.toLowerCase() %>" <%= filters.english === l.toLowerCase() ? 'selected' : '' %>><%= t('jobs.englishOption', { level: t('needs.english' + l) }) %></option><% }) %>
+        </select>
+        <label class="check-row filter-check"><input type="checkbox" name="walkin" value="1"<%= filters.walkin ? ' checked' : '' %>> <span><%= t('jobs.walkInOnly') %></span></label>
         <label class="sr-only" for="f-company"><%= t('jobs.company') %></label>
         <select id="f-company" name="company">
           <option value=""><%= t('jobs.anyCompany') %></option>

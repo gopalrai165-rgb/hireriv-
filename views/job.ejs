@@ -75,6 +75,20 @@
         <h2><%= t('job.keySkills') %></h2>
         <div class="chips chips-lg"><% job.skills.forEach(function (s) { %><span class="chip" lang="en"><%= s %></span><% }) %></div>
       <% } %>
+      <% const wi = walkInOf(job); %>
+      <% if (wi) { %>
+        <section class="walkin-box<%= wi.state === 'over' ? ' is-over' : '' %>" aria-labelledby="walkin-h">
+          <h2 id="walkin-h"><%= t('job.fWalkIn') %></h2>
+          <% if (wi.state === 'over') { %><p class="small"><%= t('needs.walkInOver') %></p><% } else { %>
+            <ul class="plain-list">
+              <li><b><%= walkInDays(wi) || t('needs.walkInAnyDay') %></b><%= wi.time ? ' · ' + wi.time : '' %><% if (wi.state === 'upcoming') { %> <span class="pill st-screening"><%= t('needs.walkInUpcoming', { day: walkInDays({ from: wi.from }) }) %></span><% } %></li>
+              <% if (wi.address) { %><li><%= wi.address %></li><% } %>
+              <% if (wi.contact) { %><li><%= t('needs.walkInAsk', { who: wi.contact }) %></li><% } %>
+            </ul>
+            <p class="small muted"><%= t('needs.walkInBring') %></p>
+          <% } %>
+        </section>
+      <% } %>
       <h2><%= t('job.details') %></h2>
       <dl class="job-facts">
         <div><dt><%= t('job.fType') %></dt><dd><%= tv('type', job.type) %></dd></div>
@@ -83,6 +97,7 @@
         <div><dt><%= t('job.fPay') %></dt><dd><%= pay || t('job.notDisclosed') %></dd></div>
         <div><dt><%= t('job.fExperience') %></dt><dd><%= job.experience ? tv('experience', job.experience) : t('job.notSpecified') %></dd></div>
         <% if (job.education) { %><div><dt><%= t('job.fEducation') %></dt><dd><%= job.education %></dd></div><% } %>
+        <% if (job.english) { %><div><dt><%= t('job.fEnglish') %></dt><dd><%= t('needs.english' + job.english) %></dd></div><% } %>
         <% if (job.address) { %><div><dt><%= t('job.fAddress') %></dt><dd><%= job.address %><%= job.walkIn ? ' ' + t('job.walkIn') : '' %></dd></div><% } %>
         <% if (job.openings) { %><div><dt><%= t('job.fOpenings') %></dt><dd><%= job.openings %></dd></div><% } %>
         <% if (job.shift) { %><div><dt><%= t('job.fShift') %></dt><dd><%= tv('shift', job.shift) %></dd></div><% } %>

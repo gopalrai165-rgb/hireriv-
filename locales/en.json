@@ -140,6 +140,10 @@
     "hiring": "Hiring?"
   },
   "jobs": {
+    "english": "English",
+    "anyEnglish": "Any English level",
+    "englishOption": "My English: {level}",
+    "walkInOnly": "Walk-in interviews only",
     "eyebrow": "Find jobs",
     "title": "Find your next role",
     "lead": "Hand-picked openings with verified employers. Apply in two minutes, and a real recruiter will get back to you.",
@@ -264,6 +268,8 @@
     "notDisclosed": "Pay not disclosed"
   },
   "job": {
+    "fEnglish": "English",
+    "fWalkIn": "Walk-in interview",
     "allJobs": "← All jobs",
     "verified": "Verified employer",
     "verifiedTitle": "A client account checked by the {site} team",
@@ -662,6 +668,20 @@
       "Your applications, profile and messages are never stored on this device, so sign in again once you're back online to see them."
     ],
     "retry": "Try again"
+  },
+  "needs": {
+    "englishNone": "No English needed",
+    "englishBasic": "Basic English",
+    "englishGood": "Good English",
+    "englishFluent": "Fluent English",
+    "walkInBadge": "Walk-in",
+    "walkInFilter": "Walk-in interviews",
+    "walkInAnyDay": "Any working day",
+    "walkInOver": "The walk-in days are over. You can still apply online.",
+    "walkInUpcoming": "Starts {day}",
+    "walkInAsk": "Ask for {who}",
+    "walkInBring": "Bring a photo ID. You never pay a fee to be interviewed or hired.",
+    "englishGap": "This job asks for {needs}; your profile says {has}."
   },
   "near": {
     "label": "Near",

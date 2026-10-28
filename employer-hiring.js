@@ -19,7 +19,7 @@ const { workOf } = require('./content');
 const MAX_ACTIVE_JOBS = 50;
 // Until the company is verified, at most this many can wait for review.
 const MAX_WAITING_UNVERIFIED = 5;
-const EMPLOYER_JOB_FIELDS = ['title', 'location', 'mode', 'type', 'category', 'work', 'experience', 'salaryMin', 'salaryMax', 'salaryPeriod', 'payNote', 'education', 'schedule', 'shift', 'hours', 'openings', 'address', 'walkIn', 'eligibility', 'mustHave', 'physical', 'immediate', 'skills', 'description', 'responsibilities', 'qualifications', 'benefits', 'closesOn', 'resume', 'overtime', 'workerCosts'];
+const EMPLOYER_JOB_FIELDS = ['title', 'location', 'mode', 'type', 'category', 'work', 'experience', 'salaryMin', 'salaryMax', 'salaryPeriod', 'payNote', 'education', 'schedule', 'shift', 'hours', 'openings', 'address', 'walkIn', 'walkInFrom', 'walkInTo', 'walkInTime', 'walkInContact', 'english', 'eligibility', 'mustHave', 'physical', 'immediate', 'skills', 'description', 'responsibilities', 'qualifications', 'benefits', 'closesOn', 'resume', 'overtime', 'workerCosts'];
 const STATUS_LABELS = { draft: 'Draft', pending: 'Waiting for review', open: 'Live', paused: 'Paused', closed: 'Closed', rejected: 'Needs changes' };
 const ACTIVE = ['open', 'paused', 'pending'];
 const selfManaged = (job) => Boolean(job) && job.createdBy === 'employer';
@@ -46,7 +46,7 @@ function register(app, deps) {
     title: j.title, location: j.location, mode: j.mode, type: j.type, category: j.category, work: j.work || '', experience: j.experience || '',
     salaryMin: j.pay && j.pay.min ? String(j.pay.min) : '', salaryMax: j.pay && j.pay.max ? String(j.pay.max) : '', salaryPeriod: (j.pay && j.pay.period) || 'month',
     payNote: j.payNote || '', salary: j.pay ? '' : j.salary || '', education: j.education || '', schedule: j.schedule || '', shift: j.shift || '', hours: j.hours || '',
-    openings: j.openings ? String(j.openings) : '', address: j.address || '', walkIn: j.walkIn ? '1' : '', eligibility: (j.eligibility || []).join('\n'),
+    openings: j.openings ? String(j.openings) : '', address: j.address || '', walkIn: j.walkIn ? '1' : '', walkInFrom: j.walkInFrom || '', walkInTo: j.walkInTo || '', walkInTime: j.walkInTime || '', walkInContact: j.walkInContact || '', english: j.english || '', eligibility: (j.eligibility || []).join('\n'),
     mustHave: (j.mustHave || []).join('\n'), physical: j.physical || '', immediate: j.immediate ? '1' : '',
     skills: (j.skills || []).join(', '), description: j.description, responsibilities: (j.responsibilities || []).join('\n'),
     qualifications: (j.qualifications || []).join('\n'), benefits: (j.benefits || []).join('\n'), closesOn: j.closesOn || '', resume: j.resume || '',

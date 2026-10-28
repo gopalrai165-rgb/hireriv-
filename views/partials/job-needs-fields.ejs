@@ -1,0 +1,13 @@
+<%# English needed and walk-in interview details (job-needs.js), shared by the team's and employers' job forms. %>
+<% const englishLabels = { None: 'No English needed', Basic: 'Basic English (understands simple words)', Good: 'Good English (talks with customers)', Fluent: 'Fluent English' }; %>
+<label>English needed <span class="muted small">(job seekers filter by this)</span>
+  <select name="english"><option value="">Not specified</option><% ['None', 'Basic', 'Good', 'Fluent'].forEach(function (l) { %><option value="<%= l %>"<%= job.english === l ? ' selected' : '' %>><%= englishLabels[l] %></option><% }) %></select>
+</label>
+<label class="span-2 check-row"><input type="checkbox" name="walkIn" value="1"<%= job.walkIn ? ' checked' : '' %>> <span>Walk-in interviews at this address</span></label>
+<fieldset class="span-2 pay-fields walkin-fields">
+  <legend>Walk-in details <span class="muted small">(optional; only used when walk-in is ticked)</span></legend>
+  <label>First day<input type="date" name="walkInFrom" value="<%= job.walkInFrom || '' %>"></label>
+  <label>Last day<input type="date" name="walkInTo" value="<%= job.walkInTo || '' %>"></label>
+  <label>Time<input name="walkInTime" maxlength="60" value="<%= job.walkInTime || '' %>" placeholder="e.g. 10 am – 4 pm, Mon–Sat"></label>
+  <label>Ask for<input name="walkInContact" maxlength="80" value="<%= job.walkInContact || '' %>" placeholder="e.g. Priya, HR desk, gate 2"></label>
+</fieldset>
