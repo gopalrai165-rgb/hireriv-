@@ -215,6 +215,14 @@
   </div>
 </section>
 
+<% if (live) { %>
+<%# Phones: shown by main.js while neither the top Apply button nor the form is on screen. %>
+<div class="sticky-apply" data-sticky-apply hidden>
+  <span class="sticky-apply-text"><b<%- trLang %>><%= txt.title %></b><span class="small muted"><%= pay || place %></span></span>
+  <a href="#apply" class="btn btn-primary"><%= t('job.applyNow') %></a>
+</div>
+<% } %>
+
 <% if (related.length) { %>
 <section class="section section-tint">
   <div class="container">

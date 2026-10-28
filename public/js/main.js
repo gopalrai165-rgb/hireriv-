@@ -106,6 +106,9 @@ function toast(message, isError) {
   toastTimer = setTimeout(() => toastEl.classList.remove('show'), 5000);
 }
 
+// A field marked wrong stops showing red as soon as the person changes it.
+document.addEventListener('input', (e) => { if (e.target.getAttribute && e.target.getAttribute('aria-invalid') === 'true') e.target.removeAttribute('aria-invalid'); });
+
 // Errors stay on the form until it is sent again: a list at the top (read out
 // by screen readers and focused), and each field named in it marked invalid.
 function showErrors(form, errors, fields = []) {
@@ -628,6 +631,22 @@ if ('serviceWorker' in navigator) {
     }).catch(() => { /* the site works without it */ });
   });
 }
+
+// Job page on a phone: an Apply bar while neither the top Apply button nor the
+// form is on screen, so applying never needs a long scroll back.
+(() => {
+  const bar = document.querySelector('[data-sticky-apply]');
+  const top = document.querySelector('.job-actions');
+  const form = document.getElementById('apply');
+  if (!bar || !top || !form || !('IntersectionObserver' in window)) return;
+  const phone = window.matchMedia('(max-width: 760px)');
+  const onScreen = new Map([[top, true], [form, false]]);
+  const update = () => { bar.hidden = !phone.matches || [...onScreen.values()].some(Boolean); };
+  const io = new IntersectionObserver((entries) => { entries.forEach((e) => onScreen.set(e.target, e.isIntersecting)); update(); });
+  io.observe(top);
+  io.observe(form);
+  phone.addEventListener('change', update);
+})();
 
 // "Add to home screen", only where the browser offers it, not again for 30
 // days after "Not now", and the banner only from the third page someone

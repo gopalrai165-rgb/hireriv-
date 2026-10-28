@@ -1368,8 +1368,12 @@ main:focus { outline: none; }
 .register-wrap .auth-card { max-width: none; }
 .register-intro h1 { font-size: clamp(2rem, 4vw, 2.6rem); margin: .3em 0 .4em; }
 @media (max-width: 900px) { .register-wrap { grid-template-columns: 1fr; gap: 24px; } }
+@media (max-width: 640px) { .register-intro .checks { display: none; } .auth-section { padding: 28px 0 40px; } }
 .check-row { display: flex; gap: 10px; align-items: flex-start; font-weight: 500; font-size: .92rem; }
 .check-row input { width: auto; margin-top: 4px; flex: none; }
+/* Tick boxes big enough to tap, with the whole line as the target. */
+.check-row input[type="checkbox"], .check-row input[type="radio"] { width: 22px; height: 22px; margin-top: 1px; accent-color: var(--primary); }
+form .check-row { min-height: 44px; padding: 6px 0; cursor: pointer; }
 .form-grid .check-row { flex-direction: row; }
 .notice p { margin: 0; }
 .one-click { display: grid; gap: 10px; }
@@ -1816,6 +1820,16 @@ input[type="checkbox"], input[type="radio"] { min-width: 20px; min-height: 20px;
   body:has(.bottom-nav) .app-bar, body:has(.bottom-nav) .toast { bottom: calc(72px + env(safe-area-inset-bottom)); }
 }
 @media print { .bottom-nav { display: none; } }
+.sticky-apply { display: none; }
+@media (max-width: 760px) {
+  .sticky-apply:not([hidden]) {
+    display: flex; align-items: center; gap: 12px; position: fixed; z-index: 59; left: 8px; right: 8px; bottom: calc(68px + env(safe-area-inset-bottom));
+    padding: 10px 10px 10px 14px; background: #fff; border: 1px solid var(--line); border-radius: 14px; box-shadow: 0 10px 30px rgba(19, 37, 63, .18);
+  }
+  .sticky-apply-text { display: flex; flex-direction: column; min-width: 0; flex: 1; line-height: 1.3; }
+  .sticky-apply-text b { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .sticky-apply .btn { flex: none; min-height: 44px; }
+}
 @media (forced-colors: active) { .bottom-nav a[aria-current], .segmented a[aria-current], .suggest-list li[aria-selected="true"] { outline: 2px solid CanvasText; } }
 .hero-employer { margin: 14px 0 0; color: var(--muted); }
 .near-showing { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }

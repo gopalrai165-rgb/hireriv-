@@ -61,3 +61,19 @@ test('the install banner waits until the third page', () => {
   assert.match(js, /const VIEWS = 'hireriv:pages-seen';/);
   assert.match(js, /seen < 3 \|\|/);
 });
+
+test('job page: an Apply bar on phones while the details are read', async () => {
+  const page = await html('/jobs/hr-101');
+  const bar = page.match(/<div class="sticky-apply" data-sticky-apply hidden>[\s\S]*?<\/div>/);
+  assert.ok(bar, 'the bar is on the page, hidden until main.js shows it');
+  assert.match(bar[0], /<a href="#apply" class="btn btn-primary">Apply now<\/a>/);
+  assert.match(js, /const onScreen = new Map\(\[\[top, true\], \[form, false\]\]\);/);
+  assert.match(css, /\.sticky-apply:not\(\[hidden\]\)/);
+});
+
+test('forms: big tick boxes, sign-up form sooner on phones, red marks clear when fixed', () => {
+  assert.match(css, /\.check-row input\[type="checkbox"\], \.check-row input\[type="radio"\] \{ width: 22px; height: 22px;/);
+  assert.match(css, /form \.check-row \{ min-height: 44px;/);
+  assert.match(css, /\.register-intro \.checks \{ display: none; \}/);
+  assert.match(js, /document\.addEventListener\('input', \(e\) => \{ if \(e\.target\.getAttribute && e\.target\.getAttribute\('aria-invalid'\) === 'true'\)/);
+});
