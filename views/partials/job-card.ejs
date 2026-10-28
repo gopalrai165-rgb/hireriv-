@@ -1,5 +1,5 @@
 <% const jt = jobTitleIn(job); const pay = payLabel(job); %>
-<article class="job-card reveal<%= job.status === 'closed' ? ' is-closed' : '' %>">
+<article class="job-card<%= job.status === 'closed' ? ' is-closed' : '' %>">
   <div class="job-card-top">
     <span class="job-logo" aria-hidden="true"><%= (job.company || job.title).trim().charAt(0).toUpperCase() %></span>
     <span class="job-card-side">
@@ -17,7 +17,7 @@
     <li><svg class="i" aria-hidden="true"><use href="#i-pin"/></svg><span class="sr-only"><%= t('card.location') %> </span><%= job.location %></li>
     <li><svg class="i" aria-hidden="true"><use href="#i-clock"/></svg><span class="sr-only"><%= t('card.type') %> </span><%= tv('type', job.type) %></li>
     <% if (job.experience) { %><li><svg class="i" aria-hidden="true"><use href="#i-briefcase"/></svg><span class="sr-only"><%= t('card.experience') %> </span><%= tv('experience', job.experience) %></li><% } %>
-    <% if (pay) { %><li><svg class="i" aria-hidden="true"><use href="#i-wallet"/></svg><span class="sr-only"><%= t('card.salary') %> </span><%= pay %></li><% } %>
+    <% if (pay) { %><li class="job-pay"><svg class="i" aria-hidden="true"><use href="#i-wallet"/></svg><span class="sr-only"><%= t('card.salary') %> </span><%= pay %></li><% } %>
     <% const km = typeof distances !== 'undefined' && distances ? distances[job.id] : undefined; %>
     <% if (km !== undefined) { %><li class="job-distance"><svg class="i" aria-hidden="true"><use href="#i-pin"/></svg><%= km < 3 ? t('near.inYourCity') : t('near.away', { km: km < 20 ? km : Math.round(km / 5) * 5 }) %></li><% } %>
   </ul>

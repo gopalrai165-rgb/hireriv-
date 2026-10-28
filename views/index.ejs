@@ -90,7 +90,7 @@
       <% topCities.forEach(function (c) { %>
         <li><a class="city-tile" href="<%= c.href %>">
           <span class="city-initial" aria-hidden="true"><%= c.name.charAt(0) %></span>
-          <span><b><%= t('home.jobsIn', { city: c.name }) %></b><span class="muted small"><%= t('home.jobCount', { count: c.count }) %></span></span>
+          <span><b><%= t('home.jobsIn', { city: c.name }) %></b><span class="muted small"><%= c.count ? t('home.jobCount', { count: c.count }) : t('home.seeJobs') %></span></span>
         </a></li>
       <% }) %>
     </ul>
@@ -112,10 +112,12 @@
   </div>
 </section>
 
-<!-- STATS -->
+<!-- STATS (only figures above zero; none on a brand-new site) -->
+<% const stats = site.stats.filter(function (s) { return s.value > 0; }); %>
+<% if (stats.length) { %>
 <section class="stats"<%- enOnly %>>
   <div class="container stats-grid">
-    <% site.stats.forEach(function (s) { %>
+    <% stats.forEach(function (s) { %>
       <div class="stat">
         <b><span class="counter" data-target="<%= s.value %>"><%= s.value.toLocaleString('en-IN') %></span><%= s.suffix %></b>
         <span><%= s.label %></span>
@@ -123,6 +125,7 @@
     <% }) %>
   </div>
 </section>
+<% } %>
 
 <!-- JOB CATEGORIES -->
 <section class="section" id="categories">
@@ -140,7 +143,7 @@
         <a class="cat-tile<%= ['office', 'skilled-field'].includes(g.key) ? ' cat-tile-wide' : '' %>" href="/jobs?group=<%= g.key %>">
           <span class="cat-icon" aria-hidden="true"><svg class="i"><use href="#<%= g.icon %>"/></svg></span>
           <span class="cat-body"><b><%= tv('group', g.key) === g.key ? g.label : tv('group', g.key) %></b><% if (g.text) { %><span class="muted small"><%= tv('groupText', g.key) === g.key ? g.text : tv('groupText', g.key) %></span><% } %></span>
-          <span class="cat-count"><%= t('home.jobCount', { count: g.count }) %></span>
+          <% if (g.count) { %><span class="cat-count"><%= t('home.jobCount', { count: g.count }) %></span><% } %>
         </a>
       <% }) %>
     </div>
@@ -188,135 +191,7 @@
       <% }) %>
     </div>
     <p class="employer-more"><a href="/services" class="btn btn-primary">All staffing solutions <svg class="i"><use href="#i-arrow"/></svg></a> <a href="/employer/login">Already a client? Log in</a></p>
-  </div>
-</section>
-
-<!-- INDUSTRIES -->
-<section class="section" id="industries"<%- enOnly %>>
-  <div class="container">
-    <div class="section-head">
-      <span class="eyebrow">Specialised talent</span>
-      <h2>Recruiters who know your industry</h2>
-      <p>Specialist desks for twelve industries, plus HR, education, legal and admin roles.</p>
-    </div>
-    <div class="tabs" role="tablist">
-      <% const industries = catalog.INDUSTRIES %>
-      <% industries.forEach(function (ind, i) { %>
-        <button role="tab" class="tab<%= i === 0 ? ' active' : '' %>" aria-selected="<%= i === 0 %>" aria-controls="panel-<%= ind.key %>" id="tab-<%= ind.key %>">
-          <svg class="i"><use href="#<%= ind.icon %>"/></svg><%= ind.name %>
-        </button>
-      <% }) %>
-    </div>
-    <% industries.forEach(function (ind, i) { %>
-      <div class="tab-panel<%= i === 0 ? ' active' : '' %>" role="tabpanel" id="panel-<%= ind.key %>" aria-labelledby="tab-<%= ind.key %>" <%= i === 0 ? '' : 'hidden' %>>
-        <div>
-          <h3><%= ind.name %></h3>
-          <p><%= ind.text %></p>
-          <div class="panel-links">
-            <a href="/industries/<%= ind.slug %>" class="card-link">About this desk <svg class="i"><use href="#i-arrow"/></svg></a>
-            <a href="/jobs?category=<%= encodeURIComponent(ind.name) %>" class="card-link">See open roles <svg class="i"><use href="#i-arrow"/></svg></a>
-          </div>
-        </div>
-        <div>
-          <p class="muted small upper">Trending roles</p>
-          <div class="chips chips-lg"><% ind.roles.forEach(function (r) { %><span class="chip"><%= r %></span><% }) %></div>
-        </div>
-      </div>
-    <% }) %>
-  </div>
-</section>
-
-<!-- PROCESS -->
-<section class="section section-dark" id="process"<%- enOnly %>>
-  <div class="container">
-    <div class="section-head light">
-      <span class="eyebrow">Our 6-stage filter</span>
-      <h2>A shortlist you can trust, every time</h2>
-      <p>Every profile passes through six checkpoints before it reaches you, so you spend time interviewing, not screening.</p>
-    </div>
-    <ol class="process">
-      <% [
-        ['Need analysis', 'We learn the role, the team and what success looks like in the first six months.'],
-        ['Sourcing', 'Our database, referral network and targeted outreach surface the right people.'],
-        ['Candidate evaluation', 'Skill assessments and structured screening calls check ability and fit.'],
-        ['Interview presentation', 'You receive a curated shortlist with a recruiter note on every profile.'],
-        ['Background checks', 'Employment, education and reference verification before any offer.'],
-        ['Offer & closure', 'We manage negotiation, notice periods and follow up until day one.']
-      ].forEach(function (p, i) { %>
-        <li class="process-step reveal">
-          <span class="step-num"><%= String(i + 1).padStart(2, '0') %></span>
-          <h3><%= p[0] %></h3>
-          <p><%= p[1] %></p>
-        </li>
-      <% }) %>
-    </ol>
-  </div>
-</section>
-
-<!-- TWO PATHS -->
-<section class="section"<%- enOnly %>>
-  <div class="container">
-    <div class="section-head">
-      <span class="eyebrow">How we help</span>
-      <h2>One partner for both sides of the hire</h2>
-      <p>Whether you're building a team or taking the next step in your career, we make the process faster, fairer and more human.</p>
-    </div>
-    <div class="paths">
-      <div class="path-card path-employer reveal reveal-left">
-        <figure class="path-photo"><img src="/img/photos/path-employer.webp" alt="" width="900" height="560" loading="lazy" decoding="async"></figure>
-        <span class="path-icon"><svg class="i"><use href="#i-users"/></svg></span>
-        <h3>For employers</h3>
-        <p>Recruiter-assessed, AI-matched candidates delivered to your inbox, with a dedicated expert from brief to joining.</p>
-        <ul class="checks">
-          <li>Shortlists in as little as 72 hours</li>
-          <li>Permanent, contract &amp; bulk hiring</li>
-          <li>Background checks included</li>
-          <li>Replacement guarantee on placements</li>
-        </ul>
-        <a href="/hire" class="btn btn-primary">Start hiring <svg class="i"><use href="#i-arrow"/></svg></a>
-      </div>
-      <div class="path-card path-candidate reveal reveal-right">
-        <figure class="path-photo"><img src="/img/photos/path-candidate.webp" alt="" width="900" height="560" loading="lazy" decoding="async"></figure>
-        <span class="path-icon"><svg class="i"><use href="#i-briefcase"/></svg></span>
-        <h3>For job seekers</h3>
-        <p>Personalised job recommendations, honest career advice and a recruiter who keeps you updated at every step.</p>
-        <ul class="checks">
-          <li>Remote, hybrid &amp; on-site roles</li>
-          <li>Competitive salaries with top employers</li>
-          <li>Interview preparation &amp; resume feedback</li>
-          <li>Free for candidates, always</li>
-        </ul>
-        <a href="/jobs" class="btn btn-dark">Browse jobs <svg class="i"><use href="#i-arrow"/></svg></a>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- WHY US -->
-<section class="section"<%- enOnly %>>
-  <div class="container why-grid">
-    <div>
-      <span class="eyebrow">Why Hireriv</span>
-      <h2>Your extended HR department, without the overhead</h2>
-      <p class="lead-sm">We take a consultative approach grounded in current market data, and we're accountable for results, not just CVs.</p>
-      <div class="why-list">
-        <div><svg class="i"><use href="#i-clock"/></svg><div><b>Faster time-to-hire</b><p>A ready talent pool and a proven process cut weeks from your hiring cycle.</p></div></div>
-        <div><svg class="i"><use href="#i-wallet"/></svg><div><b>Lower hiring costs</b><p>Reduce admin, payroll and overtime costs by letting us run the process end to end.</p></div></div>
-        <div><svg class="i"><use href="#i-phone"/></svg><div><b>A real person, always</b><p>A dedicated account manager who picks up the phone and keeps you updated, for clients and candidates alike.</p></div></div>
-        <div><svg class="i"><use href="#i-shield"/></svg><div><b>Quality guaranteed</b><p>Free replacement if a placement doesn't work out within the guarantee period.</p></div></div>
-      </div>
-    </div>
-    <div class="why-collage reveal reveal-right">
-      <span class="deco deco-dots teal" aria-hidden="true"></span>
-      <span class="deco deco-squiggle" aria-hidden="true"></span>
-      <figure class="photo-arch photo-round"><img src="/img/photos/why-team.webp" alt="A recruiter and candidates working together at a laptop" width="800" height="960" loading="lazy" decoding="async"></figure>
-      <figure class="why-small"><img src="/img/photos/why-hands.webp" alt="" width="500" height="500" loading="lazy" decoding="async"></figure>
-      <figure class="quote-card">
-        <svg class="i quote-mark"><use href="#i-quote"/></svg>
-        <blockquote>Train people well enough so they can leave. Treat them well enough so they don't want to.</blockquote>
-        <figcaption>Richard Branson</figcaption>
-      </figure>
-    </div>
+    <p class="small employer-desks">Specialist recruiters for: <% catalog.INDUSTRIES.forEach(function (ind, i) { %><a href="/industries/<%= ind.slug %>"><%= ind.name %></a><%= i < catalog.INDUSTRIES.length - 1 ? ' · ' : '' %><% }) %>. <a href="/hire#industries">How we hire</a></p>
   </div>
 </section>
 

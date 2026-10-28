@@ -629,13 +629,17 @@ if ('serviceWorker' in navigator) {
   });
 }
 
-// "Add to home screen", only where the browser offers it, and not again for
-// 30 days after "Not now".
+// "Add to home screen", only where the browser offers it, not again for 30
+// days after "Not now", and the banner only from the third page someone
+// opens, so it never covers the first thing they came to see.
 (() => {
   const KEY = 'hireriv:install-dismissed';
+  const VIEWS = 'hireriv:pages-seen';
   let deferred = null;
   const bar = document.getElementById('app-install');
-  const dismissed = () => { try { return Date.now() - Number(localStorage.getItem(KEY) || 0) < 30 * 86400000; } catch { return false; } };
+  let seen = 0;
+  try { seen = Number(sessionStorage.getItem(VIEWS) || 0) + 1; sessionStorage.setItem(VIEWS, String(seen)); } catch { seen = 3; }
+  const dismissed = () => { try { return seen < 3 || Date.now() - Number(localStorage.getItem(KEY) || 0) < 30 * 86400000; } catch { return false; } };
   const buttons = () => document.querySelectorAll('[data-install-app]');
   window.addEventListener('beforeinstallprompt', (e) => {
     e.preventDefault();

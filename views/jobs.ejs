@@ -1,6 +1,6 @@
 <%- include('partials/head') %>
 
-<section class="page-hero">
+<section class="page-hero page-hero-search">
   <span class="deco deco-spark" aria-hidden="true"></span><span class="deco deco-dots" aria-hidden="true"></span><span class="deco deco-squiggle" aria-hidden="true"></span>
   <div class="container">
     <span class="eyebrow"><%= t('jobs.eyebrow') %></span>
@@ -119,7 +119,7 @@
   </div>
 </section>
 
-<section class="section">
+<section class="section section-results">
   <div class="container">
     <div class="results-head">
       <p><%- th('jobs.found', { count: pager.total, num: html('<b>' + pager.total + '</b>') }) %><% if (group) { %> <%- th('jobs.foundIn', { group: html('<b>' + esc(tv('group', group.key) === group.key ? group.label : tv('group', group.key)) + '</b>') }) %><% } %></p>

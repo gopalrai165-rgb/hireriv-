@@ -1,0 +1,90 @@
+<%# Employer sections shown on /hire (moved from the homepage, which now speaks to job seekers first). %>
+<!-- INDUSTRIES -->
+<section class="section" id="industries">
+  <div class="container">
+    <div class="section-head">
+      <span class="eyebrow">Specialised talent</span>
+      <h2>Recruiters who know your industry</h2>
+      <p>Specialist desks for twelve industries, plus HR, education, legal and admin roles.</p>
+    </div>
+    <div class="tabs" role="tablist">
+      <% const industries = catalog.INDUSTRIES %>
+      <% industries.forEach(function (ind, i) { %>
+        <button role="tab" class="tab<%= i === 0 ? ' active' : '' %>" aria-selected="<%= i === 0 %>" aria-controls="panel-<%= ind.key %>" id="tab-<%= ind.key %>">
+          <svg class="i"><use href="#<%= ind.icon %>"/></svg><%= ind.name %>
+        </button>
+      <% }) %>
+    </div>
+    <% industries.forEach(function (ind, i) { %>
+      <div class="tab-panel<%= i === 0 ? ' active' : '' %>" role="tabpanel" id="panel-<%= ind.key %>" aria-labelledby="tab-<%= ind.key %>" <%= i === 0 ? '' : 'hidden' %>>
+        <div>
+          <h3><%= ind.name %></h3>
+          <p><%= ind.text %></p>
+          <div class="panel-links">
+            <a href="/industries/<%= ind.slug %>" class="card-link">About this desk <svg class="i"><use href="#i-arrow"/></svg></a>
+            <a href="/jobs?category=<%= encodeURIComponent(ind.name) %>" class="card-link">See open roles <svg class="i"><use href="#i-arrow"/></svg></a>
+          </div>
+        </div>
+        <div>
+          <p class="muted small upper">Trending roles</p>
+          <div class="chips chips-lg"><% ind.roles.forEach(function (r) { %><span class="chip"><%= r %></span><% }) %></div>
+        </div>
+      </div>
+    <% }) %>
+  </div>
+</section>
+
+<!-- PROCESS -->
+<section class="section section-dark" id="process">
+  <div class="container">
+    <div class="section-head light">
+      <span class="eyebrow">Our 6-stage filter</span>
+      <h2>A shortlist you can trust, every time</h2>
+      <p>Every profile passes through six checkpoints before it reaches you, so you spend time interviewing, not screening.</p>
+    </div>
+    <ol class="process">
+      <% [
+        ['Need analysis', 'We learn the role, the team and what success looks like in the first six months.'],
+        ['Sourcing', 'Our database, referral network and targeted outreach surface the right people.'],
+        ['Candidate evaluation', 'Skill assessments and structured screening calls check ability and fit.'],
+        ['Interview presentation', 'You receive a curated shortlist with a recruiter note on every profile.'],
+        ['Background checks', 'Employment, education and reference verification before any offer.'],
+        ['Offer & closure', 'We manage negotiation, notice periods and follow up until day one.']
+      ].forEach(function (p, i) { %>
+        <li class="process-step reveal">
+          <span class="step-num"><%= String(i + 1).padStart(2, '0') %></span>
+          <h3><%= p[0] %></h3>
+          <p><%= p[1] %></p>
+        </li>
+      <% }) %>
+    </ol>
+  </div>
+</section>
+
+<!-- WHY US -->
+<section class="section">
+  <div class="container why-grid">
+    <div>
+      <span class="eyebrow">Why Hireriv</span>
+      <h2>Your extended HR department, without the overhead</h2>
+      <p class="lead-sm">We take a consultative approach grounded in current market data, and we're accountable for results, not just CVs.</p>
+      <div class="why-list">
+        <div><svg class="i"><use href="#i-clock"/></svg><div><b>Faster time-to-hire</b><p>A ready talent pool and a proven process cut weeks from your hiring cycle.</p></div></div>
+        <div><svg class="i"><use href="#i-wallet"/></svg><div><b>Lower hiring costs</b><p>Reduce admin, payroll and overtime costs by letting us run the process end to end.</p></div></div>
+        <div><svg class="i"><use href="#i-phone"/></svg><div><b>A real person, always</b><p>A dedicated account manager who picks up the phone and keeps you updated, for clients and candidates alike.</p></div></div>
+        <div><svg class="i"><use href="#i-shield"/></svg><div><b>Quality guaranteed</b><p>Free replacement if a placement doesn't work out within the guarantee period.</p></div></div>
+      </div>
+    </div>
+    <div class="why-collage reveal reveal-right">
+      <span class="deco deco-dots teal" aria-hidden="true"></span>
+      <span class="deco deco-squiggle" aria-hidden="true"></span>
+      <figure class="photo-arch photo-round"><img src="/img/photos/why-team.webp" alt="A recruiter and candidates working together at a laptop" width="800" height="960" loading="lazy" decoding="async"></figure>
+      <figure class="why-small"><img src="/img/photos/why-hands.webp" alt="" width="500" height="500" loading="lazy" decoding="async"></figure>
+      <figure class="quote-card">
+        <svg class="i quote-mark"><use href="#i-quote"/></svg>
+        <blockquote>Train people well enough so they can leave. Treat them well enough so they don't want to.</blockquote>
+        <figcaption>Richard Branson</figcaption>
+      </figure>
+    </div>
+  </div>
+</section>

@@ -1,8 +1,11 @@
-<%# Links to the job seekers' landing pages: popular searches, kinds of work, roles, cities, then industries. `current` is skipped. %>
+<%# Links to the job seekers' landing pages: popular searches, kinds of work, roles, cities, then industries. `current` is skipped.
+    Popular searches show; the rest open from "More ways to find jobs" so pages stay short on a phone. %>
 <% const here = typeof current === 'undefined' ? '' : current; %>
 <div class="landing-links">
   <p class="small"><b>Popular searches</b></p>
   <div class="chips"><% needPages.filter(function (x) { return 'need-' + x.slug !== here; }).forEach(function (x) { %><a class="chip chip-link" href="/jobs/<%= x.slug %>"><%= x.name %></a><% }) %></div>
+  <details class="landing-more">
+  <summary>More ways to find jobs: by kind of work, role, pay, city or industry</summary>
   <p class="small"><b>By kind of work</b></p>
   <div class="chips"><% catalog.WORK_PAGES.filter(function (w) { return w.slug !== here; }).forEach(function (w) { %><a class="chip chip-link" href="/jobs/<%= w.slug %>"><%= w.name %></a><% }) %></div>
   <p class="small"><b>By role</b></p>
@@ -13,4 +16,5 @@
   <div class="chips"><% majorCityPages.filter(function (c) { return c.slug !== here; }).forEach(function (c) { %><a class="chip chip-link" href="/jobs/in/<%= c.slug %>">Jobs in <%= c.name %></a><% }) %></div>
   <p class="small"><b>By industry</b></p>
   <div class="chips"><% catalog.JOB_INDUSTRIES.filter(function (i) { return i.slug !== here; }).forEach(function (i) { %><a class="chip chip-link" href="/jobs/industry/<%= i.slug %>"><%= i.name %></a><% }) %></div>
+  </details>
 </div>

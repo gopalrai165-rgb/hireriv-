@@ -49,6 +49,9 @@
 
 *, *::before, *::after { box-sizing: border-box; }
 html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
+/* Nothing (a slide-in animation, a decoration) may widen the page on a phone. */
+html { overflow-x: hidden; }
+@supports (overflow: clip) { html, body { overflow-x: clip; } }
 body {
   margin: 0;
   font-family: 'Inter', system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
@@ -56,7 +59,6 @@ body {
   background: var(--bg);
   line-height: 1.65;
   font-size: 16px;
-  overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
 }
 h1, h2, h3, h4 { font-family: var(--font-display); color: var(--ink); line-height: 1.1; margin: 0 0 .6em; letter-spacing: -0.025em; }
@@ -474,6 +476,20 @@ img { max-width: 100%; display: block; }
 .jobs-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; }
 @media (max-width: 960px) { .jobs-grid { grid-template-columns: repeat(2, 1fr); } }
 @media (max-width: 640px) { .jobs-grid { grid-template-columns: 1fr; } }
+/* Phones: compact cards, so two or three jobs fit on a screen; pay stands out. */
+@media (max-width: 640px) {
+  .jobs-grid { gap: 14px; }
+  .job-card { padding: 16px; }
+  .job-card:hover { transform: none; }
+  .job-card-top { margin-bottom: 8px; }
+  .job-logo { width: 38px; height: 38px; border-radius: 12px; font-size: 1rem; }
+  .job-card .job-meta { margin: 10px 0; gap: 6px 14px; }
+  .job-card .chips { display: none; }
+  .job-card .card-link { padding-top: 8px; }
+}
+.job-meta .job-pay { font-weight: 700; color: var(--ink); }
+.landing-more { margin-top: 10px; }
+.landing-more > summary { cursor: pointer; font-weight: 700; color: var(--primary); padding: 10px 0; min-height: 44px; }
 .job-card {
   position: relative; background: #fff; border: 1px solid var(--line); border-radius: var(--radius); padding: 24px;
   display: flex; flex-direction: column; transition: transform .3s, box-shadow .3s, border-color .3s;
@@ -539,6 +555,13 @@ img { max-width: 100%; display: block; }
   .job-filters { grid-template-columns: 1fr 1fr; }
   .filter-search { grid-column: 1 / -1; border-bottom: 1px solid var(--line); }
   .job-filters select { border: 1px solid var(--line); border-radius: var(--radius-sm); }
+}
+/* Phones: the job search sits near the top and the first jobs show on the first screen. */
+@media (max-width: 640px) {
+  .page-hero.page-hero-search { padding: 18px 0 22px; }
+  .page-hero-search .eyebrow, .page-hero-search .lead, .page-hero-search > .deco, .page-hero-search .filter-hint { display: none; }
+  .page-hero-search h1 { font-size: 1.6rem; margin-bottom: .5em; }
+  .section-results { padding-top: 20px; }
 }
 @media (max-width: 720px) { .page-hero { padding: 56px 0 60px; } .page-hero-sm { padding: 40px 0; } .hero-media { max-width: 440px; margin: 0 auto; width: 100%; } }
 .results-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 22px; }
@@ -1322,6 +1345,8 @@ main:focus { outline: none; }
 .employer-card p { margin: 0; font-size: .92rem; }
 .employer-more { position: relative; z-index: 1; display: flex; flex-wrap: wrap; align-items: center; gap: 18px; margin: 28px 0 0; }
 .employer-more a:not(.btn) { font-weight: 600; }
+.employer-desks { position: relative; z-index: 1; margin: 18px 0 0; color: rgba(255, 255, 255, .8); }
+.employer-desks a { color: #fff; text-decoration: underline; }
 @media (max-width: 1100px) { .employer-grid { grid-template-columns: repeat(3, 1fr); } }
 @media (max-width: 720px) { .employer-grid { grid-template-columns: 1fr 1fr; } }
 @media (max-width: 460px) { .employer-grid { grid-template-columns: 1fr; } }
