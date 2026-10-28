@@ -226,7 +226,9 @@
     "perksHint": "Jobs that give all you tick",
     "without": "Things I don't have",
     "withoutHint": "Hides jobs that need them",
-    "withoutChip": "No {item} needed"
+    "withoutChip": "No {item} needed",
+    "area": "Area",
+    "anyArea": "All of {city}"
   },
   "card": {
     "sample": "Sample listing",
@@ -714,8 +716,8 @@
   },
   "near": {
     "label": "Near",
-    "placeholder": "PIN code or city",
-    "hint": "Type a 6-digit PIN code or a city to see the nearest jobs first.",
+    "placeholder": "PIN code, area or city",
+    "hint": "Type a 6-digit PIN code, an area (like Andheri or Hinjewadi) or a city to see the nearest jobs first.",
     "within": "Distance",
     "anyDistance": "Any distance",
     "withinKm": "Within {km} km",
@@ -724,7 +726,7 @@
     "sortNearest": "Nearest first",
     "errOutside": "That location is outside India. Type a PIN code or choose a city.",
     "errPin": "We can’t place PIN code {pin} yet. Try a nearby city instead.",
-    "errFormat": "Type a 6-digit PIN code or a city name.",
+    "errFormat": "Type a 6-digit PIN code, an area or a city name.",
     "chip": "Near {place}",
     "chipWithin": "Within {km} km of {place}",
     "yourLocation": "your location",
@@ -734,7 +736,8 @@
     "byPin": "or search by PIN code",
     "showing": "Nearest jobs to {place} first.",
     "showingWithin": "Jobs within {km} km of {place}, nearest first.",
-    "clear": "Clear"
+    "clear": "Clear",
+    "underOneKm": "Under 1 km away"
   },
   "roles": {
     "delivery": "Delivery",

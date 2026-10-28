@@ -19,7 +19,7 @@ const { workOf } = require('./content');
 const MAX_ACTIVE_JOBS = 50;
 // Until the company is verified, at most this many can wait for review.
 const MAX_WAITING_UNVERIFIED = 5;
-const EMPLOYER_JOB_FIELDS = ['title', 'location', 'mode', 'type', 'category', 'work', 'experience', 'salaryMin', 'salaryMax', 'salaryPeriod', 'payNote', 'education', 'schedule', 'shift', 'hours', 'openings', 'address', 'walkIn', 'walkInFrom', 'walkInTo', 'walkInTime', 'walkInContact', 'english', 'eligibility', 'mustHave', 'physical', 'immediate', 'skills', 'description', 'responsibilities', 'qualifications', 'benefits', 'closesOn', 'resume', 'overtime', 'workerCosts', 'minEducation', 'perks', 'bring'];
+const EMPLOYER_JOB_FIELDS = ['title', 'location', 'mode', 'type', 'category', 'work', 'experience', 'salaryMin', 'salaryMax', 'salaryPeriod', 'payNote', 'education', 'schedule', 'shift', 'hours', 'openings', 'address', 'walkIn', 'walkInFrom', 'walkInTo', 'walkInTime', 'walkInContact', 'english', 'eligibility', 'mustHave', 'physical', 'immediate', 'skills', 'description', 'responsibilities', 'qualifications', 'benefits', 'closesOn', 'resume', 'overtime', 'workerCosts', 'minEducation', 'perks', 'bring', 'area'];
 const STATUS_LABELS = { draft: 'Draft', pending: 'Waiting for review', open: 'Live', paused: 'Paused', closed: 'Closed', rejected: 'Needs changes' };
 const ACTIVE = ['open', 'paused', 'pending'];
 const selfManaged = (job) => Boolean(job) && job.createdBy === 'employer';
@@ -50,7 +50,7 @@ function register(app, deps) {
     mustHave: (j.mustHave || []).join('\n'), physical: j.physical || '', immediate: j.immediate ? '1' : '',
     skills: (j.skills || []).join(', '), description: j.description, responsibilities: (j.responsibilities || []).join('\n'),
     qualifications: (j.qualifications || []).join('\n'), benefits: (j.benefits || []).join('\n'), closesOn: j.closesOn || '', resume: j.resume || '',
-    overtime: j.overtime || '', workerCosts: j.workerCosts || '', minEducation: j.minEducation || '', perks: (j.perks || []).join(','), bring: (j.bring || []).join(','),
+    overtime: j.overtime || '', workerCosts: j.workerCosts || '', minEducation: j.minEducation || '', perks: (j.perks || []).join(','), bring: (j.bring || []).join(','), area: j.area || '',
   });
   // The employer's input (a form, or JSON where lists may be arrays and pay an
   // object) on top of the job as it is, with the company and owner fixed.

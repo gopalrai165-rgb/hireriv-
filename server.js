@@ -641,6 +641,10 @@ app.locals.walkInOf = (j) => jobNeeds.walkInOf(j, todayIst());
 app.locals.walkInDays = (w) => jobNeeds.walkInDays(w, todayIst());
 app.locals.perksOf = jobNeeds.perksOf;
 app.locals.itemsOf = jobNeeds.itemsOf;
+app.locals.areaLabel = geo.areaLabel;
+// Suggestions for the job forms' area box and Find Jobs' "Near" box.
+app.locals.areaNames = [...new Set(geo.ALL_AREAS.map((a) => a.name))].sort();
+app.locals.nearPlaces = [...geo.ALL_AREAS.map((a) => a.cityLabel), ...Object.keys(geo.CITIES)].sort();
 app.locals.jobExtras = { EDUCATION: jobNeeds.EDUCATION, PERKS: jobNeeds.PERKS, ITEMS: jobNeeds.ITEMS };
 app.locals.educationOf = jobNeeds.educationOf;
 // Mobile-only job seekers (identity.js): no email to show or write to.
@@ -766,7 +770,7 @@ function needPagesWithJobs() {
 }
 const cityPagesWithJobs = () => { const live = openJobs().filter((j) => !isSample(j)); return geo.CITY_PAGES.filter((c) => live.some((j) => c.locations.includes(j.location))); };
 app.get('/sitemap.xml', (req, res) =>
-  res.type('application/xml').send(seo.sitemap(BASE_URL, { jobs: openJobs().filter((j) => !isSample(j)), posts: livePosts(), staticPaths: ['/', '/jobs', ...catalog.WORK_PAGES.map((x) => `/jobs/${x.slug}`), ...catalog.JOB_INDUSTRIES.map((x) => `/jobs/industry/${x.slug}`), ...cityPagesWithJobs().map((c) => `/jobs/in/${c.slug}`), ...rolePagesWithJobs(), ...needPagesWithJobs(), ...salaryPagesWithData(), '/categories', '/hire', '/services', ...catalog.SERVICES.map((x) => `/services/${x.slug}`), '/industries', ...catalog.INDUSTRIES.map((x) => `/industries/${x.slug}`), '/about', '/blog', '/contact', '/privacy', '/terms', '/job-posting-policy', '/help/job-terms', '/accessibility'] }))
+  res.type('application/xml').send(seo.sitemap(BASE_URL, { jobs: openJobs().filter((j) => !isSample(j)), posts: livePosts(), staticPaths: ['/', '/jobs', ...catalog.WORK_PAGES.map((x) => `/jobs/${x.slug}`), ...catalog.JOB_INDUSTRIES.map((x) => `/jobs/industry/${x.slug}`), ...cityPagesWithJobs().map((c) => `/jobs/in/${c.slug}`), ...areaPagesWithJobs(), ...rolePagesWithJobs(), ...needPagesWithJobs(), ...salaryPagesWithData(), '/categories', '/hire', '/services', ...catalog.SERVICES.map((x) => `/services/${x.slug}`), '/industries', ...catalog.INDUSTRIES.map((x) => `/industries/${x.slug}`), '/about', '/blog', '/contact', '/privacy', '/terms', '/job-posting-policy', '/help/job-terms', '/accessibility'] }))
 );
 
 // Things a new install still needs before it is ready for visitors, shown to
@@ -930,6 +934,8 @@ function jobFilters(query) {
     education: pick(['education'], (v) => ['below', ...jobNeeds.EDUCATION_KEYS.filter((k) => k !== 'none')].includes(v)),
     // Perks every job must give: ?perk=food&perk=stay or ?perks=food,stay.
     perks: [],
+    // An area of the chosen city (geo.js areas), by its slug.
+    area: pick(['area'], (v) => geo.ALL_AREAS.some((a) => a.slug === v)),
     // Things the person doesn't have: ?without=bike&without=laptop leaves out jobs needing them.
     without: [],
     // Walk-in interviews that haven't ended.
@@ -993,7 +999,8 @@ function findJobs(list, f, { skipWork = false } = {}) {
       && (!f.walkin || jobNeeds.walkInOpen(j, todayIst()))
       && (!f.education || jobNeeds.fitsEducation(j, f.education))
       && (!(f.perks || []).length || jobNeeds.hasPerks(j, f.perks))
-      && (!(f.without || []).length || jobNeeds.needsNoneOf(j, f.without)),
+      && (!(f.without || []).length || jobNeeds.needsNoneOf(j, f.without))
+      && (!f.area || (geo.areaOf(j) || {}).slug === f.area),
     moreText: jobTranslations ? (j) => jobTranslations.searchText(j) : null,
   });
 }
@@ -1004,19 +1011,28 @@ function correctedFilters(list, f) {
   return better ? { ...f, q: better } : null;
 }
 // The filters as query parameters (repeated for several categories and skills).
-const filterQuery = (f) => ({ q: f.q, group: f.group, work: f.work, category: f.categories, location: f.location, mode: f.mode, type: f.type, experience: f.experience, minPay: f.minPay || '', skill: f.skills || [], company: f.company || '', shift: f.shift || '', english: f.english || '', walkin: f.walkin || '', education: f.education || '', perk: f.perks || [], without: f.without || [], near: f.near || '', within: f.within || '', sort: f.sort });
-const hasFilters = (f) => Boolean(f.q || f.group || f.work || f.categories.length || f.location || f.mode || f.type || f.experience || f.minPay || (f.skills || []).length || f.company || f.shift || f.english || f.walkin || f.education || (f.perks || []).length || (f.without || []).length || f.near);
+const filterQuery = (f) => ({ q: f.q, group: f.group, work: f.work, category: f.categories, location: f.location, mode: f.mode, type: f.type, experience: f.experience, minPay: f.minPay || '', skill: f.skills || [], company: f.company || '', shift: f.shift || '', english: f.english || '', walkin: f.walkin || '', education: f.education || '', perk: f.perks || [], without: f.without || [], area: f.area || '', near: f.near || '', within: f.within || '', sort: f.sort });
+const hasFilters = (f) => Boolean(f.q || f.group || f.work || f.categories.length || f.location || f.mode || f.type || f.experience || f.minPay || (f.skills || []).length || f.company || f.shift || f.english || f.walkin || f.education || (f.perks || []).length || (f.without || []).length || f.area || f.near);
 // Jobs near a place: each job's distance, only those within the radius (when
 // one is chosen), and nearest first unless another order was asked for.
 // Remote jobs and jobs in several places have no distance and go last.
 function nearJobs(list, f) {
   const near = geo.parseNear(f.near);
-  if (!near || near.error) return { list, near, distances: {} };
+  if (!near || near.error) return { list, near, distances: {}, precise: {} };
   const distances = {};
-  for (const j of list) { const km = geo.jobDistance(j, near.point); if (km !== null) distances[j.id] = Math.round(km); }
+  // Distances between an area (or the phone's position) and a job's area are
+  // shown to the kilometre; to a city centre they are rough.
+  const precise = {};
+  const exactFrom = near.kind === 'gps' || near.kind === 'area';
+  for (const j of list) {
+    const km = geo.jobDistance(j, near.point);
+    if (km === null) continue;
+    distances[j.id] = Math.round(km);
+    if (exactFrom && geo.areaOf(j)) precise[j.id] = true;
+  }
   let out = f.within ? list.filter((j) => distances[j.id] !== undefined && distances[j.id] <= f.within) : list;
   if (!f.sort || f.sort === 'distance') out = out.map((j, i) => [j, i]).sort((a, b) => (distances[a[0].id] ?? Infinity) - (distances[b[0].id] ?? Infinity) || a[1] - b[1]).map((x) => x[0]);
-  return { list: out, near, distances };
+  return { list: out, near, distances, precise };
 }
 
 app.get('/jobs', (req, res) => {
@@ -1043,7 +1059,8 @@ app.get('/jobs', (req, res) => {
     group && { label: group.label, href: removeLink({ group: '' }) },
     f.work && { label: WORK_KINDS.find((w) => w.key === f.work).label, href: removeLink({ work: '' }) },
     ...f.categories.map((c) => ({ label: c, href: removeLink({ category: f.categories.filter((x) => x !== c) }) })),
-    f.location && { label: f.location, href: removeLink({ location: '' }) },
+    f.location && { label: f.location, href: removeLink({ location: '', area: '' }) },
+    f.area && { label: (geo.ALL_AREAS.find((a) => a.slug === f.area) || {}).name, href: removeLink({ area: '' }) },
     f.mode && { label: f.mode, href: removeLink({ mode: '' }) },
     f.type && { label: f.type, href: removeLink({ type: '' }) },
     f.experience && { label: search.EXPERIENCE_LEVELS.find((l) => l.key === f.experience).label, href: removeLink({ experience: '' }) },
@@ -1077,6 +1094,7 @@ app.get('/jobs', (req, res) => {
     sort: found.sort,
     near: nearby.near,
     distances: nearby.distances,
+    nearPrecise: nearby.precise || {},
     radii: geo.RADII,
     oneTap: candidateAccounts.oneTapFor(req),
     active,
@@ -1089,6 +1107,7 @@ app.get('/jobs', (req, res) => {
     educationLevels: ['below', ...jobNeeds.EDUCATION_KEYS.filter((k) => k !== 'none')],
     perkKeys: jobNeeds.PERK_KEYS,
     itemKeys: jobNeeds.ITEM_KEYS,
+    areaOptions: f.location ? geo.areasOf(f.location) : [],
     companies: [...new Set(live.filter((j) => !isSample(j)).map((j) => j.company))].sort((a, b) => a.localeCompare(b)),
     experienceLevels: search.EXPERIENCE_LEVELS,
     minPayOptions: search.MIN_PAY_OPTIONS.map((n) => ({ value: n, label: req.t.t('jobs.payOption', { amount: n.toLocaleString('en-IN') }) })),
@@ -1126,9 +1145,43 @@ function hrContactFor(job) {
   return { name: '', phone: site.phone, whatsapp: realWhatsapp() ? site.whatsapp : '', desk: true };
 }
 
+// The listed areas of a city with open jobs, for its page.
+function areasWithJobs(cityName) {
+  const counts = new Map();
+  for (const j of openJobs()) { const a = geo.areaOf(j); if (a && a.city === cityName) counts.set(a, (counts.get(a) || 0) + 1); }
+  return [...counts].sort((x, y) => y[1] - x[1] || x[0].name.localeCompare(y[0].name)).map(([a, count]) => ({ label: a.name, count, href: areaPath(a) }));
+}
+const areaPath = (a) => `/jobs/in/${geo.citySlug(a.city)}/${a.slug}`;
+// Area pages with real live jobs, for the sitemap.
+const areaPagesWithJobs = () => [...new Set(openJobs().filter((j) => !isSample(j)).map(geo.areaOf).filter(Boolean))].map(areaPath);
+// An area's page text.
+function areaLanding(area) {
+  const cityPage = geo.cityPageFor(area.city) || { name: area.city, slug: geo.citySlug(area.city) };
+  const path = areaPath(area);
+  const name = `Jobs in ${area.name}, ${area.city}`;
+  return {
+    slug: area.slug, area, cityPage, name, h1: name, title: name, city: area.cityLabel, path,
+    searchHref: `/jobs?location=${encodeURIComponent(area.city)}&area=${area.slug}`,
+    trail: [[`Jobs in ${cityPage.name}`, `/jobs/in/${cityPage.slug}`], [name, path]],
+    description: `Jobs in ${area.name}, ${area.city}: openings close to home with the pay, shift and address on every listing, from employers our team checks. Apply in one tap on ${site.name}.`,
+    intro: [
+      `Open jobs in ${area.name}, ${area.city}. Working close to home saves hours of travel every week: every job here is in ${area.name} or gives an address there.`,
+      `On Find Jobs, type ${area.name} in "Near" to see jobs in the areas around it too, nearest first.`,
+    ],
+    tips: [
+      'Check the address on each listing and how you would get there at the start and end of the shift.',
+      'Say on your profile which places you can work in and which shifts suit you.',
+      `You never pay to get a job through ${site.name}: not for the offer, joining, training or a uniform.`,
+      'You do not need Aadhaar or bank details to apply. Employers ask for joining documents only after an offer.',
+    ],
+    places: geo.nearbyAreas(area).slice(0, 8).map((a) => ({ label: `Jobs in ${a.name}`, href: areaPath(a), km: a.km })),
+  };
+}
+
 // A city page's text: the jobs there, the common roles and nearby cities.
 function cityLanding(city) {
   return {
+    areas: areasWithJobs(city.name),
     slug: city.slug, name: `Jobs in ${city.name}`, h1: `Jobs in ${city.name}`, title: `Jobs in ${city.name}`, city: city.name, locations: city.locations,
     description: `Jobs in ${city.name}: office, skilled and field openings from checked employers, with salary, shift and distance on every listing. Apply in one tap on ${site.name}.`,
     intro: [
@@ -1204,13 +1257,13 @@ function needLanding(need, city) {
 // Landing pages for job seekers: a kind of work, an industry (catalog.js), a city (geo.js), a role or a need.
 function jobLanding(req, res, landing, kind) {
   const live = openJobs();
-  const list = (kind === 'role' ? roleJobs(live, landing.role, landing.cityPage) : kind === 'need' ? needJobs(live, landing.need, landing.cityPage) : kind === 'work' ? live.filter((j) => workOf(j) === landing.work) : kind === 'city' ? live.filter((j) => landing.locations.includes(j.location)) : live.filter((j) => landing.categories.includes(j.category)))
+  const list = (kind === 'area' ? live.filter((j) => geo.areaOf(j) === landing.area) : kind === 'role' ? roleJobs(live, landing.role, landing.cityPage) : kind === 'need' ? needJobs(live, landing.need, landing.cityPage) : kind === 'work' ? live.filter((j) => workOf(j) === landing.work) : kind === 'city' ? live.filter((j) => landing.locations.includes(j.location)) : live.filter((j) => landing.categories.includes(j.category)))
     .sort((a, b) => Number(isSample(a)) - Number(isSample(b)) || String(b.posted).localeCompare(String(a.posted)));
-  const path = kind === 'role' || kind === 'need' ? landing.path : kind === 'work' ? `/jobs/${landing.slug}` : kind === 'city' ? `/jobs/in/${landing.slug}` : `/jobs/industry/${landing.slug}`;
+  const path = ['role', 'need', 'area'].includes(kind) ? landing.path : kind === 'work' ? `/jobs/${landing.slug}` : kind === 'city' ? `/jobs/in/${landing.slug}` : `/jobs/industry/${landing.slug}`;
   const { rows, pager } = paginate(list, { page: req.query.page, size: JOBS_PAGE_SIZE, query: {}, path });
   const desk = kind === 'industry' ? catalog.industryBySlug(landing.desk) : null;
-  const searchHref = kind === 'role' || kind === 'need' ? landing.searchHref : kind === 'work' ? `/jobs?work=${landing.work}` : kind === 'city' ? `/jobs?location=${encodeURIComponent(landing.city)}` : `/jobs?${landing.categories.map((c) => `category=${encodeURIComponent(c)}`).join('&')}`;
-  const trail = [['Home', '/'], ['Jobs', '/jobs'], ...(kind === 'industry' ? [['Industries', '/categories']] : []), ...(kind === 'role' || kind === 'need' ? landing.trail : [[landing.name, path]])];
+  const searchHref = ['role', 'need', 'area'].includes(kind) ? landing.searchHref : kind === 'work' ? `/jobs?work=${landing.work}` : kind === 'city' ? `/jobs?location=${encodeURIComponent(landing.city)}` : `/jobs?${landing.categories.map((c) => `category=${encodeURIComponent(c)}`).join('&')}`;
+  const trail = [['Home', '/'], ['Jobs', '/jobs'], ...(kind === 'industry' ? [['Industries', '/categories']] : []), ...(['role', 'need', 'area'].includes(kind) ? landing.trail : [[landing.name, path]])];
   const realCount = list.filter((j) => !isSample(j)).length;
   // Role pages say what the role typically pays, with a link to its salary page.
   if (kind === 'role') {
@@ -1223,7 +1276,7 @@ function jobLanding(req, res, landing, kind) {
     metaDescription: landing.description, canonical: `${BASE_URL}${path}${pager.page > 1 ? `?page=${pager.page}` : ''}`,
     jsonLd: seo.jobLandingPage(landing, path, trail, BASE_URL, rows.filter((j) => !isSample(j))),
     // A city with no real openings is a thin page: kept for visitors, out of search engines.
-    noindex: ['city', 'role', 'need'].includes(kind) && !realCount ? 'follow' : false,
+    noindex: ['city', 'role', 'need', 'area'].includes(kind) && !realCount ? 'follow' : false,
   });
 }
 app.get('/jobs/office-professional', (req, res) => jobLanding(req, res, catalog.workPageBySlug('office-professional'), 'work'));
@@ -1233,6 +1286,12 @@ app.get('/jobs/in/:city', (req, res, next) => {
   const city = geo.cityPageBySlug(req.params.city);
   if (!city) return next();
   jobLanding(req, res, cityLanding(city), 'city');
+});
+// An area's page (/jobs/in/pune/hinjewadi): its jobs, and nearby areas.
+app.get('/jobs/in/:city/:area', (req, res, next) => {
+  const area = geo.areaBySlug(req.params.city, req.params.area);
+  if (!area) return next();
+  jobLanding(req, res, areaLanding(area), 'area');
 });
 app.get('/jobs/role/:role', (req, res, next) => {
   const role = rolePageBySlug(req.params.role);
@@ -1630,6 +1689,7 @@ const publicJob = (j) => ({
   workplaceAddress: j.address || null,
   walkIn: Boolean(j.walkIn),
   walkInDetails: j.walkIn ? { from: j.walkInFrom || null, to: j.walkInTo || null, time: j.walkInTime || null, contact: j.walkInContact || null, open: jobNeeds.walkInOpen(j, todayIst()) } : null,
+  area: geo.areaLabel(j) || null,
   englishNeeded: j.english || null,
   minEducation: jobNeeds.educationOf(j) || null,
   perks: jobNeeds.perksOf(j),
@@ -1661,7 +1721,7 @@ async function jobsApi(req, res) {
   });
   // Postgres when it's connected and up to date; the same search in memory otherwise.
   const viaPg = async (filters) => {
-    if (!(pg && pg.usable()) || filters.english || filters.walkin || filters.education || (filters.perks || []).length || (filters.without || []).length) return null;
+    if (!(pg && pg.usable()) || filters.english || filters.walkin || filters.education || (filters.perks || []).length || (filters.without || []).length || filters.area) return null;
     try {
       await pg.flush();
       const found = pg.usable() && (await pg.search(filters, { page, size }));
@@ -2364,7 +2424,7 @@ function buildDashboard(applications, user, totals = appTotals(applications)) {
 
 // ----- jobs -----
 function parseJob(body) {
-  const data = clean(body, ['title', 'company', 'location', 'mode', 'type', 'category', 'experience', 'salary', 'payNote', 'education', 'schedule', 'shift', 'hours', 'openings', 'address', 'eligibility', 'mustHave', 'physical', 'skills', 'description', 'responsibilities', 'qualifications', 'benefits', 'status', 'overtime', 'workerCosts']);
+  const data = clean(body, ['title', 'company', 'location', 'mode', 'type', 'category', 'experience', 'salary', 'payNote', 'education', 'schedule', 'shift', 'hours', 'openings', 'address', 'area', 'eligibility', 'mustHave', 'physical', 'skills', 'description', 'responsibilities', 'qualifications', 'benefits', 'status', 'overtime', 'workerCosts']);
   const errors = [];
   for (const f of ['title', 'company', 'location', 'category', 'description']) if (!data[f]) errors.push(`${f} is required`);
   if (data.category && !jobCategories().includes(data.category)) errors.push('pick a category from the list (add new ones in Settings)');
@@ -2413,6 +2473,8 @@ function parseJob(body) {
     workerCosts: data.workerCosts.slice(0, 300),
     openings: data.openings ? Number(data.openings) : null,
     address: data.address.slice(0, 300),
+    // The area or locality (geo.js areaOf matches it to a listed area).
+    area: data.area.slice(0, 60),
     walkIn,
     walkInFrom: needs.walkInFrom,
     walkInTo: needs.walkInTo,

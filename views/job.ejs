@@ -6,7 +6,7 @@
   const txt = tr || job;
   const trLang = tr ? ' lang="' + tr.lang + '"' : '';
   const pay = payLabel(job);
-  const place = job.location + (stateName && stateName !== job.location ? ', ' + stateName : '');
+  const place = (areaLabel(job) ? areaLabel(job) + ', ' : '') + job.location + (stateName && stateName !== job.location ? ', ' + stateName : '');
 %>
 <section class="page-hero page-hero-sm">
   <span class="deco deco-spark" aria-hidden="true"></span><span class="deco deco-dots" aria-hidden="true"></span><span class="deco deco-squiggle" aria-hidden="true"></span>

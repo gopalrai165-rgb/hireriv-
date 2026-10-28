@@ -33,8 +33,9 @@
           <input type="hidden" name="near" value="<%= near.value %>">
           <span class="near-using"><%= t('near.usingLocation') %></span>
         <% } else { %>
-          <input id="f-near" name="near" value="<%= filters.near %>" maxlength="40" placeholder="<%= t('near.placeholder') %>" autocomplete="postal-code" aria-describedby="f-near-hint"<%- near && near.error ? ' aria-invalid="true"' : '' %>>
+          <input id="f-near" name="near" value="<%= filters.near %>" maxlength="40" placeholder="<%= t('near.placeholder') %>" list="near-places" autocomplete="off" aria-describedby="f-near-hint"<%- near && near.error ? ' aria-invalid="true"' : '' %>>
         <% } %>
+        <datalist id="near-places"><% nearPlaces.forEach(function (p) { %><option value="<%= p %>"><% }) %></datalist>
         <label class="sr-only" for="f-within"><%= t('near.within') %></label>
         <select id="f-within" name="within">
           <option value=""><%= t('near.anyDistance') %></option>
@@ -45,7 +46,7 @@
       </div>
       <% if (near && near.error) { %><p class="notice notice-err small" role="alert"><%= t('near.' + near.error, { pin: near.pin || '' }) %></p><% } %>
       <p class="near-status small" role="status" data-near-status></p>
-      <% const moreCount = filters.categories.length + ['experience', 'minPay', 'type', 'mode', 'shift', 'english', 'walkin', 'education', 'company'].filter(function (k) { return filters[k]; }).length + ((filters.skills || []).length ? 1 : 0) + (filters.perks || []).length + (filters.without || []).length; %>
+      <% const moreCount = filters.categories.length + ['experience', 'minPay', 'type', 'mode', 'shift', 'english', 'walkin', 'education', 'area', 'company'].filter(function (k) { return filters[k]; }).length + ((filters.skills || []).length ? 1 : 0) + (filters.perks || []).length + (filters.without || []).length; %>
       <details class="more-filters" open data-more-filters="<%= moreCount %>">
       <summary><%= t('jobs.filtersSummary') %><% if (moreCount) { %> <span class="count"><%= moreCount %></span><% } %></summary>
       <div class="filter-row">
@@ -90,6 +91,13 @@
           <option value=""><%= t('jobs.anyEnglish') %></option>
           <% englishLevels.forEach(function (l) { %><option value="<%= l.toLowerCase() %>" <%= filters.english === l.toLowerCase() ? 'selected' : '' %>><%= t('jobs.englishOption', { level: t('needs.english' + l) }) %></option><% }) %>
         </select>
+        <% if (areaOptions.length) { %>
+        <label class="sr-only" for="f-area"><%= t('jobs.area') %></label>
+        <select id="f-area" name="area">
+          <option value=""><%= t('jobs.anyArea', { city: filters.location }) %></option>
+          <% areaOptions.forEach(function (a) { %><option value="<%= a.slug %>" <%= filters.area === a.slug ? 'selected' : '' %>><%= a.name %></option><% }) %>
+        </select>
+        <% } %>
         <label class="sr-only" for="f-education"><%= t('jobs.education') %></label>
         <select id="f-education" name="education">
           <option value=""><%= t('jobs.anyEducation') %></option>

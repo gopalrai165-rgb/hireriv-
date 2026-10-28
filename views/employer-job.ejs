@@ -42,6 +42,8 @@
             <% jobLocations.forEach(function (l) { %><option<%= job.location === l ? ' selected' : '' %>><%= l %></option><% }) %>
           </select>
         </label>
+        <label>Area or locality <span class="muted small">(optional; job seekers search by area)</span><input name="area" maxlength="60" list="job-areas" value="<%= job.area || '' %>" placeholder="e.g. Hinjewadi, Andheri, Whitefield"></label>
+        <datalist id="job-areas"><% areaNames.forEach(function (a) { %><option value="<%= a %>"><% }) %></datalist>
         <label>Work arrangement<select name="mode"><% modes.forEach(function (m) { %><option<%= job.mode === m ? ' selected' : '' %>><%= m %></option><% }) %></select></label>
         <label>Employment type<select name="type"><% jobTypes.forEach(function (t) { %><option<%= job.type === t ? ' selected' : '' %>><%= t %></option><% }) %></select></label>
         <label>Experience<input name="experience" maxlength="60" value="<%= job.experience || '' %>" placeholder="e.g. 1-3 years, or Freshers welcome"></label>

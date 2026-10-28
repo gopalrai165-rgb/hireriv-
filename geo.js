@@ -62,12 +62,55 @@ function parseNear(value) {
     return city ? { point: CITIES[city], label: `${v} (${city})`, kind: 'pin', value: v } : { error: 'errPin', pin: v };
   }
   const city = Object.keys(CITIES).find((c) => c.toLowerCase() === v.toLowerCase());
-  return city ? { point: CITIES[city], label: city, kind: 'city', value: city } : { error: 'errFormat' };
+  if (city) return { point: CITIES[city], label: city, kind: 'city', value: city };
+  // An area: "Hinjewadi", "Hinjewadi, Pune" or another spelling ("Hinjawadi").
+  const [name, inCity] = v.toLowerCase().split(',').map((x) => x.trim());
+  const area = ALL_AREAS.find((a) => (!inCity || a.city.toLowerCase() === inCity) && [a.name, ...(a.aka || [])].some((n) => n.toLowerCase() === name));
+  return area ? { point: area.at, label: area.cityLabel, kind: 'area', value: area.cityLabel } : { error: 'errFormat' };
 }
+
+// ---------- areas inside a city (areas.js) ----------
+const { AREAS } = require('./areas');
+const slugOf = (s) => String(s).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+// "Delhi NCR" jobs may be anywhere in Delhi, Gurugram or Noida.
+const AREA_CITIES = { 'Delhi NCR': ['Delhi', 'Gurugram', 'Noida'] };
+const ALL_AREAS = Object.entries(AREAS).flatMap(([city, list]) => list.map((a) => ({ ...a, city, slug: slugOf(a.name), cityLabel: `${a.name}, ${city}` })));
+const areasOf = (city) => ALL_AREAS.filter((a) => (AREA_CITIES[city] || [city]).includes(a.city));
+const areaBySlug = (citySlugValue, slug) => ALL_AREAS.find((a) => slugOf(a.city) === citySlugValue && a.slug === slug) || null;
+const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const nameRes = new Map(ALL_AREAS.map((a) => [a, [a.name, ...(a.aka || [])].map((n) => new RegExp(`(^|[^a-z0-9])${escapeRe(n.toLowerCase())}($|[^a-z0-9])`))]));
+// The listed area a job is in: the area its form names, else the first one
+// its address mentions; null when neither names one of the city's areas.
+function areaOf(job) {
+  if (!job || !job.location) return null;
+  const list = areasOf(job.location);
+  if (!list.length) return null;
+  for (const text of [job.area, job.address]) {
+    const t = String(text || '').toLowerCase();
+    if (!t) continue;
+    let best = null;
+    for (const a of list) {
+      for (const re of nameRes.get(a)) {
+        const m = re.exec(t);
+        if (m && (!best || m.index < best.at)) best = { area: a, at: m.index };
+      }
+    }
+    if (best) return best.area;
+  }
+  return null;
+}
+// The area as shown: a listed area's name, else what the employer typed.
+const areaLabel = (job) => (areaOf(job) || {}).name || String((job && job.area) || '').trim();
+// A job's position: its area's centre when known, else its city's.
+const jobPoint = (job) => { const a = areaOf(job); return a ? a.at : coordsOf(job.location); };
+// Other listed areas of the same city within `km`, nearest first.
+const nearbyAreas = (area, km = 8) => ALL_AREAS.filter((a) => a !== area && a.city === area.city)
+  .map((a) => ({ ...a, km: Math.round(distanceKm(area.at, a.at)) }))
+  .filter((a) => a.km <= km).sort((a, b) => a.km - b.km);
 
 // How far the job is from `point`, or null for remote, several places, or an unknown city.
 function jobDistance(job, point) {
-  const c = coordsOf(job.location);
+  const c = jobPoint(job);
   return c && point ? distanceKm(point, c) : null;
 }
 
@@ -87,4 +130,4 @@ const nearbyCities = (name, km = 80) => CITY_PAGES.filter((c) => c.name !== name
   .map((c) => ({ ...c, km: Math.round(distanceKm(CITIES[name], CITIES[c.name])) }))
   .filter((c) => c.km <= km).sort((a, b) => a.km - b.km);
 
-module.exports = { CITY_PAGES, citySlug, cityPageBySlug, cityPageFor, nearbyCities, CITIES, PIN_PREFIXES, RADII, coordsOf, cityOfPin, distanceKm, parseNear, jobDistance, shownKm };
+module.exports = { ALL_AREAS, areasOf, areaBySlug, areaOf, areaLabel, jobPoint, nearbyAreas, CITY_PAGES, citySlug, cityPageBySlug, cityPageFor, nearbyCities, CITIES, PIN_PREFIXES, RADII, coordsOf, cityOfPin, distanceKm, parseNear, jobDistance, shownKm };

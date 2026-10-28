@@ -18,12 +18,12 @@
   <% const cardPerks = perksOf(job).filter(function (p) { return ['food', 'stay', 'transport', 'pf'].includes(p); }).slice(0, 3); %>
   <% if (cardPerks.length) { %><span class="perk-tags"><% cardPerks.forEach(function (p) { %><span class="tag tag-perk"><%= t('needs.perk_' + p) %></span><% }) %></span><% } %>
   <ul class="job-meta">
-    <li><svg class="i" aria-hidden="true"><use href="#i-pin"/></svg><span class="sr-only"><%= t('card.location') %> </span><%= job.location %></li>
+    <li><svg class="i" aria-hidden="true"><use href="#i-pin"/></svg><span class="sr-only"><%= t('card.location') %> </span><%= areaLabel(job) ? areaLabel(job) + ', ' : '' %><%= job.location %></li>
     <li><svg class="i" aria-hidden="true"><use href="#i-clock"/></svg><span class="sr-only"><%= t('card.type') %> </span><%= tv('type', job.type) %></li>
     <% if (job.experience) { %><li><svg class="i" aria-hidden="true"><use href="#i-briefcase"/></svg><span class="sr-only"><%= t('card.experience') %> </span><%= tv('experience', job.experience) %></li><% } %>
     <% if (pay) { %><li class="job-pay"><svg class="i" aria-hidden="true"><use href="#i-wallet"/></svg><span class="sr-only"><%= t('card.salary') %> </span><%= pay %></li><% } %>
     <% const km = typeof distances !== 'undefined' && distances ? distances[job.id] : undefined; %>
-    <% if (km !== undefined) { %><li class="job-distance"><svg class="i" aria-hidden="true"><use href="#i-pin"/></svg><%= km < 3 ? t('near.inYourCity') : t('near.away', { km: km < 20 ? km : Math.round(km / 5) * 5 }) %></li><% } %>
+    <% if (km !== undefined) { %><li class="job-distance"><svg class="i" aria-hidden="true"><use href="#i-pin"/></svg><% const exact = typeof nearPrecise !== 'undefined' && nearPrecise && nearPrecise[job.id]; %><%= exact ? (km < 1 ? t('near.underOneKm') : t('near.away', { km: km < 20 ? km : Math.round(km / 5) * 5 })) : km < 3 ? t('near.inYourCity') : t('near.away', { km: km < 20 ? km : Math.round(km / 5) * 5 }) %></li><% } %>
   </ul>
   <div class="chips"><% job.skills.slice(0, 4).forEach(function (s) { %><span class="chip"><%= s %></span><% }) %></div>
   <% const tap = typeof oneTap !== 'undefined' && oneTap && job.status === 'open' && !isSample(job) ? oneTap : null; %>
