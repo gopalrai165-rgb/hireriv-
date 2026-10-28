@@ -1,0 +1,63 @@
+<%- include('partials/head') %>
+<% const p = candidate.profile || {}; %>
+
+<section class="section admin portal">
+  <div class="container">
+    <%- include('partials/account-nav', { heading: 'Make a resume' }) %>
+    <% if (errors.length) { %><div class="notice notice-err" role="alert"><% errors.forEach(function (e) { %><p><%= e %></p><% }) %></div><% } %>
+    <div class="dash-grid resume-builder">
+      <section class="dash-card">
+        <div class="dash-head"><h2>Your resume</h2><a class="small" href="/account/profile">Edit your profile</a></div>
+        <p class="small muted">No resume? We make one from your profile: your work, skills, education, certificates and languages. Change your profile and the resume changes with it.</p>
+        <% if (gaps.length) { %>
+          <div class="notice small">
+            <p><b>Your resume will be stronger with:</b></p>
+            <ul><% gaps.forEach(function (g) { %><li><a href="<%= g.href %>"><%= g.what %></a></li><% }) %></ul>
+          </div>
+        <% } %>
+        <% if (dropped.length) { %>
+          <p class="notice notice-err small" role="alert">Some text is not in English letters (<%= dropped.slice(0, 12).join(' ') %>) and can't go into the PDF. Write those parts in English letters, for example "Mehnati" instead of "मेहनती".</p>
+        <% } %>
+        <form class="form" method="post" action="/account/resume-builder/save">
+          <label>About me <span class="muted small">(optional, up to <%= summaryMax %> characters)</span>
+            <textarea name="summary" rows="4" maxlength="<%= summaryMax %>" placeholder="For example: Forklift operator with 5 years in cold stores. Safe, on time, ready for night shifts."><%= summary %></textarea>
+          </label>
+          <p class="small muted">Freshers: say what work you want and what you're good at.</p>
+          <div class="row-actions">
+            <% if (full) { %>
+              <span class="small muted">You already have <%= maxResumes %> resumes. Delete one on <a href="/account/profile#resume">your profile</a> to save this one.</span>
+            <% } else { %>
+              <button class="btn btn-primary" type="submit"<%= p.name ? '' : ' disabled' %>>Save to my resumes</button>
+            <% } %>
+            <button class="btn btn-outline" type="submit" formaction="/account/resume-builder/download"<%= p.name ? '' : ' disabled' %>>Download PDF</button>
+          </div>
+          <% if (!p.name) { %><p class="small muted">Add <a href="/account/profile#basics">your name</a> first.</p><% } %>
+          <p><button class="btn btn-outline btn-sm" type="submit" formaction="/account/resume-builder">Update preview</button></p>
+          <p class="small muted">A saved resume is checked and stored encrypted like an upload, and is sent with your next applications.</p>
+        </form>
+      </section>
+
+      <section class="dash-card resume-preview" aria-label="Preview">
+        <div class="dash-head"><h2>Preview</h2></div>
+        <div class="resume-sheet">
+          <p class="resume-name"><%= p.name || 'Your name' %></p>
+          <% if (p.headline) { %><p class="resume-headline"><%= p.headline %></p><% } %>
+          <% if (contact.length) { %><p class="small muted"><%= contact.join('  |  ') %></p><% } %>
+          <% if (!sections.length) { %><p class="muted small">Your work, skills and education will show here once they're on your profile.</p><% } %>
+          <% sections.forEach(function (s) { %>
+            <h3><%= s.heading %></h3>
+            <% s.blocks.forEach(function (b) { %>
+              <div class="resume-block">
+                <% if (b.title) { %><p><b><%= b.title %></b></p><% } %>
+                <% if (b.note) { %><p class="small muted"><%= b.note %></p><% } %>
+                <% if (b.text) { %><p class="small"><%= b.text %></p><% } %>
+              </div>
+            <% }) %>
+          <% }) %>
+        </div>
+      </section>
+    </div>
+  </div>
+</section>
+
+<%- include('partials/foot') %>

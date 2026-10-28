@@ -15,6 +15,7 @@ const { hashPassword, checkPassword } = require('./employers');
 const sms = require('./sms');
 const identity = require('./identity');
 const cp = require('./candidate-profile');
+const resumePdf = require('./resume-pdf');
 
 const COOKIE = 'hr_cand';
 const LINK_MINUTES = 30;
@@ -44,7 +45,7 @@ const STEPS = ['Received', 'Under review', 'Interview', 'Offer', 'Hired'];
 const ACTIVITY_LABELS = {
   registered: 'Account created', 'signed-in': 'Signed in', 'sign-in-failed': 'Wrong password entered', 'signed-out': 'Signed out',
   'sessions-revoked': 'Signed out on all devices', 'password-set': 'Password set', 'password-changed': 'Password changed', 'password-reset': 'Password reset by email link',
-  'profile-updated': 'Profile updated', 'resume-added': 'Resume uploaded', 'resume-removed': 'Resume deleted', 'settings-changed': 'Settings changed',
+  'profile-updated': 'Profile updated', 'resume-added': 'Resume uploaded', 'resume-made': 'Resume made from the profile', 'resume-removed': 'Resume deleted', 'settings-changed': 'Settings changed',
   'interview-confirmed': 'Interview confirmed', 'interview-reschedule': 'Asked for another interview time',
   'saved-search-added': 'Search saved', 'phone-verified': 'Mobile number confirmed', 'registered-mobile': 'Account created with your mobile number', 'email-added': 'Email address added',
 };
@@ -742,32 +743,37 @@ function register(app, deps) {
   // and attached to their general application so recruiters see the latest.
   function addResume(req, res, done) {
     upload.single('resume')(req, res, (err) => {
-      const drop = () => req.file && fs.unlink(req.file.path, () => {});
       if (err) return done(err.code === 'LIMIT_FILE_SIZE' ? 'Resume must be under 5 MB.' : `${err.message}.`);
       if (!req.file) return done('Choose a resume file to upload.');
-      const email = req.candidateEmail;
-      const c = ensureCandidate(email);
-      if (c.resumes.length >= MAX_RESUMES) { drop(); return done(`You can keep up to ${MAX_RESUMES} resumes. Delete one first.`); }
-      vetUpload(req.file).then(async (bad) => {
-        if (bad) return done(bad);
-        const original = path.basename(String(req.file.originalname || 'resume')).replace(/[^\w .()-]+/g, '').slice(0, 80) || 'Resume';
-        const r = copyIntoLibrary(req.file.filename, original, nowIso());
-        if (!r) { drop(); return done('Could not save your resume. Please try again.'); }
-        const data = { jobId: 'general', email, source: 'account' };
-        const profile = profileFor(email);
-        for (const k of PROFILE_FIELDS) if (profile[k]) data[k] = profile[k];
-        const { app: a } = await saveApplication(data, req.file, null);
-        r.appFile = a.resume;
-        const fresh = candidateOf(email);
-        fresh.resumes.unshift(r);
-        fresh.defaultResumeId = r.id;
-        saveCandidate(fresh);
-        activity(email, 'resume-added', original);
-        done(null, r);
-      }).catch((e) => {
-        console.error(e);
-        done('Could not save your resume. Please try again.');
-      });
+      storeResume(req.candidateEmail, req.file, done);
+    });
+  }
+  // A resume file already in the uploads folder (uploaded, or made by the
+  // resume builder): checked, kept in their list and attached to their
+  // general application. `file` is { path, filename, originalname }.
+  function storeResume(email, file, done, { what = 'resume-added' } = {}) {
+    const drop = () => fs.unlink(file.path, () => {});
+    const c = ensureCandidate(email);
+    if (c.resumes.length >= MAX_RESUMES) { drop(); return done(`You can keep up to ${MAX_RESUMES} resumes. Delete one first.`); }
+    vetUpload(file).then(async (bad) => {
+      if (bad) return done(bad);
+      const original = path.basename(String(file.originalname || 'resume')).replace(/[^\w .()-]+/g, '').slice(0, 80) || 'Resume';
+      const r = copyIntoLibrary(file.filename, original, nowIso());
+      if (!r) { drop(); return done('Could not save your resume. Please try again.'); }
+      const data = { jobId: 'general', email, source: 'account' };
+      const profile = profileFor(email);
+      for (const k of PROFILE_FIELDS) if (profile[k]) data[k] = profile[k];
+      const { app: a } = await saveApplication(data, file, null);
+      r.appFile = a.resume;
+      const fresh = candidateOf(email);
+      fresh.resumes.unshift(r);
+      fresh.defaultResumeId = r.id;
+      saveCandidate(fresh);
+      activity(email, what, original);
+      done(null, r);
+    }).catch((e) => {
+      console.error(e);
+      done('Could not save your resume. Please try again.');
     });
   }
   // Deleting one removes its file; if it's the copy recruiters see on the
@@ -817,6 +823,61 @@ function register(app, deps) {
     if (!r) return next();
     if (!downloadLinks.valid(req)) return linkExpired(res, '/account/profile');
     vault.send(res, path.join(uploadsDir, path.basename(r.file)), `my-resume${path.extname(r.file)}`, 'Own resume');
+  });
+
+  // ---------- resume builder ----------
+  // A resume made from the profile (resume-pdf.js) for people who don't have
+  // one: previewed on the page, downloaded, or saved to their resumes, where
+  // it is checked, encrypted and sent with applications like an upload.
+  const SUMMARY_MAX = 600;
+  function builderInput(req) {
+    const c = ensureCandidate(req.candidateEmail);
+    const p = c.profile || cp.emptyProfile();
+    const summary = req.method === 'POST' ? String(req.body.summary ?? '').trim().replace(/\s+/g, ' ').slice(0, SUMMARY_MAX) : ((c.builder && c.builder.summary) || '');
+    const email = identity.isMobileOnly(req.candidateEmail) ? '' : req.candidateEmail;
+    const contact = [[p.city, p.state].filter(Boolean).join(', '), p.phone, email, p.linkedin];
+    return { c, p, summary, contact };
+  }
+  const builderPage = (req, res, { status = 200, errors = [] } = {}) => {
+    const { c, p, summary, contact } = builderInput(req);
+    const made = resumePdf.build(p, { summary });
+    page(res, 'account-resume-builder', {
+      title: 'Make a resume', tab: 'profile', email: req.candidateEmail, candidate: c, msg: String(req.query.msg || ''), errors,
+      summary, summaryMax: SUMMARY_MAX, sections: resumePdf.sections(p, { summary }), gaps: resumePdf.gaps(p), dropped: made.dropped,
+      contact: contact.filter(Boolean), full: c.resumes.length >= MAX_RESUMES, maxResumes: MAX_RESUMES,
+    }, status);
+  };
+  const keepSummary = (c, summary) => {
+    const fresh = candidateOf(c.email) || c;
+    fresh.builder = { summary, updatedAt: nowIso() };
+    saveCandidate(fresh);
+  };
+  app.get('/account/resume-builder', requireCandidate, (req, res) => builderPage(req, res));
+  app.post('/account/resume-builder', requireCandidate, limit('resume-builder', 30), sameOrigin, (req, res) => {
+    const { c, summary } = builderInput(req);
+    keepSummary(c, summary);
+    res.redirect(303, '/account/resume-builder');
+  });
+  app.post('/account/resume-builder/download', requireCandidate, limit('resume-builder', 30), sameOrigin, (req, res) => {
+    const { c, p, summary, contact } = builderInput(req);
+    if (!p.name) return builderPage(req, res, { status: 400, errors: ['Add your name to your profile first.'] });
+    keepSummary(c, summary);
+    const { pdf } = resumePdf.build(p, { summary, contact, title: `${p.name} - resume` });
+    activity(req.candidateEmail, 'resume-made', 'Downloaded');
+    res.set({ 'Content-Type': 'application/pdf', 'Content-Disposition': 'attachment; filename="my-resume.pdf"', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' }).send(pdf);
+  });
+  app.post('/account/resume-builder/save', requireCandidate, limit('resume-builder', 30), sameOrigin, (req, res) => {
+    const { c, p, summary, contact } = builderInput(req);
+    if (!p.name) return builderPage(req, res, { status: 400, errors: ['Add your name to your profile first.'] });
+    keepSummary(c, summary);
+    const filename = `${Date.now()}-${crypto.randomBytes(4).toString('hex')}.pdf`;
+    const file = { path: path.join(uploadsDir, filename), filename, originalname: 'Resume made on Hireriv.pdf' };
+    try {
+      fs.writeFileSync(file.path, resumePdf.build(p, { summary, contact, title: `${p.name} - resume` }).pdf);
+    } catch (e) {
+      return builderPage(req, res, { status: 500, errors: ['Could not save your resume. Please try again.'] });
+    }
+    storeResume(req.candidateEmail, file, (err) => (err ? builderPage(req, res, { status: 400, errors: [err] }) : back(res, 'Resume saved. It will be sent with your next applications.', '/account/profile')), { what: 'resume-made' });
   });
 
   // ---------- one-click apply ----------

@@ -1198,6 +1198,13 @@ code { background: var(--tint); padding: 0 .3em; border-radius: 4px; font-size: 
 /* Keyboard users can jump past the header. */
 .skip-link { position: absolute; left: 16px; top: -60px; z-index: 100; background: var(--navy); color: #fff; padding: .7em 1.2em; border-radius: var(--radius-sm); font-weight: 700; transition: top .15s; }
 .skip-link:focus { top: 12px; color: #fff; }
+/* Resume builder (account-resume-builder.ejs): the preview looks like a sheet of paper. */
+.resume-sheet { background: #fff; border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 20px; box-shadow: 0 1px 3px rgba(16, 42, 76, .08); }
+.resume-sheet .resume-name { font-size: 1.4rem; font-weight: 800; color: var(--ink); margin: 0; }
+.resume-sheet .resume-headline { margin: 2px 0 4px; }
+.resume-sheet h3 { font-size: .85rem; text-transform: uppercase; letter-spacing: .04em; color: var(--ink); border-bottom: 1px solid var(--primary); padding-bottom: 3px; margin: 16px 0 6px; }
+.resume-sheet .resume-block p { margin: 0 0 2px; }
+.resume-sheet .resume-block { margin-bottom: 8px; overflow-wrap: anywhere; }
 /* Staging mode (staging.js): the test site never looks like the live one. */
 .staging-banner { background: #7a3e00; color: #fff; text-align: center; font-weight: 700; font-size: .9rem; padding: .45em 16px; }
 main:focus { outline: none; }

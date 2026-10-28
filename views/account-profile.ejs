@@ -78,7 +78,7 @@
       <section class="dash-card" id="resume">
         <div class="dash-head"><h2>Resumes</h2><span class="muted small"><%= candidate.resumes.length %> of <%= maxResumes %></span></div>
         <% if (!candidate.resumes.length) { %>
-          <p class="small muted">No resume yet. Skilled and field jobs don't need one; office jobs do for one-click applying.</p>
+          <p class="small muted">No resume yet. Skilled and field jobs don't need one; office jobs do for one-click applying. <a href="/account/resume-builder">Make one from your profile</a> in a minute.</p>
         <% } else { %>
           <ul class="resume-list">
             <% candidate.resumes.forEach(function (r) { const isDefault = r.id === candidate.defaultResumeId; %>
@@ -102,6 +102,7 @@
             <label class="file-field">Upload a resume <span class="muted small">(PDF, DOC or DOCX, max 5 MB)</span><input type="file" name="resume" accept=".pdf,.doc,.docx" required></label>
             <button class="btn btn-outline btn-sm" type="submit">Upload</button>
           </form>
+          <p class="small"><a href="/account/resume-builder">Make a resume from your profile</a></p>
         <% } %>
         <p class="small muted">Files are checked before they're saved, and download links expire after 15 minutes.</p>
       </section>

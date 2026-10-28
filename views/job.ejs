@@ -191,7 +191,7 @@
             <p class="small muted"><%= t('job.outOfDate') %> <a href="/account#profile"><%= t('job.outOfDateLink') %></a> <%= t('job.outOfDateAfter') %></p>
           </div>
         <% } else { %>
-          <% if (account) { %><p class="notice small"><%- th('job.addMissing', { missing: account.missing.map(function (m) { return tm(m); }).join(' ' + t('job.and') + ' '), profile: html('<a href="/account#profile">' + esc(t('job.yourProfile')) + '</a>') }) %></p><% } %>
+          <% if (account) { %><p class="notice small"><%- th('job.addMissing', { missing: account.missing.map(function (m) { return tm(m); }).join(' ' + t('job.and') + ' '), profile: html('<a href="/account#profile">' + esc(t('job.yourProfile')) + '</a>') }) %><% if (account.missing.indexOf('a resume') !== -1) { %> <a href="/account/resume-builder"><%= t('job.makeResume') %></a><% } %></p><% } %>
           <%- include('partials/apply-form', { jobId: job.id, quick: quick, whatsappApply: whatsappApply }) %>
           <% if (!account) { %><p class="small muted one-click-hint"><%= t('job.haveAccount') %> <a href="/account/login"><%= t('job.signIn') %></a> <%= t('job.oneClickHint') %> <a href="/account/register"><%= t('job.createFree') %></a>.</p><% } %>
         <% } %>

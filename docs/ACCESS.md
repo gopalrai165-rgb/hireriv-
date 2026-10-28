@@ -479,6 +479,10 @@ Total: 727 routes.
 | POST | `/account/resume` | candidate | Replaces the signed-in candidate's own resume |
 | POST | `/account/resumes` | candidate | Adds to the signed-in candidate's own resumes (up to 3) |
 | POST | `/account/resumes/:id/default` | candidate | Only the candidate's own resumes |
+| GET | `/account/resume-builder` | candidate | Resume builder: preview of a resume made from the candidate's own profile |
+| POST | `/account/resume-builder` | candidate | Keeps the "About me" text for the preview; same-origin check, 30 per 10 minutes |
+| POST | `/account/resume-builder/download` | candidate | The candidate's own resume as a PDF, not stored; same-origin check, 30 per 10 minutes |
+| POST | `/account/resume-builder/save` | candidate | Saves it to the candidate's resumes through the same checks, virus scan and encryption as an upload |
 | POST | `/account/resumes/:id/delete` | candidate | Only the candidate's own resumes |
 | GET | `/account/resumes/:id` | candidate | Only the candidate's own resumes; signed link, valid 15 minutes |
 | POST | `/account/apply/:jobId` | candidate | Applies with the signed-in candidate's own profile and resume |
