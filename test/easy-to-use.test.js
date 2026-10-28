@@ -89,3 +89,8 @@ test('account pages: tabs that fit, two columns of choices, no single-language p
   assert.match(saved, /<a class="btn btn-primary" href="\/jobs">Find jobs<\/a>/);
   assert.match(fs.readFileSync(path.join(ROOT, 'views/account.ejs'), 'utf8'), /You haven&#39;t applied for a job yet/);
 });
+
+test('job posting form: walk-in details only once ticked, pay from/up to side by side on phones', () => {
+  assert.match(css, /\.form-grid:has\(input\[name="walkIn"\]:not\(:checked\)\) \.walkin-fields \{ display: none; \}/);
+  assert.match(css, /@media \(max-width: 560px\) \{ \.pay-fields \{ grid-template-columns: repeat\(2, minmax\(0, 1fr\)\);/);
+});
