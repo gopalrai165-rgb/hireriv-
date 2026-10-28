@@ -1,0 +1,70 @@
+<%- include('partials/head') %>
+<%# Salary pages (salaries.js): the index of roles, or one role across India or in a city. %>
+<section class="page-hero">
+  <div class="container">
+    <nav class="breadcrumbs small" aria-label="Breadcrumb"><a href="/">Home</a> › <a href="/jobs">Jobs</a> › <% if (view === 'index') { %><span aria-current="page">Salaries</span><% } else { %><a href="/salaries">Salaries</a><% if (city) { %> › <a href="<%= indiaHref %>"><%= role.label %> salary</a><% } %> › <span aria-current="page"><%= name %></span><% } %></nav>
+    <span class="eyebrow">Salaries</span>
+    <% if (view === 'index') { %>
+      <h1>Salaries in India by job</h1>
+      <p class="lead">What jobs on <%= site.name %> pay, from the salaries employers put on real listings in the last 12 months.</p>
+    <% } else { %>
+      <h1><%= name %></h1>
+      <% if (s.india.enough) { %>
+        <p class="lead">Most <%= role.label.toLowerCase() %> jobs<%= city ? ' in ' + city.name : '' %> on <%= site.name %> pay <b><%= inr(s.india.typicalLow) %> – <%= inr(s.india.typicalHigh) %> a month</b>.</p>
+      <% } else { %>
+        <p class="lead">Not enough <%= role.label.toLowerCase() %> listings<%= city ? ' in ' + city.name : '' %> show their pay yet to give a fair figure (we need at least <%= minListings %>).</p>
+      <% } %>
+      <div class="hero-ctas"><a href="<%= jobsHref %>" class="btn btn-primary btn-lg"><%= role.label %> jobs<%= city ? ' in ' + city.name : '' %> <svg class="i" aria-hidden="true"><use href="#i-arrow"/></svg></a></div>
+    <% } %>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container">
+    <% if (view === 'index') { %>
+      <div class="table-wrap"><table class="salary-table">
+        <caption class="sr-only">Typical monthly pay by job</caption>
+        <thead><tr><th scope="col">Job</th><th scope="col">Typical monthly pay</th><th scope="col">Middle</th><th scope="col">Listings with pay</th></tr></thead>
+        <tbody>
+          <% rows.forEach(function (r) { %>
+            <tr>
+              <th scope="row"><a href="<%= r.href %>"><%= r.role.label %></a></th>
+              <% if (r.enough) { %><td><%= inr(r.typicalLow) %> – <%= inr(r.typicalHigh) %></td><td><%= inr(r.median) %></td><% } else { %><td colspan="2" class="muted small">Not enough listings yet</td><% } %>
+              <td><%= r.count %></td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table></div>
+    <% } else { %>
+      <% if (s.india.enough) { %>
+        <div class="salary-stats">
+          <div class="stat-tile"><span class="muted small">Middle</span><b><%= inr(s.india.median) %></b><span class="small">a month</span></div>
+          <div class="stat-tile"><span class="muted small">Most jobs pay</span><b><%= inr(s.india.typicalLow) %> – <%= inr(s.india.typicalHigh) %></b><span class="small">a month</span></div>
+          <div class="stat-tile"><span class="muted small">Lowest to highest</span><b><%= inr(s.india.lowest) %> – <%= inr(s.india.highest) %></b><span class="small">a month</span></div>
+          <div class="stat-tile"><span class="muted small">Listings</span><b><%= s.india.count %></b><span class="small">with pay</span></div>
+        </div>
+        <% if (s.freshers.enough) { %><p>Freshers: most jobs pay <b><%= inr(s.freshers.typicalLow) %> – <%= inr(s.freshers.typicalHigh) %> a month</b> (<%= s.freshers.count %> listings).</p><% } %>
+      <% } %>
+      <% if (s.byCity.length) { %>
+        <h2><%= role.label %> salary by city</h2>
+        <div class="table-wrap"><table class="salary-table">
+          <caption class="sr-only"><%= role.label %> pay by city</caption>
+          <thead><tr><th scope="col">City</th><th scope="col">Most jobs pay</th><th scope="col">Middle</th><th scope="col">Listings</th></tr></thead>
+          <tbody><% s.byCity.forEach(function (c) { %><tr><th scope="row"><a href="<%= salaryPath(role, c.city) %>"><%= c.city.name %></a></th><td><%= inr(c.typicalLow) %> – <%= inr(c.typicalHigh) %></td><td><%= inr(c.median) %></td><td><%= c.count %></td></tr><% }) %></tbody>
+        </table></div>
+      <% } %>
+      <% if (cityLinks.length) { %><p class="small">Nearby: <% cityLinks.forEach(function (c, i) { %><a href="<%= c.href %>"><%= c.label %></a><%= i < cityLinks.length - 1 ? ' · ' : '' %><% }) %></p><% } %>
+      <h2>Other jobs</h2>
+      <div class="chips"><% otherRoles.forEach(function (r) { %><a class="chip chip-link" href="<%= r.href %>"><%= r.label %></a><% }) %></div>
+    <% } %>
+    <h2>How we work these out</h2>
+    <ul class="checks small">
+      <li>Only real listings on <%= site.name %> from the last 12 months that show their pay, open or closed. Sample listings are never counted.</li>
+      <li>Every pay is turned into a month: a day's pay times 26 working days, an hour's pay times 208, a year's pay divided by 12. Each listing counts once, at the middle of its range.</li>
+      <li>"Most jobs pay" is the middle half of those listings; "middle" is the one in the centre. Figures are rounded to ₹500 and shown only when at least <%= minListings %> listings have pay.</li>
+      <li>Pay depends on the employer, the shift, overtime and your experience. Check each listing, and never pay anyone to get a job.</li>
+    </ul>
+  </div>
+</section>
+
+<%- include('partials/foot') %>

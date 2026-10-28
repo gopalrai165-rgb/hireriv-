@@ -390,6 +390,9 @@ Total: 727 routes.
 | GET | `/jobs/role/:role/in/:city` | public | A role's jobs in one city, same rules |
 | GET | `/jobs/${need.slug}` | public | Popular searches (`NEED_PAGES`): `/jobs/work-from-home`, `/part-time`, `/night-shift`, `/freshers`, `/walk-in`, `/no-english`; live public jobs only |
 | GET | `/jobs/${need.slug}/in/:city` | public | The same in one city (not work from home); same rules, noindex when the city has none |
+| GET | `/salaries` | public | Typical monthly pay by role, from real listings with pay (salaries.js); figures only, never a listing's employer or applicants |
+| GET | `/salaries/:role` | public | One role across India, by city and for freshers; noindex when too few listings have pay |
+| GET | `/salaries/:role/in/:city` | public | One role in one city, same rules |
 | GET | `/jobs/:id` | public |  |
 | GET | `/saved` | public |  |
 | GET | `/saved/cards` | public |  |

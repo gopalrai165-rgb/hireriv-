@@ -27,6 +27,8 @@ const candidates = require('./candidates');
 const { SHIFTS, INDIAN_STATES } = require('./candidate-profile');
 // How much English a job needs, and walk-in interview days (job-needs.js).
 const jobNeeds = require('./job-needs');
+// What roles pay, from the pay on real listings (salaries.js).
+const salaries = require('./salaries');
 const employerHiring = require('./employer-hiring');
 const i18n = require('./i18n');
 const employerAts = require('./employer-ats');
@@ -736,7 +738,7 @@ function needPagesWithJobs() {
 }
 const cityPagesWithJobs = () => { const live = openJobs().filter((j) => !isSample(j)); return geo.CITY_PAGES.filter((c) => live.some((j) => c.locations.includes(j.location))); };
 app.get('/sitemap.xml', (req, res) =>
-  res.type('application/xml').send(seo.sitemap(BASE_URL, { jobs: openJobs().filter((j) => !isSample(j)), posts: livePosts(), staticPaths: ['/', '/jobs', ...catalog.WORK_PAGES.map((x) => `/jobs/${x.slug}`), ...catalog.JOB_INDUSTRIES.map((x) => `/jobs/industry/${x.slug}`), ...cityPagesWithJobs().map((c) => `/jobs/in/${c.slug}`), ...rolePagesWithJobs(), ...needPagesWithJobs(), '/categories', '/hire', '/services', ...catalog.SERVICES.map((x) => `/services/${x.slug}`), '/industries', ...catalog.INDUSTRIES.map((x) => `/industries/${x.slug}`), '/about', '/blog', '/contact', '/privacy', '/terms', '/job-posting-policy', '/help/job-terms', '/accessibility'] }))
+  res.type('application/xml').send(seo.sitemap(BASE_URL, { jobs: openJobs().filter((j) => !isSample(j)), posts: livePosts(), staticPaths: ['/', '/jobs', ...catalog.WORK_PAGES.map((x) => `/jobs/${x.slug}`), ...catalog.JOB_INDUSTRIES.map((x) => `/jobs/industry/${x.slug}`), ...cityPagesWithJobs().map((c) => `/jobs/in/${c.slug}`), ...rolePagesWithJobs(), ...needPagesWithJobs(), ...salaryPagesWithData(), '/categories', '/hire', '/services', ...catalog.SERVICES.map((x) => `/services/${x.slug}`), '/industries', ...catalog.INDUSTRIES.map((x) => `/industries/${x.slug}`), '/about', '/blog', '/contact', '/privacy', '/terms', '/job-posting-policy', '/help/job-terms', '/accessibility'] }))
 );
 
 // Things a new install still needs before it is ready for visitors, shown to
@@ -1149,6 +1151,11 @@ function jobLanding(req, res, landing, kind) {
   const searchHref = kind === 'role' || kind === 'need' ? landing.searchHref : kind === 'work' ? `/jobs?work=${landing.work}` : kind === 'city' ? `/jobs?location=${encodeURIComponent(landing.city)}` : `/jobs?${landing.categories.map((c) => `category=${encodeURIComponent(c)}`).join('&')}`;
   const trail = [['Home', '/'], ['Jobs', '/jobs'], ...(kind === 'industry' ? [['Industries', '/categories']] : []), ...(kind === 'role' || kind === 'need' ? landing.trail : [[landing.name, path]])];
   const realCount = list.filter((j) => !isSample(j)).length;
+  // Role pages say what the role typically pays, with a link to its salary page.
+  if (kind === 'role') {
+    const pay = roleSalary(landing.role, landing.cityPage).india;
+    landing.salary = pay.enough ? { ...pay, href: salaryPath(landing.role, landing.cityPage) } : null;
+  }
   siteAnalytics.track('landing-view', landing.name, req);
   res.render('jobs-landing', {
     title: `${landing.title || `${landing.name} in India`}${pager.page > 1 ? ` – page ${pager.page}` : ''}`, page: 'jobs', landing, kind, results: rows, pager, openCount: list.length, desk, searchHref,
@@ -1177,6 +1184,62 @@ app.get('/jobs/role/:role/in/:city', (req, res, next) => {
   if (!role || !city) return next();
   jobLanding(req, res, roleLanding(role, city), 'role');
 });
+// ---------- salaries ----------
+// The listings salary figures come from, and one role's figures.
+const salaryPool = () => salaries.pool(jobs, { isSample: (j) => j.sample === true, isPublic: isPublicJob, today: todayIst() });
+const fresherJob = (j) => search.searchJobs([j], { experience: 'fresher' }).jobs.length > 0;
+const salaryPath = (role, city) => `/salaries/${role.slug}${city ? `/in/${city.slug}` : ''}`;
+function roleSalary(role, city, list = salaryPool()) {
+  const found = roleJobs(list, role, city);
+  return city ? { india: salaries.summarise(found), byCity: [], freshers: salaries.summarise(found.filter(fresherJob)) } : salaries.forRole(found, { cities: geo.CITY_PAGES, fresher: fresherJob });
+}
+app.locals.inr = salaries.inr;
+app.get('/salaries', (req, res) => {
+  const list = salaryPool();
+  const rows = ROLE_PAGES.map((r) => ({ role: r, href: salaryPath(r), jobsHref: rolePath(r), ...salaries.summarise(roleJobs(list, r)) }));
+  res.render('salaries', {
+    title: 'Salaries in India by job', page: 'jobs', view: 'index', rows, minListings: salaries.MIN_LISTINGS,
+    metaDescription: `What jobs pay in India, from the salaries employers put on real ${site.name} listings: the typical monthly pay for delivery, driver, telecaller, sales, security, nurse and more.`,
+    canonical: `${BASE_URL}/salaries`,
+  });
+});
+function salaryPage(req, res, role, city) {
+  const list = salaryPool();
+  const s = roleSalary(role, city, list);
+  const name = `${role.label} salary${city ? ` in ${city.name}` : ' in India'}`;
+  res.render('salaries', {
+    title: name, page: 'jobs', view: 'role', role, city: city || null, s, name, minListings: salaries.MIN_LISTINGS, windowDays: salaries.WINDOW_DAYS,
+    jobsHref: rolePath(role, city), salaryPath, indiaHref: salaryPath(role),
+    cityLinks: city ? geo.nearbyCities(city.name).map((c) => ({ label: `${role.label} salary in ${c.name}`, href: salaryPath(role, c) })) : [],
+    otherRoles: ROLE_PAGES.filter((r) => r !== role).map((r) => ({ label: `${r.label} salary`, href: salaryPath(r, city) })),
+    metaDescription: s.india.enough
+      ? `${name}: typically ${salaries.inr(s.india.typicalLow)} to ${salaries.inr(s.india.typicalHigh)} a month, from ${s.india.count} real ${site.name} job listings with pay.`
+      : `${name}: not enough listings with pay yet. See open ${role.label.toLowerCase()} jobs on ${site.name}.`,
+    canonical: `${BASE_URL}${salaryPath(role, city)}`,
+    // Too few listings to say anything: kept for visitors, out of search engines.
+    noindex: s.india.enough ? false : 'follow',
+  });
+}
+app.get('/salaries/:role', (req, res, next) => {
+  const role = rolePageBySlug(req.params.role);
+  if (!role) return next();
+  salaryPage(req, res, role, null);
+});
+app.get('/salaries/:role/in/:city', (req, res, next) => {
+  const role = rolePageBySlug(req.params.role);
+  const city = geo.cityPageBySlug(req.params.city);
+  if (!role || !city) return next();
+  salaryPage(req, res, role, city);
+});
+// Salary pages with enough listings, for the sitemap.
+function salaryPagesWithData() {
+  const list = salaryPool();
+  return ['/salaries', ...ROLE_PAGES.flatMap((r) => {
+    const s = roleSalary(r, null, list);
+    return s.india.enough ? [salaryPath(r), ...s.byCity.map((x) => salaryPath(r, x.city))] : [];
+  })];
+}
+
 for (const need of NEED_PAGES) {
   app.get(`/jobs/${need.slug}`, (req, res) => jobLanding(req, res, needLanding(need), 'need'));
   if (need.noCity) continue;
