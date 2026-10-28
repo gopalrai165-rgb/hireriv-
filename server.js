@@ -546,6 +546,12 @@ app.get('/healthz', (req, res) => {
   }
 });
 
+// Staging mode (staging.js, SITE_ENV=staging): no indexing, a banner, an
+// optional password in front of every page and messages only to the team.
+const staging = require('./staging').create({ limit });
+app.use(staging.middleware);
+staging.routes(app);
+
 // Light pages for slow connections: browsers asking to save data (Save-Data)
 // skip the web font and use the system font instead.
 app.use((req, res, next) => {
@@ -685,7 +691,7 @@ app.get('/og/jobs/:id.png', (req, res, next) => {
 pwa.register(app, { site, assetVersion: () => app.locals.assetVersion, analytics: siteAnalytics, push, sameOrigin });
 
 app.get('/robots.txt', (req, res) =>
-  res.type('text/plain').send(`User-agent: *
+  staging.on ? res.type('text/plain').send(staging.robots()) : res.type('text/plain').send(`User-agent: *
 Disallow: /admin
 Disallow: /api/
 Disallow: /account

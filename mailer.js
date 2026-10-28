@@ -5,6 +5,7 @@ const identity = require('./identity');
 const path = require('path');
 const fs = require('fs');
 const { jobPath } = require('./content');
+const staging = require('./staging');
 
 const OUTBOX_DIR = process.env.OUTBOX_DIR ? path.resolve(process.env.OUTBOX_DIR) : path.join(__dirname, 'data', 'outbox');
 const { SMTP_HOST, SMTP_PORT = '587', SMTP_USER, SMTP_PASS, MAIL_FROM, NOTIFY_EMAIL, SITE_URL } = process.env;
@@ -18,7 +19,10 @@ const transport = SMTP_HOST
     })
   : nodemailer.createTransport({ streamTransport: true, buffer: true, newline: 'windows' });
 
-const mode = SMTP_HOST ? `SMTP (${SMTP_HOST})` : 'outbox (data/outbox, set SMTP_HOST to send for real)';
+// Staging keeps messages to people outside STAGING_EMAIL_ALLOW in the outbox (staging.js).
+const outboxTransport = SMTP_HOST ? nodemailer.createTransport({ streamTransport: true, buffer: true, newline: 'windows' }) : transport;
+
+const mode = `${SMTP_HOST ? `SMTP (${SMTP_HOST})` : 'outbox (data/outbox, set SMTP_HOST to send for real)'}${staging.isStaging() ? ' · staging: only STAGING_EMAIL_ALLOW is emailed' : ''}`;
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
@@ -92,22 +96,27 @@ async function send(site, { to, subject, heading, html, replyTo, headers, icalEv
   if (to) to = String(to).split(',').map((x) => x.trim()).filter((x) => x && !identity.isMobileOnly(x)).join(', ');
   if (!to) return false;
   const order = `${Date.now()}-${String(++sent).padStart(6, '0')}`;
+  const message = (rcpt) => ({
+    from: MAIL_FROM || `"${site.name}" <${site.email}>`,
+    to: rcpt,
+    replyTo,
+    subject: subject.replace(/[\r\n]+/g, ' '),
+    html: layout(site, heading, html, { preheader, footer }),
+    text: toText(site, heading, html, footer),
+    headers,
+    icalEvent,
+  });
+  const toOutbox = (info, tag = '') => {
+    fs.mkdirSync(OUTBOX_DIR, { recursive: true });
+    const safe = subject.replace(/[^a-z0-9]+/gi, '-').slice(0, 50).toLowerCase();
+    fs.writeFileSync(path.join(OUTBOX_DIR, `${order}${tag}-${safe}.eml`), info.message);
+  };
   try {
-    const info = await transport.sendMail({
-      from: MAIL_FROM || `"${site.name}" <${site.email}>`,
-      to,
-      replyTo,
-      subject: subject.replace(/[\r\n]+/g, ' '),
-      html: layout(site, heading, html, { preheader, footer }),
-      text: toText(site, heading, html, footer),
-      headers,
-      icalEvent,
-    });
-    if (!SMTP_HOST) {
-      fs.mkdirSync(OUTBOX_DIR, { recursive: true });
-      const safe = subject.replace(/[^a-z0-9]+/gi, '-').slice(0, 50).toLowerCase();
-      fs.writeFileSync(path.join(OUTBOX_DIR, `${order}-${safe}.eml`), info.message);
-    }
+    const { send: live, hold } = staging.splitRecipients(to);
+    if (hold.length) toOutbox(await outboxTransport.sendMail(message(hold.join(', '))), '-staging-held');
+    if (!live.length) return true;
+    const info = await transport.sendMail(message(live.join(', ')));
+    if (!SMTP_HOST) toOutbox(info);
     return info.messageId || true;
   } catch (err) {
     console.error(`Email "${subject}" to ${to} failed:`, err.message);

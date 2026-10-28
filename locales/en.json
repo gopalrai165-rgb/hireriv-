@@ -11,6 +11,7 @@
   },
   "common": {
     "skip": "Skip to content",
+    "stagingBanner": "Staging site: for testing only. Jobs and accounts here are not real, and emails only reach the team.",
     "home": "Home",
     "menuOpen": "Open menu",
     "menuClose": "Close menu",

@@ -12,6 +12,7 @@
 // needed to test them from the command line (`npm run sms:test`).
 const fs = require('fs');
 const path = require('path');
+const staging = require('./staging');
 
 const OUTBOX_DIR = process.env.OUTBOX_DIR ? path.resolve(process.env.OUTBOX_DIR) : path.join(__dirname, 'data', 'outbox');
 const PROVIDERS = ['msg91', 'twilio', 'webhook'];
@@ -90,7 +91,8 @@ async function send(to, message, { code = '' } = {}, env = process.env) {
   const order = `${Date.now()}-${String(++sent).padStart(6, '0')}`;
   try {
     const p = provider(env);
-    if (!p) {
+    // Staging texts only the numbers in STAGING_SMS_ALLOW (staging.js).
+    if (!p || (staging.isStaging(env) && !staging.smsAllowed(to, env))) {
       fs.mkdirSync(OUTBOX_DIR, { recursive: true });
       fs.writeFileSync(path.join(OUTBOX_DIR, `${order}-sms.sms.txt`), `To: ${to}\n\n${message}\n`);
       return true;

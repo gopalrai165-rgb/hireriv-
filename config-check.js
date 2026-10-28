@@ -17,6 +17,7 @@ function check(env = process.env) {
   const warnings = [];
   const set = (k) => String(env[k] || '').trim() !== '';
   const production = env.NODE_ENV === 'production';
+  const stagingMode = env.SITE_ENV === 'staging';
 
   // Addresses: every link, sitemap entry, canonical and cookie flag depends on it.
   let site = null;
@@ -59,8 +60,18 @@ function check(env = process.env) {
   const rzp = ['RAZORPAY_KEY_ID', 'RAZORPAY_KEY_SECRET', 'RAZORPAY_WEBHOOK_SECRET'];
   const rzpSet = rzp.filter(set);
   if (rzpSet.length && rzpSet.length < rzp.length) errors.push(`Payments are half set up: ${rzp.filter((k) => !set(k)).join(', ')} missing`);
-  if (set('RAZORPAY_KEY_ID') && /^rzp_test_/.test(env.RAZORPAY_KEY_ID)) warnings.push('Razorpay test keys are set: payments run in the sandbox (switch to live keys after the checks in docs/BILLING.md)');
+  if (!stagingMode && set('RAZORPAY_KEY_ID') && /^rzp_test_/.test(env.RAZORPAY_KEY_ID)) warnings.push('Razorpay test keys are set: payments run in the sandbox (switch to live keys after the checks in docs/BILLING.md)');
   if (!rzpSet.length) warnings.push('Online payments are not set up (Razorpay keys missing); paid plans can\'t be bought');
+
+  // Staging (staging.js): a copy for the team, never one that charges or messages real people.
+  if (set('SITE_ENV') && !['production', 'staging'].includes(env.SITE_ENV)) errors.push('SITE_ENV must be "production" or "staging"');
+  if (stagingMode) {
+    if (!set('STAGING_PASSWORD')) errors.push('SITE_ENV=staging needs STAGING_PASSWORD, or anyone could open the test site');
+    else if (String(env.STAGING_PASSWORD).length < MIN_ADMIN_PASS) errors.push(`STAGING_PASSWORD must be at least ${MIN_ADMIN_PASS} characters`);
+    if (set('RAZORPAY_KEY_ID') && !/^rzp_test_/.test(env.RAZORPAY_KEY_ID)) errors.push('Staging must use Razorpay test keys (rzp_test_…), never live ones');
+    if (!set('STAGING_EMAIL_ALLOW')) warnings.push('STAGING_EMAIL_ALLOW is not set: staging emails nobody; every email goes to the outbox folder');
+    if (sms.provider(env) && !set('STAGING_SMS_ALLOW')) warnings.push('STAGING_SMS_ALLOW is not set: staging texts nobody; every code goes to the outbox folder');
+  } else if (set('STAGING_PASSWORD') || set('STAGING_EMAIL_ALLOW')) warnings.push('Staging settings are set but SITE_ENV is not "staging": they do nothing here');
 
   // Providers that exist only for tests.
   if (env.AI_PROVIDER === 'mock') errors.push('AI_PROVIDER=mock is for tests only');

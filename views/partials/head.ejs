@@ -36,6 +36,7 @@
 </head>
 <body class="page-<%= page || 'misc' %>"<%- typeof candidateSignedIn !== 'undefined' && candidateSignedIn ? ' data-account="1"' : '' %>>
 <a class="skip-link" href="#main"><%= t('common.skip') %></a>
+<% if (typeof staging !== 'undefined' && staging) { %><div class="staging-banner" role="note"><%= t('common.stagingBanner') %></div><% } %>
 <%- include('icons') %>
 <header class="site-header" id="top">
   <div class="container nav-wrap">

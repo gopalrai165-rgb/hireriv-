@@ -372,6 +372,8 @@ Total: 727 routes.
 | GET | `/offline` | public | Shown by the service worker without a connection; the same for everyone, never shows who is signed in |
 | GET | `/healthz` | public | Uptime check |
 | GET | `/speculation-rules.json` | public | Prefetch rules for public job pages (no personal data) |
+| GET | `/staging-sign-in` | public | Staging only (`SITE_ENV=staging`): the staging password page |
+| POST | `/staging-sign-in` | public | Staging only: checks `STAGING_PASSWORD` (10 tries per 10 minutes) and sets the staging cookie |
 | GET | `/og/site.png` | public |  |
 | GET | `/og/jobs/:id.png` | public |  |
 | GET | `/robots.txt` | public |  |
