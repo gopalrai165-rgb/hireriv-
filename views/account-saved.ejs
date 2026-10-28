@@ -6,7 +6,8 @@
     <section class="dash-card dash-wide">
       <div class="dash-head"><h2>Jobs you saved</h2><a class="small" href="/jobs">Find more jobs</a></div>
       <% if (!saved.length) { %>
-        <p class="muted dash-empty">Nothing saved yet. Tap the ☆ on any job to keep it here, on every device you sign in on.</p>
+        <p class="muted dash-empty">Nothing saved yet. Tap the <svg class="i" aria-hidden="true"><use href="#i-bookmark"/></svg> <span class="sr-only">bookmark</span> on any job to keep it here, on every device you sign in on.</p>
+        <p><a class="btn btn-primary" href="/jobs">Find jobs</a></p>
       <% } else { %>
         <ul class="match-list">
           <% saved.forEach(function (s) { const j = s.job; const open = s.open; %>

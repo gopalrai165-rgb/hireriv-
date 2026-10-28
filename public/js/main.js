@@ -106,6 +106,22 @@ function toast(message, isError) {
   toastTimer = setTimeout(() => toastEl.classList.remove('show'), 5000);
 }
 
+// Tab rows wider than the screen (account and employer portals): the current
+// tab is scrolled into view, and the edges fade where there are more tabs.
+document.querySelectorAll('.account-tabs').forEach((nav) => {
+  const active = nav.querySelector('a.active');
+  if (active && active.offsetLeft + active.offsetWidth > nav.clientWidth) nav.scrollLeft = active.offsetLeft - 16;
+  const mark = () => {
+    const left = nav.scrollLeft > 4;
+    const right = nav.scrollLeft + nav.clientWidth < nav.scrollWidth - 4;
+    if (left || right) nav.dataset.more = left && right ? 'both' : left ? 'left' : 'right';
+    else delete nav.dataset.more;
+  };
+  mark();
+  nav.addEventListener('scroll', mark, { passive: true });
+  window.addEventListener('resize', mark);
+});
+
 // A field marked wrong stops showing red as soon as the person changes it.
 document.addEventListener('input', (e) => { if (e.target.getAttribute && e.target.getAttribute('aria-invalid') === 'true') e.target.removeAttribute('aria-invalid'); });
 

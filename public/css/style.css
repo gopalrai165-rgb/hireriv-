@@ -1424,6 +1424,10 @@ form .check-row { min-height: 44px; padding: 6px 0; cursor: pointer; }
 .account-tabs a { padding: 10px 14px; white-space: nowrap; font-weight: 600; font-size: .92rem; color: var(--muted); text-decoration: none; border-bottom: 3px solid transparent; margin-bottom: -1px; }
 .account-tabs a:hover { color: var(--ink); }
 .account-tabs a.active { color: var(--primary); border-bottom-color: var(--primary); }
+/* More tabs than fit: the edge fades while there is more to scroll to (main.js sets data-more). */
+.account-tabs[data-more="right"] { -webkit-mask-image: linear-gradient(to right, #000 80%, transparent); mask-image: linear-gradient(to right, #000 80%, transparent); }
+.account-tabs[data-more="left"] { -webkit-mask-image: linear-gradient(to left, #000 80%, transparent); mask-image: linear-gradient(to left, #000 80%, transparent); }
+.account-tabs[data-more="both"] { -webkit-mask-image: linear-gradient(to right, transparent, #000 15%, #000 85%, transparent); mask-image: linear-gradient(to right, transparent, #000 15%, #000 85%, transparent); }
 .profile-meter { margin-bottom: 16px; }
 .meter { height: 10px; border-radius: 99px; background: var(--line); overflow: hidden; margin: 4px 0 12px; }
 .meter span { display: block; height: 100%; border-radius: 99px; background: var(--primary); }
@@ -1447,7 +1451,13 @@ details.more-fields .form-grid { margin-top: 12px; }
 .resume-list li:last-child, .entry-list li:last-child { border-bottom: 0; }
 .resume-list li > div:first-child, .entry-list li > div:first-child { min-width: 0; overflow-wrap: anywhere; }
 .entry-list p { margin: 4px 0 0; }
-@media (max-width: 560px) { .resume-list li { flex-direction: column; } .check-grid { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 560px) {
+  .resume-list li { flex-direction: column; }
+  /* Phones: choices as two columns of boxes, the chosen ones filled in. */
+  .form .check-grid, form .check-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .check-grid .check-row { align-items: center; border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; background: #fff; }
+  .check-grid .check-row:has(input:checked) { border-color: var(--primary); background: var(--primary-50); }
+}
 
 
 /* ---------- notifications ---------- */

@@ -74,6 +74,8 @@
         </form>
       </section>
 
+      <%# Only when there is more than one language to choose (LANGUAGES). %>
+      <% if (languages.length > 1) { %>
       <section class="dash-card" id="language"<%- locale !== 'en' ? ' lang="' + locale + '"' : '' %>>
         <div class="dash-head"><h2><%= t('account.languageTitle') %></h2></div>
         <p class="small muted"><%= t('account.languageText', { site: site.name }) %></p>
@@ -85,6 +87,7 @@
           <button class="btn btn-primary btn-sm" type="submit"><%= t('account.languageSave') %></button>
         </form>
       </section>
+      <% } %>
 
       <section class="dash-card" id="activity">
         <div class="dash-head"><h2>Recent activity</h2></div>

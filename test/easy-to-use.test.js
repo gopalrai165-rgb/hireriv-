@@ -77,3 +77,15 @@ test('forms: big tick boxes, sign-up form sooner on phones, red marks clear when
   assert.match(css, /\.register-intro \.checks \{ display: none; \}/);
   assert.match(js, /document\.addEventListener\('input', \(e\) => \{ if \(e\.target\.getAttribute && e\.target\.getAttribute\('aria-invalid'\) === 'true'\)/);
 });
+
+test('account pages: tabs that fit, two columns of choices, no single-language picker, helpful empty pages', () => {
+  assert.match(js, /document\.querySelectorAll\('\.account-tabs'\)\.forEach\(\(nav\) => \{/);
+  assert.match(css, /\.account-tabs\[data-more="right"\]/);
+  assert.match(css, /\.check-grid \.check-row:has\(input:checked\)/);
+  const settings = fs.readFileSync(path.join(ROOT, 'views/account-settings.ejs'), 'utf8');
+  assert.match(settings, /<% if \(languages\.length > 1\) \{ %>\n      <section class="dash-card" id="language"/);
+  const saved = fs.readFileSync(path.join(ROOT, 'views/account-saved.ejs'), 'utf8');
+  assert.ok(!saved.includes('☆'), 'the save button is a bookmark, not a star');
+  assert.match(saved, /<a class="btn btn-primary" href="\/jobs">Find jobs<\/a>/);
+  assert.match(fs.readFileSync(path.join(ROOT, 'views/account.ejs'), 'utf8'), /You haven&#39;t applied for a job yet/);
+});

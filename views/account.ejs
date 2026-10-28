@@ -57,7 +57,7 @@
 
     <section class="dash-card dash-wide app-list" id="applications">
       <div class="dash-head"><h2>Your applications</h2><a class="small" href="/jobs">Find more jobs</a></div>
-      <% if (!apps.length) { %><p class="muted dash-empty">No applications found.</p><% } %>
+      <% if (!apps.length) { %><p class="muted dash-empty">You haven&#39;t applied for a job yet. Applying is free and takes a minute.</p><p><a class="btn btn-primary btn-sm" href="/jobs">Find jobs</a></p><% } %>
       <% apps.forEach(function (a) { %>
         <article class="my-app">
           <div class="my-app-head">
