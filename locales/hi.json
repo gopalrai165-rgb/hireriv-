@@ -218,7 +218,12 @@
     "cvAccount": "अगली बार एक क्लिक में आवेदन करना चाहते हैं?",
     "cvAccountLink": "मुफ़्त खाता बनाएँ",
     "cvAccountAfter": "",
-    "voiceSearch": "बोलकर खोजें"
+    "voiceSearch": "बोलकर खोजें",
+    "education": "आपकी पढ़ाई",
+    "anyEducation": "कोई भी पढ़ाई",
+    "educationOption": "मेरी पढ़ाई: {level}",
+    "perks": "सुविधाएँ",
+    "perksHint": "वे नौकरियाँ जो चुनी गई सभी सुविधाएँ देती हैं"
   },
   "card": {
     "sample": "नमूना विज्ञापन",
@@ -1010,7 +1015,22 @@
     "walkInUpcoming": "{day} से शुरू",
     "walkInAsk": "{who} से मिलें",
     "walkInBring": "फ़ोटो पहचान पत्र साथ लाएँ। इंटरव्यू या नौकरी के लिए कभी कोई फ़ीस न दें।",
-    "englishGap": "इस नौकरी में {needs} चाहिए; आपकी प्रोफ़ाइल में {has} लिखा है।"
+    "englishGap": "इस नौकरी में {needs} चाहिए; आपकी प्रोफ़ाइल में {has} लिखा है।",
+    "edu_none": "पढ़ाई ज़रूरी नहीं",
+    "edu_below": "10वीं से कम",
+    "edu_10th": "10वीं पास",
+    "edu_12th": "12वीं पास",
+    "edu_iti": "ITI / डिप्लोमा",
+    "edu_graduate": "ग्रेजुएट",
+    "edu_postgraduate": "पोस्ट-ग्रेजुएट",
+    "perk_food": "खाना",
+    "perk_stay": "रहने की जगह",
+    "perk_transport": "आने-जाने की सुविधा",
+    "perk_pf": "PF / ESI",
+    "perk_incentives": "इंसेंटिव",
+    "perk_insurance": "स्वास्थ्य बीमा",
+    "educationNeeded": "पढ़ाई",
+    "perksTitle": "सुविधाएँ"
   },
   "near": {
     "label": "पास में",

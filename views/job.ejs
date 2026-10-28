@@ -96,7 +96,10 @@
         <div><dt><%= t('job.fPlace') %></dt><dd><%= place %></dd></div>
         <div><dt><%= t('job.fPay') %></dt><dd><%= pay || t('job.notDisclosed') %></dd></div>
         <div><dt><%= t('job.fExperience') %></dt><dd><%= job.experience ? tv('experience', job.experience) : t('job.notSpecified') %></dd></div>
-        <% if (job.education) { %><div><dt><%= t('job.fEducation') %></dt><dd><%= job.education %></dd></div><% } %>
+        <% const minEdu = job.minEducation ? t('needs.edu_' + job.minEducation) : ''; %>
+        <% if (minEdu || job.education) { %><div><dt><%= t('job.fEducation') %></dt><dd><%= [minEdu, job.education].filter(Boolean).join(' · ') %></dd></div><% } %>
+        <% const jobPerks = perksOf(job); %>
+        <% if (jobPerks.length) { %><div><dt><%= t('needs.perksTitle') %></dt><dd><ul class="perk-list"><% jobPerks.forEach(function (p) { %><li><svg class="i" aria-hidden="true"><use href="#i-check"/></svg> <%= t('needs.perk_' + p) %></li><% }) %></ul></dd></div><% } %>
         <% if (job.english) { %><div><dt><%= t('job.fEnglish') %></dt><dd><%= t('needs.english' + job.english) %></dd></div><% } %>
         <% if (job.address) { %><div><dt><%= t('job.fAddress') %></dt><dd><%= job.address %><%= job.walkIn ? ' ' + t('job.walkIn') : '' %></dd></div><% } %>
         <% if (job.openings) { %><div><dt><%= t('job.fOpenings') %></dt><dd><%= job.openings %></dd></div><% } %>

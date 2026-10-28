@@ -218,7 +218,12 @@
     "cvAccount": "Want to apply in one click next time?",
     "cvAccountLink": "Create a free account",
     "cvAccountAfter": "instead.",
-    "voiceSearch": "Search by voice"
+    "voiceSearch": "Search by voice",
+    "education": "Your education",
+    "anyEducation": "Any education",
+    "educationOption": "My education: {level}",
+    "perks": "Perks",
+    "perksHint": "Jobs that give all you tick"
   },
   "card": {
     "sample": "Sample listing",
@@ -681,7 +686,22 @@
     "walkInUpcoming": "Starts {day}",
     "walkInAsk": "Ask for {who}",
     "walkInBring": "Bring a photo ID. You never pay a fee to be interviewed or hired.",
-    "englishGap": "This job asks for {needs}; your profile says {has}."
+    "englishGap": "This job asks for {needs}; your profile says {has}.",
+    "edu_none": "No education needed",
+    "edu_below": "Below 10th",
+    "edu_10th": "10th pass",
+    "edu_12th": "12th pass",
+    "edu_iti": "ITI / Diploma",
+    "edu_graduate": "Graduate",
+    "edu_postgraduate": "Post-graduate",
+    "perk_food": "Food / meals",
+    "perk_stay": "Stay / room",
+    "perk_transport": "Transport",
+    "perk_pf": "PF / ESI",
+    "perk_incentives": "Incentives",
+    "perk_insurance": "Health insurance",
+    "educationNeeded": "Education",
+    "perksTitle": "Perks"
   },
   "near": {
     "label": "Near",

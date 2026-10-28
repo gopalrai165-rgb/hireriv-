@@ -100,13 +100,14 @@ test('jobs from an employer stay hidden until the company and the job are approv
   assert.match(decodeURIComponent(early.headers.get('location')), /verify your mobile number/);
   assert.equal(srv.records('jobs').find((x) => x.title === 'Early Draft').status, 'draft');
   await srv.verifyEmployerMobile(meera, { 'x-forwarded-for': '10.8.2.1' });
-  const res = await post('/employer/jobs', { ...jobForm, action: 'publish' }, { cookie: meera });
+  const res = await post('/employer/jobs', { ...jobForm, minEducation: '12th', perks: ['food', 'stay'], action: 'publish' }, { cookie: meera });
   assert.equal(res.status, 302);
   const j = srv.records('jobs').find((x) => x.title === 'Packing Supervisor');
   assert.equal(j.status, 'pending');
   assert.equal(j.company, 'Acme Foods Pvt Ltd');
   assert.equal(j.employerId, emp(signup.email).id);
   assert.deepEqual(j.pay, { min: 22000, max: 28000, period: 'month', currency: 'INR' });
+  assert.deepEqual([j.minEducation, j.perks], ['12th', ['food', 'stay']], 'minimum education and perks are kept');
   await srv.waitForEmail((m) => m.includes('Job to review: Packing Supervisor'));
 
   assert.equal((await srv.request(`/jobs/${j.id}`)).status, 404);

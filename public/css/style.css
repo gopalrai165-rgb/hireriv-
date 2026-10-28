@@ -511,6 +511,14 @@ img { max-width: 100%; display: block; }
 .job-card h3 a:hover { color: var(--primary); }
 .job-card .save-btn, .job-card .card-link { position: relative; z-index: 1; }
 .job-card .tag { margin: 4px 0 0; align-self: flex-start; }
+.perk-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.perk-tags .tag { margin: 0; }
+.tag-perk { background: #e8f6ee; color: #146c43; }
+.perk-list { list-style: none; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: 4px 14px; }
+.perk-list li { display: inline-flex; align-items: center; gap: 4px; }
+.perk-list .i { color: #146c43; width: 16px; height: 16px; }
+.filter-perks { border: 0; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: 4px 14px; grid-column: 1 / -1; }
+.filter-perks legend { font-weight: 600; font-size: .9rem; padding: 0; margin-bottom: 4px; }
 .job-meta { list-style: none; padding: 0; margin: 14px 0 16px; display: flex; flex-wrap: wrap; gap: 8px 16px; font-size: .88rem; }
 .job-meta li { display: inline-flex; align-items: center; gap: 6px; }
 .job-meta .i { color: var(--primary); }

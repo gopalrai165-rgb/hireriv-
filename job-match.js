@@ -101,6 +101,8 @@ function facts(profile = {}, extra = {}) {
     availableFrom: availability.availableFrom || '',
     // English from the languages on the profile; unknown when it isn't listed.
     english: englishFromLanguages(p.languages),
+    // Education levels on the profile as job-needs.js keys (10th, 12th, iti …).
+    education: jobNeeds.educationFromProfile((p.education || []).map((e) => e && e.level)),
   };
 }
 
@@ -207,6 +209,8 @@ function requirementsOf(f, job, today = new Date().toISOString().slice(0, 10)) {
     const label = jobNeeds.ENGLISH_LABELS[job.english];
     out.push({ key: 'english', label, met: !f.english ? null : !gap, detail: !f.english ? 'Add English to the languages on your profile' : gap ? `Your profile says ${jobNeeds.ENGLISH_LABELS[f.english].toLowerCase()}` : 'Your English is enough' });
   }
+  const edu = jobNeeds.educationMet(job, f.education);
+  if (edu) out.push({ key: 'education', label: `${jobNeeds.educationLabel(edu.need)} or more`, met: edu.met, detail: edu.met === null ? 'Add your education to your profile' : edu.met ? 'Your education fits' : 'Your profile doesn\u2019t show this education yet' });
   if (job.physical) out.push({ key: 'physical', label: job.physical, met: null, detail: 'Part of the job; check it suits you' });
   return out;
 }

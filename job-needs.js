@@ -73,4 +73,100 @@ function englishGap(job, personLevel) {
   return englishRank(job.english) > englishRank(personLevel) ? { needs: job.english, has: personLevel } : null;
 }
 
-module.exports = { ENGLISH_LEVELS, ENGLISH_LABELS, englishKey, englishFromKey, fitsEnglish, parse, walkInOf, walkInOpen, walkInDays, englishGap, validDate };
+// ---------- minimum education ----------
+// What a job needs, lowest first. ITI and diplomas are their own track after
+// 10th, so a 12th pass doesn't count as ITI, and ITI doesn't count as 12th.
+const EDUCATION = [
+  { key: 'none', label: 'No education needed' },
+  { key: '10th', label: '10th pass' },
+  { key: '12th', label: '12th pass' },
+  { key: 'iti', label: 'ITI / Diploma' },
+  { key: 'graduate', label: 'Graduate' },
+  { key: 'postgraduate', label: 'Post-graduate' },
+];
+const EDUCATION_KEYS = EDUCATION.map((e) => e.key);
+const educationLabel = (key) => (EDUCATION.find((e) => e.key === key) || {}).label || '';
+// Which of a person's levels meet each requirement.
+const MEETS = {
+  none: ['below', '10th', '12th', 'iti', 'graduate', 'postgraduate'],
+  '10th': ['10th', '12th', 'iti', 'graduate', 'postgraduate'],
+  '12th': ['12th', 'graduate', 'postgraduate'],
+  iti: ['iti'],
+  graduate: ['graduate', 'postgraduate'],
+  postgraduate: ['postgraduate'],
+};
+// Words in the free-text "Education" box, for jobs posted before the list:
+// words in any case, abbreviations only in capitals (so "be" isn't B.E.).
+const EDUCATION_WORDS = [
+  ['postgraduate', /\b(post[- ]?graduat\w*|masters?)\b/i, /\b(PG|MBA|MCA|M\.?\s?Com|M\.?\s?Sc|M\.?\s?Tech|M\.A\.)/],
+  ['graduate', /(?<!post[- ]?)\b(graduat\w*|degree|bachelor\w*)\b/i, /\b(B\.?\s?Com|B\.?\s?Sc|BBA|BCA|B\.?\s?Tech|B\.E\b|B\.A\b|BA|BE)\b/],
+  ['iti', /\b(diploma|polytechnic)\b/i, /\bITI\b/],
+  ['12th', /\b(12th|intermediate|higher secondary)\b/i, /\b(HSC|PUC)\b/],
+  ['10th', /\b(10th|matric\w*)\b/i, /\b(SSC|SSLC)\b/],
+  ['none', /\b(no (education|qualification)|any (education|qualification)|not required)\b/i, null],
+];
+// A job's minimum: the list choice, else the levels its text names (any of
+// them will do: "12th pass or ITI"). educationOf gives the first, to show.
+function educationNeeds(job) {
+  if (!job) return [];
+  if (EDUCATION_KEYS.includes(job.minEducation)) return [job.minEducation];
+  const text = String(job.education || '');
+  if (!text) return [];
+  return EDUCATION_WORDS.filter(([, words, abbr]) => words.test(text) || (abbr && abbr.test(text))).map(([k]) => k).sort((x, y) => EDUCATION_KEYS.indexOf(x) - EDUCATION_KEYS.indexOf(y));
+}
+const educationOf = (job) => educationNeeds(job)[0] || '';
+// "My education is X": jobs whose minimum X meets. Jobs that don't say are
+// left out, as with English.
+function fitsEducation(job, mine) {
+  return educationNeeds(job).some((need) => (MEETS[need] || []).includes(mine));
+}
+// Profile levels (candidate-profile.js) as education keys.
+const FROM_PROFILE = { 'Below 10th': 'below', '10th pass': '10th', '12th pass': '12th', ITI: 'iti', Diploma: 'iti', Graduate: 'graduate', 'Post-graduate': 'postgraduate', Doctorate: 'postgraduate' };
+const educationFromProfile = (levels) => [...new Set((levels || []).map((l) => FROM_PROFILE[l]).filter(Boolean))];
+// For the profile match: null when either side is unknown.
+function educationMet(job, personKeys) {
+  const needs = educationNeeds(job);
+  if (!needs.length || needs.includes('none')) return null;
+  if (!personKeys || !personKeys.length) return { need: needs[0], met: null };
+  return { need: needs[0], met: needs.some((need) => personKeys.some((k) => (MEETS[need] || []).includes(k))) };
+}
+
+// ---------- perks ----------
+// What a job gives besides pay. Ticked on the form, and also read from the
+// Benefits lines and pay note (never from "Costs the worker pays").
+const PERKS = [
+  { key: 'food', label: 'Food / meals', re: /\b(food|meals?|lunch|dinner|breakfast|canteen|tiffin)\b/i },
+  { key: 'stay', label: 'Stay / room', re: /\b(accommodation|hostel|lodging|quarters|stay|room)\b/i },
+  { key: 'transport', label: 'Transport', re: /\b(cab|transport|bus|pick[- ]?up|conveyance|travel allowance)\b/i },
+  { key: 'pf', label: 'PF / ESI', re: /\b(PF|EPF|ESI|ESIC|provident fund)\b/i },
+  { key: 'incentives', label: 'Incentives', re: /\b(incentives?|bonus|commission)\b/i },
+  { key: 'insurance', label: 'Health insurance', re: /\b(insurance|mediclaim)\b/i },
+];
+const PERK_KEYS = PERKS.map((p) => p.key);
+const perkLabel = (key) => (PERKS.find((p) => p.key === key) || {}).label || '';
+function perksOf(job) {
+  if (!job) return [];
+  const ticked = (Array.isArray(job.perks) ? job.perks : []).filter((k) => PERK_KEYS.includes(k));
+  const text = [...(job.benefits || []), job.payNote || ''].join(' \n ');
+  const read = PERKS.filter((p) => p.re.test(text)).map((p) => p.key);
+  return PERK_KEYS.filter((k) => ticked.includes(k) || read.includes(k));
+}
+const hasPerks = (job, keys) => {
+  const have = perksOf(job);
+  return keys.every((k) => have.includes(k));
+};
+// From a form or API body: minEducation and perks (a list, or repeated fields).
+function parseExtras(body) {
+  const errors = [];
+  const minEducation = String(body.minEducation ?? '').trim();
+  if (minEducation && !EDUCATION_KEYS.includes(minEducation)) errors.push(`minimum education must be one of: ${EDUCATION_KEYS.join(', ')}`);
+  const raw = [].concat(body.perks ?? []).flatMap((x) => String(x).split(',')).map((x) => x.trim()).filter(Boolean);
+  const unknown = raw.filter((k) => !PERK_KEYS.includes(k));
+  if (unknown.length) errors.push(`perks must be from: ${PERK_KEYS.join(', ')}`);
+  return { minEducation: EDUCATION_KEYS.includes(minEducation) ? minEducation : '', perks: PERK_KEYS.filter((k) => raw.includes(k)), errors };
+}
+
+module.exports = {
+  ENGLISH_LEVELS, ENGLISH_LABELS, englishKey, englishFromKey, fitsEnglish, parse, walkInOf, walkInOpen, walkInDays, englishGap, validDate,
+  EDUCATION, EDUCATION_KEYS, educationLabel, educationOf, educationNeeds, fitsEducation, educationFromProfile, educationMet, PERKS, PERK_KEYS, perkLabel, perksOf, hasPerks, parseExtras,
+};

@@ -619,6 +619,9 @@ app.locals.resumeNeeded = resumeNeeded;
 // Walk-in days and the English a job needs, for cards and the job page.
 app.locals.walkInOf = (j) => jobNeeds.walkInOf(j, todayIst());
 app.locals.walkInDays = (w) => jobNeeds.walkInDays(w, todayIst());
+app.locals.perksOf = jobNeeds.perksOf;
+app.locals.jobExtras = { EDUCATION: jobNeeds.EDUCATION, PERKS: jobNeeds.PERKS };
+app.locals.educationOf = jobNeeds.educationOf;
 // Mobile-only job seekers (identity.js): no email to show or write to.
 app.locals.realEmail = identity.realEmail;
 app.locals.contactLabel = identity.contactLabel;
@@ -823,7 +826,19 @@ const NEED_PAGES = [
     tip: 'Take a photo ID and your resume if you have one. Check the walk-in days and time on the listing before you go.' },
   { slug: 'no-english', label: 'No English needed', name: 'Jobs with no English needed', query: 'english=none', matches: (j) => j.english === 'None',
     about: 'Jobs where the employer says no English is needed: driving, delivery, warehouse, security, housekeeping, cooking, factory and more.',
-    tip: 'Search in Hindi if you like: "ड्राइवर दिल्ली" finds driver jobs in Delhi.' },
+    tip: 'Say on your profile which languages you speak: many employers look for Hindi, Marathi, Tamil or other local languages.' },
+  { slug: '10th-pass', label: '10th pass', name: '10th pass jobs', query: 'education=10th', matches: (j) => jobNeeds.fitsEducation(j, '10th'),
+    about: 'Jobs open to people who passed 10th: delivery, warehouse, security, retail, factory, driving and more, with the pay on every listing.',
+    tip: 'Keep your 10th marksheet ready: many employers ask to see it at the interview. Never pay for a "certificate" or a job.' },
+  { slug: '12th-pass', label: '12th pass', name: '12th pass jobs', query: 'education=12th', matches: (j) => jobNeeds.fitsEducation(j, '12th'),
+    about: 'Jobs open to people who passed 12th: telecalling, customer support, data entry, sales, retail, delivery and more.',
+    tip: 'Add your education to your profile so jobs that fit it come first.' },
+  { slug: 'iti-diploma', label: 'ITI / Diploma', name: 'ITI and diploma jobs', query: 'education=iti', matches: (j) => jobNeeds.fitsEducation(j, 'iti'),
+    about: 'Jobs for ITI and diploma holders: electrician, fitter, welder, machine operator, technician, maintenance and more.',
+    tip: 'Put your trade and any licence (for example a wireman licence) on your profile: employers search for them.' },
+  { slug: 'with-accommodation', label: 'Stay / room given', name: 'Jobs with accommodation', query: 'perk=stay', matches: (j) => jobNeeds.hasPerks(j, ['stay']),
+    about: 'Jobs where the employer gives a place to stay, so you can take work in another city: factories, warehouses, hotels, security and more.',
+    tip: 'Ask what the stay costs, if anything, and check "Costs the worker pays" on the listing. Never pay a deposit to an agent.' },
 ];
 const needPageBySlug = (slug) => NEED_PAGES.find((x) => x.slug === slug) || null;
 const needPath = (need, city) => `/jobs/${need.slug}${city && !need.noCity ? `/in/${city.slug}` : ''}`;
@@ -890,6 +905,10 @@ function jobFilters(query) {
     shift: pick(['shift'], (v) => SHIFTS.includes(v)),
     // "My English is …": jobs that need that much or less.
     english: pick(['english'], (v) => Boolean(jobNeeds.englishFromKey(v))).toLowerCase(),
+    // "My education is …": jobs whose minimum it meets (job-needs.js).
+    education: pick(['education'], (v) => ['below', ...jobNeeds.EDUCATION_KEYS.filter((k) => k !== 'none')].includes(v)),
+    // Perks every job must give: ?perk=food&perk=stay or ?perks=food,stay.
+    perks: [],
     // Walk-in interviews that haven't ended.
     walkin: pick(['walkin', 'walkIn'], (v) => ['1', 'true', 'yes'].includes(v)) ? '1' : '',
     sort: pick(['sort'], (v) => search.SORTS.includes(v)),
@@ -897,6 +916,9 @@ function jobFilters(query) {
     near: one('near').value,
     within: 0,
   };
+  for (const p of [].concat(query.perk ?? [], String([].concat(query.perks ?? []).join(',')).split(',')).map((x) => String(x).trim()).filter(Boolean).slice(0, 10)) {
+    if (jobNeeds.PERK_KEYS.includes(p)) { if (!f.perks.includes(p)) f.perks.push(p); } else errors.push('perk is invalid');
+  }
   const within = one('within').value;
   if (within) {
     if (geo.RADII.includes(Number(within))) f.within = Number(within);
@@ -942,7 +964,9 @@ function findJobs(list, f, { skipWork = false } = {}) {
   return search.searchJobs(list, localFilters(f), {
     extra: (j) => (!group || inGroup(group, j)) && (skipWork || !f.work || workOf(j) === f.work)
       && (!f.english || jobNeeds.fitsEnglish(j, jobNeeds.englishFromKey(f.english)))
-      && (!f.walkin || jobNeeds.walkInOpen(j, todayIst())),
+      && (!f.walkin || jobNeeds.walkInOpen(j, todayIst()))
+      && (!f.education || jobNeeds.fitsEducation(j, f.education))
+      && (!(f.perks || []).length || jobNeeds.hasPerks(j, f.perks)),
     moreText: jobTranslations ? (j) => jobTranslations.searchText(j) : null,
   });
 }
@@ -953,8 +977,8 @@ function correctedFilters(list, f) {
   return better ? { ...f, q: better } : null;
 }
 // The filters as query parameters (repeated for several categories and skills).
-const filterQuery = (f) => ({ q: f.q, group: f.group, work: f.work, category: f.categories, location: f.location, mode: f.mode, type: f.type, experience: f.experience, minPay: f.minPay || '', skill: f.skills || [], company: f.company || '', shift: f.shift || '', english: f.english || '', walkin: f.walkin || '', near: f.near || '', within: f.within || '', sort: f.sort });
-const hasFilters = (f) => Boolean(f.q || f.group || f.work || f.categories.length || f.location || f.mode || f.type || f.experience || f.minPay || (f.skills || []).length || f.company || f.shift || f.english || f.walkin || f.near);
+const filterQuery = (f) => ({ q: f.q, group: f.group, work: f.work, category: f.categories, location: f.location, mode: f.mode, type: f.type, experience: f.experience, minPay: f.minPay || '', skill: f.skills || [], company: f.company || '', shift: f.shift || '', english: f.english || '', walkin: f.walkin || '', education: f.education || '', perk: f.perks || [], near: f.near || '', within: f.within || '', sort: f.sort });
+const hasFilters = (f) => Boolean(f.q || f.group || f.work || f.categories.length || f.location || f.mode || f.type || f.experience || f.minPay || (f.skills || []).length || f.company || f.shift || f.english || f.walkin || f.education || (f.perks || []).length || f.near);
 // Jobs near a place: each job's distance, only those within the radius (when
 // one is chosen), and nearest first unless another order was asked for.
 // Remote jobs and jobs in several places have no distance and go last.
@@ -1002,6 +1026,8 @@ app.get('/jobs', (req, res) => {
     f.shift && { label: `${f.shift} shift`, href: removeLink({ shift: '' }) },
     f.english && { label: req.t.t('jobs.englishOption', { level: req.t.t(`needs.english${jobNeeds.englishFromKey(f.english)}`) }), href: removeLink({ english: '' }) },
     f.walkin && { label: req.t.t('needs.walkInFilter'), href: removeLink({ walkin: '' }) },
+    f.education && { label: req.t.t('jobs.educationOption', { level: req.t.t(`needs.edu_${f.education}`) }), href: removeLink({ education: '' }) },
+    ...(f.perks || []).map((p) => ({ label: req.t.t(`needs.perk_${p}`), href: removeLink({ perk: f.perks.filter((x) => x !== p) }) })),
     nearby.near && !nearby.near.error && { label: req.t.t(f.within ? 'near.chipWithin' : 'near.chip', { km: f.within, place: nearby.near.kind === 'gps' ? req.t.t('near.yourLocation') : nearby.near.label }), href: removeLink({ near: '', within: '', sort: f.sort === 'distance' ? '' : f.sort }) },
   ].filter(Boolean);
   // Signed-in candidates can save this search and get alerts for it.
@@ -1032,6 +1058,8 @@ app.get('/jobs', (req, res) => {
     savedSearchQuery: filterQuery(f),
     shifts: SHIFTS,
     englishLevels: jobNeeds.ENGLISH_LEVELS,
+    educationLevels: ['below', ...jobNeeds.EDUCATION_KEYS.filter((k) => k !== 'none')],
+    perkKeys: jobNeeds.PERK_KEYS,
     companies: [...new Set(live.filter((j) => !isSample(j)).map((j) => j.company))].sort((a, b) => a.localeCompare(b)),
     experienceLevels: search.EXPERIENCE_LEVELS,
     minPayOptions: search.MIN_PAY_OPTIONS.map((n) => ({ value: n, label: req.t.t('jobs.payOption', { amount: n.toLocaleString('en-IN') }) })),
@@ -1574,6 +1602,8 @@ const publicJob = (j) => ({
   walkIn: Boolean(j.walkIn),
   walkInDetails: j.walkIn ? { from: j.walkInFrom || null, to: j.walkInTo || null, time: j.walkInTime || null, contact: j.walkInContact || null, open: jobNeeds.walkInOpen(j, todayIst()) } : null,
   englishNeeded: j.english || null,
+  minEducation: jobNeeds.educationOf(j) || null,
+  perks: jobNeeds.perksOf(j),
   eligibility: j.eligibility || [],
   benefits: j.benefits || [],
   requirements: { licences: j.mustHave || [], startsImmediately: Boolean(j.immediate), physical: j.physical || null },
@@ -1601,7 +1631,7 @@ async function jobsApi(req, res) {
   });
   // Postgres when it's connected and up to date; the same search in memory otherwise.
   const viaPg = async (filters) => {
-    if (!(pg && pg.usable()) || filters.english || filters.walkin) return null;
+    if (!(pg && pg.usable()) || filters.english || filters.walkin || filters.education || (filters.perks || []).length) return null;
     try {
       await pg.flush();
       const found = pg.usable() && (await pg.search(filters, { page, size }));
@@ -2326,6 +2356,8 @@ function parseJob(body) {
   if (walkIn && !data.address) errors.push('add the workplace address for walk-in interviews');
   const needs = jobNeeds.parse(body, { walkIn, today: todayIst(), closed: data.status === 'closed' });
   errors.push(...needs.errors);
+  const extras = jobNeeds.parseExtras(body);
+  errors.push(...extras.errors);
   const job = {
     title: data.title,
     company: data.company,
@@ -2357,6 +2389,9 @@ function parseJob(body) {
     walkInTime: needs.walkInTime,
     walkInContact: needs.walkInContact,
     english: needs.english,
+    // Minimum education from the list, and perks ticked (job-needs.js).
+    minEducation: extras.minEducation,
+    perks: extras.perks,
     eligibility: lines(data.eligibility),
     // Must-haves shown apart from the match score: licences or certificates
     // the work legally or practically needs, starting straight away, and

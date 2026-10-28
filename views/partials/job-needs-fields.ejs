@@ -3,6 +3,13 @@
 <label>English needed <span class="muted small">(job seekers filter by this)</span>
   <select name="english"><option value="">Not specified</option><% ['None', 'Basic', 'Good', 'Fluent'].forEach(function (l) { %><option value="<%= l %>"<%= job.english === l ? ' selected' : '' %>><%= englishLabels[l] %></option><% }) %></select>
 </label>
+<% const jn = jobExtras; %>
+<label>Minimum education <span class="muted small">(job seekers filter by this)</span>
+  <select name="minEducation"><option value="">Not specified</option><% jn.EDUCATION.forEach(function (e) { %><option value="<%= e.key %>"<%= job.minEducation === e.key ? ' selected' : '' %>><%= e.label %></option><% }) %></select>
+</label>
+<fieldset class="span-2 check-set"><legend>Perks the job gives <span class="muted small">(tick all that apply; job seekers filter by these)</span></legend>
+  <div class="check-grid"><% jn.PERKS.forEach(function (p) { %><label class="check-row"><input type="checkbox" name="perks" value="<%= p.key %>"<%= (job.perks || []).includes(p.key) ? ' checked' : '' %>> <span><%= p.label %></span></label><% }) %></div>
+</fieldset>
 <label class="span-2 check-row"><input type="checkbox" name="walkIn" value="1"<%= job.walkIn ? ' checked' : '' %>> <span>Walk-in interviews at this address</span></label>
 <fieldset class="span-2 pay-fields walkin-fields">
   <legend>Walk-in details <span class="muted small">(optional)</span></legend>
