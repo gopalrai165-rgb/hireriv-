@@ -15,6 +15,9 @@ function moveStage(a, to, by, at = new Date().toISOString(), extra = {}) {
   if (from === to) return false;
   a.status = to;
   a.updatedAt = at;
+  // Someone on the hiring side moved it, so they have seen it (automatic
+  // moves by the system don't count).
+  if (!a.viewedAt && by && by !== 'System' && extra.actor !== 'candidate') a.viewedAt = at;
   const entry = { at, from, to, by: by || 'System', ...extra };
   a.history = [...(a.history || []), entry].slice(-MAX_HISTORY);
   for (const fn of listeners) {

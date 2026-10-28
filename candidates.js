@@ -658,7 +658,7 @@ function register(app, deps) {
         const job = jobs.find((j) => j.id === a.jobId);
         const stage = stageOf(a);
         const interviews = (a.interviews || []).filter((iv) => upcoming(iv, now)).sort((x, y) => x.at.localeCompare(y.at));
-        return { id: a.id, jobTitle: a.jobTitle, job: job && isLive(job) ? job : null, createdAt: a.createdAt, stage, stepIndex: STEPS.indexOf(stage), withdrawn: Boolean(a.withdrawnAt), closedOut: ['Hired', 'Rejected'].includes(a.status), hasResume: Boolean(a.resume), interviews };
+        return { id: a.id, jobTitle: a.jobTitle, job: job && isLive(job) ? job : null, createdAt: a.createdAt, viewedAt: a.viewedAt || '', stage, stepIndex: STEPS.indexOf(stage), withdrawn: Boolean(a.withdrawnAt), closedOut: ['Hired', 'Rejected'].includes(a.status), hasResume: Boolean(a.resume), interviews };
       });
     const s = shell(email, 'dashboard');
     page(res, 'account', {
@@ -1370,7 +1370,7 @@ function register(app, deps) {
     res.json({
       ok: true,
       applications: mine(req.candidateEmail).sort(newestFirst).map((a) => ({
-        id: a.id, jobId: a.jobId === 'general' ? null : a.jobId, job: a.jobTitle, appliedAt: a.createdAt, status: stageOf(a),
+        id: a.id, jobId: a.jobId === 'general' ? null : a.jobId, job: a.jobTitle, appliedAt: a.createdAt, seenByHiringTeamAt: a.viewedAt || null, status: stageOf(a),
       })),
     });
   });

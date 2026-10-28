@@ -50,6 +50,7 @@ const TYPES = {
   'job-digest': { category: 'jobs', optional: true, label: 'Saved search summary' },
   'job-invite': { category: 'jobs', optional: true, label: 'Invitation to apply' },
   'contact-unlocked': { category: 'jobs', label: 'An employer saw your number' },
+  'application-viewed': { category: 'applications', optional: true, label: 'Employer opened your application' },
   'account-security': { category: 'account', label: 'Account and security' },
   // employers and the team
   'new-application': { category: 'applications', optional: true, label: 'New application' },

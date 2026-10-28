@@ -448,6 +448,15 @@ function create(deps) {
       inApp: { title: `${emp.company} can now see your mobile number`, body: 'They may call or WhatsApp you about a job. Nobody genuine asks you to pay. You can stop showing your number in Settings.', link: '/account/settings#privacy' },
     });
   }
+  // An employer opened an application for the first time. Once per
+  // application, in the app; never after the person withdrew.
+  function applicationViewed(a, job) {
+    if (!a || a.withdrawnAt || !job) return null;
+    return emit({
+      key: `application-viewed:${a.id}`, type: 'application-viewed', to: [candidate(a)],
+      inApp: { title: `${job.company} opened your application`, body: `For ${job.title}. They decide the next step; we will tell you when your application moves.`, link: '/account#applications' },
+    });
+  }
   // A staffing request (public form or client portal): everyone on the team sees it.
   function staffingRequest(entry) {
     emit({ key: `staffing-request:${entry.id}`, type: 'staffing-request', to: team.members().map((u) => ({ kind: 'team', userId: u.id })), inApp: { title: `Staffing request from ${entry.company}`, body: `${entry.roles}${entry.headcount ? ` · ${entry.headcount} people` : ''}${entry.location ? ` · ${entry.location}` : ''}`, link: '/admin?tab=hire-requests' } });
@@ -475,7 +484,7 @@ function create(deps) {
 
   return {
     applicationSubmitted, newApplication, stageMoved, statusEmail, interviewBooked, interviewRescheduled, interviewCancelled, interviewReminder, interviewAnswered,
-    feedbackDueScan, offerCreated, offerApproved, offerAnswered, offerDeadlineScan, assigned, jobDecision, jobExpired, jobSubmitted, jobAlerts, jobDigest, jobInvite, contactUnlocked, staffingRequest, agencyAssigned,
+    feedbackDueScan, offerCreated, offerApproved, offerAnswered, offerDeadlineScan, assigned, jobDecision, jobExpired, jobSubmitted, jobAlerts, jobDigest, jobInvite, contactUnlocked, applicationViewed, staffingRequest, agencyAssigned,
     accountSecurity, scan, JOB_ALERTS_PER_DAY,
   };
 }

@@ -63,7 +63,7 @@
           <div class="my-app-head">
             <div>
               <h3><% if (a.job) { %><a href="<%= jobPath(a.job) %>"><%= a.jobTitle %></a><% } else { %><%= a.jobTitle %><% } %></h3>
-              <p class="muted small">Applied <%= formatDate(a.createdAt) %><% if (a.hasResume) { %> · <a href="<%= signedLink('/account/resume/' + a.id) %>">Your resume</a><% } %></p>
+              <p class="muted small">Applied <%= formatDate(a.createdAt) %><% if (!a.withdrawn) { %> · <% if (a.viewedAt) { %><span class="app-seen"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg> Seen by the hiring team <%= formatDate(a.viewedAt) %></span><% } else { %>Not seen by the hiring team yet<% } %><% } %><% if (a.hasResume) { %> · <a href="<%= signedLink('/account/resume/' + a.id) %>">Your resume</a><% } %></p>
             </div>
             <span class="pill <%= a.withdrawn || a.stage === 'Not selected' ? 'st-rejected' : a.stage === 'Hired' || a.stage === 'Offer' ? 'st-hired' : 'st-interview' %>"><%= a.stage %></span>
           </div>

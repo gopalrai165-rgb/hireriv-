@@ -258,7 +258,7 @@ function register(app, deps) {
     const may = (action) => can(req.member, action, job);
     const assignee = a.assignedTo ? team.userById(a.assignedTo) : null;
     const v = {
-      id: a.id, jobId: a.jobId, jobTitle: job.title, appliedAt: a.createdAt, status: ats.stageOf(a), stageLabel: ats.label(ats.stageOf(a)), withdrawn: Boolean(a.withdrawnAt),
+      id: a.id, jobId: a.jobId, jobTitle: job.title, appliedAt: a.createdAt, viewedAt: a.viewedAt || null, status: ats.stageOf(a), stageLabel: ats.label(ats.stageOf(a)), withdrawn: Boolean(a.withdrawnAt),
       name: a.name, experience: a.experience || '', location: a.location || '', noticePeriod: a.noticePeriod || '', skills: a.skills || '',
       match: skillMatch(a, job),
       assignedTo: assignee ? { userId: assignee.id, name: assignee.name } : null,
@@ -306,6 +306,12 @@ function register(app, deps) {
     const v = applicantView(req, req.application, req.job);
     // Opening someone's details is recorded.
     team.audit(req.employer.id, req.employerUser, 'applicant-viewed', `${req.application.name} for ${req.job.title}`);
+    // The first time, the job seeker sees "Seen by the hiring team" and is told once.
+    if (!req.application.viewedAt) {
+      req.application.viewedAt = now();
+      writeSubmissions('applications', req.applications);
+      if (events && events.applicationViewed) events.applicationViewed(req.application, req.job);
+    }
     const workers = team.membersOf(req.employer.id).filter((m) => can(m, 'applicants.manage', req.job)).map((m) => ({ userId: m.userId, name: (team.userById(m.userId) || {}).name || 'Unknown' }));
     page(res, 'employer-applicant', {
       title: `${v.name} · Applicant`, tab: 'applicants', v, job: req.job, stages: ats.STAGES, label: ats.label, workers, recommendations: RECOMMENDATIONS,

@@ -1362,6 +1362,9 @@ main:focus { outline: none; }
 
 /* Sample listings (starter jobs that aren't real vacancies) */
 .pill-sample { background: #FFF4D6; color: #7A5400; }
+.pill-unseen { background: #EAF2FC; color: #185AA6; font-size: .72rem; padding: .15em .6em; }
+.app-seen { color: #146c43; font-weight: 600; white-space: nowrap; }
+.app-seen .i { width: 14px; height: 14px; vertical-align: -2px; }
 .sample-note { margin: 0 0 16px; }
 
 /* Job Categories page: every category, by kind of work */
