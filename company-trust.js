@@ -190,14 +190,39 @@ function register(app, deps) {
     const jobs = getJobs().filter((j) => j.employerId === emp.id && isLive(j) && !j.sample);
     return jobs.length ? { emp, jobs } : null;
   }
+  // Every company with a public page, most open jobs first (the /companies list and the sitemap).
+  function publicCompanies() {
+    const live = new Map();
+    for (const j of getJobs()) if (j.employerId && isLive(j) && !j.sample) live.set(j.employerId, [...(live.get(j.employerId) || []), j]);
+    return clients.read()
+      .filter((e) => live.has(e.id) && e.active && !e.terminatedAt && !e.suspension)
+      .map((emp) => ({ emp, jobs: live.get(emp.id) }))
+      .sort((a, b) => b.jobs.length - a.jobs.length || a.emp.company.localeCompare(b.emp.company));
+  }
+  const companyPath = (emp) => `/companies/${encodeURIComponent(emp.id)}`;
+  // Where a company is hiring, most jobs first (at most 5 places).
+  const hiringIn = (jobs) => {
+    const n = {};
+    for (const j of jobs) n[j.location] = (n[j.location] || 0) + 1;
+    return Object.keys(n).sort((a, b) => n[b] - n[a] || a.localeCompare(b)).slice(0, 5);
+  };
+  app.get('/companies', limit('company-page', 120), (req, res) => {
+    const list = publicCompanies().map(({ emp, jobs }) => ({ name: emp.company, industry: emp.industry || '', href: companyPath(emp), openJobs: jobs.length, places: hiringIn(jobs), badge: companyBadge(emp), responds: jobs.length ? jobs[0] : null }));
+    res.render('companies', {
+      title: 'Companies hiring now', page: 'jobs', list,
+      metaDescription: `Companies hiring now on ${site.name}: ${list.length} employer${list.length === 1 ? '' : 's'} with open jobs, where they are hiring and what we checked about them.`,
+      canonical: `${baseUrl}/companies`, noindex: list.length ? false : 'follow',
+    });
+  });
   app.get('/companies/:id', limit('company-page', 120), (req, res, next) => {
     const found = publicCompany(String(req.params.id).slice(0, 80));
     if (!found) return next();
     const { emp, jobs } = found;
     res.render('company', {
-      title: `${emp.company} · Jobs and company details`, page: 'jobs', metaDescription: `${emp.company}${emp.industry ? ` (${emp.industry})` : ''}: ${jobs.length} open job${jobs.length === 1 ? '' : 's'} on ${site.name}.`.slice(0, 300),
+      title: `${emp.company} · Jobs and company details`, page: 'jobs', metaDescription: `${emp.company}${emp.industry ? ` (${emp.industry})` : ''}: ${jobs.length} open job${jobs.length === 1 ? '' : 's'} on ${site.name}, hiring in ${hiringIn(jobs).join(', ')}. See the jobs and what we checked about the company.`.slice(0, 300),
+      canonical: `${baseUrl}${companyPath(emp)}`,
       company: { id: emp.id, name: emp.company, industry: emp.industry || '', size: emp.size || '', city: emp.city || '', state: emp.state || '', website: /^https:\/\//i.test(emp.website || '') ? emp.website : '', about: emp.about || '' },
-      badge: companyBadge(emp), jobs, reportReasons: Object.keys(trust.REASON_CATEGORY), help: trust.CYBERCRIME_HELP,
+      badge: companyBadge(emp), jobs, places: hiringIn(jobs), categories: [...new Set(jobs.map((j) => j.category).filter(Boolean))].slice(0, 6), reportReasons: Object.keys(trust.REASON_CATEGORY), help: trust.CYBERCRIME_HELP,
     });
   });
 
@@ -221,7 +246,7 @@ function register(app, deps) {
   }
   setInterval(() => { try { prune(); } catch (e) { console.error('Verification document retention failed:', e.message); } }, DAY).unref();
 
-  return { labelsFor, hrContactFor, companyBadge, submitVerification, prune, DOC_TYPES };
+  return { labelsFor, hrContactFor, companyBadge, submitVerification, prune, DOC_TYPES, companyPaths: () => publicCompanies().map(({ emp }) => companyPath(emp)) };
 }
 
 module.exports = { register, DOC_TYPES, NOT_A_GUARANTEE };

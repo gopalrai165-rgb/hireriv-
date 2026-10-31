@@ -2,7 +2,7 @@
 
 <section class="page-hero page-hero-sm">
   <div class="container">
-    <a href="/jobs" class="back-link">← All jobs</a>
+    <a href="/companies" class="back-link">← Companies hiring now</a>
     <h1><%= company.name %></h1>
     <p class="lead">
       <%= [company.industry, [company.city, company.state].filter(Boolean).join(', ')].filter(Boolean).join(' · ') %>
@@ -16,6 +16,11 @@
     <article class="job-body">
       <% if (company.about) { %><h2>About the company</h2><p class="prewrap"><%= company.about %></p><% } %>
       <dl class="job-facts">
+        <div><dt>Open jobs</dt><dd><%= jobs.length %></dd></div>
+        <% if (places.length) { %><div><dt>Hiring in</dt><dd><%= places.join(', ') %></dd></div><% } %>
+        <% if (categories.length) { %><div><dt>Kinds of jobs</dt><dd><%= categories.join(', ') %></dd></div><% } %>
+        <% const companyResponds = responseLabel(jobs[0]); %>
+        <% if (companyResponds) { %><div><dt>Replies</dt><dd class="responds-fast"><%= companyResponds === 'day' ? 'Usually opens applications within a day' : 'Usually opens applications within 3 days' %></dd></div><% } %>
         <% if (company.size) { %><div><dt>Company size</dt><dd><%= company.size %> people</dd></div><% } %>
         <% if (company.website) { %><div><dt>Website</dt><dd><a href="<%= company.website %>" rel="nofollow noopener noreferrer ugc" target="_blank"><%= company.website.replace(/^https:\/\//, '') %></a></dd></div><% } %>
       </dl>

@@ -97,6 +97,7 @@ Total: 727 routes.
 | POST | `/employer/company/verify` | employer | Company owners (company.verify) of the signed-in company only; representative optional and validated; up to 3 business documents per request, checked and encrypted |
 | POST | `/api/companies/:id/verification` | employer | Company owners (company.verify); the company in the address must be the session’s own (404 otherwise); documents checked and encrypted; contact details not sent back |
 | GET | `/api/companies/:id/verification` | employer | Members of the signed-in company only (404 for any other id); status, label and their own checks without reviewers’ notes |
+| GET | `/companies` | public | Anyone; the companies with a public page (active, with live real jobs), most open jobs first: name, industry, places hiring, open job count and what was checked, never contact details |
 | GET | `/companies/:id` | public | Anyone; only active companies with live jobs (404 otherwise); company name, place, website and what was checked, never contact details |
 | GET | `/admin/verifications/:id/documents/:docId` | team | verify.review (Admins, Recruitment and Account Managers, Verification Reviewers, Trust & Safety Managers); signed link valid 15 minutes; every opening in the hash-chained audit history; sent as an attachment, no-store |
 | POST | `/admin/risk/:id/review` | team | cases.view, plus jobs.moderate for listings or cases.manage for companies; verdict and reason recorded and audited |

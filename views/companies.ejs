@@ -1,0 +1,33 @@
+<%- include('partials/head') %>
+<%# Companies hiring now (company-trust.js): every company with a public page, most open jobs first. %>
+<section class="page-hero page-hero-sm">
+  <div class="container">
+    <nav class="breadcrumbs small" aria-label="Breadcrumb"><a href="/">Home</a> › <a href="/jobs">Jobs</a> › <span aria-current="page">Companies</span></nav>
+    <h1>Companies hiring now</h1>
+    <p class="lead">Employers with open jobs on <%= site.name %>, where they are hiring and what we checked about them.</p>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container">
+    <% if (!list.length) { %>
+      <p class="muted">No companies have open jobs of their own right now. <a href="/jobs">See all open jobs</a>.</p>
+    <% } else { %>
+      <ul class="company-list">
+        <% list.forEach(function (c) { %>
+          <li class="company-row">
+            <span class="job-logo" aria-hidden="true"><%= c.name.trim().charAt(0).toUpperCase() %></span>
+            <div>
+              <h2><a href="<%= c.href %>"><%= c.name %></a><% if (c.badge && c.badge.level === 'business') { %> <span class="verified small"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg><%= c.badge.label %></span><% } %></h2>
+              <p class="small muted"><%= [c.industry, c.places.length ? 'Hiring in ' + c.places.join(', ') : ''].filter(Boolean).join(' · ') %></p>
+              <p class="small"><b><%= c.openJobs %> open job<%= c.openJobs === 1 ? '' : 's' %></b><% if (c.responds && responseLabel(c.responds)) { %> · <span class="responds-fast"><%= responseLabel(c.responds) === 'day' ? 'Replies within a day' : 'Replies within 3 days' %></span><% } %></p>
+            </div>
+          </li>
+        <% }) %>
+      </ul>
+    <% } %>
+    <p class="small muted">A company is listed while it has live jobs of its own. What we checked is not a guarantee: never pay anyone to get a job.</p>
+  </div>
+</section>
+
+<%- include('partials/foot') %>

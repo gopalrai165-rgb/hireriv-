@@ -57,7 +57,7 @@ const trust = require('./trust');
 const ops = require('./ops-monitor').create();
 const HEARTBEAT_MS = (Number(process.env.HEARTBEAT_MINUTES) || 5) * 60000;
 // Set once trust & safety is registered; job reports become cases.
-const trustHooks = { reportJob: () => null, labelsFor: () => null, hrContactFor: () => null };
+const trustHooks = { reportJob: () => null, labelsFor: () => null, hrContactFor: () => null, companyPaths: () => [] };
 // Set once the CRM is registered; website inquiries and sign-ups become leads.
 const leadCapture = { capture: () => null };
 const { can: employerCan } = require('./employer-team');
@@ -780,7 +780,7 @@ function needPagesWithJobs() {
 }
 const cityPagesWithJobs = () => { const live = openJobs().filter((j) => !isSample(j)); return geo.CITY_PAGES.filter((c) => live.some((j) => c.locations.includes(j.location))); };
 app.get('/sitemap.xml', (req, res) =>
-  res.type('application/xml').send(seo.sitemap(BASE_URL, { jobs: openJobs().filter((j) => !isSample(j)), posts: livePosts(), staticPaths: ['/', '/jobs', ...catalog.WORK_PAGES.map((x) => `/jobs/${x.slug}`), ...catalog.JOB_INDUSTRIES.map((x) => `/jobs/industry/${x.slug}`), ...cityPagesWithJobs().map((c) => `/jobs/in/${c.slug}`), ...areaPagesWithJobs(), ...rolePagesWithJobs(), ...needPagesWithJobs(), ...salaryPagesWithData(), '/interview-tips', ...ROLE_PAGES.filter((r) => interviewTips.forRole(r.key)).map((r) => tipsPath(r)), '/categories', '/hire', '/services', ...catalog.SERVICES.map((x) => `/services/${x.slug}`), '/industries', ...catalog.INDUSTRIES.map((x) => `/industries/${x.slug}`), '/about', '/blog', '/contact', '/privacy', '/terms', '/job-posting-policy', '/help/job-terms', '/accessibility'] }))
+  res.type('application/xml').send(seo.sitemap(BASE_URL, { jobs: openJobs().filter((j) => !isSample(j)), posts: livePosts(), staticPaths: ['/', '/jobs', ...catalog.WORK_PAGES.map((x) => `/jobs/${x.slug}`), ...catalog.JOB_INDUSTRIES.map((x) => `/jobs/industry/${x.slug}`), ...cityPagesWithJobs().map((c) => `/jobs/in/${c.slug}`), ...areaPagesWithJobs(), ...rolePagesWithJobs(), ...needPagesWithJobs(), ...salaryPagesWithData(), '/companies', ...trustHooks.companyPaths(), '/interview-tips', ...ROLE_PAGES.filter((r) => interviewTips.forRole(r.key)).map((r) => tipsPath(r)), '/categories', '/hire', '/services', ...catalog.SERVICES.map((x) => `/services/${x.slug}`), '/industries', ...catalog.INDUSTRIES.map((x) => `/industries/${x.slug}`), '/about', '/blog', '/contact', '/privacy', '/terms', '/job-posting-policy', '/help/job-terms', '/accessibility'] }))
 );
 
 // Things a new install still needs before it is ready for visitors, shown to
@@ -2182,6 +2182,7 @@ const companyTrust = require('./company-trust').register(app, {
 });
 trustHooks.labelsFor = companyTrust.labelsFor;
 trustHooks.hrContactFor = companyTrust.hrContactFor;
+trustHooks.companyPaths = companyTrust.companyPaths;
 
 // The public API (/api/v1) for companies' own systems: credentials, tokens,
 // scopes, signed webhooks, the sandbox and the developer portal (integrations.js).
