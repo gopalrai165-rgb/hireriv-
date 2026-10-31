@@ -204,3 +204,22 @@ test('the team can decline a sign-up, which closes the account', async () => {
   assert.match(await login.text(), /not linked to an active company/);
   assert.equal(login.headers.get('set-cookie'), null);
 });
+
+test('Step 108: "Post similar" fills a new job form from one of the company\'s own jobs', async () => {
+  const list = await (await srv.request('/employer/jobs', { cookie: meera })).text();
+  const from = list.match(/href="\/employer\/jobs\/new\?from=([^"]+)"[^>]*>Post similar<\/a>/);
+  assert.ok(from, 'each of the company\'s own jobs has "Post similar"');
+  const mine = job(from[1]);
+  assert.equal(mine.employerId, emp('meera@acmefoods.in').id);
+  const count = srv.records('jobs').length;
+  const html = await (await srv.request(`/employer/jobs/new?from=${mine.id}`, { cookie: meera })).text();
+  assert.match(html, new RegExp(`Copied from "${mine.title}"`));
+  assert.match(html, /action="\/employer\/jobs"/, 'it posts as a new job');
+  assert.match(html, new RegExp(`name="title"[^>]*value="${mine.title}"`));
+  assert.doesNotMatch(html, /name="closesOn"[^>]*value="\d/, 'no closing date is copied');
+  // Someone else's job, the team's jobs or a made-up id give an empty form.
+  const other = srv.records('jobs').find((j) => j.employerId !== mine.employerId);
+  const blank = await (await srv.request(`/employer/jobs/new?from=${other ? other.id : 'hr-nope'}`, { cookie: meera })).text();
+  assert.doesNotMatch(blank, /Copied from/);
+  assert.equal(srv.records('jobs').length, count, 'nothing is saved until the employer saves it');
+});

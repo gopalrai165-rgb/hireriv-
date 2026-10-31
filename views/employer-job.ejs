@@ -4,6 +4,7 @@
   <div class="container">
     <%- include('partials/employer-nav', { heading: job.id ? 'Edit job' : 'Post a job', tab: 'jobs', errors: [] }) %>
     <% if (job.id) { %><p class="muted">Status: <b><%= { draft: 'Draft', pending: 'Waiting for review', open: 'Live', paused: 'Paused', closed: 'Closed', rejected: 'Needs changes' }[job.status] || job.status %></b> · <a href="/employer/jobs">Back to jobs</a></p><% } %>
+    <% if (!job.id && job.copiedFrom) { %><p class="notice" role="status">Copied from "<%= job.copiedFrom %>". Change what's different, pick new dates if you need them, then save it or send it for review. The original job is not changed.</p><% } %>
     <% if (needsMobile) { %><p class="notice" role="status">Verify your mobile number in <a href="/employer/settings">Settings</a> before sending this job for review. You can save a draft now.</p><% } %>
     <% if (!approved) { %><p class="notice" role="status">Our team is still checking your company. Save drafts and send jobs for review now; they go live once your company is verified.</p><% } %>
     <% if (job.status === 'rejected' && job.rejectedReason) { %><p class="notice notice-err">What to change: <%= job.rejectedReason %></p><% } %>

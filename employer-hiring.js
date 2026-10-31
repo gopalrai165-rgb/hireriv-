@@ -196,7 +196,16 @@ function register(app, deps) {
     page(res, 'employer-jobs', { title: 'Jobs', tab: 'jobs', rows, counts, status, labels: STATUS_LABELS, msg: String(req.query.msg || '') });
   });
 
-  app.get('/employer/jobs/new', requireEmployer, clients.allow('jobs.create'), (req, res) => jobFormPage(req, res, { mode: 'On-site', type: 'Full-time', status: 'draft', skills: [], responsibilities: [] }, []));
+// "Post a similar job": a new job form filled in from one of the company's
+  // own jobs (?from=<id>). Dates are left out (closing date, walk-in days),
+  // nothing is saved until the employer saves it, and it is checked like any new job.
+  const COPIED_FIELDS = ['title', 'location', 'mode', 'type', 'category', 'work', 'experience', 'pay', 'payNote', 'salary', 'education', 'schedule', 'shift', 'hours', 'openings', 'address', 'area', 'walkIn', 'walkInTime', 'walkInContact', 'english', 'eligibility', 'mustHave', 'physical', 'immediate', 'skills', 'description', 'responsibilities', 'qualifications', 'benefits', 'resume', 'overtime', 'workerCosts', 'minEducation', 'perks', 'bring', 'hrCall'];
+  const copyOf = (j) => ({ ...Object.fromEntries(COPIED_FIELDS.filter((k) => j[k] !== undefined).map((k) => [k, Array.isArray(j[k]) ? [...j[k]] : j[k] && typeof j[k] === 'object' ? { ...j[k] } : j[k]])), status: 'draft', copiedFrom: j.title });
+  app.get('/employer/jobs/new', requireEmployer, clients.allow('jobs.create'), (req, res) => {
+    const source = req.query.from ? companyJob(req, String(req.query.from).slice(0, 60)) : null;
+    if (source && selfManaged(source)) return jobFormPage(req, res, copyOf(source), []);
+    jobFormPage(req, res, { mode: 'On-site', type: 'Full-time', status: 'draft', skills: [], responsibilities: [] }, []);
+  });
 
   app.post('/employer/jobs', requireEmployer, clients.allow('jobs.create'), limit('employer-jobs', 30), sameOrigin, (req, res) => {
     const { job, errors } = createEmployerJob(req, req.body);
