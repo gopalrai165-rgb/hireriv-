@@ -1257,6 +1257,9 @@ code { background: var(--tint); padding: 0 .3em; border-radius: 4px; font-size: 
 /* Interview tips: questions open to show a good answer; the safety box stands out. */
 /* Companies hiring now (companies.ejs). */
 /* Recently viewed jobs on the Saved page. */
+/* The employer's job preview: a bar above the page saying it is a preview. */
+.preview-bar { background: #FFF7E0; border-bottom: 1px solid #F0D58A; padding: 12px 0; }
+.preview-bar p { margin: 4px 0; }
 .similar-cta { margin-top: 10px; }
 .similar-prompt { margin-top: 14px; }
 .recent-jobs { margin-top: 40px; }

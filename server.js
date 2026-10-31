@@ -1458,22 +1458,29 @@ app.get('/jobs/:id', (req, res, next) => {
     const qs = req.originalUrl.includes('?') ? req.originalUrl.slice(req.originalUrl.indexOf('?')) : '';
     return res.redirect(301, jobPath(job) + qs);
   }
-  const related = similarJobs(job);
-  const open = job.status === 'open';
   // Signed-in candidates get one-click applying with their profile.
   const account = candidateAccounts.accountForJob(req, job);
   if (account) res.set('Cache-Control', 'private, no-store');
-  if (open) siteAnalytics.track('job-view', WORK_KINDS.find((w) => w.key === workOf(job)).label, req);
+  if (job.status === 'open') siteAnalytics.track('job-view', WORK_KINDS.find((w) => w.key === workOf(job)).label, req);
+  res.render('job', jobPageLocals(req, job, { account }));
+});
+
+// What the job page shows. A preview (the employer's own job before it is
+// live) looks the same but can't be applied to, reported, remembered or indexed.
+function jobPageLocals(req, job, { account = null, preview = false } = {}) {
+  const related = preview ? [] : similarJobs(job);
+  const open = job.status === 'open';
   const verified = verifiedEmployer(job);
-  res.render('job', {
-    title: `${job.title} – ${job.location}`,
+  return {
+    preview,
+    title: `${preview ? 'Preview: ' : ''}${job.title} – ${job.location}`,
     page: 'jobs',
     job,
     related,
     account,
     match: account && open && !isSample(job) ? recommendations.matchFor(account.email, job) : null,
     msg: account ? String(req.query.msg || '').slice(0, 200) : '',
-    live: isLive(job),
+    live: preview || isLive(job),
     verifiedEmployer: verified,
     trustLabels: trustHooks.labelsFor(job),
     translation: jobTranslations ? jobTranslations.publicFor(job, req.locale) : null,
@@ -1482,7 +1489,7 @@ app.get('/jobs/:id', (req, res, next) => {
     quick: !resumeNeeded(job),
     whatsappApply: whatsappApplyLink(job),
     // "Getting ready for the interview?" links to the role's tips, or the general ones.
-    tipsRole: open ? jobRole(job) : null,
+    tipsRole: open || preview ? jobRole(job) : null,
     // One-tap apply on the similar jobs for signed-in job seekers.
     oneTap: account ? candidateAccounts.oneTapFor(req) : null,
     // After applying: call or WhatsApp the hiring contact, where they share it.
@@ -1490,13 +1497,13 @@ app.get('/jobs/:id', (req, res, next) => {
     metaDescription: `${job.title} (${job.type}, ${job.mode}) in ${job.location}${job.experience ? `, ${job.experience}` : ''}${job.salary ? `, ${job.salary}` : ''}. ${job.description}`.slice(0, 300),
     // Google requires expired postings to drop their JobPosting markup.
     // A verified employer's own job names that employer; agency jobs name Hireriv.
-    jsonLd: open && !isSample(job) ? [seo.jobPosting(job, site, BASE_URL, { employer: verified ? { name: job.company } : null }), seo.jobBreadcrumbs(job, BASE_URL)] : seo.jobBreadcrumbs(job, BASE_URL),
+    jsonLd: preview ? null : open && !isSample(job) ? [seo.jobPosting(job, site, BASE_URL, { employer: verified ? { name: job.company } : null }), seo.jobBreadcrumbs(job, BASE_URL)] : seo.jobBreadcrumbs(job, BASE_URL),
     ogImage: `${BASE_URL}/og/jobs/${job.id}.png?v=${og.jobVersion(job)}`,
     canonical: BASE_URL + jobPath(job),
     ogImageAlt: `${job.title} at ${job.company}, ${job.location}`,
-    noindex: !open || isSample(job),
-  });
-});
+    noindex: preview || !open || isSample(job),
+  };
+}
 
 // Open jobs like this one, for "Similar jobs" and "Apply to similar jobs":
 // the same role counts most, then the same category and the same city, then
@@ -2094,6 +2101,14 @@ const clients = employers.register(app, {
   readSubmissions, saveSubmission, getJobs: () => jobs, appStatuses: APP_STATUSES,
   writeSubmissions, uploadsDir: UPLOADS_DIR, skillMatch, placementsFor: (emp) => billing.forClient(emp), timesheetsFor: (emp) => timesheets.forClient(emp),
   sms: require('./sms'), companyContext: () => ({ cities: jobLocations().filter((l) => l !== 'Remote'), states: INDIAN_STATES }), events, notify, leadCapture,
+});
+
+// An employer's own job as job seekers will see it, at any stage (draft,
+// waiting for review, paused...), so they can check it before sending it.
+app.get('/employer/jobs/:id/preview', clients.requireEmployer, (req, res, next) => {
+  const job = jobs.find((j) => j.id === req.params.id && j.employerId === req.employer.id && employerCan(req.member, 'job.view', j));
+  if (!job) return next();
+  res.set('Cache-Control', 'private, no-store').set('X-Robots-Tag', 'noindex').render('job', jobPageLocals(req, job, { preview: true }));
 });
 
 // "Post a Job": signed-in clients go to their portal's requirement form;

@@ -8,7 +8,16 @@
   const pay = payLabel(job);
   const place = (areaLabel(job) ? areaLabel(job) + ', ' : '') + job.location + (stateName && stateName !== job.location ? ', ' + stateName : '');
 %>
-<% if (live && !isSample(job)) { %><span hidden data-viewed-job="<%= job.id %>"></span><% } %>
+<% if (live && !isSample(job) && !preview) { %><span hidden data-viewed-job="<%= job.id %>"></span><% } %>
+<% if (preview) { %>
+<%# The employer's preview (/employer/jobs/:id/preview): what job seekers will see, before the job is live. %>
+<div class="preview-bar" role="status">
+  <div class="container">
+    <p><b>Preview.</b> This is how job seekers will see this job. It is <b><%= { draft: 'a draft', pending: 'waiting for review', open: 'live', paused: 'paused', closed: 'closed', rejected: 'sent back for changes' }[job.status] || job.status %></b><%= job.status === 'open' ? '' : ', so nobody else can see it yet' %>.</p>
+    <p class="row-actions"><a class="btn btn-primary btn-sm" href="/employer/jobs/<%= job.id %>/edit">Edit this job</a><a class="btn btn-outline btn-sm" href="/employer/jobs">Back to your jobs</a></p>
+  </div>
+</div>
+<% } %>
 <section class="page-hero page-hero-sm">
   <span class="deco deco-spark" aria-hidden="true"></span><span class="deco deco-dots" aria-hidden="true"></span><span class="deco deco-squiggle" aria-hidden="true"></span>
   <div class="container">
@@ -20,7 +29,7 @@
         <% const tl = typeof trustLabels !== 'undefined' ? trustLabels : null; const badge = tl && tl.company; %>
         <p class="lead"><% if (tl && tl.profileUrl) { %><a href="<%= tl.profileUrl %>"><%= job.company %></a><% } else { %><%= job.company %><% } %><% if (badge && badge.level === 'business') { %> <span class="verified" title="<%= badge.explain %>"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg><%= badge.label %></span><% } else if (!badge && verifiedEmployer) { %> <span class="verified" title="<%= t('job.verifiedTitle', { site: site.name }) %>"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg><%= t('job.verified') %></span><% } %></p>
       </div>
-      <% if (live) { %><div class="job-actions"><button type="button" class="btn btn-outline btn-lg save-btn save-btn-lg" data-save-job="<%= job.id %>" aria-pressed="false"><svg class="i" aria-hidden="true"><use href="#i-bookmark"/></svg><span class="save-label"><%= t('job.saveJob') %></span></button><a href="#apply" class="btn btn-primary btn-lg"><%= t('job.applyNow') %></a></div><% } else { %><span class="pill st-rejected"><%= t('job.noLonger') %></span><% } %>
+      <% if (preview) { %><p class="small muted">Save and Apply buttons appear here once the job is live.</p><% } else if (live) { %><div class="job-actions"><button type="button" class="btn btn-outline btn-lg save-btn save-btn-lg" data-save-job="<%= job.id %>" aria-pressed="false"><svg class="i" aria-hidden="true"><use href="#i-bookmark"/></svg><span class="save-label"><%= t('job.saveJob') %></span></button><a href="#apply" class="btn btn-primary btn-lg"><%= t('job.applyNow') %></a></div><% } else { %><span class="pill st-rejected"><%= t('job.noLonger') %></span><% } %>
     </div>
     <ul class="job-meta job-meta-lg">
       <li><svg class="i" aria-hidden="true"><use href="#i-pin"/></svg><span class="sr-only"><%= t('job.location') %> </span><%= place %></li>
@@ -30,7 +39,7 @@
       <li><svg class="i" aria-hidden="true"><use href="#i-clock"/></svg><%= ago === 0 ? t('time.postedToday') : t('time.postedAgo', { count: ago }) %></li>
       <% if (live && job.closesOn) { %><li><svg class="i" aria-hidden="true"><use href="#i-clock"/></svg><%= t('job.applyBy', { date: formatDate(job.closesOn) }) %></li><% } %>
     </ul>
-    <% if (live) { %>
+    <% if (live && !preview) { %>
       <%# Shared links carry utm_source so Reports can show which shares bring applicants. %>
       <% const shareText = job.title + ' (' + job.location + ') – apply via ' + site.name + ': ' + canonical + '?utm_source=whatsapp'; %>
       <div class="share-row" data-share-url="<%= canonical %>?utm_source=share" data-share-title="<%= job.title %> – <%= site.name %>">
@@ -159,6 +168,7 @@
         <p class="small muted"><%= tl.note %><% if (tl.profileUrl) { %> <a href="<%= tl.profileUrl %>" lang="<%= locale %>"><%= t('job.moreAbout', { company: job.company }) %></a>.<% } %></p>
       </section>
       <% } %>
+      <% if (!preview) { %>
       <details class="report-job" id="report">
         <summary><%= t('job.report') %></summary>
         <p class="small muted"><%= t('job.reportText') %></p>
@@ -179,9 +189,13 @@
         <div class="notice" data-receipt hidden tabindex="-1" role="status"><p><%= t('job.reportRef') %> <b data-ref></b>. <a data-track href="#"><%= t('job.reportFollow') %></a> <%= t('job.reportPrivate') %></p></div>
         <p class="small muted"><%- th('job.cyber', { portal: html('<a href="https://cybercrime.gov.in" rel="noopener noreferrer" target="_blank">cybercrime.gov.in</a>'), helpline: html('<a href="tel:1930">1930</a>') }) %></p>
       </details>
+      <% } %>
     </article>
     <aside class="form-card sticky" id="apply" aria-labelledby="apply-h">
-      <% if (isSample(job)) { %>
+      <% if (preview) { %>
+        <h2 id="apply-h"><%= t('job.applyTitle') %></h2>
+        <p class="notice">Job seekers apply here once the job is live: with their profile in one tap, or with a short form<%= quick ? '' : ' and their resume' %>. Applications appear in your Applicants list.</p>
+      <% } else if (isSample(job)) { %>
         <h2 id="apply-h"><%= t('job.sampleTitle') %></h2>
         <p class="notice sample-note"><%= t('job.sampleText', { site: site.name }) %></p>
         <a href="/jobs" class="btn btn-primary btn-block"><%= t('common.seeOpenJobs') %></a>
@@ -230,7 +244,7 @@
   </div>
 </section>
 
-<% if (live) { %>
+<% if (live && !preview) { %>
 <%# Phones: shown by main.js while neither the top Apply button nor the form is on screen. %>
 <div class="sticky-apply" data-sticky-apply hidden>
   <span class="sticky-apply-text"><b<%- trLang %>><%= txt.title %></b><span class="small muted"><%= pay || place %></span></span>

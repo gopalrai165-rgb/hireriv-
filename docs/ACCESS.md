@@ -627,6 +627,7 @@ Total: 727 routes.
 | GET | `/employer/jobs/new` | employer | Owners and hiring managers |
 | POST | `/employer/jobs` | employer | Owners and hiring managers |
 | GET | `/employer/jobs/:id/edit` | employer | Own company's jobs only; owners, or hiring managers on jobs assigned to them |
+| GET | `/employer/jobs/:id/preview` | employer | Own company's jobs only, for members who may see the job (404 otherwise); the public job page at any stage, with no apply form, sharing, reporting or similar jobs; noindex and not cached |
 | POST | `/employer/jobs/:id` | employer | Owners, or hiring managers on assigned jobs; a live job goes back for review |
 | POST | `/employer/jobs/:id/publish` | employer | Owners, or hiring managers on assigned jobs; needs a verified mobile (self-signup companies) and is within job limits |
 | POST | `/employer/jobs/:id/pause` | employer | Owners, or hiring managers on assigned jobs; recorded in the activity log |

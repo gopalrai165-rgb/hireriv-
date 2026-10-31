@@ -232,3 +232,24 @@ test('Step 109: on phones the Jobs list becomes one card per job, with every but
   const css = require('node:fs').readFileSync(require('node:path').join(__dirname, '..', 'public', 'css', 'style.css'), 'utf8');
   assert.match(css, /\.cards-on-phone td\.row-actions \{ display: flex; flex-wrap: wrap;/);
 });
+
+test('Step 110: an employer previews their own job as job seekers will see it, before it is live', async () => {
+  const list = await (await srv.request('/employer/jobs', { cookie: meera })).text();
+  const id = list.match(/href="\/employer\/jobs\/([^"/]+)\/preview"/)[1];
+  const mine = job(id);
+  assert.notEqual(mine.status, 'open');
+  const res = await srv.request(`/employer/jobs/${id}/preview`, { cookie: meera });
+  assert.equal(res.status, 200);
+  assert.match(res.headers.get('x-robots-tag'), /noindex/);
+  const html = await res.text();
+  assert.match(html, /<b>Preview\.<\/b> This is how job seekers will see this job/);
+  assert.match(html, new RegExp(`<h1[^>]*>${mine.title}</h1>`));
+  assert.match(html, /Job seekers apply here once the job is live/);
+  assert.doesNotMatch(html, /action="\/api\/apply"|data-viewed-job|class="share-row"|id="report"|data-sticky-apply|save-btn-lg/);
+  assert.match(html, /<meta name="robots" content="noindex/);
+  // Not public, and not for other companies or signed-out visitors.
+  assert.equal((await srv.request(`/jobs/${id}`)).status, 404);
+  const ravi = srv.cookieFrom(await post('/employer/login', { email: 'ravi@other.in', password: 'another long phrase' }));
+  assert.equal((await srv.request(`/employer/jobs/${id}/preview`, { cookie: ravi })).status, 404);
+  assert.notEqual((await srv.request(`/employer/jobs/${id}/preview`)).status, 200);
+});
