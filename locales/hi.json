@@ -228,7 +228,8 @@
     "withoutHint": "जिन नौकरियों में ये चाहिए, वे छिप जाएँगी",
     "withoutChip": "{item} ज़रूरी नहीं",
     "area": "इलाका",
-    "anyArea": "पूरा {city}"
+    "anyArea": "पूरा {city}",
+    "needsChip": "ज़रूरी: {item}"
   },
   "card": {
     "sample": "नमूना विज्ञापन",

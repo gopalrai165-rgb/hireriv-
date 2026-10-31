@@ -228,7 +228,8 @@
     "withoutHint": "Hides jobs that need them",
     "withoutChip": "No {item} needed",
     "area": "Area",
-    "anyArea": "All of {city}"
+    "anyArea": "All of {city}",
+    "needsChip": "Needs: {item}"
   },
   "card": {
     "sample": "Sample listing",

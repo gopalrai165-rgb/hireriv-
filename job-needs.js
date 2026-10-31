@@ -179,6 +179,11 @@ const needsNoneOf = (job, keys) => {
   const need = itemsOf(job);
   return !keys.some((k) => need.includes(k));
 };
+// "Jobs for people with a bike": jobs that need every one of them.
+const needsAllOf = (job, keys) => {
+  const need = itemsOf(job);
+  return keys.every((k) => need.includes(k));
+};
 // For the profile match: each thing the job needs, and whether the person
 // said they have it (null: not said; a licence also counts from certificates).
 function itemsMet(job, has, certificates = []) {
@@ -204,5 +209,5 @@ function parseExtras(body) {
 module.exports = {
   ENGLISH_LEVELS, ENGLISH_LABELS, englishKey, englishFromKey, fitsEnglish, parse, walkInOf, walkInOpen, walkInDays, englishGap, validDate,
   EDUCATION, EDUCATION_KEYS, educationLabel, educationOf, educationNeeds, fitsEducation, educationFromProfile, educationMet, PERKS, PERK_KEYS, perkLabel, perksOf, hasPerks, parseExtras,
-  ITEMS, ITEM_KEYS, itemLabel, itemsOf, needsNoneOf, itemsMet,
+  ITEMS, ITEM_KEYS, itemLabel, itemsOf, needsNoneOf, needsAllOf, itemsMet,
 };
