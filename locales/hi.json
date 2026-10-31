@@ -1052,7 +1052,9 @@
     "itemsTitle": "आपके पास होना चाहिए",
     "itemTag": "ज़रूरी: {item}",
     "immediateTag": "तुरंत जॉइनिंग",
-    "immediateFilter": "सिर्फ़ तुरंत जॉइनिंग"
+    "immediateFilter": "सिर्फ़ तुरंत जॉइनिंग",
+    "perk_joiningbonus": "जॉइनिंग बोनस",
+    "perk_dailypay": "रोज़ / हफ़्ते का भुगतान"
   },
   "near": {
     "label": "पास में",

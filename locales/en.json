@@ -723,7 +723,9 @@
     "itemsTitle": "You need to have",
     "itemTag": "Needs: {item}",
     "immediateTag": "Immediate joining",
-    "immediateFilter": "Immediate joining only"
+    "immediateFilter": "Immediate joining only",
+    "perk_joiningbonus": "Joining bonus",
+    "perk_dailypay": "Daily / weekly pay"
   },
   "near": {
     "label": "Near",

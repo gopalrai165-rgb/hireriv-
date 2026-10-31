@@ -139,8 +139,11 @@ const PERKS = [
   { key: 'stay', label: 'Stay / room', re: /\b(accommodation|hostel|lodging|quarters|stay|room)\b/i },
   { key: 'transport', label: 'Transport', re: /\b(cab|transport|bus|pick[- ]?up|conveyance|travel allowance)\b/i },
   { key: 'pf', label: 'PF / ESI', re: /\b(PF|EPF|ESI|ESIC|provident fund)\b/i },
-  { key: 'incentives', label: 'Incentives', re: /\b(incentives?|bonus|commission)\b/i },
+  { key: 'incentives', label: 'Incentives', re: /\b(incentives?|(?<!joining\s)bonus|commission)\b/i },
   { key: 'insurance', label: 'Health insurance', re: /\b(insurance|mediclaim)\b/i },
+  // Step 100: money soon after joining, for people who can't wait a month.
+  { key: 'joiningbonus', label: 'Joining bonus', re: /\bjoining\s+bonus\b/i },
+  { key: 'dailypay', label: 'Daily / weekly payment', re: /\b(daily|weekly)\s+(pay(ment|out)?s?|salary|wages?)\b|\bpaid\s+(daily|weekly|every\s+(day|week))\b|\bsame[- ]day\s+pay(ment)?\b/i },
 ];
 const PERK_KEYS = PERKS.map((p) => p.key);
 const perkLabel = (key) => (PERKS.find((p) => p.key === key) || {}).label || '';

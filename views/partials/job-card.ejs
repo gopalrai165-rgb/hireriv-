@@ -16,7 +16,7 @@
   <% if (job.status === 'open' && startsNow(job)) { %><span class="tag tag-walkin"><%= t('needs.immediateTag') %></span><% } %>
   <% const cardItems = itemsOf(job).filter(function (k) { return k === 'bike' || k === 'laptop'; }); %>
   <% cardItems.forEach(function (k) { %><span class="tag tag-item"><%= t('needs.itemTag', { item: t('needs.item_' + k) }) %></span><% }) %>
-  <% const cardPerks = perksOf(job).filter(function (p) { return ['food', 'stay', 'transport', 'pf'].includes(p); }).slice(0, 3); %>
+  <% const cardPerks = perksOf(job).filter(function (p) { return ['dailypay', 'joiningbonus', 'food', 'stay', 'transport', 'pf'].includes(p); }).sort(function (a, b) { return ['dailypay', 'joiningbonus'].indexOf(b) - ['dailypay', 'joiningbonus'].indexOf(a); }).slice(0, 3); %>
   <% if (cardPerks.length) { %><span class="perk-tags"><% cardPerks.forEach(function (p) { %><span class="tag tag-perk"><%= t('needs.perk_' + p) %></span><% }) %></span><% } %>
   <ul class="job-meta">
     <li><svg class="i" aria-hidden="true"><use href="#i-pin"/></svg><span class="sr-only"><%= t('card.location') %> </span><%= areaLabel(job) ? areaLabel(job) + ', ' : '' %><%= job.location %></li>
