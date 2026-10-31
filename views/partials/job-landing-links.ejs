@@ -3,9 +3,11 @@
 <% const here = typeof current === 'undefined' ? '' : current; %>
 <div class="landing-links">
   <p class="small"><b>Popular searches</b></p>
-  <div class="chips"><% needPages.filter(function (x) { return 'need-' + x.slug !== here; }).forEach(function (x) { %><a class="chip chip-link" href="/jobs/<%= x.slug %>"><%= x.name %></a><% }) %></div>
+  <div class="chips"><% popularNeedPages.filter(function (x) { return 'need-' + x.slug !== here; }).forEach(function (x) { %><a class="chip chip-link" href="/jobs/<%= x.slug %>"><%= x.name %></a><% }) %></div>
   <details class="landing-more">
   <summary>More ways to find jobs: by kind of work, role, pay, city or industry</summary>
+  <p class="small"><b>More popular searches</b></p>
+  <div class="chips"><% needPages.filter(function (x) { return !x.popular && 'need-' + x.slug !== here; }).forEach(function (x) { %><a class="chip chip-link" href="/jobs/<%= x.slug %>"><%= x.name %></a><% }) %></div>
   <p class="small"><b>By kind of work</b></p>
   <div class="chips"><% catalog.WORK_PAGES.filter(function (w) { return w.slug !== here; }).forEach(function (w) { %><a class="chip chip-link" href="/jobs/<%= w.slug %>"><%= w.name %></a><% }) %></div>
   <p class="small"><b>By role</b></p>

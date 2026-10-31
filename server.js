@@ -840,25 +840,25 @@ const popularRoles = (live) => ROLE_PAGES.map((r) => ({ key: r.key, icon: r.icon
 // night shifts, jobs for freshers, walk-in interviews and jobs that need no
 // English. /jobs/<slug>, and (except working from home) /jobs/<slug>/in/<city>.
 const NEED_PAGES = [
-  { slug: 'work-from-home', label: 'Work from home', name: 'Work from home jobs', noCity: true, query: 'mode=Remote', matches: (j) => j.mode === 'Remote',
+  { slug: 'work-from-home', popular: true, label: 'Work from home', name: 'Work from home jobs', noCity: true, query: 'mode=Remote', matches: (j) => j.mode === 'Remote',
     about: 'Jobs you do from home: telecalling, customer support, data entry, content, IT and more, with the pay and hours on every listing.',
     tip: 'A real work-from-home job never asks you to pay for a kit, a laptop, training or "registration". Report any that does.' },
-  { slug: 'part-time', label: 'Part-time', name: 'Part-time jobs', query: 'type=Part-time', matches: (j) => j.type === 'Part-time',
+  { slug: 'part-time', popular: true, label: 'Part-time', name: 'Part-time jobs', query: 'type=Part-time', matches: (j) => j.type === 'Part-time',
     about: 'Part-time jobs for students, home-makers and anyone who wants a few hours of work a day, with the hours and pay on every listing.',
     tip: 'Check the working hours and days on the listing, and say which hours suit you when you apply.' },
   { slug: 'night-shift', label: 'Night shift', name: 'Night shift jobs', query: 'shift=Night', matches: (j) => j.shift === 'Night',
     about: 'Night shift jobs in warehouses, security, hospitals, hotels, BPOs and factories. Many pay a night allowance or give transport.',
     tip: 'Ask whether the employer gives transport or a night allowance, and check the listing for the hours.' },
-  { slug: 'freshers', label: 'Freshers', name: 'Jobs for freshers', query: 'experience=fresher', matches: (j) => search.searchJobs([j], { experience: 'fresher' }).jobs.length > 0,
+  { slug: 'freshers', popular: true, label: 'Freshers', name: 'Jobs for freshers', query: 'experience=fresher', matches: (j) => search.searchJobs([j], { experience: 'fresher' }).jobs.length > 0,
     about: 'Jobs that take freshers: no work experience needed. Many train you on the job, from delivery and retail to office and IT roles.',
     tip: 'No experience? Make a resume from your profile and say what work you want and what you are good at.' },
-  { slug: 'walk-in', label: 'Walk-in interviews', name: 'Walk-in interview jobs', query: 'walkin=1', matches: (j) => jobNeeds.walkInOpen(j, todayIst()),
+  { slug: 'walk-in', popular: true, label: 'Walk-in interviews', name: 'Walk-in interview jobs', query: 'walkin=1', matches: (j) => jobNeeds.walkInOpen(j, todayIst()),
     about: 'Jobs with walk-in interviews: go to the address on the listing on the walk-in days and meet the employer the same day.',
     tip: 'Take a photo ID and your resume if you have one. Check the walk-in days and time on the listing before you go.' },
-  { slug: 'no-english', label: 'No English needed', name: 'Jobs with no English needed', query: 'english=none', matches: (j) => j.english === 'None',
+  { slug: 'no-english', popular: true, label: 'No English needed', name: 'Jobs with no English needed', query: 'english=none', matches: (j) => j.english === 'None',
     about: 'Jobs where the employer says no English is needed: driving, delivery, warehouse, security, housekeeping, cooking, factory and more.',
     tip: 'Say on your profile which languages you speak: many employers look for Hindi, Marathi, Tamil or other local languages.' },
-  { slug: '10th-pass', label: '10th pass', name: '10th pass jobs', query: 'education=10th', matches: (j) => jobNeeds.fitsEducation(j, '10th'),
+  { slug: '10th-pass', popular: true, label: '10th pass', name: '10th pass jobs', query: 'education=10th', matches: (j) => jobNeeds.fitsEducation(j, '10th'),
     about: 'Jobs open to people who passed 10th: delivery, warehouse, security, retail, factory, driving and more, with the pay on every listing.',
     tip: 'Keep your 10th marksheet ready: many employers ask to see it at the interview. Never pay for a "certificate" or a job.' },
   { slug: '12th-pass', label: '12th pass', name: '12th pass jobs', query: 'education=12th', matches: (j) => jobNeeds.fitsEducation(j, '12th'),
@@ -873,10 +873,10 @@ const NEED_PAGES = [
   { slug: 'driving-licence', label: 'Driving licence jobs', name: 'Jobs that need a driving licence', query: 'needs=licence', matches: (j) => jobNeeds.needsAllOf(j, ['licence']),
     about: 'Jobs for people with a driving licence: car, cab, tempo and truck drivers, delivery riders and field roles. The licence type is on each listing.',
     tip: 'Check which licence the job needs (two-wheeler, LMV or heavy vehicle) and carry the original to the interview.' },
-  { slug: 'immediate-joining', label: 'Immediate joining', name: 'Immediate joining jobs', query: 'joining=immediate', matches: (j) => jobNeeds.startsNow(j),
+  { slug: 'immediate-joining', popular: true, label: 'Immediate joining', name: 'Immediate joining jobs', query: 'joining=immediate', matches: (j) => jobNeeds.startsNow(j),
     about: 'Jobs that need people who can start straight away: delivery, warehouse, security, retail, telecalling and more. Apply today and you could be working this week.',
     tip: 'Keep your ID, bank details and photos ready: employers who hire fast often ask for them on the first day.' },
-  { slug: 'daily-payment', label: 'Daily / weekly payment', name: 'Jobs with daily or weekly payment', query: 'perk=dailypay', matches: (j) => jobNeeds.hasPerks(j, ['dailypay']),
+  { slug: 'daily-payment', popular: true, label: 'Daily / weekly payment', name: 'Jobs with daily or weekly payment', query: 'perk=dailypay', matches: (j) => jobNeeds.hasPerks(j, ['dailypay']),
     about: 'Jobs that pay every day or every week instead of once a month: delivery, loading, events, construction, helpers and more.',
     tip: 'Ask how the money is paid (cash, UPI or bank) and get the daily or weekly rate in writing. Never pay to be "registered" for daily work.' },
   { slug: 'joining-bonus', label: 'Joining bonus', name: 'Jobs with a joining bonus', query: 'perk=joiningbonus', matches: (j) => jobNeeds.hasPerks(j, ['joiningbonus']),
@@ -889,6 +889,8 @@ const NEED_PAGES = [
 const needPageBySlug = (slug) => NEED_PAGES.find((x) => x.slug === slug) || null;
 const needPath = (need, city) => `/jobs/${need.slug}${city && !need.noCity ? `/in/${city.slug}` : ''}`;
 app.locals.needPages = NEED_PAGES;
+// The 8 shown first under "Popular searches"; the rest fold under "More ways to find jobs".
+app.locals.popularNeedPages = NEED_PAGES.filter((x) => x.popular);
 // Live jobs for a need, optionally in one city.
 const needJobs = (live, need, city) => live.filter((j) => need.matches(j) && (!city || city.locations.includes(j.location)));
 // Live jobs for a role, as its keyword search finds them, optionally in one city.

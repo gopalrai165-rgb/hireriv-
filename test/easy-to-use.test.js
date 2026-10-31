@@ -55,6 +55,12 @@ test('long link lists fold away, popular searches stay in view', async () => {
   const links = home.slice(home.indexOf('class="landing-links"'));
   assert.ok(links.indexOf('Popular searches') < links.indexOf('<details class="landing-more">'));
   assert.match(links, /<summary>More ways to find jobs: by kind of work, role, pay, city or industry<\/summary>/);
+  // Step 101: 8 popular searches stay in view; the rest fold away with the other links.
+  const shown = links.slice(0, links.indexOf('<details class="landing-more">'));
+  assert.equal((shown.match(/class="chip chip-link"/g) || []).length, 8);
+  assert.match(shown, /href="\/jobs\/immediate-joining"/);
+  assert.doesNotMatch(shown, /href="\/jobs\/joining-bonus"/);
+  assert.match(links, /<b>More popular searches<\/b>[\s\S]*href="\/jobs\/joining-bonus"/);
 });
 
 test('the install banner waits until the third page', () => {
