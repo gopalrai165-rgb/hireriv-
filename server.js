@@ -24,6 +24,8 @@ const pgMirror = require('./pg');
 const { jobSlug, jobPath, findJobBySlug, parsePost, parseSettings, SOCIAL, DEFAULT_JOB_CATEGORIES, DEFAULT_JOB_LOCATIONS, SAMPLE_TESTIMONIALS, MAX_TESTIMONIALS, WORK_KINDS, WORK_KEYS, CATEGORY_WORK, workOf, workOfCategory, RESUME_OPTIONS, resumeNeeded, JOB_GROUPS, inGroup } = require('./content');
 const interviews = require('./interviews');
 const { totals: appTotals } = require('./app-totals');
+// How fast each hiring team opens applications (response-time.js).
+const responseTime = require('./response-time');
 const employers = require('./employers');
 const candidates = require('./candidates');
 const { SHIFTS, INDIAN_STATES } = require('./candidate-profile');
@@ -646,6 +648,8 @@ app.locals.itemsOf = jobNeeds.itemsOf;
 app.locals.startsNow = jobNeeds.startsNow;
 // How many people applied to a live, real job (null for sample and closed
 // jobs), from the shared running totals (app-totals.js).
+// "Usually opens applications within a day / 3 days": 'day', '3days' or '' (response-time.js).
+app.locals.responseLabel = (job) => (job && job.status === 'open' && job.sample !== true ? responseTime.labelFor(job, db.snapshot('applications'), jobWithId) : '');
 app.locals.appliedCount = (job) => (job && job.status === 'open' && job.sample !== true ? appTotals(db.snapshot('applications')).perJob[job.id] || 0 : null);
 app.locals.areaLabel = geo.areaLabel;
 // Suggestions for the job forms' area box and Find Jobs' "Near" box.
@@ -1761,6 +1765,8 @@ const publicJob = (j) => ({
   eligibility: j.eligibility || [],
   benefits: j.benefits || [],
   immediateJoining: jobNeeds.startsNow(j),
+  // 'day' or '3days' when the hiring team usually opens applications that fast, else null.
+  hiringTeamResponds: (j.status === 'open' && j.sample !== true && responseTime.labelFor(j, db.snapshot('applications'), jobWithId)) || null,
   requirements: { licences: j.mustHave || [], startsImmediately: jobNeeds.startsNow(j), physical: j.physical || null },
   postedAt: j.posted,
   closesOn: j.closesOn || null,

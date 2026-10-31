@@ -193,6 +193,8 @@
         <h2 id="apply-h"><%= t('job.applyTitle') %></h2>
         <% const appliedN = appliedCount(job); %>
         <% if (appliedN !== null) { %><p class="applied-count small"><svg class="i" aria-hidden="true"><use href="#i-users"/></svg> <%= appliedN < 5 ? t('job.firstToApply') : t('job.appliedCount', { n: appliedN >= 100 ? '100+' : appliedN }) %><%= job.openings > 1 ? ' · ' + t('card.openings', { n: job.openings }) : '' %></p><% } %>
+        <% const responds = responseLabel(job); %>
+        <% if (responds) { %><p class="applied-count small responds-fast"><svg class="i" aria-hidden="true"><use href="#i-clock"/></svg> <%= t(responds === 'day' ? 'job.respondsDay' : 'job.responds3Days') %></p><% } %>
         <% if (msg) { %><p class="notice" role="status"><%= tm(msg) %></p><% } %>
         <% if (account && account.applied) { %>
           <p class="notice"><%= t('job.appliedOn', { date: formatDate(account.applied) }) %></p>

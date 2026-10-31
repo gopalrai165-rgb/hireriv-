@@ -246,7 +246,8 @@
     "applied": "Applied",
     "oneTap": "Apply now",
     "openings": "{n} openings",
-    "appliedCount": "{n} applied"
+    "appliedCount": "{n} applied",
+    "respondsFast": "Replies fast"
   },
   "time": {
     "today": "Today",
@@ -392,7 +393,9 @@
     "tipsAny": "Interview tips: what to bring and what they ask",
     "tipsWalkIn": "Walk-in interview tips",
     "appliedCount": "{n} people have applied",
-    "firstToApply": "Be one of the first to apply: fewer than 5 people have applied so far"
+    "firstToApply": "Be one of the first to apply: fewer than 5 people have applied so far",
+    "respondsDay": "The hiring team usually opens applications within a day",
+    "responds3Days": "The hiring team usually opens applications within 3 days"
   },
   "apply": {
     "quickNote": "Takes a minute. No resume or email needed: a recruiter will call you.",

@@ -14,6 +14,7 @@
   <% if (cardWalkIn && cardWalkIn.state !== 'over') { %><span class="tag tag-walkin"><%= t('needs.walkInBadge') %><%= walkInDays(cardWalkIn) ? ': ' + walkInDays(cardWalkIn) : '' %></span><% } %>
   <% if (job.english) { %><span class="tag tag-english"><%= t('needs.english' + job.english) %></span><% } %>
   <% if (job.status === 'open' && startsNow(job)) { %><span class="tag tag-walkin"><%= t('needs.immediateTag') %></span><% } %>
+  <% if (job.status === 'open' && responseLabel(job) === 'day') { %><span class="tag tag-fast"><%= t('card.respondsFast') %></span><% } %>
   <% const cardItems = itemsOf(job).filter(function (k) { return k === 'bike' || k === 'laptop'; }); %>
   <% cardItems.forEach(function (k) { %><span class="tag tag-item"><%= t('needs.itemTag', { item: t('needs.item_' + k) }) %></span><% }) %>
   <% const cardPerks = perksOf(job).filter(function (p) { return ['dailypay', 'joiningbonus', 'food', 'stay', 'transport', 'pf'].includes(p); }).sort(function (a, b) { return ['dailypay', 'joiningbonus'].indexOf(b) - ['dailypay', 'joiningbonus'].indexOf(a); }).slice(0, 3); %>

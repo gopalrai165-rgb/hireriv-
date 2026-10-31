@@ -1252,6 +1252,8 @@ code { background: var(--tint); padding: 0 .3em; border-radius: 4px; font-size: 
 .safety-box h2 { margin-top: 0; }
 /* How many applied and the openings (job page and cards). */
 .applied-count { display: flex; align-items: center; gap: 6px; color: var(--muted); margin: -4px 0 12px; }
+.responds-fast { color: #145C2E; }
+.tag-fast { background: #E8F0FE; color: #1A4FA0; }
 .applied-count .i { width: 16px; height: 16px; }
 .tips-link { margin: 18px 0; padding: 12px 16px; background: var(--tint); border-radius: var(--radius-sm); }
 .walkin-box h2 { margin-top: 0; font-size: 1.05rem; }
