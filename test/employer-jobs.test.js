@@ -223,3 +223,12 @@ test('Step 108: "Post similar" fills a new job form from one of the company\'s o
   assert.doesNotMatch(blank, /Copied from/);
   assert.equal(srv.records('jobs').length, count, 'nothing is saved until the employer saves it');
 });
+
+test('Step 109: on phones the Jobs list becomes one card per job, with every button on screen', async () => {
+  const list = await (await srv.request('/employer/jobs', { cookie: meera })).text();
+  assert.match(list, /<div class="dash-head dash-head-wrap">/);
+  assert.match(list, /<table class="cards-on-phone">/);
+  assert.match(list, /<td data-label="Status">/);
+  const css = require('node:fs').readFileSync(require('node:path').join(__dirname, '..', 'public', 'css', 'style.css'), 'utf8');
+  assert.match(css, /\.cards-on-phone td\.row-actions \{ display: flex; flex-wrap: wrap;/);
+});

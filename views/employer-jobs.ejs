@@ -4,7 +4,7 @@
   <div class="container">
     <%- include('partials/employer-nav', { heading: 'Jobs', tab: 'jobs' }) %>
 
-    <div class="dash-head">
+    <div class="dash-head dash-head-wrap">
       <nav class="filter-chips" aria-label="Filter by status">
         <a class="chip<%= !status ? ' is-active' : '' %>" href="/employer/jobs">All</a>
         <% Object.keys(labels).forEach(function (s) { %><a class="chip<%= status === s ? ' is-active' : '' %>" href="/employer/jobs?status=<%= s %>"><%= labels[s] %> (<%= counts[s] %>)</a><% }) %>
@@ -17,7 +17,7 @@
     <% } else { %>
       <% const PILL = { draft: 'st-new', pending: 'st-screening', open: 'st-hired', paused: 'st-screening', closed: 'st-rejected', rejected: 'st-rejected' }; %>
       <div class="table-wrap dash-card">
-        <table>
+        <table class="cards-on-phone">
           <thead><tr><th>Job</th><th>Status</th><th>Applicants</th><th>Updated</th><th></th></tr></thead>
           <tbody>
             <% const TR_LABEL = { approved: 'approved and shown', outdated: 'needs checking after an edit', draft: 'draft, not shown yet', none: 'not translated' }; const TR_SHORT = { outdated: 'check', draft: 'draft', none: 'add' }; %>
@@ -25,9 +25,9 @@
               <tr>
                 <td><b><%= j.title %></b><br><span class="muted small"><%= j.location %> · <%= j.type %><%= j.openings ? ' · ' + j.openings + ' opening' + (j.openings === 1 ? '' : 's') : '' %><%= own ? '' : ' · run by ' + site.name %></span>
                   <% if (j.status === 'rejected' && j.rejectedReason) { %><br><span class="small">To change: <%= j.rejectedReason %></span><% } %></td>
-                <td><span class="pill <%= PILL[j.status] || '' %>"><%= labels[j.status] || j.status %></span></td>
-                <td><% if (own && can('applicants.view', j)) { %><a href="/employer/applicants?job=<%= j.id %>"><b><%= j.applicants %></b><%= j.fresh ? ' (' + j.fresh + ' new)' : '' %></a><% } else { %><%= j.applicants %><% } %></td>
-                <td class="muted small"><%= formatDate(j.updatedAt || j.posted) %></td>
+                <td data-label="Status"><span class="pill <%= PILL[j.status] || '' %>"><%= labels[j.status] || j.status %></span></td>
+                <td data-label="Applicants"><% if (own && can('applicants.view', j)) { %><a href="/employer/applicants?job=<%= j.id %>"><b><%= j.applicants %></b><%= j.fresh ? ' (' + j.fresh + ' new)' : '' %></a><% } else { %><%= j.applicants %><% } %></td>
+                <td class="muted small" data-label="Updated"><%= formatDate(j.updatedAt || j.posted) %></td>
                 <td class="row-actions">
                   <% if (j.status === 'open') { %><a class="btn btn-outline btn-sm" href="<%= jobPath(j) %>" target="_blank" rel="noopener">View</a><% } %>
                   <% if (own && can('job.edit', j)) { %>

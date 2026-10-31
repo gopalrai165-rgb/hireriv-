@@ -895,6 +895,19 @@ a.contact-card:hover .service-icon { background: var(--c); color: #fff; }
 .dash-wide { grid-column: 1 / -1; }
 .dash-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin-bottom: 16px; }
 .dash-head h2 { font-size: 1.05rem; margin: 0; }
+/* A head with filters and a button: the button wraps under the filters on a phone instead of running off the screen. */
+.dash-head-wrap { flex-wrap: wrap; align-items: center; }
+/* Tables that become one card per row on phones (the employer's Jobs list), so every action stays on screen. */
+@media (max-width: 640px) {
+  .table-wrap:has(> .cards-on-phone) { overflow-x: visible; }
+  .cards-on-phone thead { display: none; }
+  .cards-on-phone, .cards-on-phone tbody, .cards-on-phone tr, .cards-on-phone td { display: block; width: 100%; }
+  .cards-on-phone tr { padding: 14px 16px; border-bottom: 1px solid var(--line); }
+  .cards-on-phone tr:last-child { border-bottom: 0; }
+  .cards-on-phone td { border: 0; padding: 3px 0; }
+  .cards-on-phone td[data-label]::before { content: attr(data-label) ": "; color: var(--muted); font-size: .85rem; }
+  .cards-on-phone td.row-actions { display: flex; flex-wrap: wrap; gap: 8px; padding-top: 10px; }
+}
 .dash-empty { margin: 8px 0; }
 @media (max-width: 860px) { .dash-grid { grid-template-columns: minmax(0, 1fr); } }
 
