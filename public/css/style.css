@@ -1241,6 +1241,16 @@ code { background: var(--tint); padding: 0 .3em; border-radius: 4px; font-size: 
 .tag-english { background: var(--tint); color: var(--ink); }
 .walkin-box { border: 1px solid #BFE3CB; background: #F3FBF5; border-radius: var(--radius-sm); padding: 14px 16px; margin: 18px 0; }
 .walkin-box.is-over { border-color: var(--line); background: var(--tint); }
+/* Interview tips: questions open to show a good answer; the safety box stands out. */
+.tips { max-width: 820px; }
+.tips > h2 { margin-top: 32px; }
+.tips-toc { display: block; padding: 12px 16px; background: var(--tint); border-radius: var(--radius-sm); margin-bottom: 8px; line-height: 2; }
+.tip-qa { border: 1px solid var(--line); border-radius: var(--radius-sm); margin: 8px 0; background: #fff; }
+.tip-qa > summary { cursor: pointer; font-weight: 700; padding: 12px 16px; min-height: 44px; }
+.tip-qa > p { margin: 0; padding: 0 16px 14px; }
+.safety-box { border: 1px solid #F3C6C6; background: #FFF6F6; border-radius: var(--radius-sm); padding: 14px 16px; margin: 28px 0; }
+.safety-box h2 { margin-top: 0; }
+.tips-link { margin: 18px 0; padding: 12px 16px; background: var(--tint); border-radius: var(--radius-sm); }
 .walkin-box h2 { margin-top: 0; font-size: 1.05rem; }
 .filter-check { align-self: center; white-space: nowrap; }
 /* Resume builder (account-resume-builder.ejs): the preview looks like a sheet of paper. */

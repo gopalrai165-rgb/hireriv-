@@ -31,6 +31,8 @@ const { SHIFTS, INDIAN_STATES } = require('./candidate-profile');
 const jobNeeds = require('./job-needs');
 // What roles pay, from the pay on real listings (salaries.js).
 const salaries = require('./salaries');
+// Interview tips for job seekers, in general and by role (interview-tips.js).
+const interviewTips = require('./interview-tips');
 const employerHiring = require('./employer-hiring');
 const i18n = require('./i18n');
 const employerAts = require('./employer-ats');
@@ -770,7 +772,7 @@ function needPagesWithJobs() {
 }
 const cityPagesWithJobs = () => { const live = openJobs().filter((j) => !isSample(j)); return geo.CITY_PAGES.filter((c) => live.some((j) => c.locations.includes(j.location))); };
 app.get('/sitemap.xml', (req, res) =>
-  res.type('application/xml').send(seo.sitemap(BASE_URL, { jobs: openJobs().filter((j) => !isSample(j)), posts: livePosts(), staticPaths: ['/', '/jobs', ...catalog.WORK_PAGES.map((x) => `/jobs/${x.slug}`), ...catalog.JOB_INDUSTRIES.map((x) => `/jobs/industry/${x.slug}`), ...cityPagesWithJobs().map((c) => `/jobs/in/${c.slug}`), ...areaPagesWithJobs(), ...rolePagesWithJobs(), ...needPagesWithJobs(), ...salaryPagesWithData(), '/categories', '/hire', '/services', ...catalog.SERVICES.map((x) => `/services/${x.slug}`), '/industries', ...catalog.INDUSTRIES.map((x) => `/industries/${x.slug}`), '/about', '/blog', '/contact', '/privacy', '/terms', '/job-posting-policy', '/help/job-terms', '/accessibility'] }))
+  res.type('application/xml').send(seo.sitemap(BASE_URL, { jobs: openJobs().filter((j) => !isSample(j)), posts: livePosts(), staticPaths: ['/', '/jobs', ...catalog.WORK_PAGES.map((x) => `/jobs/${x.slug}`), ...catalog.JOB_INDUSTRIES.map((x) => `/jobs/industry/${x.slug}`), ...cityPagesWithJobs().map((c) => `/jobs/in/${c.slug}`), ...areaPagesWithJobs(), ...rolePagesWithJobs(), ...needPagesWithJobs(), ...salaryPagesWithData(), '/interview-tips', ...ROLE_PAGES.filter((r) => interviewTips.forRole(r.key)).map((r) => tipsPath(r)), '/categories', '/hire', '/services', ...catalog.SERVICES.map((x) => `/services/${x.slug}`), '/industries', ...catalog.INDUSTRIES.map((x) => `/industries/${x.slug}`), '/about', '/blog', '/contact', '/privacy', '/terms', '/job-posting-policy', '/help/job-terms', '/accessibility'] }))
 );
 
 // Things a new install still needs before it is ready for visitors, shown to
@@ -1360,6 +1362,34 @@ function salaryPagesWithData() {
   })];
 }
 
+// ---------- interview tips ----------
+// /interview-tips for any interview, /interview-tips/<role> for each role page.
+const tipsPath = (role) => `/interview-tips${role ? `/${role.slug}` : ''}`;
+// The role a job belongs to, for its "prepare for the interview" link (null when none fits).
+const jobRole = (job) => ROLE_PAGES.find((r) => interviewTips.forRole(r.key) && roleJobs([job], r).length) || null;
+app.get('/interview-tips', (req, res) => {
+  res.render('interview-tips', {
+    title: 'Interview tips', page: 'jobs', role: null, tips: null, general: interviewTips.GENERAL, safety: interviewTips.SAFETY,
+    roles: ROLE_PAGES.filter((r) => interviewTips.forRole(r.key)).map((r) => ({ label: r.label, href: tipsPath(r) })),
+    metaDescription: `How to get ready for a job interview in India: what to bring, common questions and good answers, questions to ask, walk-in and phone interviews, and staying safe. Free tips from ${site.name}.`,
+    canonical: `${BASE_URL}/interview-tips`,
+  });
+});
+app.get('/interview-tips/:role', (req, res, next) => {
+  const role = rolePageBySlug(req.params.role);
+  const tips = role && interviewTips.forRole(role.key);
+  if (!tips) return next();
+  const pay = roleSalary(role, null).india;
+  res.render('interview-tips', {
+    title: `${role.label} interview tips`, page: 'jobs', role, tips, general: interviewTips.GENERAL, safety: interviewTips.SAFETY,
+    jobsHref: rolePath(role), salaryHref: pay.enough ? salaryPath(role) : '', pay: pay.enough ? pay : null,
+    roles: ROLE_PAGES.filter((r) => r !== role && interviewTips.forRole(r.key)).map((r) => ({ label: r.label, href: tipsPath(r) })),
+    metaDescription: `${role.label} interview tips: what to bring, the questions employers ask with good answers, the skills to show and what to ask them. Free from ${site.name}.`,
+    canonical: `${BASE_URL}${tipsPath(role)}`,
+  });
+});
+app.locals.tipsPath = tipsPath;
+
 for (const need of NEED_PAGES) {
   app.get(`/jobs/${need.slug}`, (req, res) => jobLanding(req, res, needLanding(need), 'need'));
   if (need.noCity) continue;
@@ -1408,6 +1438,8 @@ app.get('/jobs/:id', (req, res, next) => {
     reportReasons: REPORT_REASONS,
     quick: !resumeNeeded(job),
     whatsappApply: whatsappApplyLink(job),
+    // "Getting ready for the interview?" links to the role's tips, or the general ones.
+    tipsRole: open ? jobRole(job) : null,
     // After applying: call or WhatsApp the hiring contact, where they share it.
     hrContact: account && account.applied && open ? hrContactFor(job) : null,
     metaDescription: `${job.title} (${job.type}, ${job.mode}) in ${job.location}${job.experience ? `, ${job.experience}` : ''}${job.salary ? `, ${job.salary}` : ''}. ${job.description}`.slice(0, 300),

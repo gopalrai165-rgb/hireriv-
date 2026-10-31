@@ -12,6 +12,8 @@
   <div class="chips"><% rolePages.filter(function (r) { return 'role-' + r.slug !== here; }).forEach(function (r) { %><a class="chip chip-link" href="/jobs/role/<%= r.slug %>"><%= r.label %> jobs</a><% }) %></div>
   <p class="small"><b>Salaries</b></p>
   <div class="chips"><a class="chip chip-link" href="/salaries">Salaries by job</a><% rolePages.slice(0, 6).forEach(function (r) { %><a class="chip chip-link" href="/salaries/<%= r.slug %>"><%= r.label %> salary</a><% }) %></div>
+  <p class="small"><b>Interview tips</b></p>
+  <div class="chips"><a class="chip chip-link" href="/interview-tips">How to get ready for an interview</a><% rolePages.slice(0, 6).forEach(function (r) { %><a class="chip chip-link" href="/interview-tips/<%= r.slug %>"><%= r.label %> interview tips</a><% }) %></div>
   <p class="small"><b>By city</b></p>
   <div class="chips"><% majorCityPages.filter(function (c) { return c.slug !== here; }).forEach(function (c) { %><a class="chip chip-link" href="/jobs/in/<%= c.slug %>">Jobs in <%= c.name %></a><% }) %></div>
   <p class="small"><b>By industry</b></p>

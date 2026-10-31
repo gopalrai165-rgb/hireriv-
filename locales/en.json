@@ -383,7 +383,11 @@
     "callHr": "Call HR",
     "whatsappHr": "WhatsApp HR",
     "hrWhatsappText": "Hello, I applied for {title} on {site}.",
-    "hrNote": "Shown because you applied. Please call during working hours. {site} never asks for money for a job."
+    "hrNote": "Shown because you applied. Please call during working hours. {site} never asks for money for a job.",
+    "tipsTitle": "Getting ready for the interview?",
+    "tipsRole": "{role} interview tips: what to bring and what they ask",
+    "tipsAny": "Interview tips: what to bring and what they ask",
+    "tipsWalkIn": "Walk-in interview tips"
   },
   "apply": {
     "quickNote": "Takes a minute. No resume or email needed: a recruiter will call you.",

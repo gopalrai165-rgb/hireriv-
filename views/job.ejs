@@ -85,9 +85,12 @@
               <% if (wi.address) { %><li><%= wi.address %></li><% } %>
               <% if (wi.contact) { %><li><%= t('needs.walkInAsk', { who: wi.contact }) %></li><% } %>
             </ul>
-            <p class="small muted"><%= t('needs.walkInBring') %></p>
+            <p class="small muted"><%= t('needs.walkInBring') %> <a href="/interview-tips#walk-in"><%= t('job.tipsWalkIn') %></a></p>
           <% } %>
         </section>
+      <% } %>
+      <% if (live) { %>
+        <p class="tips-link small"><b><%= t('job.tipsTitle') %></b> <a href="<%= tipsRole ? tipsPath(tipsRole) : '/interview-tips' %>"><%= tipsRole ? t('job.tipsRole', { role: tipsRole.label }) : t('job.tipsAny') %></a></p>
       <% } %>
       <h2><%= t('job.details') %></h2>
       <dl class="job-facts">

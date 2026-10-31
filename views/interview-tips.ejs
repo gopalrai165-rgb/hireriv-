@@ -1,0 +1,71 @@
+<%- include('partials/head') %>
+<%# Interview tips (interview-tips.js): for any interview, or for one role. %>
+<section class="page-hero">
+  <div class="container">
+    <nav class="breadcrumbs small" aria-label="Breadcrumb"><a href="/">Home</a> › <a href="/jobs">Jobs</a> › <% if (!role) { %><span aria-current="page">Interview tips</span><% } else { %><a href="/interview-tips">Interview tips</a> › <span aria-current="page"><%= role.label %></span><% } %></nav>
+    <span class="eyebrow">Interview tips</span>
+    <% if (!role) { %>
+      <h1>How to get ready for a job interview</h1>
+      <p class="lead">What to bring, what they ask and what to say, from the day before to the offer letter.</p>
+    <% } else { %>
+      <h1><%= role.label %> interview tips</h1>
+      <p class="lead"><%= tips.intro %></p>
+      <div class="hero-ctas"><a href="<%= jobsHref %>" class="btn btn-primary btn-lg"><%= role.label %> jobs <svg class="i" aria-hidden="true"><use href="#i-arrow"/></svg></a></div>
+    <% } %>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container tips">
+    <% if (role) { %>
+      <h2>What to bring</h2>
+      <ul class="checks"><% tips.bring.forEach(function (b) { %><li><%= b %></li><% }) %></ul>
+      <p class="small muted">And the usual: a photo ID with a photocopy, your resume if you have one, and two passport-size photos.</p>
+
+      <h2>Questions they often ask</h2>
+      <% tips.questions.forEach(function (q) { %>
+        <details class="tip-qa">
+          <summary><%= q[0] %></summary>
+          <p><%= q[1] %></p>
+        </details>
+      <% }) %>
+
+      <h2>What to show them</h2>
+      <div class="chips"><% tips.show.forEach(function (s) { %><span class="chip"><%= s %></span><% }) %></div>
+
+      <h2>Good questions to ask</h2>
+      <ul class="checks"><% tips.ask.forEach(function (a) { %><li><%= a %></li><% }) %></ul>
+      <% if (pay) { %><p>Know the pay before you talk about salary: most <%= role.label.toLowerCase() %> jobs on <%= site.name %> pay <b><%= inr(pay.typicalLow) %> – <%= inr(pay.typicalHigh) %> a month</b> (<a href="<%= salaryHref %>">salary details</a>).</p><% } %>
+
+      <h2>For any interview</h2>
+      <p>The basics, from the day before to the offer letter: <a href="/interview-tips">how to get ready for a job interview</a>.</p>
+    <% } else { %>
+      <nav class="tips-toc small" aria-label="On this page">
+        <b>On this page:</b>
+        <% general.forEach(function (s, i) { %><a href="#<%= s.id %>"><%= s.heading %></a><%= i < general.length - 1 ? ' · ' : '' %><% }) %>
+      </nav>
+      <% general.forEach(function (s) { %>
+        <h2 id="<%= s.id %>"><%= s.heading %></h2>
+        <% if (s.points) { %><ul class="checks"><% s.points.forEach(function (p) { %><li><%= p %></li><% }) %></ul><% } %>
+        <% if (s.qa) { s.qa.forEach(function (q) { %>
+          <details class="tip-qa">
+            <summary><%= q[0] %></summary>
+            <p><%= q[1] %></p>
+          </details>
+        <% }) } %>
+        <% if (s.id === 'bring') { %><p class="small"><a href="/account/resume-builder">Make a resume free</a></p><% } %>
+      <% }) %>
+    <% } %>
+
+    <section class="safety-box" aria-labelledby="safety-h">
+      <h2 id="safety-h">Stay safe</h2>
+      <ul class="checks"><% safety.forEach(function (s) { %><li><%= s %></li><% }) %></ul>
+      <p class="small">Asked for money or something feels wrong? <a href="/contact">Tell us</a>, or use "Report this job" on the listing.</p>
+    </section>
+
+    <h2><%= role ? 'Tips for other jobs' : 'Tips for your job' %></h2>
+    <div class="chips"><% roles.forEach(function (r) { %><a class="chip chip-link" href="<%= r.href %>"><%= r.label %></a><% }) %></div>
+  </div>
+</section>
+
+<%- include('partials/foot') %>

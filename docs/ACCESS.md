@@ -394,6 +394,8 @@ Total: 727 routes.
 | GET | `/salaries` | public | Typical monthly pay by role, from real listings with pay (salaries.js); figures only, never a listing's employer or applicants |
 | GET | `/salaries/:role` | public | One role across India, by city and for freshers; noindex when too few listings have pay |
 | GET | `/salaries/:role/in/:city` | public | One role in one city, same rules |
+| GET | `/interview-tips` | public | Interview tips for any job: what to bring, common questions, safety (interview-tips.js); fixed content, no data |
+| GET | `/interview-tips/:role` | public | Interview tips for one role page role, with its typical pay when enough listings show it |
 | GET | `/jobs/:id` | public |  |
 | GET | `/saved` | public |  |
 | GET | `/saved/cards` | public |  |

@@ -54,6 +54,7 @@
         </table></div>
       <% } %>
       <% if (cityLinks.length) { %><p class="small">Nearby: <% cityLinks.forEach(function (c, i) { %><a href="<%= c.href %>"><%= c.label %></a><%= i < cityLinks.length - 1 ? ' · ' : '' %><% }) %></p><% } %>
+      <p><a href="<%= tipsPath(role) %>"><%= role.label %> interview tips</a>: what to bring, what they ask and how to talk about pay.</p>
       <h2>Other jobs</h2>
       <div class="chips"><% otherRoles.forEach(function (r) { %><a class="chip chip-link" href="<%= r.href %>"><%= r.label %></a><% }) %></div>
     <% } %>

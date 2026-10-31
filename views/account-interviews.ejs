@@ -5,6 +5,7 @@
     <%- include('partials/account-nav', { heading: 'Interviews' }) %>
     <section class="dash-card dash-wide">
       <div class="dash-head"><h2>Coming up</h2></div>
+      <p class="small">Getting ready? <a href="/interview-tips">Interview tips: what to bring, what they ask and what to say</a>.</p>
       <% if (!upcoming.length) { %>
         <p class="muted dash-empty">No interviews scheduled. When a recruiter books one, it appears here and we email you the details.</p>
       <% } else { %>
