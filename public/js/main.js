@@ -191,6 +191,9 @@ document.querySelectorAll('form.js-form').forEach((form) => {
         forgetDraft(form);
         resetReview(form);
         toast(data.message);
+        // After applying: point to similar jobs on the same page (job.ejs).
+        const similar = form.dataset.applyForm !== undefined && document.querySelector('[data-similar-prompt]');
+        if (similar) { similar.hidden = false; similar.focus(); }
         // A report's reference and private tracking link stay on the page.
         const receipt = form.parentElement.querySelector('[data-receipt]');
         if (receipt && data.reference && data.trackUrl) {

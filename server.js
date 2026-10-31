@@ -1458,7 +1458,7 @@ app.get('/jobs/:id', (req, res, next) => {
     const qs = req.originalUrl.includes('?') ? req.originalUrl.slice(req.originalUrl.indexOf('?')) : '';
     return res.redirect(301, jobPath(job) + qs);
   }
-  const related = openJobs().filter((j) => j.category === job.category && j.id !== job.id).slice(0, 3);
+  const related = similarJobs(job);
   const open = job.status === 'open';
   // Signed-in candidates get one-click applying with their profile.
   const account = candidateAccounts.accountForJob(req, job);
@@ -1483,6 +1483,8 @@ app.get('/jobs/:id', (req, res, next) => {
     whatsappApply: whatsappApplyLink(job),
     // "Getting ready for the interview?" links to the role's tips, or the general ones.
     tipsRole: open ? jobRole(job) : null,
+    // One-tap apply on the similar jobs for signed-in job seekers.
+    oneTap: account ? candidateAccounts.oneTapFor(req) : null,
     // After applying: call or WhatsApp the hiring contact, where they share it.
     hrContact: account && account.applied && open ? hrContactFor(job) : null,
     metaDescription: `${job.title} (${job.type}, ${job.mode}) in ${job.location}${job.experience ? `, ${job.experience}` : ''}${job.salary ? `, ${job.salary}` : ''}. ${job.description}`.slice(0, 300),
@@ -1495,6 +1497,28 @@ app.get('/jobs/:id', (req, res, next) => {
     noindex: !open || isSample(job),
   });
 });
+
+// Open jobs like this one, for "Similar jobs" and "Apply to similar jobs":
+// the same role counts most, then the same category and the same city, then
+// the same kind of work; a job needs something besides the kind of work in
+// common. Real jobs before samples, then the best match, then the newest.
+function similarJobs(job, n = 4) {
+  const role = jobRole(job);
+  const city = geo.cityPageFor(job.location);
+  const work = workOf(job);
+  const scored = [];
+  for (const j of openJobs()) {
+    if (j.id === job.id) continue;
+    const sameRole = role && roleJobs([j], role).length ? 3 : 0;
+    const sameCategory = j.category === job.category ? 2 : 0;
+    const samePlace = j.location === job.location || (city && city.locations.includes(j.location)) ? 2 : 0;
+    const score = sameRole + sameCategory + samePlace + (workOf(j) === work ? 1 : 0);
+    if (sameRole + sameCategory + samePlace >= 2) scored.push({ j, score });
+  }
+  return scored
+    .sort((a, b) => Number(isSample(a.j)) - Number(isSample(b.j)) || b.score - a.score || String(b.j.posted).localeCompare(String(a.j.posted)))
+    .slice(0, n).map((x) => x.j);
+}
 
 // Saved jobs live in the visitor's browser (localStorage); the page asks the
 // server to render cards for those ids. Closed jobs stay listed so people see why.

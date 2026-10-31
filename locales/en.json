@@ -397,7 +397,10 @@
     "appliedCount": "{n} people have applied",
     "firstToApply": "Be one of the first to apply: fewer than 5 people have applied so far",
     "respondsDay": "The hiring team usually opens applications within a day",
-    "responds3Days": "The hiring team usually opens applications within 3 days"
+    "responds3Days": "The hiring team usually opens applications within 3 days",
+    "similarApplied": "Apply to similar jobs",
+    "similarCta": "Apply to similar jobs",
+    "similarSent": "Your application is in."
   },
   "apply": {
     "quickNote": "Takes a minute. No resume or email needed: a recruiter will call you.",

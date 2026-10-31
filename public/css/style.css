@@ -1244,6 +1244,8 @@ code { background: var(--tint); padding: 0 .3em; border-radius: 4px; font-size: 
 /* Interview tips: questions open to show a good answer; the safety box stands out. */
 /* Companies hiring now (companies.ejs). */
 /* Recently viewed jobs on the Saved page. */
+.similar-cta { margin-top: 10px; }
+.similar-prompt { margin-top: 14px; }
 .recent-jobs { margin-top: 40px; }
 .recent-jobs h2 { margin: 0; }
 .recent-link { margin: 0 0 8px; }

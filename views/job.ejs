@@ -211,6 +211,7 @@
             </div>
           <% } %>
           <a href="/account" class="btn btn-outline btn-block"><%= t('job.trackIt') %></a>
+          <% if (related.length) { %><a href="#similar" class="btn btn-primary btn-block similar-cta"><%= t('job.similarCta') %></a><% } %>
         <% } else if (account && !account.missing.length) { %>
           <div class="one-click">
             <p class="small muted"><%= t('job.oneClickIntro') %></p>
@@ -221,6 +222,7 @@
         <% } else { %>
           <% if (account) { %><p class="notice small"><%- th('job.addMissing', { missing: account.missing.map(function (m) { return tm(m); }).join(' ' + t('job.and') + ' '), profile: html('<a href="/account#profile">' + esc(t('job.yourProfile')) + '</a>') }) %><% if (account.missing.indexOf('a resume') !== -1) { %> <a href="/account/resume-builder"><%= t('job.makeResume') %></a><% } %></p><% } %>
           <%- include('partials/apply-form', { jobId: job.id, quick: quick, whatsappApply: whatsappApply }) %>
+          <% if (related.length) { %><p class="notice small similar-prompt" data-similar-prompt hidden tabindex="-1"><%= t('job.similarSent') %> <a href="#similar"><%= t('job.similarCta') %></a></p><% } %>
           <% if (!account) { %><p class="small muted one-click-hint"><%= t('job.haveAccount') %> <a href="/account/login"><%= t('job.signIn') %></a> <%= t('job.oneClickHint') %> <a href="/account/register"><%= t('job.createFree') %></a>.</p><% } %>
         <% } %>
       <% } %>
@@ -237,11 +239,11 @@
 <% } %>
 
 <% if (related.length) { %>
-<section class="section section-tint">
+<section class="section section-tint" id="similar" tabindex="-1">
   <div class="container">
-    <div class="section-head row"><h2><%= t('job.similar') %></h2></div>
+    <div class="section-head row"><h2><%= account && account.applied ? t('job.similarApplied') : t('job.similar') %></h2></div>
     <div class="jobs-grid">
-      <% related.forEach(function (job) { %><%- include('partials/job-card', { job: job }) %><% }) %>
+      <% related.forEach(function (job) { %><%- include('partials/job-card', { job: job, oneTap: oneTap }) %><% }) %>
     </div>
   </div>
 </section>
