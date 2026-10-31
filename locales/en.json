@@ -249,7 +249,8 @@
     "oneTap": "Apply now",
     "openings": "{n} openings",
     "appliedCount": "{n} applied",
-    "respondsFast": "Replies fast"
+    "respondsFast": "Replies fast",
+    "notInterested": "Not interested"
   },
   "time": {
     "today": "Today",
@@ -673,7 +674,11 @@
     "suggestTitle": "Job",
     "suggestSkill": "Skill",
     "suggestCity": "City",
-    "suggestCategory": "Category"
+    "suggestCategory": "Category",
+    "hiddenOne": "1 job you are not interested in is hidden.",
+    "hiddenMany": "{n} jobs you are not interested in are hidden.",
+    "showHidden": "Show them again",
+    "hiddenToast": "Hidden. You won't see this job in your lists on this device."
   },
   "values": {
     "type": {},

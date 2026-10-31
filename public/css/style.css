@@ -858,6 +858,10 @@ a.contact-card:hover .service-icon { background: var(--c); color: #fff; }
 
 /* ============ Saved jobs ============ */
 .save-btn { display: none; }
+/* "Not interested" (main.js): only with the script, which does the hiding. */
+.hide-btn { display: none; color: var(--muted); }
+.js .hide-btn { display: inline-flex; min-height: 44px; align-items: center; }
+.hidden-note { margin: 0 0 12px; }
 .js .save-btn { display: inline-flex; }
 .save-btn:not(.btn) { align-items: center; justify-content: center; width: 34px; height: 34px; padding: 0; border-radius: 50%; border: 1px solid var(--line); background: #fff; color: var(--muted); cursor: pointer; transition: color .2s, border-color .2s, background .2s; }
 .save-btn:not(.btn):hover { color: var(--primary); border-color: var(--primary); }

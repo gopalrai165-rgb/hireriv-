@@ -249,7 +249,8 @@
     "oneTap": "अभी आवेदन करें",
     "openings": "{n} पद",
     "appliedCount": "{n} ने आवेदन किया",
-    "respondsFast": "जल्दी जवाब"
+    "respondsFast": "जल्दी जवाब",
+    "notInterested": "दिलचस्पी नहीं"
   },
   "time": {
     "today": "आज",
@@ -673,7 +674,11 @@
     "suggestTitle": "नौकरी",
     "suggestSkill": "कौशल",
     "suggestCity": "शहर",
-    "suggestCategory": "श्रेणी"
+    "suggestCategory": "श्रेणी",
+    "hiddenOne": "1 नौकरी जिसमें आपकी दिलचस्पी नहीं है, छिपाई गई है।",
+    "hiddenMany": "{n} नौकरियाँ जिनमें आपकी दिलचस्पी नहीं है, छिपाई गई हैं।",
+    "showHidden": "फिर से दिखाएँ",
+    "hiddenToast": "छिपा दी गई। इस डिवाइस पर यह नौकरी आपकी सूचियों में नहीं दिखेगी।"
   },
   "values": {
     "type": {

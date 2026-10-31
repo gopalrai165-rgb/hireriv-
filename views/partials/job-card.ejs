@@ -32,6 +32,7 @@
   <div class="chips"><% job.skills.slice(0, 4).forEach(function (s) { %><span class="chip"><%= s %></span><% }) %></div>
   <% const tap = typeof oneTap !== 'undefined' && oneTap && job.status === 'open' && !isSample(job) ? oneTap : null; %>
   <div class="job-card-actions">
+    <% if (job.status === 'open') { %><button type="button" class="link-btn small hide-btn" data-hide-job="<%= job.id %>"><%= t('card.notInterested') %><span class="sr-only">: <%= jt.text %></span></button><% } %>
     <a class="card-link" href="<%= jobPath(job) %>"><%= isSample(job) ? t('card.viewExample') : t('card.viewApply') %><span class="sr-only">: <%= jt.text %></span> <svg class="i" aria-hidden="true"><use href="#i-arrow"/></svg></a>
     <% if (tap && tap.applied.includes(job.id)) { %><span class="pill st-hired"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg> <%= t('card.applied') %></span>
     <% } else if (tap && tap.ready && (tap.hasResume || !resumeNeeded(job))) { %>

@@ -445,6 +445,61 @@ document.querySelectorAll('table.cards-on-phone').forEach((table) => {
   });
 });
 
+// "Not interested": jobs someone hid stay hidden in job lists on this device
+// (never in Saved or Recently viewed), with Undo, and "Show them again".
+const HIDDEN_KEY = 'hireriv:hidden-jobs';
+function readHidden() {
+  try {
+    const ids = JSON.parse(localStorage.getItem(HIDDEN_KEY) || '[]');
+    return Array.isArray(ids) ? ids.filter((id) => typeof id === 'string' && /^[A-Za-z0-9_-]{1,40}$/.test(id)).slice(0, 300) : [];
+  } catch { return []; }
+}
+function writeHidden(ids) {
+  try { if (ids.length) localStorage.setItem(HIDDEN_KEY, JSON.stringify(ids.slice(0, 300))); else localStorage.removeItem(HIDDEN_KEY); } catch { /* private mode */ }
+}
+const inOwnLists = (el) => el.closest('#saved-list, #recent-list');
+function hiddenNote(grid) {
+  let note = grid.previousElementSibling;
+  if (!note || !note.matches('[data-hidden-note]')) {
+    note = document.createElement('p');
+    note.className = 'small muted hidden-note';
+    note.dataset.hiddenNote = '';
+    grid.before(note);
+  }
+  const n = grid.querySelectorAll('.job-card[hidden]').length;
+  note.hidden = n === 0;
+  note.replaceChildren(document.createTextNode(say(n === 1 ? 'hiddenOne' : 'hiddenMany', '{n} jobs you are not interested in are hidden.').replace('{n}', n) + ' '));
+  const show = document.createElement('button');
+  show.type = 'button';
+  show.className = 'link-btn';
+  show.textContent = say('showHidden', 'Show them again');
+  show.addEventListener('click', () => {
+    const shown = [...grid.querySelectorAll('.job-card[hidden]')];
+    const ids = shown.map((card) => card.querySelector('[data-hide-job]').dataset.hideJob);
+    writeHidden(readHidden().filter((id) => !ids.includes(id)));
+    shown.forEach((card) => { card.hidden = false; });
+    hiddenNote(grid);
+  });
+  note.append(show);
+}
+const hiddenNow = readHidden();
+document.querySelectorAll('[data-hide-job]').forEach((btn) => {
+  if (inOwnLists(btn)) { btn.remove(); return; }
+  if (hiddenNow.includes(btn.dataset.hideJob)) btn.closest('.job-card').hidden = true;
+});
+document.querySelectorAll('.jobs-grid').forEach((grid) => { if (grid.querySelector('.job-card[hidden]')) hiddenNote(grid); });
+document.addEventListener('click', (e) => {
+  const btn = e.target.closest('[data-hide-job]');
+  if (!btn) return;
+  const id = btn.dataset.hideJob;
+  writeHidden([id, ...readHidden().filter((x) => x !== id)]);
+  const card = btn.closest('.job-card');
+  card.hidden = true;
+  const grid = card.closest('.jobs-grid');
+  if (grid) hiddenNote(grid);
+  toast(say('hiddenToast', "Hidden. You won't see this job in your lists on this device."));
+});
+
 // Recently viewed jobs: the last 10 open jobs looked at, newest first, kept
 // only in this browser (never sent anywhere until the Saved page asks for their cards).
 const VIEWED_KEY = 'hireriv:viewed-jobs';
