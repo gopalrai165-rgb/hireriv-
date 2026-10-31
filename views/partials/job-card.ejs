@@ -1,5 +1,5 @@
 <% const jt = jobTitleIn(job); const pay = payLabel(job); %>
-<article class="job-card<%= job.status === 'closed' ? ' is-closed' : '' %>">
+<article class="job-card<%= job.status === 'closed' ? ' is-closed' : '' %>"<%- job.status === 'open' && !isSample(job) && job.posted ? ' data-posted="' + esc(String(job.posted).slice(0, 10)) + '"' : '' %>>
   <div class="job-card-top">
     <span class="job-logo" aria-hidden="true"><%= (job.company || job.title).trim().charAt(0).toUpperCase() %></span>
     <span class="job-card-side">

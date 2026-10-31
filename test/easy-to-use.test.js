@@ -25,7 +25,7 @@ test('nothing can make a page wider than the phone', () => {
 
 test('job lists: no fade-in, compact cards on phones, pay in bold', async () => {
   const page = await html('/jobs');
-  assert.match(page, /<article class="job-card">/);
+  assert.match(page, /<article class="job-card"( data-posted="[\d-]+")?>/);
   assert.doesNotMatch(page, /class="job-card reveal/);
   assert.match(page, /<li class="job-pay">/);
   assert.match(page, /<section class="page-hero page-hero-search">/);

@@ -500,6 +500,42 @@ document.addEventListener('click', (e) => {
   toast(say('hiddenToast', "Hidden. You won't see this job in your lists on this device."));
 });
 
+// "New since your last visit": the day of the visit before this one is kept
+// for the whole visit (sessionStorage), so the tags don't vanish on the next
+// page; jobs posted after that day get a "New" tag (never in Saved or
+// Recently viewed), and Find Jobs says how many on the page are new.
+const LAST_VISIT_KEY = 'hireriv:last-visit-day';
+const istToday = () => new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+const validDay = (d) => (typeof d === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d) ? d : '');
+let visitFrom = '';
+try {
+  visitFrom = sessionStorage.getItem('hireriv:visit-from');
+  if (visitFrom === null) {
+    visitFrom = validDay(localStorage.getItem(LAST_VISIT_KEY));
+    sessionStorage.setItem('hireriv:visit-from', visitFrom);
+  }
+  visitFrom = validDay(visitFrom);
+  localStorage.setItem(LAST_VISIT_KEY, istToday());
+} catch { visitFrom = ''; }
+if (visitFrom) {
+  let fresh = 0;
+  document.querySelectorAll('.job-card[data-posted]').forEach((card) => {
+    if (card.closest('#saved-list, #recent-list') || card.dataset.posted <= visitFrom) return;
+    const side = card.querySelector('.job-card-side');
+    if (!side) return;
+    const tag = document.createElement('span');
+    tag.className = 'pill pill-new';
+    tag.textContent = say('newTag', 'New');
+    side.prepend(tag);
+    if (!card.hidden) fresh++;
+  });
+  const note = document.querySelector('[data-new-since]');
+  if (note && fresh) {
+    note.textContent = say(fresh === 1 ? 'newSinceOne' : 'newSinceMany', '{n} jobs here are new since your last visit.').replace('{n}', fresh);
+    note.hidden = false;
+  }
+}
+
 // Recently viewed jobs: the last 10 open jobs looked at, newest first, kept
 // only in this browser (never sent anywhere until the Saved page asks for their cards).
 const VIEWED_KEY = 'hireriv:viewed-jobs';
