@@ -1243,6 +1243,10 @@ code { background: var(--tint); padding: 0 .3em; border-radius: 4px; font-size: 
 .walkin-box.is-over { border-color: var(--line); background: var(--tint); }
 /* Interview tips: questions open to show a good answer; the safety box stands out. */
 /* Companies hiring now (companies.ejs). */
+/* Recently viewed jobs on the Saved page. */
+.recent-jobs { margin-top: 40px; }
+.recent-jobs h2 { margin: 0; }
+.recent-link { margin: 0 0 8px; }
 .company-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 12px; }
 .company-row { display: flex; gap: 14px; align-items: flex-start; border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 14px 16px; background: #fff; }
 .company-row h2 { font-size: 1.1rem; margin: 0 0 4px; }

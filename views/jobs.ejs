@@ -142,6 +142,7 @@
 
 <section class="section section-results">
   <div class="container">
+    <p class="small recent-link" data-recent-link hidden><a href="/saved#recent"><%= t('jobs.recentLink') %></a></p>
     <div class="results-head">
       <p><%- th('jobs.found', { count: pager.total, num: html('<b>' + pager.total + '</b>') }) %><% if (group) { %> <%- th('jobs.foundIn', { group: html('<b>' + esc(tv('group', group.key) === group.key ? group.label : tv('group', group.key)) + '</b>') }) %><% } %></p>
       <div class="row-actions">

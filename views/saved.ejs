@@ -22,6 +22,15 @@
       <a href="/jobs" class="btn btn-primary"><%= t('common.browseJobs') %></a>
     </div>
     <noscript><div class="empty"><p><%= t('saved.noScript') %></p></div></noscript>
+    <%# Recently viewed jobs (main.js, hireriv:viewed-jobs): kept on this device only, filled in by the script. %>
+    <section class="recent-jobs" id="recent" aria-labelledby="recent-h" hidden>
+      <div class="results-head">
+        <h2 id="recent-h"><%= t('saved.recentTitle') %></h2>
+        <button type="button" class="small link-btn" id="recent-clear"><%= t('saved.recentClear') %></button>
+      </div>
+      <p class="small muted"><%= t('saved.recentNote') %></p>
+      <div class="jobs-grid" id="recent-list"></div>
+    </section>
   </div>
 </section>
 

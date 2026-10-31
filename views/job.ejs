@@ -8,6 +8,7 @@
   const pay = payLabel(job);
   const place = (areaLabel(job) ? areaLabel(job) + ', ' : '') + job.location + (stateName && stateName !== job.location ? ', ' + stateName : '');
 %>
+<% if (live && !isSample(job)) { %><span hidden data-viewed-job="<%= job.id %>"></span><% } %>
 <section class="page-hero page-hero-sm">
   <span class="deco deco-spark" aria-hidden="true"></span><span class="deco deco-dots" aria-hidden="true"></span><span class="deco deco-squiggle" aria-hidden="true"></span>
   <div class="container">

@@ -431,6 +431,53 @@ async function loadSavedPage() {
   }
 }
 
+// Recently viewed jobs: the last 10 open jobs looked at, newest first, kept
+// only in this browser (never sent anywhere until the Saved page asks for their cards).
+const VIEWED_KEY = 'hireriv:viewed-jobs';
+const VIEWED_MAX = 10;
+function readViewed() {
+  try {
+    const ids = JSON.parse(localStorage.getItem(VIEWED_KEY) || '[]');
+    return Array.isArray(ids) ? ids.filter((id) => typeof id === 'string' && /^[A-Za-z0-9_-]{1,40}$/.test(id)).slice(0, VIEWED_MAX) : [];
+  } catch { return []; }
+}
+function writeViewed(ids) {
+  try { if (ids.length) localStorage.setItem(VIEWED_KEY, JSON.stringify(ids.slice(0, VIEWED_MAX))); else localStorage.removeItem(VIEWED_KEY); } catch { /* private mode: nothing kept */ }
+}
+const viewedHere = document.querySelector('[data-viewed-job]');
+if (viewedHere) {
+  const id = viewedHere.dataset.viewedJob;
+  writeViewed([id, ...readViewed().filter((x) => x !== id)]);
+}
+const recentLink = document.querySelector('[data-recent-link]');
+if (recentLink && readViewed().length) recentLink.hidden = false;
+const recentList = document.getElementById('recent-list');
+async function loadRecent() {
+  const ids = readViewed();
+  const box = document.getElementById('recent');
+  if (!ids.length) { box.hidden = true; return; }
+  try {
+    const res = await fetch(`/saved/cards?ids=${encodeURIComponent(ids.join(','))}`);
+    recentList.innerHTML = await res.text();
+    // Jobs that are gone (or no longer open) drop off the list.
+    const open = [...recentList.querySelectorAll('.job-card:not(.is-closed) [data-save-job]')].map((b) => b.dataset.saveJob);
+    recentList.querySelectorAll('.job-card.is-closed').forEach((el) => el.remove());
+    if (open.length !== ids.length) writeViewed(ids.filter((id) => open.includes(id)));
+    recentList.querySelectorAll('.reveal').forEach((el) => el.classList.add('in'));
+    box.hidden = open.length === 0;
+    paintSaved();
+    if (open.length && location.hash === '#recent') box.scrollIntoView();
+  } catch { box.hidden = true; }
+}
+if (recentList) {
+  loadRecent();
+  document.getElementById('recent-clear').addEventListener('click', () => {
+    writeViewed([]);
+    recentList.innerHTML = '';
+    document.getElementById('recent').hidden = true;
+  });
+}
+
 if (signedIn) syncSaved();
 if (savedList) {
   loadSavedPage();

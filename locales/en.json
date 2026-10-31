@@ -230,7 +230,8 @@
     "area": "Area",
     "anyArea": "All of {city}",
     "needsChip": "Needs: {item}",
-    "repliesFastOnly": "Hiring team replies fast"
+    "repliesFastOnly": "Hiring team replies fast",
+    "recentLink": "Jobs you looked at recently"
   },
   "card": {
     "sample": "Sample listing",
@@ -534,7 +535,10 @@
     "clear": "Clear all",
     "noneTitle": "No saved jobs yet",
     "noneText": "Tap the bookmark icon on any job to save it here.",
-    "noScript": "Saved jobs need JavaScript switched on in your browser."
+    "noScript": "Saved jobs need JavaScript switched on in your browser.",
+    "recentTitle": "Recently viewed",
+    "recentClear": "Clear",
+    "recentNote": "The last 10 open jobs you looked at, kept on this device only."
   },
   "notFound": {
     "title": "This page has moved on",
