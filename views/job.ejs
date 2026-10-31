@@ -152,7 +152,7 @@
       <% } %>
       <% if (job.createdBy === 'employer') { %>
       <h2><%= t('job.aboutApplying') %></h2>
-      <p><%= t('job.employerPosted', { company: job.company, site: site.name }) %></p>
+      <p><%= t(preview ? 'job.employerPostedPreview' : 'job.employerPosted', { company: job.company, site: site.name }) %></p>
       <% } else { %>
       <h2><%= t('job.whyHireriv') %></h2>
       <p><%= t('job.whyHirerivText') %></p>

@@ -253,3 +253,19 @@ test('Step 110: an employer previews their own job as job seekers will see it, b
   assert.equal((await srv.request(`/employer/jobs/${id}/preview`, { cookie: ravi })).status, 404);
   assert.notEqual((await srv.request(`/employer/jobs/${id}/preview`)).status, 200);
 });
+
+test('Step 111: everyday employer tables become cards on phones, labelled from their headings', async () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  for (const view of ['employer-applicants', 'employer-interviews', 'employer-dashboard', 'employer-team', 'employer-requisitions', 'employer-contracts']) {
+    assert.match(fs.readFileSync(path.join(__dirname, '..', 'views', `${view}.ejs`), 'utf8'), /<table class="cards-on-phone">/, view);
+  }
+  const js = fs.readFileSync(path.join(__dirname, '..', 'public', 'js', 'main.js'), 'utf8');
+  assert.match(js, /document\.querySelectorAll\('table\.cards-on-phone'\)/);
+  const dash = await (await srv.request('/employer', { cookie: meera })).text();
+  assert.match(dash, /<td class="is-zero">·<\/td>/, 'empty stages are hidden on phones');
+  // The preview no longer points to a report form it doesn't show.
+  const list = await (await srv.request('/employer/jobs', { cookie: meera })).text();
+  const id = list.match(/href="\/employer\/jobs\/([^"/]+)\/preview"/)[1];
+  assert.doesNotMatch(await (await srv.request(`/employer/jobs/${id}/preview`, { cookie: meera })).text(), /report this job below/);
+});

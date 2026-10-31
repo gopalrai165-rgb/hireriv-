@@ -434,6 +434,17 @@ async function loadSavedPage() {
   }
 }
 
+// Tables shown as one card per row on phones (style.css .cards-on-phone):
+// each cell is labelled with its column's heading unless it has its own label.
+document.querySelectorAll('table.cards-on-phone').forEach((table) => {
+  const heads = [...table.querySelectorAll('thead th')].map((th) => th.textContent.trim());
+  table.querySelectorAll('tbody tr').forEach((tr) => {
+    [...tr.children].forEach((td, i) => {
+      if (i > 0 && heads[i] && !td.hasAttribute('data-label') && !td.classList.contains('row-actions')) td.dataset.label = heads[i];
+    });
+  });
+});
+
 // Recently viewed jobs: the last 10 open jobs looked at, newest first, kept
 // only in this browser (never sent anywhere until the Saved page asks for their cards).
 const VIEWED_KEY = 'hireriv:viewed-jobs';

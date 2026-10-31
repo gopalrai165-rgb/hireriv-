@@ -9,7 +9,7 @@
       <% if (!upcoming.length) { %><p class="muted dash-empty">No interviews booked.</p>
       <% } else { %>
         <div class="table-wrap">
-          <table>
+          <table class="cards-on-phone">
             <thead><tr><th>When (India time)</th><th>Candidate</th><th>Job</th><th>Format</th><th>Interviewer</th></tr></thead>
             <tbody>
               <% upcoming.forEach(function (iv) { %>

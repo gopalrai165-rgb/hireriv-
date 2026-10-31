@@ -400,7 +400,8 @@
     "responds3Days": "The hiring team usually opens applications within 3 days",
     "similarApplied": "Apply to similar jobs",
     "similarCta": "Apply to similar jobs",
-    "similarSent": "Your application is in."
+    "similarSent": "Your application is in.",
+    "employerPostedPreview": "This job was posted by {company} and checked by the {site} team. Your application goes directly to the company's hiring team, who will contact you. It's free: no genuine employer asks job seekers for money."
   },
   "apply": {
     "quickNote": "Takes a minute. No resume or email needed: a recruiter will call you.",

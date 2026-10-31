@@ -22,7 +22,7 @@
         <% } else { %>
           <% const STATUS = { draft: ['Draft', 'st-new'], pending: ['Waiting for review', 'st-screening'], open: ['Live', 'st-hired'], paused: ['Paused', 'st-screening'], closed: ['Closed', 'st-rejected'], rejected: ['Needs changes', 'st-rejected'] }; %>
           <div class="table-wrap">
-            <table>
+            <table class="cards-on-phone">
               <thead><tr><th>Job</th><th>Status</th><th>Applicants</th><% stages.forEach(function (s) { %><th><%= s %></th><% }) %><th></th></tr></thead>
               <tbody>
                 <% myJobs.slice(0, 10).forEach(function (j) { const st = STATUS[j.status] || [j.status, '']; %>
@@ -30,7 +30,7 @@
                     <td><b><%= j.title %></b><br><span class="muted small"><%= j.location %> · <%= j.type %><%= j.createdBy === 'employer' ? '' : ' · run by ' + site.name %></span><% if (j.status === 'rejected' && j.rejectedReason) { %><br><span class="small">To change: <%= j.rejectedReason %></span><% } %></td>
                     <td><span class="pill <%= st[1] %>"><%= st[0] %></span></td>
                     <td><% if (j.createdBy === 'employer' && can('applicants.view', j)) { %><a href="/employer/applicants?job=<%= j.id %>"><b><%= j.total %></b></a><% } else { %><b><%= j.total %></b><% } %></td>
-                    <% stages.forEach(function (s) { %><td><%= j.stages[s] || '·' %></td><% }) %>
+                    <% stages.forEach(function (s) { %><td<%- j.stages[s] ? '' : ' class="is-zero"' %>><%= j.stages[s] || '·' %></td><% }) %>
                     <td class="row-actions">
                       <% if (j.status === 'open') { %><a class="btn btn-outline btn-sm" href="<%= jobPath(j) %>" target="_blank" rel="noopener">View</a><% } %>
                       <% if (j.createdBy === 'employer' && can('job.edit', j)) { %><a class="btn btn-outline btn-sm" href="/employer/jobs/<%= j.id %>/edit">Edit</a><% } %>
@@ -122,7 +122,7 @@
         <section class="dash-card dash-wide" id="billing">
           <div class="dash-head"><h2>Placements &amp; invoices</h2><span class="muted small"><%= placements.length %> hired through us</span></div>
           <div class="table-wrap">
-            <table>
+            <table class="cards-on-phone">
               <thead><tr><th>Candidate</th><th>Joining</th><th>Replacement guarantee</th><th>Invoice</th></tr></thead>
               <tbody>
                 <% placements.forEach(function (p) { %>

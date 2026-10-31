@@ -907,6 +907,8 @@ a.contact-card:hover .service-icon { background: var(--c); color: #fff; }
   .cards-on-phone td { border: 0; padding: 3px 0; }
   .cards-on-phone td[data-label]::before { content: attr(data-label) ": "; color: var(--muted); font-size: .85rem; }
   .cards-on-phone td.row-actions { display: flex; flex-wrap: wrap; gap: 8px; padding-top: 10px; }
+  .cards-on-phone td:first-child { font-weight: 600; }
+  .cards-on-phone td:empty, .cards-on-phone td.is-zero { display: none; }
 }
 .dash-empty { margin: 8px 0; }
 @media (max-width: 860px) { .dash-grid { grid-template-columns: minmax(0, 1fr); } }

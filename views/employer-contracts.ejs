@@ -45,7 +45,7 @@
     <% } else { %>
       <p class="muted small">Your agreements with Hireriv. Each version is reviewed at Hireriv before it is sent; a company owner signs it here.</p>
       <% if (!rows.length) { %><p class="muted dash-empty">No contracts sent to you yet.</p><% } else { %>
-        <div class="table-wrap"><table>
+        <div class="table-wrap"><table class="cards-on-phone">
           <thead><tr><th>Contract</th><th>Version</th><th>Status</th><th>Signed</th></tr></thead>
           <tbody><% rows.forEach(function (r) { %>
             <tr><td><a href="/employer/contracts/<%= r.id %>"><b><%= r.reference %></b> · <%= r.title %></a></td><td><%= r.version %></td><td><span class="pill"><%= LABEL[r.status] %></span></td><td><%= r.signature ? r.signature.name + ', ' + formatDate(r.signature.at) : '—' %></td></tr>

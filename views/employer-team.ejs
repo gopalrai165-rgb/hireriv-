@@ -8,7 +8,7 @@
       <section class="dash-card dash-wide">
         <div class="dash-head"><h2>People with access to <%= employer.company %></h2><span class="muted small"><%= rows.length %> of 50</span></div>
         <div class="table-wrap">
-          <table>
+          <table class="cards-on-phone">
             <thead><tr><th>Person</th><th>Role</th><th>Assigned jobs</th><% if (can('team.manage')) { %><th></th><% } %></tr></thead>
             <tbody>
               <% rows.forEach(function (m) { %>
