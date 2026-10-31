@@ -17,6 +17,7 @@
         <% if (v.skills) { %><div class="chips"><% v.skills.split(',').map(function (s) { return s.trim(); }).filter(Boolean).slice(0, 12).forEach(function (s) { %><span class="chip"><%= s %></span><% }) %></div><% } %>
         <% if (v.email !== undefined) { %>
           <h3 class="dash-sub">Contact</h3>
+          <% if (v.phone) { %><p class="row-actions contact-actions"><a class="btn btn-primary btn-sm" href="tel:<%= v.phone.replace(/[^\d+]/g, '') %>"><svg class="i" aria-hidden="true"><use href="#i-phone"/></svg> Call</a><% const wa = waLink(v.phone); if (wa) { %><a class="btn btn-whatsapp btn-sm" href="<%= wa %>" target="_blank" rel="noopener"><svg class="i" aria-hidden="true"><use href="#i-whatsapp"/></svg> WhatsApp</a><% } %></p><% } %>
           <p><% if (v.phone) { %><a href="tel:<%= v.phone %>"><%= v.phone %></a><% } %><% if (v.phone && v.email) { %> · <% } %><% if (v.email) { %><a href="mailto:<%= v.email %>"><%= v.email %></a><% } %></p>
           <% if (/^https?:\/\//i.test(v.linkedin || '')) { %><p class="small"><a href="<%= v.linkedin %>" rel="noopener nofollow" target="_blank">LinkedIn profile</a></p><% } %>
           <% if (v.message) { %><p class="cand-note"><b>Their message:</b> <%= v.message %></p><% } %>

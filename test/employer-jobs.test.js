@@ -269,3 +269,14 @@ test('Step 111: everyday employer tables become cards on phones, labelled from t
   const id = list.match(/href="\/employer\/jobs\/([^"/]+)\/preview"/)[1];
   assert.doesNotMatch(await (await srv.request(`/employer/jobs/${id}/preview`, { cookie: meera })).text(), /report this job below/);
 });
+
+test('Step 114: no "0% match" for applicants who gave nothing to compare', () => {
+  const { skillMatch } = require('../match');
+  const job = { skills: ['Packing', 'Forklift'] };
+  assert.equal(skillMatch({ name: 'A', phone: '9876543210' }, job), null);
+  assert.equal(skillMatch({ skills: 'Cooking' }, job).score, 0);
+  assert.equal(skillMatch({ skills: 'Packing' }, job).score, 50);
+  const view = require('node:fs').readFileSync(require('node:path').join(__dirname, '..', 'views', 'employer-applicant.ejs'), 'utf8');
+  assert.ok(view.includes(String.raw`href="tel:<%= v.phone.replace(/[^\d+]/g, '') %>"`), 'a Call button with the digits only');
+  assert.match(view, /waLink\(v\.phone\)/);
+});

@@ -861,6 +861,8 @@ a.contact-card:hover .service-icon { background: var(--c); color: #fff; }
 /* "Not interested" (main.js): only with the script, which does the hiding. */
 .hide-btn { display: none; color: var(--muted); }
 .js .hide-btn { display: inline-flex; min-height: 44px; align-items: center; }
+.contact-actions { margin: 4px 0 8px; }
+.ai-panel .row-actions, .contact-actions { display: flex; flex-wrap: wrap; gap: 8px; white-space: normal; }
 .pill-new { background: #E7F6EC; color: #145C2E; font-weight: 700; }
 .new-since { margin: 0 0 8px; color: #145C2E; font-weight: 600; }
 .hidden-note { margin: 0 0 12px; }

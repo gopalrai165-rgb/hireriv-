@@ -17,6 +17,8 @@ const candidateText = (c) => norm([c.skills, c.message, (c.resumeSkills || []).j
 function skillMatch(candidate, job) {
   if (!job || !Array.isArray(job.skills) || !job.skills.length) return null;
   const text = candidateText(candidate);
+  // Nothing to compare (no skills, message or resume skills): unknown, not 0%.
+  if (!text.trim()) return null;
   const matched = job.skills.filter((s) => text.includes(norm(s)));
   return {
     score: Math.round((matched.length / job.skills.length) * 100),
