@@ -72,7 +72,8 @@ function clamScan(file, { host, port = 3310, timeoutMs = 15000 }) {
 function create({ clamHost = process.env.CLAMAV_HOST, clamPort = Number(process.env.CLAMAV_PORT) || 3310, log = console } = {}) {
   async function vet(file, { types = RESUME_TYPES, what = 'resume' } = {}) {
     if (!file) return '';
-    const drop = () => fs.unlink(file.path, () => {});
+    // Deleted before the reply goes out, so a refused file is never left behind.
+    const drop = () => { try { fs.unlinkSync(file.path); } catch { /* already gone */ } };
     if (!types.includes(path.extname(file.originalname || '').toLowerCase()) || !hasValidSignature(file.path, file.originalname)) {
       drop();
       return what === 'resume'

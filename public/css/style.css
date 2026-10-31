@@ -1247,6 +1247,7 @@ code { background: var(--tint); padding: 0 .3em; border-radius: 4px; font-size: 
 .company-row { display: flex; gap: 14px; align-items: flex-start; border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 14px 16px; background: #fff; }
 .company-row h2 { font-size: 1.1rem; margin: 0 0 4px; }
 .company-row p { margin: 2px 0; }
+.company-list + p { margin-top: 20px; }
 .tips { max-width: 820px; }
 .tips > h2 { margin-top: 32px; }
 .tips-toc { display: block; padding: 12px 16px; background: var(--tint); border-radius: var(--radius-sm); margin-bottom: 8px; line-height: 2; }

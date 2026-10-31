@@ -56,11 +56,13 @@ test('setting up shows a QR code, then recovery codes once, and signs out other 
   assert.equal((await srv.request('/admin/security/confirm', { method: 'POST', cookie, form: { code: '000000' } })).headers.get('location').includes('didn'), true);
 
   const secret = keyFrom(html);
-  const res = await srv.request('/admin/security/confirm', { method: 'POST', cookie, form: { code: code(secret, -1) } });
+  // Kept as sent: worked out again later, a 30-second boundary in between would give a different, unused code.
+  const setupCode = code(secret, -1);
+  const res = await srv.request('/admin/security/confirm', { method: 'POST', cookie, form: { code: setupCode } });
   assert.equal(res.status, 200);
   const recovery = codesFrom(await res.text());
   assert.equal(recovery.length, 10);
-  owner = { secret, recovery };
+  owner = { secret, recovery, setupCode };
 
   const fresh = srv.cookieFrom(res);
   assert.equal((await srv.request('/admin', { cookie: fresh })).status, 200);
@@ -81,7 +83,7 @@ test('the password alone no longer signs in; the code does, and only once', asyn
   assert.equal((await srv.request('/admin/login/code')).status, 302); // no password first
 
   assert.equal((await codeStep(pending, '123456')).status, 401);
-  assert.equal((await codeStep(pending, code(owner.secret, -1))).status, 401); // already used at set-up
+  assert.equal((await codeStep(pending, owner.setupCode)).status, 401); // already used at set-up
   const ok = await codeStep(pending, code(owner.secret, 0));
   assert.equal(ok.status, 302);
   assert.equal(ok.headers.get('location'), '/admin?tab=jobs');
