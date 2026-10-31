@@ -244,7 +244,9 @@
     "viewExample": "View example",
     "viewApply": "View & apply",
     "applied": "Applied",
-    "oneTap": "Apply now"
+    "oneTap": "Apply now",
+    "openings": "{n} openings",
+    "appliedCount": "{n} applied"
   },
   "time": {
     "today": "Today",
@@ -388,7 +390,9 @@
     "tipsTitle": "Getting ready for the interview?",
     "tipsRole": "{role} interview tips: what to bring and what they ask",
     "tipsAny": "Interview tips: what to bring and what they ask",
-    "tipsWalkIn": "Walk-in interview tips"
+    "tipsWalkIn": "Walk-in interview tips",
+    "appliedCount": "{n} people have applied",
+    "firstToApply": "Be one of the first to apply: fewer than 5 people have applied so far"
   },
   "apply": {
     "quickNote": "Takes a minute. No resume or email needed: a recruiter will call you.",
@@ -717,7 +721,9 @@
     "item_smartphone": "Smartphone",
     "item_laptop": "Laptop",
     "itemsTitle": "You need to have",
-    "itemTag": "Needs: {item}"
+    "itemTag": "Needs: {item}",
+    "immediateTag": "Immediate joining",
+    "immediateFilter": "Immediate joining only"
   },
   "near": {
     "label": "Near",

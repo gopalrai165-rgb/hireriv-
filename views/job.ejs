@@ -116,12 +116,12 @@
         <div><dt><%= t('job.fApplyBy') %></dt><dd><%= job.closesOn ? formatDate(job.closesOn) : t('job.openUntilFilled') %></dd></div>
       </dl>
       <p class="small"><a href="/help/job-terms"><%= t('job.termsLink') %></a></p>
-      <% const needs = (job.mustHave || []).length || job.immediate || job.physical; %>
+      <% const needs = (job.mustHave || []).length || startsNow(job) || job.physical; %>
       <% if (needs) { %>
         <h2><%= t('job.requirements') %></h2>
         <ul class="checks">
           <% (job.mustHave || []).forEach(function (r) { %><li><%= r %></li><% }) %>
-          <% if (job.immediate) { %><li><%= t('job.startNow') %></li><% } %>
+          <% if (startsNow(job)) { %><li><%= t('job.startNow') %></li><% } %>
           <% if (job.physical) { %><li><%= t('job.physical', { what: job.physical }) %></li><% } %>
         </ul>
       <% } %>
@@ -191,6 +191,8 @@
         <a href="/jobs" class="btn btn-primary btn-block"><%= t('common.seeOpenJobs') %></a>
       <% } else { %>
         <h2 id="apply-h"><%= t('job.applyTitle') %></h2>
+        <% const appliedN = appliedCount(job); %>
+        <% if (appliedN !== null) { %><p class="applied-count small"><svg class="i" aria-hidden="true"><use href="#i-users"/></svg> <%= appliedN < 5 ? t('job.firstToApply') : t('job.appliedCount', { n: appliedN >= 100 ? '100+' : appliedN }) %><%= job.openings > 1 ? ' · ' + t('card.openings', { n: job.openings }) : '' %></p><% } %>
         <% if (msg) { %><p class="notice" role="status"><%= tm(msg) %></p><% } %>
         <% if (account && account.applied) { %>
           <p class="notice"><%= t('job.appliedOn', { date: formatDate(account.applied) }) %></p>

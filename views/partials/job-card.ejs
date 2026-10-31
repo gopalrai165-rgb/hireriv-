@@ -13,6 +13,7 @@
   <% const cardWalkIn = walkInOf(job); %>
   <% if (cardWalkIn && cardWalkIn.state !== 'over') { %><span class="tag tag-walkin"><%= t('needs.walkInBadge') %><%= walkInDays(cardWalkIn) ? ': ' + walkInDays(cardWalkIn) : '' %></span><% } %>
   <% if (job.english) { %><span class="tag tag-english"><%= t('needs.english' + job.english) %></span><% } %>
+  <% if (job.status === 'open' && startsNow(job)) { %><span class="tag tag-walkin"><%= t('needs.immediateTag') %></span><% } %>
   <% const cardItems = itemsOf(job).filter(function (k) { return k === 'bike' || k === 'laptop'; }); %>
   <% cardItems.forEach(function (k) { %><span class="tag tag-item"><%= t('needs.itemTag', { item: t('needs.item_' + k) }) %></span><% }) %>
   <% const cardPerks = perksOf(job).filter(function (p) { return ['food', 'stay', 'transport', 'pf'].includes(p); }).slice(0, 3); %>
@@ -22,6 +23,8 @@
     <li><svg class="i" aria-hidden="true"><use href="#i-clock"/></svg><span class="sr-only"><%= t('card.type') %> </span><%= tv('type', job.type) %></li>
     <% if (job.experience) { %><li><svg class="i" aria-hidden="true"><use href="#i-briefcase"/></svg><span class="sr-only"><%= t('card.experience') %> </span><%= tv('experience', job.experience) %></li><% } %>
     <% if (pay) { %><li class="job-pay"><svg class="i" aria-hidden="true"><use href="#i-wallet"/></svg><span class="sr-only"><%= t('card.salary') %> </span><%= pay %></li><% } %>
+    <% const cardApplied = appliedCount(job); %>
+    <% if (job.openings > 1 || cardApplied >= 5) { %><li class="job-activity"><svg class="i" aria-hidden="true"><use href="#i-users"/></svg><%= [job.openings > 1 ? t('card.openings', { n: job.openings }) : '', cardApplied >= 5 ? t('card.appliedCount', { n: cardApplied >= 100 ? '100+' : cardApplied }) : ''].filter(Boolean).join(' · ') %></li><% } %>
     <% const km = typeof distances !== 'undefined' && distances ? distances[job.id] : undefined; %>
     <% if (km !== undefined) { %><li class="job-distance"><svg class="i" aria-hidden="true"><use href="#i-pin"/></svg><% const exact = typeof nearPrecise !== 'undefined' && nearPrecise && nearPrecise[job.id]; %><%= exact ? (km < 1 ? t('near.underOneKm') : t('near.away', { km: km < 20 ? km : Math.round(km / 5) * 5 })) : km < 3 ? t('near.inYourCity') : t('near.away', { km: km < 20 ? km : Math.round(km / 5) * 5 }) %></li><% } %>
   </ul>

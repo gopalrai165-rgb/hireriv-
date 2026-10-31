@@ -192,6 +192,17 @@ function itemsMet(job, has, certificates = []) {
   return itemsOf(job).map((key) => ({ key, label: itemLabel(key), met: said.includes(key) || (key === 'licence' && licenceListed) ? true : null }));
 }
 
+// ---------- immediate joining ----------
+// Jobs that need people who can start straight away: ticked on the form
+// ("Needs people who can start straight away"), or said in the listing's own
+// words ("immediate joiners", "join immediately").
+const IMMEDIATE_RE = /\bimmediate\s+(join(ing|ers?|ees?)|start(ers?)?)\b|\b(join|joining|start)\s+immediately\b/i;
+function startsNow(job) {
+  if (!job) return false;
+  if (job.immediate) return true;
+  return IMMEDIATE_RE.test([job.title, job.description, ...(job.mustHave || []), ...(job.eligibility || []), ...(job.qualifications || [])].join(' \n '));
+}
+
 // A list of keys from a form or API body: an array, repeated fields or commas.
 const keyList = (v) => [].concat(v ?? []).flatMap((x) => String(x).split(',')).map((x) => x.trim()).filter(Boolean);
 // From a form or API body: minEducation, perks and the things to have.
@@ -209,5 +220,5 @@ function parseExtras(body) {
 module.exports = {
   ENGLISH_LEVELS, ENGLISH_LABELS, englishKey, englishFromKey, fitsEnglish, parse, walkInOf, walkInOpen, walkInDays, englishGap, validDate,
   EDUCATION, EDUCATION_KEYS, educationLabel, educationOf, educationNeeds, fitsEducation, educationFromProfile, educationMet, PERKS, PERK_KEYS, perkLabel, perksOf, hasPerks, parseExtras,
-  ITEMS, ITEM_KEYS, itemLabel, itemsOf, needsNoneOf, needsAllOf, itemsMet,
+  ITEMS, ITEM_KEYS, itemLabel, itemsOf, needsNoneOf, needsAllOf, itemsMet, startsNow,
 };

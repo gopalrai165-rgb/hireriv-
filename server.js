@@ -643,6 +643,10 @@ app.locals.walkInOf = (j) => jobNeeds.walkInOf(j, todayIst());
 app.locals.walkInDays = (w) => jobNeeds.walkInDays(w, todayIst());
 app.locals.perksOf = jobNeeds.perksOf;
 app.locals.itemsOf = jobNeeds.itemsOf;
+app.locals.startsNow = jobNeeds.startsNow;
+// How many people applied to a live, real job (null for sample and closed
+// jobs), from the shared running totals (app-totals.js).
+app.locals.appliedCount = (job) => (job && job.status === 'open' && job.sample !== true ? appTotals(db.snapshot('applications')).perJob[job.id] || 0 : null);
 app.locals.areaLabel = geo.areaLabel;
 // Suggestions for the job forms' area box and Find Jobs' "Near" box.
 app.locals.areaNames = [...new Set(geo.ALL_AREAS.map((a) => a.name))].sort();
@@ -869,6 +873,9 @@ const NEED_PAGES = [
   { slug: 'driving-licence', label: 'Driving licence jobs', name: 'Jobs that need a driving licence', query: 'needs=licence', matches: (j) => jobNeeds.needsAllOf(j, ['licence']),
     about: 'Jobs for people with a driving licence: car, cab, tempo and truck drivers, delivery riders and field roles. The licence type is on each listing.',
     tip: 'Check which licence the job needs (two-wheeler, LMV or heavy vehicle) and carry the original to the interview.' },
+  { slug: 'immediate-joining', label: 'Immediate joining', name: 'Immediate joining jobs', query: 'joining=immediate', matches: (j) => jobNeeds.startsNow(j),
+    about: 'Jobs that need people who can start straight away: delivery, warehouse, security, retail, telecalling and more. Apply today and you could be working this week.',
+    tip: 'Keep your ID, bank details and photos ready: employers who hire fast often ask for them on the first day.' },
   { slug: 'with-accommodation', label: 'Stay / room given', name: 'Jobs with accommodation', query: 'perk=stay', matches: (j) => jobNeeds.hasPerks(j, ['stay']),
     about: 'Jobs where the employer gives a place to stay, so you can take work in another city: factories, warehouses, hotels, security and more.',
     tip: 'Ask what the stay costs, if anything, and check "Costs the worker pays" on the listing. Never pay a deposit to an agent.' },
@@ -950,6 +957,8 @@ function jobFilters(query) {
     needs: [],
     // Walk-in interviews that haven't ended.
     walkin: pick(['walkin', 'walkIn'], (v) => ['1', 'true', 'yes'].includes(v)) ? '1' : '',
+    // Jobs that need people who can start straight away.
+    joining: pick(['joining'], (v) => v === 'immediate'),
     sort: pick(['sort'], (v) => search.SORTS.includes(v)),
     // Jobs near me (geo.js): a rounded position, a PIN code or a city, and a radius in km.
     near: one('near').value,
@@ -1014,6 +1023,7 @@ function findJobs(list, f, { skipWork = false } = {}) {
       && (!(f.perks || []).length || jobNeeds.hasPerks(j, f.perks))
       && (!(f.without || []).length || jobNeeds.needsNoneOf(j, f.without))
       && (!(f.needs || []).length || jobNeeds.needsAllOf(j, f.needs))
+      && (!f.joining || jobNeeds.startsNow(j))
       && (!f.area || (geo.areaOf(j) || {}).slug === f.area),
     moreText: jobTranslations ? (j) => jobTranslations.searchText(j) : null,
   });
@@ -1025,8 +1035,8 @@ function correctedFilters(list, f) {
   return better ? { ...f, q: better } : null;
 }
 // The filters as query parameters (repeated for several categories and skills).
-const filterQuery = (f) => ({ q: f.q, group: f.group, work: f.work, category: f.categories, location: f.location, mode: f.mode, type: f.type, experience: f.experience, minPay: f.minPay || '', skill: f.skills || [], company: f.company || '', shift: f.shift || '', english: f.english || '', walkin: f.walkin || '', education: f.education || '', perk: f.perks || [], without: f.without || [], needs: f.needs || [], area: f.area || '', near: f.near || '', within: f.within || '', sort: f.sort });
-const hasFilters = (f) => Boolean(f.q || f.group || f.work || f.categories.length || f.location || f.mode || f.type || f.experience || f.minPay || (f.skills || []).length || f.company || f.shift || f.english || f.walkin || f.education || (f.perks || []).length || (f.without || []).length || (f.needs || []).length || f.area || f.near);
+const filterQuery = (f) => ({ q: f.q, group: f.group, work: f.work, category: f.categories, location: f.location, mode: f.mode, type: f.type, experience: f.experience, minPay: f.minPay || '', skill: f.skills || [], company: f.company || '', shift: f.shift || '', english: f.english || '', walkin: f.walkin || '', joining: f.joining || '', education: f.education || '', perk: f.perks || [], without: f.without || [], needs: f.needs || [], area: f.area || '', near: f.near || '', within: f.within || '', sort: f.sort });
+const hasFilters = (f) => Boolean(f.q || f.group || f.work || f.categories.length || f.location || f.mode || f.type || f.experience || f.minPay || (f.skills || []).length || f.company || f.shift || f.english || f.walkin || f.joining || f.education || (f.perks || []).length || (f.without || []).length || (f.needs || []).length || f.area || f.near);
 // Jobs near a place: each job's distance, only those within the radius (when
 // one is chosen), and nearest first unless another order was asked for.
 // Remote jobs and jobs in several places have no distance and go last.
@@ -1084,6 +1094,7 @@ app.get('/jobs', (req, res) => {
     f.shift && { label: `${f.shift} shift`, href: removeLink({ shift: '' }) },
     f.english && { label: req.t.t('jobs.englishOption', { level: req.t.t(`needs.english${jobNeeds.englishFromKey(f.english)}`) }), href: removeLink({ english: '' }) },
     f.walkin && { label: req.t.t('needs.walkInFilter'), href: removeLink({ walkin: '' }) },
+    f.joining && { label: req.t.t('needs.immediateTag'), href: removeLink({ joining: '' }) },
     f.education && { label: req.t.t('jobs.educationOption', { level: req.t.t(`needs.edu_${f.education}`) }), href: removeLink({ education: '' }) },
     ...(f.perks || []).map((p) => ({ label: req.t.t(`needs.perk_${p}`), href: removeLink({ perk: f.perks.filter((x) => x !== p) }) })),
     ...(f.needs || []).map((k) => ({ label: req.t.t('jobs.needsChip', { item: req.t.t(`needs.item_${k}`) }), href: removeLink({ needs: f.needs.filter((x) => x !== k) }) })),
@@ -1741,7 +1752,8 @@ const publicJob = (j) => ({
   needsToHave: jobNeeds.itemsOf(j),
   eligibility: j.eligibility || [],
   benefits: j.benefits || [],
-  requirements: { licences: j.mustHave || [], startsImmediately: Boolean(j.immediate), physical: j.physical || null },
+  immediateJoining: jobNeeds.startsNow(j),
+  requirements: { licences: j.mustHave || [], startsImmediately: jobNeeds.startsNow(j), physical: j.physical || null },
   postedAt: j.posted,
   closesOn: j.closesOn || null,
   quickApply: !resumeNeeded(j),
@@ -1766,7 +1778,7 @@ async function jobsApi(req, res) {
   });
   // Postgres when it's connected and up to date; the same search in memory otherwise.
   const viaPg = async (filters) => {
-    if (!(pg && pg.usable()) || filters.english || filters.walkin || filters.education || (filters.perks || []).length || (filters.without || []).length || (filters.needs || []).length || filters.area) return null;
+    if (!(pg && pg.usable()) || filters.english || filters.walkin || filters.joining || filters.education || (filters.perks || []).length || (filters.without || []).length || (filters.needs || []).length || filters.area) return null;
     try {
       await pg.flush();
       const found = pg.usable() && (await pg.search(filters, { page, size }));

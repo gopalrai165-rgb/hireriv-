@@ -1250,6 +1250,9 @@ code { background: var(--tint); padding: 0 .3em; border-radius: 4px; font-size: 
 .tip-qa > p { margin: 0; padding: 0 16px 14px; }
 .safety-box { border: 1px solid #F3C6C6; background: #FFF6F6; border-radius: var(--radius-sm); padding: 14px 16px; margin: 28px 0; }
 .safety-box h2 { margin-top: 0; }
+/* How many applied and the openings (job page and cards). */
+.applied-count { display: flex; align-items: center; gap: 6px; color: var(--muted); margin: -4px 0 12px; }
+.applied-count .i { width: 16px; height: 16px; }
 .tips-link { margin: 18px 0; padding: 12px 16px; background: var(--tint); border-radius: var(--radius-sm); }
 .walkin-box h2 { margin-top: 0; font-size: 1.05rem; }
 .filter-check { align-self: center; white-space: nowrap; }
