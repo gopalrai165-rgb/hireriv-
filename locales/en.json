@@ -229,7 +229,8 @@
     "withoutChip": "No {item} needed",
     "area": "Area",
     "anyArea": "All of {city}",
-    "needsChip": "Needs: {item}"
+    "needsChip": "Needs: {item}",
+    "repliesFastOnly": "Hiring team replies fast"
   },
   "card": {
     "sample": "Sample listing",

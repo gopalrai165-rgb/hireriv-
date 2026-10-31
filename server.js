@@ -886,6 +886,9 @@ const NEED_PAGES = [
   { slug: 'joining-bonus', label: 'Joining bonus', name: 'Jobs with a joining bonus', query: 'perk=joiningbonus', matches: (j) => jobNeeds.hasPerks(j, ['joiningbonus']),
     about: 'Jobs that pay a bonus when you join: delivery, warehouse, telecalling, sales and more. The bonus and when it is paid are on each listing.',
     tip: 'Ask when the joining bonus is paid (on the first day, after a month or after three) and what you must do to get it.' },
+  { slug: 'replies-fast', label: 'Replies fast', name: 'Jobs where the hiring team replies fast', query: 'replies=fast', matches: (j) => Boolean(app.locals.responseLabel(j)),
+    about: 'Jobs whose hiring team usually opens applications within 3 days, worked out from how quickly they opened real applications in the last 90 days.',
+    tip: 'Apply with your phone number switched on: teams that reply fast often call the same day or the next.' },
   { slug: 'with-accommodation', label: 'Stay / room given', name: 'Jobs with accommodation', query: 'perk=stay', matches: (j) => jobNeeds.hasPerks(j, ['stay']),
     about: 'Jobs where the employer gives a place to stay, so you can take work in another city: factories, warehouses, hotels, security and more.',
     tip: 'Ask what the stay costs, if anything, and check "Costs the worker pays" on the listing. Never pay a deposit to an agent.' },
@@ -971,6 +974,8 @@ function jobFilters(query) {
     walkin: pick(['walkin', 'walkIn'], (v) => ['1', 'true', 'yes'].includes(v)) ? '1' : '',
     // Jobs that need people who can start straight away.
     joining: pick(['joining'], (v) => v === 'immediate'),
+    // Jobs whose hiring team usually opens applications within 3 days (response-time.js).
+    replies: pick(['replies'], (v) => v === 'fast'),
     sort: pick(['sort'], (v) => search.SORTS.includes(v)),
     // Jobs near me (geo.js): a rounded position, a PIN code or a city, and a radius in km.
     near: one('near').value,
@@ -1036,6 +1041,7 @@ function findJobs(list, f, { skipWork = false } = {}) {
       && (!(f.without || []).length || jobNeeds.needsNoneOf(j, f.without))
       && (!(f.needs || []).length || jobNeeds.needsAllOf(j, f.needs))
       && (!f.joining || jobNeeds.startsNow(j))
+      && (!f.replies || Boolean(app.locals.responseLabel(j)))
       && (!f.area || (geo.areaOf(j) || {}).slug === f.area),
     moreText: jobTranslations ? (j) => jobTranslations.searchText(j) : null,
   });
@@ -1047,8 +1053,8 @@ function correctedFilters(list, f) {
   return better ? { ...f, q: better } : null;
 }
 // The filters as query parameters (repeated for several categories and skills).
-const filterQuery = (f) => ({ q: f.q, group: f.group, work: f.work, category: f.categories, location: f.location, mode: f.mode, type: f.type, experience: f.experience, minPay: f.minPay || '', skill: f.skills || [], company: f.company || '', shift: f.shift || '', english: f.english || '', walkin: f.walkin || '', joining: f.joining || '', education: f.education || '', perk: f.perks || [], without: f.without || [], needs: f.needs || [], area: f.area || '', near: f.near || '', within: f.within || '', sort: f.sort });
-const hasFilters = (f) => Boolean(f.q || f.group || f.work || f.categories.length || f.location || f.mode || f.type || f.experience || f.minPay || (f.skills || []).length || f.company || f.shift || f.english || f.walkin || f.joining || f.education || (f.perks || []).length || (f.without || []).length || (f.needs || []).length || f.area || f.near);
+const filterQuery = (f) => ({ q: f.q, group: f.group, work: f.work, category: f.categories, location: f.location, mode: f.mode, type: f.type, experience: f.experience, minPay: f.minPay || '', skill: f.skills || [], company: f.company || '', shift: f.shift || '', english: f.english || '', walkin: f.walkin || '', joining: f.joining || '', replies: f.replies || '', education: f.education || '', perk: f.perks || [], without: f.without || [], needs: f.needs || [], area: f.area || '', near: f.near || '', within: f.within || '', sort: f.sort });
+const hasFilters = (f) => Boolean(f.q || f.group || f.work || f.categories.length || f.location || f.mode || f.type || f.experience || f.minPay || (f.skills || []).length || f.company || f.shift || f.english || f.walkin || f.joining || f.replies || f.education || (f.perks || []).length || (f.without || []).length || (f.needs || []).length || f.area || f.near);
 // Jobs near a place: each job's distance, only those within the radius (when
 // one is chosen), and nearest first unless another order was asked for.
 // Remote jobs and jobs in several places have no distance and go last.
@@ -1107,6 +1113,7 @@ app.get('/jobs', (req, res) => {
     f.english && { label: req.t.t('jobs.englishOption', { level: req.t.t(`needs.english${jobNeeds.englishFromKey(f.english)}`) }), href: removeLink({ english: '' }) },
     f.walkin && { label: req.t.t('needs.walkInFilter'), href: removeLink({ walkin: '' }) },
     f.joining && { label: req.t.t('needs.immediateTag'), href: removeLink({ joining: '' }) },
+    f.replies && { label: req.t.t('card.respondsFast'), href: removeLink({ replies: '' }) },
     f.education && { label: req.t.t('jobs.educationOption', { level: req.t.t(`needs.edu_${f.education}`) }), href: removeLink({ education: '' }) },
     ...(f.perks || []).map((p) => ({ label: req.t.t(`needs.perk_${p}`), href: removeLink({ perk: f.perks.filter((x) => x !== p) }) })),
     ...(f.needs || []).map((k) => ({ label: req.t.t('jobs.needsChip', { item: req.t.t(`needs.item_${k}`) }), href: removeLink({ needs: f.needs.filter((x) => x !== k) }) })),
@@ -1792,7 +1799,7 @@ async function jobsApi(req, res) {
   });
   // Postgres when it's connected and up to date; the same search in memory otherwise.
   const viaPg = async (filters) => {
-    if (!(pg && pg.usable()) || filters.english || filters.walkin || filters.joining || filters.education || (filters.perks || []).length || (filters.without || []).length || (filters.needs || []).length || filters.area) return null;
+    if (!(pg && pg.usable()) || filters.english || filters.walkin || filters.joining || filters.replies || filters.education || (filters.perks || []).length || (filters.without || []).length || (filters.needs || []).length || filters.area) return null;
     try {
       await pg.flush();
       const found = pg.usable() && (await pg.search(filters, { page, size }));

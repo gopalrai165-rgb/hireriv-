@@ -46,7 +46,7 @@
       </div>
       <% if (near && near.error) { %><p class="notice notice-err small" role="alert"><%= t('near.' + near.error, { pin: near.pin || '' }) %></p><% } %>
       <p class="near-status small" role="status" data-near-status></p>
-      <% const moreCount = filters.categories.length + ['experience', 'minPay', 'type', 'mode', 'shift', 'english', 'walkin', 'joining', 'education', 'area', 'company'].filter(function (k) { return filters[k]; }).length + ((filters.skills || []).length ? 1 : 0) + (filters.perks || []).length + (filters.without || []).length; %>
+      <% const moreCount = filters.categories.length + ['experience', 'minPay', 'type', 'mode', 'shift', 'english', 'walkin', 'joining', 'replies', 'education', 'area', 'company'].filter(function (k) { return filters[k]; }).length + ((filters.skills || []).length ? 1 : 0) + (filters.perks || []).length + (filters.without || []).length; %>
       <details class="more-filters" open data-more-filters="<%= moreCount %>">
       <summary><%= t('jobs.filtersSummary') %><% if (moreCount) { %> <span class="count"><%= moreCount %></span><% } %></summary>
       <div class="filter-row">
@@ -105,6 +105,7 @@
         </select>
         <label class="check-row filter-check"><input type="checkbox" name="walkin" value="1"<%= filters.walkin ? ' checked' : '' %>> <span><%= t('jobs.walkInOnly') %></span></label>
         <label class="check-row filter-check"><input type="checkbox" name="joining" value="immediate"<%= filters.joining ? ' checked' : '' %>> <span><%= t('needs.immediateFilter') %></span></label>
+        <label class="check-row filter-check"><input type="checkbox" name="replies" value="fast"<%= filters.replies ? ' checked' : '' %>> <span><%= t('jobs.repliesFastOnly') %></span></label>
         <fieldset class="filter-perks"><legend><%= t('jobs.perks') %> <span class="muted small">(<%= t('jobs.perksHint') %>)</span></legend>
           <% perkKeys.forEach(function (p) { %><label class="check-row filter-check"><input type="checkbox" name="perk" value="<%= p %>"<%= (filters.perks || []).includes(p) ? ' checked' : '' %>> <span><%= t('needs.perk_' + p) %></span></label><% }) %>
         </fieldset>

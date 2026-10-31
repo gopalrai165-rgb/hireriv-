@@ -49,3 +49,17 @@ test('job page, card tag and API for a team that opens applications fast', async
   assert.equal(api.jobs.find((j) => j.id === 'hr-971').hiringTeamResponds, 'day');
   assert.equal(api.jobs.find((j) => j.id === 'hr-972').hiringTeamResponds, null);
 });
+
+test('Step 103: the replies=fast filter, its chip and the page', async () => {
+  const ids = (await (await srv.request('/api/jobs?replies=fast')).json()).jobs.map((j) => j.id);
+  assert.deepEqual(ids, ['hr-971']);
+  assert.equal((await srv.request('/api/jobs?replies=slow')).status, 400);
+  const html = await (await srv.request('/jobs?replies=fast')).text();
+  assert.match(html, /name="replies" value="fast" checked/);
+  assert.match(html, />Packer</);
+  assert.doesNotMatch(html, />Helper</);
+  const page = await (await srv.request('/jobs/replies-fast/in/pune')).text();
+  assert.match(page, /Jobs where the hiring team replies fast/);
+  assert.match(page, />Packer</);
+  assert.doesNotMatch(page, />Helper</);
+});

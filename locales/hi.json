@@ -229,7 +229,8 @@
     "withoutChip": "{item} ज़रूरी नहीं",
     "area": "इलाका",
     "anyArea": "पूरा {city}",
-    "needsChip": "ज़रूरी: {item}"
+    "needsChip": "ज़रूरी: {item}",
+    "repliesFastOnly": "हायरिंग टीम जल्दी जवाब देती है"
   },
   "card": {
     "sample": "नमूना विज्ञापन",
