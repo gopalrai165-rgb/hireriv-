@@ -1,0 +1,8 @@
+<%# Request a Quote, WhatsApp and Call for a service; WhatsApp and Call only with real numbers set in Settings. %>
+<% const waReal = realContact(site).whatsapp; %>
+<% const phoneReal = realContact(site).phone; %>
+<div class="hero-ctas quote-buttons">
+  <a href="/hire?service=<%= service.slug %>#requirement" class="btn btn-primary btn-lg">Request a Quote <svg class="i"><use href="#i-arrow"/></svg></a>
+  <% if (waReal) { %><a href="https://wa.me/<%= site.whatsapp %>?text=<%= encodeURIComponent('Hi ' + site.name + ', I would like a quote for ' + service.name + '.') %>" class="btn btn-whatsapp btn-lg" rel="noopener"><svg class="i"><use href="#i-phone"/></svg> WhatsApp us</a><% } %>
+  <% if (phoneReal) { %><a href="tel:<%= site.phone.replace(/\s/g, '') %>" class="btn btn-outline btn-lg">Call us</a><% } %>
+</div>

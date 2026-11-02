@@ -7,9 +7,11 @@
       <span class="eyebrow">Contact</span>
       <h1>Let's <span class="grad">talk</span></h1>
       <p class="lead">Questions about hiring, a role, or partnering with us? We usually reply within a few hours.</p>
+      <% const real = realContact(site); %>
       <div class="hero-ctas">
-        <a href="tel:<%= site.phone.replace(/\s/g, '') %>" class="btn btn-primary btn-lg"><svg class="i"><use href="#i-phone"/></svg> Call <%= site.phone %></a>
-        <a href="https://wa.me/<%= site.whatsapp %>" class="btn btn-outline btn-lg" target="_blank" rel="noopener"><svg class="i"><use href="#i-whatsapp"/></svg> WhatsApp</a>
+        <% if (real.phone) { %><a href="tel:<%= real.phone.replace(/\s/g, '') %>" class="btn btn-primary btn-lg"><svg class="i"><use href="#i-phone"/></svg> Call <%= real.phone %></a><% } %>
+        <% if (real.whatsapp) { %><a href="https://wa.me/<%= real.whatsapp %>" class="btn btn-outline btn-lg" target="_blank" rel="noopener"><svg class="i"><use href="#i-whatsapp"/></svg> WhatsApp</a><% } %>
+        <% if (!real.phone && !real.whatsapp) { %><a href="mailto:<%= site.email %>" class="btn btn-primary btn-lg"><svg class="i"><use href="#i-mail"/></svg> Email <%= site.email %></a><% } %>
       </div>
     </div>
     <div class="hero-media" aria-hidden="true">
@@ -23,10 +25,10 @@
 <section class="section">
   <div class="container split">
     <div class="contact-cards">
-      <a class="contact-card" href="tel:<%= site.phone.replace(/\s/g, '') %>"><span class="service-icon"><svg class="i"><use href="#i-phone"/></svg></span><div><b>Call us</b><span><%= site.phone %></span></div></a>
+      <% if (real.phone) { %><a class="contact-card" href="tel:<%= real.phone.replace(/\s/g, '') %>"><span class="service-icon"><svg class="i"><use href="#i-phone"/></svg></span><div><b>Call us</b><span><%= real.phone %></span></div></a><% } %>
       <a class="contact-card" href="mailto:<%= site.email %>"><span class="service-icon"><svg class="i"><use href="#i-mail"/></svg></span><div><b>Email</b><span><%= site.email %></span></div></a>
-      <a class="contact-card" href="https://wa.me/<%= site.whatsapp %>" target="_blank" rel="noopener"><span class="service-icon"><svg class="i"><use href="#i-whatsapp"/></svg></span><div><b>WhatsApp</b><span>Book a quick consultation</span></div></a>
-      <div class="contact-card"><span class="service-icon"><svg class="i"><use href="#i-pin"/></svg></span><div><b>Visit us</b><span><%= site.address %></span><span class="muted small"><%= site.hours %></span></div></div>
+      <% if (real.whatsapp) { %><a class="contact-card" href="https://wa.me/<%= real.whatsapp %>" target="_blank" rel="noopener"><span class="service-icon"><svg class="i"><use href="#i-whatsapp"/></svg></span><div><b>WhatsApp</b><span>Book a quick consultation</span></div></a><% } %>
+      <% if (real.address) { %><div class="contact-card"><span class="service-icon"><svg class="i"><use href="#i-pin"/></svg></span><div><b>Visit us</b><span><%= real.address %></span><span class="muted small"><%= site.hours %></span></div></div><% } %>
     </div>
     <div class="form-card">
       <h2>Send us a message</h2>

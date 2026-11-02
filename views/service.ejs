@@ -7,15 +7,12 @@
       <span class="eyebrow"><%= service.name %></span>
       <h1><%= service.headline %></h1>
       <p class="lead"><%= service.intro %></p>
-      <div class="hero-ctas">
-        <a href="/hire?service=<%= service.slug %>#requirement" class="btn btn-primary btn-lg">Share a requirement <svg class="i"><use href="#i-arrow"/></svg></a>
-        <a href="tel:<%= site.phone.replace(/\s/g, '') %>" class="btn btn-outline btn-lg">Call us</a>
-      </div>
+      <%- include('partials/quote-buttons', { service: service }) %>
     </div>
     <div class="hero-media">
       <span class="deco deco-ring" aria-hidden="true"></span>
       <span class="deco deco-spark" aria-hidden="true"></span>
-      <figure class="photo-arch"><img src="/img/photos/svc-<%= service.slug %>.webp" alt="" width="900" height="1000"></figure>
+      <figure class="photo-arch"><img src="/img/photos/<%= service.photo || 'svc-' + service.slug %>.webp" alt="" width="900" height="1000"></figure>
       <div class="float-card ideal-card">
         <h2>Ideal for</h2>
         <ul class="checks"><% service.idealFor.forEach(function (x) { %><li><%= x %></li><% }) %></ul>
@@ -25,6 +22,27 @@
 </section>
 
 <section class="section">
+  <div class="container split">
+    <div>
+      <span class="eyebrow">Who needs it</span>
+      <h2>Is <%= service.name %> right for you?</h2>
+      <ul class="checks"><% service.idealFor.forEach(function (x) { %><li><%= x %></li><% }) %></ul>
+      <% if (service.roles) { %>
+        <h3>Roles we hire for</h3>
+        <ul class="chip-list"><% service.roles.forEach(function (r) { %><li class="chip"><%= r %></li><% }) %></ul>
+      <% } %>
+    </div>
+    <% if (service.benefits) { %>
+    <div class="vm-card benefits-card">
+      <span class="service-icon"><svg class="i"><use href="#i-spark"/></svg></span>
+      <h2 class="h3">Benefits for employers</h2>
+      <ul class="checks"><% service.benefits.forEach(function (x) { %><li><%= x %></li><% }) %></ul>
+    </div>
+    <% } %>
+  </div>
+</section>
+
+<section class="section section-tint">
   <div class="container split">
     <div>
       <span class="eyebrow">What's included</span>
@@ -41,6 +59,20 @@
   </div>
 </section>
 
+<% if (service.compliance) { %>
+<section class="section" aria-labelledby="compliance-h">
+  <div class="container">
+    <div class="section-head">
+      <span class="eyebrow">Payroll and compliance</span>
+      <h2 id="compliance-h">Who does what, in plain words</h2>
+    </div>
+    <dl class="compliance-grid">
+      <% service.compliance.forEach(function (c) { %><div><dt><%= c[0] %></dt><dd><%= c[1] %></dd></div><% }) %>
+    </dl>
+  </div>
+</section>
+<% } %>
+
 <section class="section section-dark">
   <div class="container">
     <div class="section-head light">
@@ -55,7 +87,7 @@
   </div>
 </section>
 
-<section class="section section-tint">
+<section class="section">
   <div class="container faq-wrap">
     <div class="section-head left">
       <span class="eyebrow">FAQ</span>
@@ -100,5 +132,5 @@
   </div>
 </section>
 
-<%- include('partials/cta-band', { heading: 'Ready to talk about ' + service.name.toLowerCase() + '?', text: 'Share your requirement and a client partner will call you within one working day.', href: '/hire?service=' + service.slug + '#requirement', label: 'Share a requirement' }) %>
+<%- include('partials/cta-band', { heading: 'Ready to talk about ' + service.name + '?', text: 'Share your requirement and we send you a quote. A recruiter calls you back within one working day.', href: '/hire?service=' + service.slug + '#requirement', label: 'Request a Quote' }) %>
 <%- include('partials/foot') %>

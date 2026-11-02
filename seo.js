@@ -100,7 +100,7 @@ function homePage(site, baseUrl) {
   return {
     '@context': 'https://schema.org',
     '@graph': [
-      { ...organization(site, baseUrl), '@type': ['Organization', 'EmploymentAgency'], email: site.email, telephone: site.phone },
+      { ...organization(site, baseUrl), '@type': ['Organization', 'EmploymentAgency'], email: site.email, ...(site.phone && !/0{5}/.test(site.phone) ? { telephone: site.phone } : {}) },
       {
         '@type': 'WebSite',
         name: site.name,

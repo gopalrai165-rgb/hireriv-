@@ -217,7 +217,7 @@
       <span class="eyebrow">Employer enquiry</span>
       <h2 id="enquiry-title">Need staff? Tell us in a minute</h2>
       <p>Share the basics and a recruiter will call you back within one working day. For a job description, budget and more details, use the <a href="/hire#requirement">full hiring form</a>.</p>
-      <% if (site.whatsapp && !/0{6}/.test(site.whatsapp)) { %><p><a class="btn btn-whatsapp" href="https://wa.me/<%= site.whatsapp %>?text=<%= encodeURIComponent('Hi ' + site.name + ', I would like to hire staff.') %>" rel="noopener"><svg class="i" aria-hidden="true"><use href="#i-phone"/></svg> WhatsApp us</a></p><% } %>
+      <% if (realContact(site).whatsapp) { %><p><a class="btn btn-whatsapp" href="https://wa.me/<%= site.whatsapp %>?text=<%= encodeURIComponent('Hi ' + site.name + ', I would like to hire staff.') %>" rel="noopener"><svg class="i" aria-hidden="true"><use href="#i-phone"/></svg> WhatsApp us</a></p><% } %>
     </div>
     <div class="form-card">
       <form class="form js-form" action="/api/hire" method="post">
@@ -280,9 +280,7 @@
     <div class="section-head left">
       <span class="eyebrow">FAQ</span>
       <h2>Questions, answered</h2>
-      <% const realPhone = site.phone && !/0{5}/.test(site.phone); %>
-      <% const realWhatsapp = site.whatsapp && !/0{6}/.test(site.whatsapp); %>
-      <% const realAddress = site.address && !/your office address/i.test(site.address); %>
+      <% const real = realContact(site); const realPhone = real.phone, realWhatsapp = real.whatsapp, realAddress = real.address; %>
       <ul class="contact-lines">
         <% if (realPhone) { %><li><svg class="i" aria-hidden="true"><use href="#i-phone"/></svg> <a href="tel:<%= site.phone.replace(/\s/g, '') %>"><%= site.phone %></a></li><% } %>
         <% if (realWhatsapp) { %><li><svg class="i" aria-hidden="true"><use href="#i-phone"/></svg> <a href="https://wa.me/<%= site.whatsapp %>" rel="noopener">WhatsApp us</a></li><% } %>

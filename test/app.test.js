@@ -129,7 +129,7 @@ describe('admin panel', () => {
 
   test('signed-in areas leave out the public newsletter and WhatsApp button', async () => {
     const pub = await (await app.request('/jobs')).text();
-    assert.match(pub, /class="whatsapp-float"/);
+    assert.doesNotMatch(pub, /class="whatsapp-float"/, 'no WhatsApp button for the placeholder number');
     assert.ok(pub.includes('action="/api/newsletter"'));
     for (const [p, cookie] of [['/admin', admin], ['/account/login'], ['/employer/login']]) {
       const html = await (await app.request(p, { cookie })).text();

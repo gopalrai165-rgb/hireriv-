@@ -679,6 +679,13 @@ app.locals.waLink = (phone) => {
   return d.length >= 10 ? `https://wa.me/${d}` : '';
 };
 app.locals.workLabel = (key) => (WORK_KINDS.find((c) => c.key === key) || WORK_KINDS[0]).label;
+// The contact details actually set in Settings: the starter placeholders
+// (+91 00000 00000, "Your office address…") are never shown or linked.
+app.locals.realContact = (s) => ({
+  phone: s.phone && !/0{5}/.test(s.phone) ? s.phone : '',
+  whatsapp: /^\d{10,15}$/.test(s.whatsapp || '') && !/0{6}/.test(s.whatsapp) ? s.whatsapp : '',
+  address: s.address && !/your office address/i.test(s.address) ? s.address : '',
+});
 // Only real testimonials saved in Settings; none means the section is hidden.
 app.locals.testimonialsFor = (s) => (Array.isArray(s.testimonials) ? s.testimonials : []);
 app.locals.maxTestimonials = MAX_TESTIMONIALS;
@@ -823,12 +830,7 @@ app.get('/', (req, res) => {
 });
 
 // The four services the homepage leads with, for employers.
-const HOME_SERVICES = [
-  { name: 'IT Recruitment', icon: 'i-code', href: '/hire?service=it#requirement', text: 'Software developers, testers, designers, cloud engineers and other IT professionals.' },
-  { name: 'Non-IT Recruitment', icon: 'i-briefcase', href: '/hire?service=non-it#requirement', text: 'Sales, accounts, operations, warehouse, manufacturing and customer support staff.' },
-  { name: 'Bulk Hiring', icon: 'i-users', href: '/services/bulk-rpo-hiring', text: 'Many hires at once for plants, warehouses, stores and support teams.' },
-  { name: 'Contract Staffing', icon: 'i-clock', href: '/services/contract-staffing', text: 'Temporary and project staff on our payroll, with payroll and compliance handled.' },
-];
+const HOME_SERVICES = catalog.PRIORITY_SERVICES.map((s) => ({ name: { 'bulk-rpo-hiring': 'Bulk Hiring', 'contract-staffing': 'Contract Staffing' }[s.slug] || s.name, icon: s.icon, href: `/services/${s.slug}`, text: s.card }));
 const groupCounts = (list) => JOB_GROUPS.map((g) => ({ ...g, count: list.filter((j) => inGroup(g, j)).length }));
 // The homepage's quick ways in: common roles (each a keyword search, named in
 // the page's language under "roles") and the cities with the most live jobs.
@@ -1562,14 +1564,14 @@ app.get('/employers/contact', (req, res) => res.redirect(301, '/hire'));
 // ---------- services and industry desks (content in catalog.js) ----------
 const guaranteeDays = () => (site.billing && Number.isInteger(site.billing.guaranteeDays) ? site.billing.guaranteeDays : placements.BILLING_DEFAULTS.guaranteeDays);
 app.get('/services', (req, res) =>
-  res.render('services', { title: 'Services', page: 'services', services: catalog.SERVICES, industries: catalog.INDUSTRIES, metaDescription: `${site.name} services: permanent staffing, contract staffing, executive search, bulk and RPO hiring, background verification and corporate training.` })
+  res.render('services', { title: 'Recruitment & Staffing Services', page: 'services', services: catalog.SERVICES, mainServices: catalog.PRIORITY_SERVICES, industries: catalog.INDUSTRIES, metaDescription: `${site.name} services: IT recruitment, non-IT recruitment, bulk hiring and contract staffing, plus permanent staffing, executive search, background verification and corporate training.` })
 );
 app.get('/services/:slug', (req, res, next) => {
   const service = catalog.serviceBySlug(req.params.slug);
   if (!service) return next();
   siteAnalytics.track('service-view', service.name, req);
   res.render('service', {
-    title: service.name, page: 'services', service, industries: catalog.INDUSTRIES, others: catalog.SERVICES.filter((s) => s !== service).slice(0, 3),
+    title: service.name, page: 'services', service, industries: catalog.INDUSTRIES, others: catalog.PRIORITY_SERVICES.filter((s) => s !== service).concat(catalog.SERVICES.filter((s) => !s.priority)).slice(0, 3),
     guaranteeDays: guaranteeDays(), metaDescription: `${service.name} from ${site.name}: ${service.card}`, jsonLd: seo.servicePage(service, site, BASE_URL),
   });
 });

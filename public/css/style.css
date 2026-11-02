@@ -2156,3 +2156,16 @@ p, li, dd { text-wrap: pretty; }
   .hero-seek .hero-side { justify-items: stretch; }
   .employer-ask { max-width: none; }
 }
+
+/* Services: the four main services, benefits, payroll and compliance */
+.main-services { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+@media (max-width: 760px) { .main-services { grid-template-columns: 1fr; } }
+.main-service h3 { margin: 10px 0 6px; }
+.main-service h3 a { color: var(--ink); }
+.main-service .quote-buttons { margin: 16px 0 10px; }
+.main-service .quote-buttons .btn-lg { padding: .7em 1.1em; font-size: .95rem; }
+.chip-list { list-style: none; padding: 0; margin: 10px 0 0; display: flex; flex-wrap: wrap; gap: 8px; }
+.compliance-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; margin: 0; }
+.compliance-grid > div { padding: 20px; border: 1px solid var(--line); border-radius: var(--radius); background: #fff; }
+.compliance-grid dt { font-weight: 700; color: var(--ink); margin-bottom: 6px; }
+.compliance-grid dd { margin: 0; }

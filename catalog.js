@@ -8,6 +8,88 @@
 
 const SERVICES = [
   {
+    slug: 'it-recruitment',
+    priority: true,
+    photo: 'svc-executive-search',
+    need: "Developers, testers, designers or cloud engineers",
+    pay: "One-time fee when they join",
+    icon: 'i-code',
+    name: 'IT Recruitment',
+    hiringType: 'Permanent',
+    field: 'IT',
+    card: 'Software developers, testers, designers, cloud engineers and other IT professionals.',
+    headline: 'IT professionals screened for the skills your team actually uses',
+    intro: 'Tell us the stack, the level and the team. A recruiter who knows technical hiring finds candidates, checks their skills against your brief and sends you a short list of people worth interviewing. You pay only when someone joins.',
+    includes: [
+      'A requirement call to agree the stack, the level, the budget and how you interview',
+      'Sourcing from our candidate database, referrals and direct outreach to people who are not applying anywhere',
+      'Technical screening calls, and a coding or practical test when you want one',
+      'A shortlist with a recruiter note on every profile: skills, notice period, current and expected pay',
+      'Interview scheduling, feedback from your interviewers and follow-up through the notice period',
+    ],
+    roles: ['Software developers (front end, back end, full stack, mobile)', 'Testers and QA engineers', 'UI/UX and product designers', 'Cloud, DevOps and support engineers', 'Data analysts and data engineers'],
+    idealFor: ['Start-ups and product companies growing their tech team', 'Companies without a technical recruiter', 'Roles that need a specific stack or certification'],
+    benefits: [
+      'Fewer, better profiles: each one checked against your must-have skills',
+      'Notice periods and pay expectations known before the first interview',
+      'One recruiter who knows your team and your stack',
+      'You pay only when a candidate you chose joins',
+    ],
+    steps: [
+      ['Brief', 'A short call to understand the stack, the level and the budget.'],
+      ['Search & screen', 'We find candidates and check their skills before you see them.'],
+      ['Interview', 'We schedule rounds, collect feedback and keep candidates engaged.'],
+      ['Offer & joining', 'We help with the offer and follow up until joining day.'],
+    ],
+    billing: 'A one-time success fee, a percentage of the annual CTC, invoiced when the candidate joins. The fee and the replacement guarantee are agreed in writing before we start.',
+    faqs: [
+      ['When do we pay?', 'Only when a candidate you selected joins. There is no fee for the search, the shortlist or interviews that do not lead to a hire.'],
+      ['Can you test candidates before we meet them?', 'Yes. Tell us how you want skills checked (a screening call, a short test or a practical task) and we do it before sharing the profile.'],
+      ['Do you hire freshers for IT roles?', 'Yes, for trainee and junior roles as well as experienced ones.'],
+    ],
+  },
+  {
+    slug: 'non-it-recruitment',
+    priority: true,
+    photo: 'svc-permanent-staffing',
+    need: "Sales, accounts, operations, warehouse or support staff",
+    pay: "One-time fee when they join",
+    icon: 'i-briefcase',
+    name: 'Non-IT Recruitment',
+    hiringType: 'Permanent',
+    field: 'Non-IT',
+    card: 'Sales, accounts, operations, warehouse, manufacturing and customer support staff.',
+    headline: 'Sales, accounts, operations and shop-floor staff who are ready to join',
+    intro: 'From an accountant to a store team, tell us who you need and where. We find local candidates, check their experience and documents, and send you people who can start when you need them.',
+    includes: [
+      'A requirement call to agree the role, the shift, the pay and the location',
+      'Local sourcing through our job portal, referrals and calling candidates directly',
+      'Screening calls that check experience, documents, the commute and the joining date',
+      'A shortlist with notes, and interviews arranged at your office, site or by phone',
+      'Follow-up with every selected candidate until the joining day',
+    ],
+    roles: ['Sales and business development', 'Accounts and finance', 'Operations and back office', 'Warehouse, delivery and logistics', 'Manufacturing and plant staff', 'Customer support and telecalling'],
+    idealFor: ['Businesses hiring outside IT, from one person to a small team', 'Roles in cities where you have no HR team', 'Shift and field roles where joining on time matters'],
+    benefits: [
+      'Candidates near your location, so fewer drop-outs',
+      'Experience and documents checked before the interview',
+      'One recruiter who follows up until the joining day',
+      'You pay only when a candidate you chose joins',
+    ],
+    steps: [
+      ['Brief', 'Tell us the role, the shift, the pay and the location.'],
+      ['Search & screen', 'We call and screen local candidates.'],
+      ['Interview', 'We arrange interviews and collect your feedback.'],
+      ['Joining', 'We follow up with selected candidates until they join.'],
+    ],
+    billing: 'A one-time fee per hire, a percentage of the annual CTC or a fixed amount per hire for entry-level roles, invoiced when the candidate joins. The fee and the replacement terms are agreed in writing before we start.',
+    faqs: [
+      ['When do we pay?', 'Only when a candidate you selected joins.'],
+      ['Can you hire in smaller cities?', 'Yes. Tell us the location and we confirm whether we can source there before you commit.'],
+      ['We need many people at once. Is this the right service?', 'For ten or more hires at once, Bulk Hiring is usually a better fit: one plan, hiring drives and a single point of contact.'],
+    ],
+  },
+  {
     slug: 'permanent-staffing',
     need: "A full-time employee for a long-term role",
     pay: "One-time fee when they join",
@@ -28,7 +110,7 @@ const SERVICES = [
     idealFor: ['Core roles you want to keep for the long term', 'Teams without a full-time recruiter', 'Specialist roles where a wrong hire is expensive'],
     steps: [
       ['Brief', 'A 20-minute call to understand the role, team and budget.'],
-      ['Shortlist', 'Screened profiles with recruiter notes, usually within 72 hours for most roles.'],
+      ['Shortlist', 'Screened profiles with recruiter notes, on the timeline agreed at the brief.'],
       ['Interview', 'We schedule rounds, collect feedback and keep candidates engaged.'],
       ['Offer & joining', 'We handle negotiation, background checks and the notice period.'],
     ],
@@ -42,6 +124,20 @@ const SERVICES = [
   },
   {
     slug: 'contract-staffing',
+    priority: true,
+    benefits: [
+      'People working quickly without adding to your headcount',
+      'No payroll, PF, ESI or payslip work for your HR team',
+      'Pay only for days you approve in your timesheets',
+      'Extend, release early or move someone to your payroll',
+    ],
+    // How payroll and compliance are split, spelled out on the page.
+    compliance: [
+      ['Who employs the worker', 'We do. The worker is on our payroll and gets an appointment letter from us, and works with your team day to day.'],
+      ['What we handle', 'Monthly salary, PF and ESI where they apply, professional tax, payslips, leave records and the statutory registers for our employees.'],
+      ['What you handle', 'Day-to-day work, a safe workplace, and approving or querying timesheets each week in your client portal.'],
+      ['How the bill is made', 'A monthly bill rate per worker covers their pay, the employer statutory costs and our service fee, plus GST. It is agreed in writing before anyone starts.'],
+    ],
     need: "People for a project, a peak or leave cover",
     pay: "Monthly, for days worked",
     icon: 'i-clock',
@@ -106,6 +202,13 @@ const SERVICES = [
   },
   {
     slug: 'bulk-rpo-hiring',
+    priority: true,
+    benefits: [
+      'One plan and one point of contact for every role in the drive',
+      'Hiring drives and walk-ins run by our team',
+      'Regular updates on who was screened, selected and joined',
+      'Fees agreed per hire before the drive starts',
+    ],
     need: "Dozens or hundreds of hires, or hiring run for you",
     pay: "Per hire, or monthly for RPO",
     icon: 'i-chart',
@@ -333,6 +436,8 @@ const serviceBySlug = (slug) => SERVICES.find((s) => s.slug === slug) || null;
 const industryBySlug = (slug) => INDUSTRIES.find((i) => i.slug === slug) || null;
 
 // Options for the hire form's "Service needed" field.
+// The four services the homepage and the Services page lead with.
+const PRIORITY_SERVICES = ['it-recruitment', 'non-it-recruitment', 'bulk-rpo-hiring', 'contract-staffing'].map((slug) => SERVICES.find((x) => x.slug === slug));
 const HIRE_OPTIONS = ['Permanent', 'Contract', 'Contract-to-hire', 'Executive search', 'Bulk / RPO', 'Background verification', 'Corporate training', 'Not sure yet'];
 
-module.exports = { SERVICES, INDUSTRIES, WORK_PAGES, JOB_INDUSTRIES, serviceBySlug, industryBySlug, workPageBySlug, jobIndustryBySlug, deskCategories, HIRE_OPTIONS };
+module.exports = { SERVICES, PRIORITY_SERVICES, INDUSTRIES, WORK_PAGES, JOB_INDUSTRIES, serviceBySlug, industryBySlug, workPageBySlug, jobIndustryBySlug, deskCategories, HIRE_OPTIONS };

@@ -6,7 +6,7 @@
     <div>
       <span class="eyebrow">Our services</span>
       <h1>Staffing and HR services, from <span class="grad">one hire</span> to a whole team</h1>
-      <p class="lead">Pick the service that fits the role, or combine them. Every engagement has a dedicated account manager, the same six-stage screening, and a client portal where you follow progress.</p>
+      <p class="lead">Pick the service that fits the role, or combine them. We lead with IT recruitment, non-IT recruitment, bulk hiring and contract staffing. Every engagement has one point of contact and a client portal where you follow progress.</p>
       <div class="hero-ctas">
         <a href="/hire#requirement" class="btn btn-primary btn-lg">Share a requirement <svg class="i"><use href="#i-arrow"/></svg></a>
       </div>
@@ -20,12 +20,34 @@
   </div>
 </section>
 
-<section class="section">
+<section class="section" aria-labelledby="main-services-h">
   <div class="container">
+    <div class="section-head">
+      <span class="eyebrow">Where we start</span>
+      <h2 id="main-services-h">Our main services</h2>
+    </div>
+    <div class="main-services">
+      <% mainServices.forEach(function (s) { %>
+        <article class="service-card main-service">
+          <span class="service-icon"><svg class="i"><use href="#<%= s.icon %>"/></svg></span>
+          <h3><a href="/services/<%= s.slug %>"><%= s.name %></a></h3>
+          <p><%= s.card %></p>
+          <ul class="checks small"><% s.benefits.slice(0, 3).forEach(function (b) { %><li><%= b %></li><% }) %></ul>
+          <%- include('partials/quote-buttons', { service: s }) %>
+          <a class="card-link" href="/services/<%= s.slug %>">What it includes and how it works <svg class="i"><use href="#i-arrow"/></svg></a>
+        </article>
+      <% }) %>
+    </div>
+  </div>
+</section>
+
+<section class="section section-tint" aria-labelledby="more-services-h">
+  <div class="container">
+    <div class="section-head"><h2 id="more-services-h">More services</h2></div>
     <div class="services-grid">
-      <% services.forEach(function (s) { %>
+      <% services.filter(function (s) { return !mainServices.includes(s); }).forEach(function (s) { %>
         <a class="service-card service-link reveal" href="/services/<%= s.slug %>">
-          <figure class="card-photo"><img src="/img/photos/svc-<%= s.slug %>.webp" alt="" width="900" height="1000" loading="lazy" decoding="async"></figure>
+          <figure class="card-photo"><img src="/img/photos/<%= s.photo || 'svc-' + s.slug %>.webp" alt="" width="900" height="1000" loading="lazy" decoding="async"></figure>
           <span class="service-icon"><svg class="i"><use href="#<%= s.icon %>"/></svg></span>
           <h2 class="h3"><%= s.name %></h2>
           <p><%= s.card %></p>
@@ -36,7 +58,7 @@
   </div>
 </section>
 
-<section class="section section-tint">
+<section class="section">
   <div class="container">
     <div class="section-head">
       <span class="eyebrow">Which one fits?</span>

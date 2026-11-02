@@ -58,8 +58,9 @@
     </div>
     <div>
       <h2 class="footer-h"><%= t('footer.touch') %></h2>
-      <p class="contact-line"><svg class="i" aria-hidden="true"><use href="#i-pin"/></svg><%= site.address %></p>
-      <p class="contact-line"><svg class="i" aria-hidden="true"><use href="#i-phone"/></svg><a href="tel:<%= site.phone.replace(/\s/g, '') %>"><%= site.phone %></a></p>
+      <% const footContact = realContact(site); %>
+      <% if (footContact.address) { %><p class="contact-line"><svg class="i" aria-hidden="true"><use href="#i-pin"/></svg><%= footContact.address %></p><% } %>
+      <% if (footContact.phone) { %><p class="contact-line"><svg class="i" aria-hidden="true"><use href="#i-phone"/></svg><a href="tel:<%= footContact.phone.replace(/\s/g, '') %>"><%= footContact.phone %></a></p><% } %>
       <p class="contact-line"><svg class="i" aria-hidden="true"><use href="#i-mail"/></svg><a href="mailto:<%= site.email %>"><%= site.email %></a></p>
     </div>
   </div>
@@ -69,7 +70,7 @@
   </div>
 </footer>
 
-<% if (!ws) { %><a class="whatsapp-float" href="https://wa.me/<%= site.whatsapp %>?text=Hi%20Hireriv%2C%20I%27d%20like%20to%20know%20more" target="_blank" rel="noopener" aria-label="<%= t('common.whatsappChat') %>">
+<% if (!ws && realContact(site).whatsapp) { %><a class="whatsapp-float" href="https://wa.me/<%= site.whatsapp %>?text=Hi%20Hireriv%2C%20I%27d%20like%20to%20know%20more" target="_blank" rel="noopener" aria-label="<%= t('common.whatsappChat') %>">
   <svg class="i" aria-hidden="true"><use href="#i-whatsapp"/></svg>
 </a><% } %>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>

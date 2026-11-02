@@ -71,3 +71,43 @@ test('services are linked from the header, footer, homepage and sitemap', async 
   const xml = (await get('/sitemap.xml')).html;
   for (const p of ['/services', '/industries', '/services/executive-search', '/industries/retail-ecommerce']) assert.ok(xml.includes(`${p}</loc>`), p);
 });
+
+test('the four main services lead, each with who needs it, the process, benefits, Request a Quote and WhatsApp', async () => {
+  assert.deepEqual(catalog.PRIORITY_SERVICES.map((s) => s.slug), ['it-recruitment', 'non-it-recruitment', 'bulk-rpo-hiring', 'contract-staffing']);
+  for (const s of catalog.PRIORITY_SERVICES) assert.ok(s.benefits && s.benefits.length, `${s.slug} benefits`);
+  const list = (await get('/services')).html;
+  const main = list.slice(list.indexOf('Our main services'), list.indexOf('More services'));
+  for (const s of catalog.PRIORITY_SERVICES) assert.ok(main.includes(`href="/services/${s.slug}"`), s.slug);
+  assert.ok(!main.includes('href="/services/executive-search"'));
+  for (const s of catalog.PRIORITY_SERVICES) {
+    const html = (await get(`/services/${s.slug}`)).html;
+    assert.match(html, /Who needs it/);
+    assert.match(html, /What&#39;s included|What's included/);
+    assert.match(html, /How it works/);
+    assert.match(html, /Benefits for employers/);
+    assert.match(html, new RegExp(`href="/hire[?]service=${s.slug}#requirement"[^>]*>Request a Quote`));
+    assert.doesNotMatch(html, /wa\.me\/910000000000/, 'no WhatsApp button for the placeholder number');
+  }
+  const contract = (await get('/services/contract-staffing')).html;
+  assert.match(contract, /Payroll and compliance/);
+  assert.match(contract, /Who employs the worker/);
+  assert.match((await get('/services/it-recruitment')).html, /Roles we hire for[\s\S]*Testers and QA engineers/);
+  assert.match((await get('/hire?service=it-recruitment')).html, /name="from" value="service:it-recruitment"/);
+});
+
+test('with a real WhatsApp number, service pages offer WhatsApp with the service in the message', async () => {
+  const other = await startServer({}, { site: [{ ...require('../data/site.json'), whatsapp: '919812345678', phone: '+91 98123 45678' }] });
+  try {
+    const html = await (await other.request('/services/bulk-rpo-hiring')).text();
+    assert.match(html, /href="https:\/\/wa\.me\/919812345678\?text=[^"]*Bulk%20%26%20RPO%20Hiring/);
+    assert.match(html, /href="tel:\+919812345678"/);
+  } finally { other.stop(); }
+});
+
+test('placeholder contact details are never shown or linked', async () => {
+  for (const p of ['/', '/contact', '/services/it-recruitment', '/terms']) {
+    const html = (await get(p)).html;
+    assert.ok(!html.includes('910000000000') && !html.includes('+91 00000 00000') && !html.includes('Your office address'), p);
+  }
+  assert.match((await get('/contact')).html, /mailto:/);
+});
