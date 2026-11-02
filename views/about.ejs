@@ -37,13 +37,7 @@
   </div>
 </section>
 
-<section class="stats">
-  <div class="container stats-grid">
-    <% site.stats.forEach(function (s) { %>
-      <div class="stat"><b><span class="counter" data-target="<%= s.value %>"><%= s.value.toLocaleString('en-IN') %></span><%= s.suffix %></b><span><%= s.label %></span></div>
-    <% }) %>
-  </div>
-</section>
+<%- include('partials/figures') %>
 
 <section class="section">
   <div class="container">

@@ -11,13 +11,13 @@ const js = fs.readFileSync(path.join(__dirname, '..', 'public', 'js', 'main.js')
 const day = (offset) => new Date(Date.now() + offset * 86400000).toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
 const base = { company: 'Nova Foods', location: 'Pune', mode: 'On-site', type: 'Full-time', category: 'Logistics', experience: 'Fresher', salary: '', skills: [], description: 'Work', responsibilities: [], posted: day(-1), status: 'open', alertsSentAt: day(-1) };
 let srv;
-before(async () => { srv = await startServer({}, { jobs: [{ ...base, id: 'hr-1', title: 'Packer' }, { ...base, id: 'hr-2', title: 'Sample', sample: true }] }); });
+before(async () => { srv = await startServer({}, { jobs: [{ ...base, id: 'hr-1', title: 'Packer' }, { ...base, id: 'hr-2', title: 'Old packer', status: 'closed' }] }); });
 after(() => srv && srv.stop());
 
-test('real open cards carry their posted day; samples don\'t; Find Jobs has the note', async () => {
+test('real open cards carry their posted day; closed ones don\'t; Find Jobs has the note', async () => {
   const html = await (await srv.request('/jobs')).text();
   assert.match(html, new RegExp(`<article class="job-card" data-posted="${day(-1)}">`));
-  assert.match(html, /<article class="job-card">/, 'the sample has no posted day');
+  assert.equal((html.match(/data-posted=/g) || []).length, 1, 'only the open job carries its posted day');
   assert.match(html, /<p class="small new-since" data-new-since hidden><\/p>/);
 });
 

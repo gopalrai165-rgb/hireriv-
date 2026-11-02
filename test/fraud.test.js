@@ -68,7 +68,7 @@ const PDF = '%PDF-1.4\n%business registration\n';
 const FIELD_JOB = { title: 'Warehouse Loader', category: 'Warehouse & Packing', location: 'Pune', description: 'Load and unload trucks at our Pune warehouse.' };
 
 before(async () => {
-  const starter = require('../data/jobs.json').map((j) => ({ ...j, sample: false }));
+  const starter = require('./fixtures/jobs.json').map((j) => ({ ...j, sample: false }));
   const original = starter[0];
   // Nearly the same words as a real listing, under another company's name.
   const near = { ...original, id: 'fr-near', company: 'Lookalike Ventures', posted: '2026-10-05', description: original.description.replace(/^\w+/, 'Design') };

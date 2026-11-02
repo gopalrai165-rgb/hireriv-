@@ -72,7 +72,7 @@ const SCAM = {
 };
 
 before(async () => {
-  const starter = require('../data/jobs.json').map((j) => ({ ...j, sample: false }));
+  const starter = require('./fixtures/jobs.json').map((j) => ({ ...j, sample: false }));
   const original = starter[0];
   // The same text as a real listing, under another company's name.
   const copy = { ...original, id: 'ts-copy', company: 'Not The Real Company' };

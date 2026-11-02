@@ -69,7 +69,7 @@ describe('with a Postgres database', { skip: DB_URL ? false : 'set TEST_DATABASE
   let plain; // without, for comparing results
   let admin;
 
-  const starter = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'data', 'jobs.json'), 'utf8')).map((j) => ({ ...j, sample: false }));
+  const starter = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', 'jobs.json'), 'utf8')).map((j) => ({ ...j, sample: false }));
   const extra = [
     { id: 'hr-201', title: 'Night Security Guard', company: 'Shield Services', location: 'Thane', mode: 'On-site', type: 'Full-time', category: 'Security Services', experience: 'Freshers welcome', pay: { min: 700, max: 900, period: 'day', currency: 'INR' }, posted: '2026-10-01', skills: ['Patrolling'], description: 'Guard a warehouse at night.' },
     { id: 'hr-202', title: 'Data Analyst', company: 'Insight Co', location: 'Remote', mode: 'Remote', type: 'Contract', category: 'Technology', experience: '10+ years', pay: { min: 1500000, max: 2400000, period: 'year', currency: 'INR' }, posted: '2026-10-01', skills: ['SQL', 'Python'], description: 'Dashboards and models.' },

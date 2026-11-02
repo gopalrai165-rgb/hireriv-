@@ -1,0 +1,15 @@
+<%# Real figures entered in Admin → Settings, or, with none, what the site offers. Never made-up numbers. %>
+<% const figures = (site.stats || []).filter(function (s) { return s.value > 0; }); %>
+<section class="stats"<%- typeof enOnly !== 'undefined' ? enOnly : '' %>>
+  <div class="container stats-grid">
+    <% if (figures.length) { %>
+      <% figures.forEach(function (s) { %>
+        <div class="stat"><b><span class="counter" data-target="<%= s.value %>"><%= s.value.toLocaleString('en-IN') %></span><%= s.suffix %></b><span><%= s.label %></span></div>
+      <% }) %>
+    <% } else { %>
+      <% [['i-spark', 'New opportunities', 'added regularly'], ['i-check', 'Free registration', 'for job seekers'], ['i-users', 'Recruitment support', 'for employers'], ['i-briefcase', 'IT and non-IT', 'hiring services']].forEach(function (o) { %>
+        <div class="stat stat-offer"><svg class="i" aria-hidden="true"><use href="#<%= o[0] %>"/></svg><b><%= o[1] %></b><span><%= o[2] %></span></div>
+      <% }) %>
+    <% } %>
+  </div>
+</section>

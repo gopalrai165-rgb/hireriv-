@@ -275,7 +275,7 @@ Every code the site sends uses exactly these words (with your site name if it is
 ## Data & backups
 Everything the site stores (jobs, blog posts, settings, applications, requests, messages, subscribers, client accounts and sign-in sessions) lives in one SQLite database, `data/hireriv.db`, using the SQLite built into Node.js (22.13 or newer), so there is nothing extra to install. Resumes are saved in `uploads/`.
 
-- **First start:** the database is created and filled from `data/jobs.json`, `data/posts.json` and `data/site.json`. Any older `data/submissions/*.json` files are imported once, and the originals are left untouched.
+- **First start:** the database is created and filled from `data/posts.json` and `data/site.json`. It starts with no jobs (only real vacancies are ever listed) and no homepage figures or testimonials until the team enters real ones in Admin → Settings. Any older `data/submissions/*.json` files are imported once, and the originals are left untouched.
 - **Backups:** the database is backed up automatically every day to a `backups` folder next to it (or `BACKUP_DIR`), with the newest 14 copies kept (7–35, under Admin → Retention) and listed under Admin → Settings → Backups. **Download database backup** there gives a copy on demand. The files in `uploads/` are copied with each backup into `uploads` in the backup folder; restore them with `npm run backup:restore-uploads -- <uploads folder>`, using the same `FILE_ENCRYPTION_KEY`.
 - **Location:** set `DB_FILE` to keep the database somewhere else (e.g. a mounted disk).
 - Client and candidate sign-ins are stored in the database, so restarting the server keeps everyone signed in.
@@ -289,7 +289,7 @@ Set `DATABASE_URL` (e.g. `postgres://hireriv:password@localhost:5432/hireriv` in
 - **Privacy:** no names, emails or phone numbers go to Postgres. Applications and saved jobs carry a keyed one-way hash of the candidate instead.
 - **Tests:** set `TEST_DATABASE_URL` to a Postgres where you may create schemas and `npm test` runs the Postgres tests too (each run uses its own schema and drops it). Without it they're skipped.
 
-> The testimonials, stats and sample jobs are placeholders. Replace them with real ones before going live.
+> The site never shows made-up jobs, figures or testimonials: add real ones in Admin as they come.
 
 ## Go-live checklist
 [`docs/LAUNCH.md`](docs/LAUNCH.md) is the launch-gap report: what is ready, what still needs work, recovery targets, monitoring targets, launch gates and the staged rollout. Run `npm run check:config` before every deploy: with `NODE_ENV=production` the server refuses to start on the same errors (a placeholder password, an http `SITE_URL`, no `FILE_ENCRYPTION_KEY` or `SMTP_HOST`, half-set payment keys). `npm run backup:restore-test` restores the newest backup into a scratch folder and checks it; the server also does this every week.
@@ -297,7 +297,7 @@ Set `DATABASE_URL` (e.g. `postgres://hireriv:password@localhost:5432/hireriv` in
 1. **Server settings** (`.env` or your host's dashboard): `NODE_ENV=production`, `SITE_URL` (https), `FILE_ENCRYPTION_KEY` (see docs/SECURITY.md), `CLAMAV_HOST`, `RAZORPAY_KEY_ID` / `RAZORPAY_KEY_SECRET` / `RAZORPAY_WEBHOOK_SECRET` (see docs/BILLING.md), `ANTHROPIC_API_KEY` for the AI assistant (optional; see docs/AI.md), `LANGUAGES` (default `en,hi`; see docs/I18N.md, and have the Hindi reviewed first), `ADMIN_PASS`, `SMTP_HOST` / `SMTP_USER` / `SMTP_PASS`, `MAIL_FROM`, `NOTIFY_EMAIL`, `TRUST_PROXY=1` behind a proxy, and `BACKUP_DIR` on a second disk or synced folder.
 2. **Persistent storage** for the database, `uploads/` and backups (see Deploy).
 3. **Admin → Settings:** real phone, WhatsApp, address and social links; legal name, GSTIN, PAN and bank details; your fee, guarantee, GST and TDS defaults; and decide on **Data retention**. The dashboard's **Needs your attention** list shows what is still missing.
-4. **Content:** replace the sample jobs, the homepage stats and the testimonials with real ones, and review the three starter blog articles.
+4. **Content:** post real vacancies, add homepage figures and testimonials only when they are real, and review the three starter blog articles.
 5. **Legal:** have a lawyer review `/privacy` and `/terms` (the text is in `views/privacy.ejs` and `views/terms.ejs`) and the readiness list in `docs/SECURITY.md` (DPDP Act and Rules, CERT-In directions), and fill in the incident contacts there. Have a chartered accountant confirm the GST rates, SAC codes and invoice contents in `docs/BILLING.md` section 8 before taking real payments.
 6. **Team:** invite your recruiters from the Team tab so nobody shares the owner login. Turn on two-step sign-in for yourself under Sign-in security, then require it for the team on the Team tab.
 7. **Check:** run `npm test`, apply for a job with your own email, confirm the emails arrive, then share a job link on WhatsApp to see the preview image.

@@ -56,26 +56,25 @@ test('candidates can download their data and their own resume, nobody else\'s', 
   assert.equal((await srv.request('/account/my-data.json')).status, 302); // signed out
 });
 
-test('testimonials: samples until replaced, then the real ones', async () => {
+test('testimonials: none until real ones are saved, and figures render in the HTML', async () => {
   let home = await (await srv.request('/')).text();
-  assert.match(home, /Head of Engineering/);
-  assert.match(await (await srv.request('/admin', { cookie: admin })).text(), /Replace the sample testimonials/);
+  assert.doesNotMatch(home, /What clients and candidates say/);
 
   const form = {
     tagline: 'Hiring', phone: '+91 98765 43210', whatsapp: '919876543210', email: 'hello@hireriv.com', address: 'Kolkata', hours: '9-6',
-    stat_value_0: '10', stat_label_0: 'Hires', jobCategories: 'Technology', jobLocations: 'Bengaluru',
+    stat_value_0: '1200', stat_label_0: 'Hires', jobCategories: 'Technology', jobLocations: 'Bengaluru',
     billing_feePercent: '8.33', billing_guaranteeDays: '90', billing_gstPercent: '18', billing_paymentDays: '15', billing_tdsPercent: '10',
     testimonial_quote_0: 'Fast, honest and thorough.', testimonial_name_0: 'Meera Iyer', testimonial_detail_0: 'HR Lead, D2C brand', testimonial_rating_0: '4',
   };
   assert.equal((await srv.request('/admin/settings', { method: 'POST', cookie: admin, form })).status, 302);
   home = await (await srv.request('/')).text();
+  assert.match(home, /data-target="1200">1,200</, 'figures are in the HTML, not zeros waiting for JavaScript');
   assert.match(home, /Fast, honest and thorough\./);
   assert.match(home, /aria-label="4 out of 5"/);
   assert.match(home, /<span class="avatar" aria-hidden="true">MI<\/span>/);
-  assert.doesNotMatch(home, /Head of Engineering/);
-  assert.doesNotMatch(await (await srv.request('/admin', { cookie: admin })).text(), /Replace the sample testimonials/);
 
-  // Hidden on purpose: the section disappears.
-  await srv.request('/admin/settings', { method: 'POST', cookie: admin, form: { ...form, testimonials_hide: '1' } });
+  // Clearing every row hides the section again.
+  const cleared = { ...form, testimonial_quote_0: '', testimonial_name_0: '', testimonial_detail_0: '' };
+  assert.equal((await srv.request('/admin/settings', { method: 'POST', cookie: admin, form: cleared })).status, 302);
   assert.doesNotMatch(await (await srv.request('/')).text(), /What clients and candidates say/);
 });

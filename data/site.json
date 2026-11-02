@@ -12,10 +12,6 @@
     "facebook": "#",
     "x": "#"
   },
-  "stats": [
-    { "value": 1200, "suffix": "+", "label": "Vacancies filled" },
-    { "value": 3500, "suffix": "+", "label": "Professionals placed" },
-    { "value": 98, "suffix": "%", "label": "Client satisfaction" },
-    { "value": 45, "suffix": "+", "label": "Recruitment experts" }
-  ]
+  "stats": [],
+  "testimonials": []
 }

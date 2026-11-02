@@ -331,16 +331,16 @@ test('emails get a readable plain-text version', () => {
 });
 
 // ---------- testimonials ----------
-test('testimonials: samples stay until replaced, and saving other settings never wipes them', () => {
+test('testimonials: only real ones from the form; empty rows mean none', () => {
   const row = { testimonial_quote_0: 'Great team.', testimonial_name_0: 'Asha K', testimonial_detail_0: 'CTO, SaaS', testimonial_rating_0: '4' };
-  // Samples (nothing saved yet) + empty rows: still samples.
-  assert.equal('testimonials' in content.parseSettings(validSettings, { name: 'H' }).settings, false);
-  // Real ones saved.
+  assert.deepEqual(content.parseSettings(validSettings, { name: 'H' }).settings.testimonials, []);
   const saved = content.parseSettings({ ...validSettings, ...row }, { name: 'H' }).settings.testimonials;
   assert.deepEqual(saved, [{ quote: 'Great team.', name: 'Asha K', detail: 'CTO, SaaS', rating: 4 }]);
-  // Clearing every row of real testimonials hides the section; so does the tick box.
   assert.deepEqual(content.parseSettings(validSettings, { name: 'H', testimonials: saved }).settings.testimonials, []);
-  assert.deepEqual(content.parseSettings({ ...validSettings, testimonials_hide: '1' }, { name: 'H' }).settings.testimonials, []);
   // A row needs both the quote and a name.
   assert.ok(content.parseSettings({ ...validSettings, testimonial_name_1: 'Ravi' }, { name: 'H' }).errors.includes('testimonial 2 needs the quote'));
+  // Figures are optional: none means the pages say what the site offers.
+  const noFigures = { ...validSettings };
+  for (const k of Object.keys(noFigures)) if (k.startsWith('stat_')) delete noFigures[k];
+  assert.deepEqual(content.parseSettings(noFigures, { name: 'H' }).errors, []);
 });

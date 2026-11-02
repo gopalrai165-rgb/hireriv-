@@ -33,9 +33,10 @@ describe('public site', () => {
     assert.equal((await app.request('/jobs/nope')).status, 404);
   });
 
-  test('stats are in the HTML, not zeros waiting for JavaScript', async () => {
+  test('no made-up figures: without real ones the homepage says what the site offers', async () => {
     const html = await (await app.request('/')).text();
-    assert.match(html, /data-target="1200">1,200</);
+    assert.match(html, /Free registration/);
+    assert.doesNotMatch(html, /data-target=/);
   });
 
   test('sitemap lists open jobs, articles and legal pages; robots hides private areas', async () => {

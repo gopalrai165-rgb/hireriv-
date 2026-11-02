@@ -25,7 +25,7 @@
 
   <section class="form-card">
     <h2>Homepage numbers</h2>
-    <p class="muted small">The animated stats on the home and About pages. Leave a label empty to hide that stat.</p>
+    <p class="muted small">Figures shown on the home and About pages. Only add numbers you can back up from your own records (placements made, clients served). Leave a label empty to hide that figure. With none, the pages show what <%= form.name || 'Hireriv' %> offers instead: new opportunities added regularly, free registration for job seekers, recruitment support for employers, IT and non-IT hiring.</p>
     <div class="stat-edit-grid">
       <% for (var i = 0; i < 4; i++) { var s = form.stats[i] || { value: '', suffix: '', label: '' }; %>
         <fieldset class="stat-edit">
@@ -53,8 +53,7 @@
   <section class="form-card" id="testimonials">
     <h2>Homepage testimonials</h2>
     <% const realTestimonials = Array.isArray(form.testimonials) ? form.testimonials : []; %>
-    <% if (!Array.isArray(form.testimonials)) { %><p class="notice">The homepage is showing <b>sample</b> testimonials. Add real ones from clients or placed candidates (with their permission), or tick "Hide" below.</p><% } %>
-    <p class="muted small">Up to <%= maxTestimonials %>. Use a role and company type ("HR Manager, logistics company") if the person prefers not to be named. Leave a row empty to skip it.</p>
+    <p class="muted small">Only real feedback from clients or placed candidates, given with their permission. With none, the section is hidden. Up to <%= maxTestimonials %>. Use a role and company type ("HR Manager, logistics company") if the person prefers not to be named. Leave a row empty to skip it.</p>
     <% for (let i = 0; i < maxTestimonials; i++) { const t = realTestimonials[i] || {}; %>
       <fieldset class="testimonial-edit">
         <legend>Testimonial <%= i + 1 %></legend>
@@ -66,7 +65,6 @@
         </label>
       </fieldset>
     <% } %>
-    <label class="notify-line"><input type="checkbox" name="testimonials_hide" value="1"<%= Array.isArray(form.testimonials) && !form.testimonials.length ? ' checked' : '' %>> Hide the testimonials section on the homepage</label>
   </section>
 
   <section class="form-card" id="data-retention">

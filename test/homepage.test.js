@@ -1,13 +1,14 @@
 // Homepage and header redesign: category groups, Job Categories page, Post a
-// Job, and starter jobs labelled as samples (never shown as real vacancies).
+// Job. A fresh install lists no jobs, no made-up figures and no testimonials.
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
 const { startServer } = require('./helpers');
+const starter = require('./fixtures/jobs.json');
 
 let srv;
 let admin;
 before(async () => {
-  srv = await startServer({}, {}, { sampleJobs: true }); // like a fresh install
+  srv = await startServer({}, { jobs: starter.map((j) => ({ ...j, sample: false })) });
   admin = await srv.adminLogin();
 });
 after(() => srv && srv.stop());
@@ -57,34 +58,47 @@ test('Post a Job and Staffing Solutions links go to the right place', async () =
   assert.equal(sol.headers.get('location'), '/services');
 });
 
-test('starter jobs are labelled as samples, take no applications and stay out of Google', async () => {
-  assert.ok(srv.records('jobs').every((j) => j.sample === true));
-  const html = await page('/jobs/hr-114');
-  assert.match(html, /noindex/);
-  assert.doesNotMatch(html, /"@type":"JobPosting"/);
-  assert.match(await page('/jobs'), /Sample/);
-
-  const fd = new FormData();
-  fd.append('jobId', 'hr-114'); fd.append('name', 'Test Person'); fd.append('phone', '9800000000');
-  const res = await srv.request('/api/apply', { method: 'POST', body: fd, headers: { accept: 'application/json' } });
-  assert.equal(res.status, 400);
-  assert.match(JSON.stringify(await res.json()), /sample listing/);
-  assert.equal(srv.records('applications').length, 0);
-
-  assert.doesNotMatch(await page('/sitemap.xml'), /-hr-114</);
-  assert.match(await page('/admin', { cookie: admin }), /Replace the \d+ sample jobs/);
+test('a fresh install lists no jobs, no made-up figures and no testimonials', async () => {
+  const fresh = await startServer({}, {}, { sampleJobs: true });
+  try {
+    assert.equal(fresh.records('jobs').length, 0);
+    const home = await (await fresh.request('/')).text();
+    assert.match(home, /New opportunities are added regularly/);
+    for (const point of ['New opportunities', 'Free registration', 'Recruitment support', 'IT and non-IT']) assert.match(home, new RegExp(point));
+    assert.doesNotMatch(home, /Vacancies filled|Professionals placed|Client satisfaction|Recruitment experts/);
+    assert.doesNotMatch(home, /What clients and candidates say|Sample listing|Warehouse Associate/);
+    const about = await (await fresh.request('/about')).text();
+    assert.doesNotMatch(about, /Vacancies filled|data-target="1200"/);
+    assert.doesNotMatch(await (await fresh.request('/hire')).text(), /interview-to-offer|avg\. time to shortlist/);
+    assert.doesNotMatch(await (await fresh.request('/jobs')).text(), /Sample listing/);
+  } finally { fresh.stop(); }
 });
 
-test('editing a sample job makes it a real job', async () => {
-  const job = srv.records('jobs').find((j) => j.id === 'hr-114');
-  const form = {};
-  for (const k of ['title', 'company', 'location', 'mode', 'type', 'category', 'experience', 'salary', 'description']) form[k] = job[k] || '';
-  form.skills = (job.skills || []).join(', ');
-  form.responsibilities = (job.responsibilities || []).join('\n');
-  form.status = 'open';
-  const res = await srv.request('/admin/jobs/hr-114', { method: 'POST', cookie: admin, form });
+test('an older site loses its sample jobs, starter figures and sample testimonials once', async () => {
+  const old = await startServer({}, {
+    jobs: [...starter.slice(0, 3).map((j) => ({ ...j, sample: true })), { ...starter[3], sample: false }],
+    site: [{ ...require('../data/site.json'), testimonials: undefined, stats: [
+      { value: 1200, suffix: '+', label: 'Vacancies filled' }, { value: 3500, suffix: '+', label: 'Professionals placed' },
+      { value: 98, suffix: '%', label: 'Client satisfaction' }, { value: 45, suffix: '+', label: 'Recruitment experts' },
+    ] }],
+  });
+  try {
+    assert.deepEqual(old.records('jobs').map((j) => j.id), [starter[3].id]);
+    const [site] = old.records('site');
+    assert.deepEqual(site.stats, []);
+    assert.deepEqual(site.testimonials, []);
+    assert.doesNotMatch(await (await old.request('/')).text(), /Vacancies filled|We needed eight engineers/);
+  } finally { old.stop(); }
+});
+
+test('real figures and testimonials from Settings are shown', async () => {
+  const form = { phone: '+91 98000 00000', whatsapp: '919800000000', email: 'hello@example.com', address: 'Pune', hours: '9-6', jobCategories: 'Technology', jobLocations: 'Pune',
+    stat_value_0: '12', stat_suffix_0: '', stat_label_0: 'Placements this year', billing_feePercent: '8.33', billing_guaranteeDays: '90', billing_gstPercent: '18', billing_paymentDays: '15', billing_tdsPercent: '10', retentionMonths: '0',
+    testimonial_quote_0: 'They found our accountant in a week.', testimonial_name_0: 'Owner', testimonial_detail_0: 'Pune bakery', testimonial_rating_0: '5' };
+  const res = await srv.request('/admin/settings', { method: 'POST', cookie: admin, form });
   assert.equal(res.status, 302);
-  assert.equal(srv.records('jobs').find((j) => j.id === 'hr-114').sample, false);
-  assert.match(await page('/jobs/hr-114'), /"@type":"JobPosting"/);
-  assert.match(await page('/sitemap.xml'), /-hr-114</);
+  const home = await page('/');
+  assert.match(home, /Placements this year/);
+  assert.match(home, /They found our accountant in a week\./);
+  assert.doesNotMatch(home, /Free registration/);
 });

@@ -2116,3 +2116,7 @@ p, li, dd { text-wrap: pretty; }
     details[open]::details-content { height: auto; }
   }
 }
+
+/* What the site offers, shown instead of figures until real ones are entered */
+.stats .stat-offer .i { display: block; margin-inline: auto; width: 28px; height: 28px; color: var(--primary-600); margin-bottom: 6px; }
+.stats .stat-offer b { font-size: clamp(1.1rem, 2vw, 1.35rem); letter-spacing: -0.01em; }

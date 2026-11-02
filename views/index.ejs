@@ -46,11 +46,6 @@
       <span class="deco deco-ring"></span>
       <span class="deco deco-spark"></span>
       <figure class="photo-arch"><img src="/img/photos/hero-team.webp" alt="" width="900" height="1040" fetchpriority="high"></figure>
-      <div class="float-card fc-main">
-        <div class="fc-head"><span class="job-logo">W</span><div><b>Warehouse Associate</b><span class="muted small">Logistics company · Pune</span></div></div>
-        <ul class="fc-facts small"><li><svg class="i"><use href="#i-wallet"/></svg>₹18,000 – 22,000 a month</li><li><svg class="i"><use href="#i-pin"/></svg>~4 km away</li><li><svg class="i"><use href="#i-clock"/></svg>Day shift</li></ul>
-        <div class="fc-actions"><span class="btn btn-primary btn-sm">Applied</span><span class="btn btn-whatsapp btn-sm"><svg class="i"><use href="#i-phone"/></svg>Call HR</span></div>
-      </div>
       <div class="float-card fc-small fc-a"><svg class="i ok"><use href="#i-check"/></svg><div><b>Verified employer</b><span class="muted small">Checked by our team</span></div></div>
       <div class="float-card fc-small fc-b"><svg class="i sun"><use href="#i-clock"/></svg><div><b>Apply in one tap</b><span class="muted small">With your saved profile</span></div></div>
     </div>
@@ -112,20 +107,8 @@
   </div>
 </section>
 
-<!-- STATS (only figures above zero; none on a brand-new site) -->
-<% const stats = site.stats.filter(function (s) { return s.value > 0; }); %>
-<% if (stats.length) { %>
-<section class="stats"<%- enOnly %>>
-  <div class="container stats-grid">
-    <% stats.forEach(function (s) { %>
-      <div class="stat">
-        <b><span class="counter" data-target="<%= s.value %>"><%= s.value.toLocaleString('en-IN') %></span><%= s.suffix %></b>
-        <span><%= s.label %></span>
-      </div>
-    <% }) %>
-  </div>
-</section>
-<% } %>
+<!-- FIGURES: real ones from Settings, or what we offer -->
+<%- include('partials/figures', { enOnly: enOnly }) %>
 
 <!-- JOB CATEGORIES -->
 <section class="section" id="categories">
@@ -161,9 +144,16 @@
       </div>
       <a href="/jobs" class="btn btn-outline"><%= t('home.viewAll') %> <svg class="i" aria-hidden="true"><use href="#i-arrow"/></svg></a>
     </div>
+    <% if (jobs.length) { %>
     <div class="jobs-grid">
       <% jobs.forEach(function (job) { %><%- include('partials/job-card', { job: job }) %><% }) %>
     </div>
+    <% } else { %>
+    <div class="empty">
+      <p><b>New opportunities are added regularly.</b> Only real vacancies from employers are listed here.</p>
+      <p><a class="btn btn-primary" href="/account/register"><%= t('home.createProfile') %></a> <a class="btn btn-outline" href="/jobs#alerts">Get job alerts</a></p>
+    </div>
+    <% } %>
   </div>
 </section>
 

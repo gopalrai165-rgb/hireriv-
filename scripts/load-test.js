@@ -25,7 +25,7 @@ const ONLY = String(process.env.ONLY || '').split(',').map((s) => s.trim()).filt
 
 // ---------- data ----------
 const ROOT = path.join(__dirname, '..');
-const starter = JSON.parse(fs.readFileSync(path.join(ROOT, 'data', 'jobs.json'), 'utf8'));
+const starter = JSON.parse(fs.readFileSync(path.join(ROOT, 'test', 'fixtures', 'jobs.json'), 'utf8'));
 const cities = Object.keys(geo.CITIES);
 const TITLES = ['Delivery Executive', 'Driver', 'Telecaller', 'Data Entry Operator', 'Security Guard', 'Warehouse Associate', 'Retail Sales Associate', 'Electrician', 'Accountant', 'Customer Support Executive', 'Field Sales Executive', 'Machine Operator', 'Cook', 'Receptionist', 'Software Developer'];
 const pick = (list, i) => list[i % list.length];

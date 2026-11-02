@@ -21,7 +21,7 @@ const contactCredits = require('./contact-credits');
 const billingRoutes = require('./billing-routes');
 const paymentGateway = require('./payment-gateway');
 const pgMirror = require('./pg');
-const { jobSlug, jobPath, findJobBySlug, parsePost, parseSettings, SOCIAL, DEFAULT_JOB_CATEGORIES, DEFAULT_JOB_LOCATIONS, SAMPLE_TESTIMONIALS, MAX_TESTIMONIALS, WORK_KINDS, WORK_KEYS, CATEGORY_WORK, workOf, workOfCategory, RESUME_OPTIONS, resumeNeeded, JOB_GROUPS, inGroup } = require('./content');
+const { jobSlug, jobPath, findJobBySlug, parsePost, parseSettings, SOCIAL, DEFAULT_JOB_CATEGORIES, DEFAULT_JOB_LOCATIONS, MAX_TESTIMONIALS, WORK_KINDS, WORK_KEYS, CATEGORY_WORK, workOf, workOfCategory, RESUME_OPTIONS, resumeNeeded, JOB_GROUPS, inGroup } = require('./content');
 const interviews = require('./interviews');
 const { totals: appTotals } = require('./app-totals');
 // How fast each hiring team opens applications (response-time.js).
@@ -116,7 +116,7 @@ for (const type of [...FORM_TYPES, 'employers']) {
   const n = db.importOnce(type, path.join(SUBMISSIONS_DIR, `${type}.json`));
   if (n) console.log(`Imported ${n} ${type} from data/submissions/${type}.json`);
 }
-db.importOnce('jobs', path.join(DATA_DIR, 'jobs.json'));
+// A new site starts with no jobs: only real vacancies are ever listed.
 
 // One live application per person per job, enforced by the database as well as
 // by saveApplication. Withdrawn applications don't count, so people can apply
@@ -171,6 +171,17 @@ db.importOnce('site', path.join(DATA_DIR, 'site.json'));
 
 const site = db.all('site')[0];
 const saveSite = () => db.replaceAll('site', [site]);
+
+// Older versions shipped made-up homepage figures (1,200+ vacancies filled, …)
+// and sample testimonials. Only figures and quotes the team enters themselves
+// are shown now: the starter figures and the samples are removed once.
+if (!db.metaGet('upgraded:no-made-up-figures')) {
+  const STARTER_FIGURES = '1200+Vacancies filled|3500+Professionals placed|98%Client satisfaction|45+Recruitment experts';
+  if (Array.isArray(site.stats) && site.stats.map((x) => `${x.value}${x.suffix}${x.label}`).join('|') === STARTER_FIGURES) site.stats = [];
+  if (!Array.isArray(site.testimonials)) site.testimonials = [];
+  saveSite();
+  db.metaSet('upgraded:no-made-up-figures', new Date().toISOString());
+}
 
 // One-time: sites that saved their own category list in Settings get the new
 // skilled, industrial and service categories added once. Removing them again
@@ -242,22 +253,14 @@ if (!db.metaGet('upgraded:posts-v2')) {
 // ---------- jobs (editable from /admin) ----------
 let jobs = db.all('jobs').map((j) => ({ status: 'open', ...j }));
 
-// The starter jobs in data/jobs.json are examples, not real vacancies. They are
-// labelled "Sample listing", take no applications, send no job alerts and stay
-// out of Google and the sitemap. Editing one makes it a real job. Marked once:
-// a job counts as a sample while it still matches its starter text exactly.
-if (!db.metaGet('upgraded:sample-jobs')) {
-  const seed = JSON.parse(fs.readFileSync(path.join(DATA_DIR, 'jobs.json'), 'utf8'));
-  let marked = 0;
-  for (const j of jobs) {
-    const s = seed.find((x) => x.id === j.id);
-    if (j.sample === undefined && s && s.title === j.title && s.company === j.company && s.description === j.description) {
-      j.sample = true;
-      marked++;
-    }
-  }
-  if (marked) db.replaceAll('jobs', jobs);
-  db.metaSet('upgraded:sample-jobs', new Date().toISOString());
+// Older versions started with example jobs labelled "Sample listing". They were
+// never real vacancies, so they are removed once (an example the team edited
+// became a real job then and is kept).
+if (!db.metaGet('upgraded:remove-sample-jobs')) {
+  const before = jobs.length;
+  jobs = jobs.filter((j) => j.sample !== true);
+  if (jobs.length !== before) db.replaceAll('jobs', jobs);
+  db.metaSet('upgraded:remove-sample-jobs', new Date().toISOString());
 }
 const isSample = (j) => j.sample === true;
 
@@ -676,8 +679,8 @@ app.locals.waLink = (phone) => {
   return d.length >= 10 ? `https://wa.me/${d}` : '';
 };
 app.locals.workLabel = (key) => (WORK_KINDS.find((c) => c.key === key) || WORK_KINDS[0]).label;
-// The homepage shows these until real testimonials are saved in Settings.
-app.locals.testimonialsFor = (s) => (Array.isArray(s.testimonials) ? s.testimonials : SAMPLE_TESTIMONIALS);
+// Only real testimonials saved in Settings; none means the section is hidden.
+app.locals.testimonialsFor = (s) => (Array.isArray(s.testimonials) ? s.testimonials : []);
 app.locals.maxTestimonials = MAX_TESTIMONIALS;
 app.locals.formatIst = interviews.formatIst;
 // The pill colour for a hiring stage ("On hold" → st-on-hold).
@@ -794,7 +797,6 @@ function setupTodo() {
   if (!site.address || /^your office address/i.test(site.address)) todo.push({ text: 'Add your office address', href: settings });
   if (!Object.values(site.social || {}).some((u) => /^https?:\/\//.test(u))) todo.push({ text: 'Add your LinkedIn or other social links (icons stay hidden until you do)', href: settings });
   const b = site.billing || {};
-  if (!Array.isArray(site.testimonials)) todo.push({ text: 'Replace the sample testimonials on the homepage with real ones (or hide them)', href: '/admin?tab=settings#testimonials' });
   if (!b.legalName || !b.gstin || !b.bank) todo.push({ text: 'Add your legal name, GSTIN and bank details for invoices', href: settings });
   if (!process.env.SMTP_HOST) todo.push({ text: 'Set up email sending (SMTP_HOST). Until then emails are only saved to data/outbox' });
   if (process.env.NODE_ENV === 'production' && !process.env.SITE_URL) todo.push({ text: 'Set SITE_URL to your live https:// address' });
@@ -803,8 +805,6 @@ function setupTodo() {
   if (waitingJobs) todo.push({ text: `${waitingJobs} employer job${waitingJobs === 1 ? ' is' : 's are'} waiting for your review`, href: '/admin?tab=jobs' });
   const waitingClients = clients.read().filter((c) => c.active && c.selfSignup && c.emailVerifiedAt && !c.approvedAt).length;
   if (waitingClients) todo.push({ text: `${waitingClients} new employer${waitingClients === 1 ? '' : 's'} signed up and ${waitingClients === 1 ? 'needs' : 'need'} approving`, href: '/admin?tab=clients' });
-  const samples = jobs.filter(isSample).length;
-  if (samples) todo.push({ text: `Replace the ${samples} sample job${samples === 1 ? '' : 's'} with real openings: edit one to make it real, or delete it`, href: '/admin?tab=jobs' });
   if (!team.requires2fa()) todo.push({ text: 'Protect team sign-ins: turn on two-step sign-in for yourself, then require it for the team', href: '/admin/security' });
   return todo;
 }
