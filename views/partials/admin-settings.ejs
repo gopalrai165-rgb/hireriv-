@@ -13,6 +13,29 @@
     </div>
   </section>
 
+  <% const co = form.company || {}; %>
+  <section class="form-card" id="company">
+    <h2>About the company</h2>
+    <p class="muted small">Shown on the About page and in the footer. Write only what is true today: visitors and Google check. Leave a field empty to leave it out.</p>
+    <div class="form-grid">
+      <label>Operated by<input name="company_operator" maxlength="160" value="<%= co.operator || 'Raigozen Private Limited' %>"></label>
+      <label>CIN <span class="muted small">(optional)</span><input name="company_cin" maxlength="21" value="<%= co.cin || '' %>" placeholder="U74999KA2024PTC123456"></label>
+      <label>Year founded <span class="muted small">(optional)</span><input name="company_founded" inputmode="numeric" maxlength="4" value="<%= co.founded || '' %>"></label>
+      <label class="span-2">Company background<textarea name="company_story" rows="5" maxlength="2000" placeholder="Who started the company, when and why, and what you do today."><%= co.story || '' %></textarea></label>
+      <label class="span-2">What you can do today, one per line<textarea name="company_capabilities" rows="4" placeholder="IT recruitment for start-ups in Bengaluru&#10;Warehouse and delivery staff in Pune"><%= (co.capabilities || []).join('\n') %></textarea></label>
+    </div>
+    <h3>Team</h3>
+    <p class="muted small">Real people only, with their permission. Up to <%= maxTeam %>; leave a row empty to skip it.</p>
+    <% for (let i = 0; i < maxTeam; i++) { const m = (co.team || [])[i] || {}; %>
+      <fieldset class="testimonial-edit">
+        <legend>Team member <%= i + 1 %></legend>
+        <label>Name<input name="team_name_<%= i %>" maxlength="80" value="<%= m.name || '' %>"></label>
+        <label>Role<input name="team_role_<%= i %>" maxlength="80" value="<%= m.role || '' %>" placeholder="e.g. Founder, Recruitment lead"></label>
+        <label class="span-2">Short bio<textarea name="team_bio_<%= i %>" rows="2" maxlength="300"><%= m.bio || '' %></textarea></label>
+      </fieldset>
+    <% } %>
+  </section>
+
   <section class="form-card">
     <h2>Social links</h2>
     <p class="muted small">Paste the full profile address, starting with https://. Leave empty to hide the link target.</p>

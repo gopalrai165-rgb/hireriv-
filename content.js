@@ -106,6 +106,7 @@ const DEFAULT_JOB_LOCATIONS = [
 ];
 
 const MAX_TESTIMONIALS = 6;
+const MAX_TEAM = 6;
 
 // Testimonials from the settings form: only real quotes, given with the
 // person's permission. None hides the homepage section.
@@ -163,6 +164,23 @@ function parseSettings(body, current) {
     next.stats.push({ value: Math.round(value) || 0, suffix: get(`stat_suffix_${i}`, 3), label });
   }
   next.testimonials = parseTestimonials(body, errors);
+  // The company behind the site, for the About page and the footer.
+  next.company = {
+    operator: get('company_operator', 160) || 'Raigozen Private Limited',
+    cin: get('company_cin', 21).toUpperCase(),
+    founded: get('company_founded', 4),
+    story: String(body.company_story ?? '').trim().replace(/\r\n/g, '\n').slice(0, 2000),
+    capabilities: parseList(body.company_capabilities, 160, 8),
+    team: [],
+  };
+  if (next.company.cin && !/^[LU]\d{5}[A-Z]{2}\d{4}[A-Z]{3}\d{6}$/.test(next.company.cin)) errors.push('CIN should be 21 characters (e.g. U74999KA2024PTC123456)');
+  if (next.company.founded && !(/^\d{4}$/.test(next.company.founded) && +next.company.founded >= 1950 && +next.company.founded <= new Date().getFullYear())) errors.push('the year founded must be a year');
+  for (let i = 0; i < MAX_TEAM; i++) {
+    const m = { name: get(`team_name_${i}`, 80), role: get(`team_role_${i}`, 80), bio: get(`team_bio_${i}`, 300) };
+    if (!m.name && !m.role && !m.bio) continue;
+    if (!m.name || !m.role) errors.push(`team member ${i + 1} needs a name and a role`);
+    next.company.team.push(m);
+  }
   next.jobCategories = parseList(body.jobCategories, 60, 50);
   if (!next.jobCategories.length) errors.push('add at least one job category');
   next.jobLocations = parseList(body.jobLocations, 60, 150);
@@ -203,4 +221,4 @@ const jobSlug = (job) => [slugify(job.title).slice(0, 60).replace(/-+$/, ''), sl
 const jobPath = (job) => `/jobs/${jobSlug(job)}`;
 const findJobBySlug = (list, param) => list.find((j) => param === j.id) || list.find((j) => param.endsWith(`-${j.id}`));
 
-module.exports = { jobSlug, jobPath, findJobBySlug, parsePost, slugify, parseSettings, SOCIAL, DEFAULT_JOB_CATEGORIES, DEFAULT_JOB_LOCATIONS, MAX_TESTIMONIALS, WORK_KINDS, WORK_KEYS, CATEGORY_WORK, workOf, workOfCategory, RESUME_OPTIONS, resumeNeeded, JOB_GROUPS, inGroup, isFresherJob };
+module.exports = { jobSlug, jobPath, findJobBySlug, parsePost, slugify, parseSettings, SOCIAL, DEFAULT_JOB_CATEGORIES, DEFAULT_JOB_LOCATIONS, MAX_TESTIMONIALS, MAX_TEAM, WORK_KINDS, WORK_KEYS, CATEGORY_WORK, workOf, workOfCategory, RESUME_OPTIONS, resumeNeeded, JOB_GROUPS, inGroup, isFresherJob };

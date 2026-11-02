@@ -697,6 +697,9 @@ app.locals.realContact = (s) => ({
 // Only real testimonials saved in Settings; none means the section is hidden.
 app.locals.testimonialsFor = (s) => (Array.isArray(s.testimonials) ? s.testimonials : []);
 app.locals.maxTestimonials = MAX_TESTIMONIALS;
+app.locals.maxTeam = require('./content').MAX_TEAM;
+// The company behind the site (Admin → Settings → About the company).
+app.locals.companyOf = (s) => ({ operator: 'Raigozen Private Limited', cin: '', founded: '', story: '', capabilities: [], team: [], ...(s.company || {}) });
 app.locals.hireFollowUps = ['New', 'Contacted', 'Quote sent', 'In progress', 'Hired', 'Not proceeding'];
 app.locals.formatIst = interviews.formatIst;
 // The pill colour for a hiring stage ("On hold" → st-on-hold).
@@ -1606,7 +1609,7 @@ app.get('/industries/:slug', (req, res, next) => {
     related: industry.services.map(catalog.serviceBySlug).filter(Boolean), metaDescription: `${industry.name} recruitment by ${site.name}. ${industry.text}`, jsonLd: seo.industryPage(industry, BASE_URL),
   });
 });
-app.get('/about', (req, res) => res.render('about', { title: 'About Us', page: 'about', metaDescription: `About ${site.name}: a recruitment and staffing company in India hiring for office, skilled and field roles, with pre-screened candidates and one point of contact for employers.` }));
+app.get('/about', (req, res) => res.render('about', { title: 'About Us', page: 'about', metaDescription: `About ${site.name} by Raigozen: a recruitment and staffing service for IT and non-IT hiring across India, operated by ${(site.company && site.company.operator) || 'Raigozen Private Limited'}.` }));
 // Plain-language help with the words on job listings, and the accessibility
 // statement (both in every interface language).
 app.get('/help/job-terms', (req, res) => res.render('help-terms', { title: 'Job words explained', page: 'help', metaDescription: `What CTC, LPA, in-hand salary, PF, notice period, shifts and other words on job listings mean, explained simply by ${site.name}.` }));

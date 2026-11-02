@@ -2182,3 +2182,15 @@ p, li, dd { text-wrap: pretty; }
 .journey-num { flex: none; display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; border: 2px solid var(--primary); color: var(--primary); font-weight: 700; font-size: .85rem; }
 .journey li.is-done { color: var(--muted); }
 .journey li.is-done .journey-num { background: var(--primary); color: #fff; }
+
+/* About: company facts and team */
+.company-facts { margin: 0; padding: 22px 24px; border: 1px solid var(--line); border-radius: var(--radius); background: #fff; display: grid; gap: 12px; align-self: start; }
+.company-facts > div { display: grid; grid-template-columns: 120px 1fr; gap: 10px; }
+.company-facts dt { font-weight: 700; color: var(--ink); }
+.company-facts dd { margin: 0; overflow-wrap: anywhere; }
+.about-capabilities { margin: 0 0 24px; }
+.team-grid { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
+.team-card { display: flex; gap: 14px; padding: 20px; background: #fff; border: 1px solid var(--line); border-radius: var(--radius); }
+.team-card b { display: block; }
+.team-card p { margin: 8px 0 0; }
+.footer-operator { opacity: .8; }

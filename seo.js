@@ -29,6 +29,7 @@ function organization(site, baseUrl) {
   return {
     '@type': 'Organization',
     name: site.name,
+    ...(site.company && site.company.operator ? { legalName: site.company.operator } : { legalName: 'Raigozen Private Limited' }),
     url: baseUrl,
     logo: `${baseUrl}/img/logo.svg`,
     ...(sameAs.length ? { sameAs } : {}),
