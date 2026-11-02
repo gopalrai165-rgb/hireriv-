@@ -689,6 +689,9 @@ Total: 727 routes.
 | GET | `/employer/invoices/:id/credit-notes/:cnId` | employer | Company owners only; this company's invoices |
 | GET | `/employers/contact` | public | Moved (301) to /employers#enquiry |
 | GET | `/hire-talent` | public | Moved (301) to /employers |
+| GET | `/job-seekers` | public | The job seekers page with job search and the resume form |
+| GET | `/jobseekers` | public | Moved (301) to /job-seekers |
+| GET | `/for-job-seekers` | public | Moved (301) to /job-seekers |
 | GET | `/employers` | public | The Employers / Hire Talent page with the enquiry form |
 | POST | `/employer/timesheets/:pid/:tsId/approve` | employer | Owners and hiring managers; this company's placements |
 | POST | `/employer/timesheets/:pid/:tsId/reject` | employer | Owners and hiring managers; this company's placements |

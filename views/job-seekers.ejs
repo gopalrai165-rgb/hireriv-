@@ -1,0 +1,95 @@
+<%- include('partials/head') %>
+
+<section class="page-hero seekers-hero">
+  <span class="deco deco-spark" aria-hidden="true"></span>
+  <div class="container split">
+    <div>
+      <span class="eyebrow">For job seekers</span>
+      <h1>Find the Right Job. <span class="grad">Faster.</span></h1>
+      <p class="lead">Search jobs across India, apply in one tap and follow every application. Free for job seekers, always.</p>
+      <form class="seeker-search" action="/jobs" method="get" role="search">
+        <label class="sr-only" for="ss-q">Job title, skill or company</label>
+        <input id="ss-q" name="q" placeholder="Job title, skill or company" maxlength="80">
+        <label class="sr-only" for="ss-loc">City</label>
+        <select id="ss-loc" name="location"><option value="">Any city</option><% jobLocations.forEach(function (l) { %><option><%= l %></option><% }) %></select>
+        <button class="btn btn-primary" type="submit"><svg class="i" aria-hidden="true"><use href="#i-search"/></svg> Search jobs</button>
+      </form>
+    </div>
+    <div class="callback-card">
+      <h2>No suitable job right now?</h2>
+      <p>Send us your resume once. Our recruiters will contact you when a matching job comes in.</p>
+      <a class="btn btn-accent btn-lg btn-block" href="#resume">Upload your resume</a>
+      <a class="btn btn-outline btn-block" href="/account/register">Create a free account</a>
+    </div>
+  </div>
+</section>
+
+<section class="section" aria-labelledby="kinds-h">
+  <div class="container">
+    <div class="section-head center"><h2 id="kinds-h">Jobs for every kind of work</h2></div>
+    <div class="services-grid">
+      <% workPages.forEach(function (w, i) { %>
+        <a class="service-card service-link" href="/jobs/<%= w.slug %>">
+          <span class="service-icon"><svg class="i"><use href="#<%= ['i-briefcase', 'i-gear', 'i-hardhat'][i] || 'i-briefcase' %>"/></svg></span>
+          <h3><%= w.name %></h3>
+          <span class="card-link">See the jobs <svg class="i"><use href="#i-arrow"/></svg></span>
+        </a>
+      <% }) %>
+    </div>
+    <p class="center"><a href="/categories">All job categories</a> · <a href="/jobs?sort=distance#f-near">Jobs near me</a> · <a href="/jobs/immediate-joining">Immediate joining</a></p>
+  </div>
+</section>
+
+<section class="section section-tint" aria-labelledby="how-h">
+  <div class="container">
+    <div class="section-head center"><h2 id="how-h">How it works</h2></div>
+    <ol class="how-steps">
+      <li><span class="how-num" aria-hidden="true">1</span><svg class="i" aria-hidden="true"><use href="#i-user"/></svg><b>Create your free profile with your mobile or email.</b></li>
+      <li><span class="how-num" aria-hidden="true">2</span><svg class="i" aria-hidden="true"><use href="#i-mail"/></svg><b>Upload your resume and add your skills.</b></li>
+      <li><span class="how-num" aria-hidden="true">3</span><svg class="i" aria-hidden="true"><use href="#i-check"/></svg><b>Apply to matching jobs in one tap.</b></li>
+      <li><span class="how-num" aria-hidden="true">4</span><svg class="i" aria-hidden="true"><use href="#i-clock"/></svg><b>Follow your application and interview updates.</b></li>
+    </ol>
+  </div>
+</section>
+
+<section class="section" aria-labelledby="get-h">
+  <div class="container split">
+    <div>
+      <h2 id="get-h">What you get</h2>
+      <ul class="checks">
+        <li>Job alerts by email for the jobs and cities you choose</li>
+        <li>Application and interview updates in your account, and on WhatsApp if you agree</li>
+        <li><a href="/interview-tips">Interview tips</a> for your role</li>
+        <li>Saved jobs and recently viewed jobs on your phone</li>
+        <li>Recruiters see your profile only if you allow it in your settings</li>
+      </ul>
+    </div>
+    <div class="vm-card safety-card">
+      <span class="service-icon"><svg class="i"><use href="#i-shield"/></svg></span>
+      <h2 class="h3">Stay safe while job hunting</h2>
+      <ul class="checks"><% safety.forEach(function (s) { %><li><%= s %></li><% }) %></ul>
+      <p class="small">If anyone asks you for money in the name of <%= site.name %>, do not pay. Report it to <a href="mailto:<%= site.email %>"><%= site.email %></a>.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section section-tint" id="resume" aria-labelledby="resume-h">
+  <div class="container split">
+    <div>
+      <span class="eyebrow">Send your resume</span>
+      <h2 id="resume-h">Let recruiters find you</h2>
+      <p class="lead-sm">One short form. We keep your resume private and use it only to match you with jobs.</p>
+      <ul class="checks">
+        <li>No fee, ever</li>
+        <li>A recruiter calls only when a job matches</li>
+        <li>Ask us to delete your details at any time</li>
+      </ul>
+    </div>
+    <div class="form-card">
+      <p class="small muted register-note">Want to follow your applications? <a href="/account/register">Create a free account</a> instead.</p>
+      <%- include('partials/apply-form', { jobId: 'general' }) %>
+    </div>
+  </div>
+</section>
+
+<%- include('partials/foot') %>

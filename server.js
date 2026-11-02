@@ -822,7 +822,7 @@ function needPagesWithJobs() {
 }
 const cityPagesWithJobs = () => { const live = openJobs().filter((j) => !isSample(j)); return geo.CITY_PAGES.filter((c) => live.some((j) => c.locations.includes(j.location))); };
 app.get('/sitemap.xml', (req, res) =>
-  res.type('application/xml').send(seo.sitemap(BASE_URL, { jobs: openJobs().filter((j) => !isSample(j)), posts: livePosts(), staticPaths: ['/', '/jobs', ...catalog.WORK_PAGES.map((x) => `/jobs/${x.slug}`), ...catalog.JOB_INDUSTRIES.map((x) => `/jobs/industry/${x.slug}`), ...cityPagesWithJobs().map((c) => `/jobs/in/${c.slug}`), ...areaPagesWithJobs(), ...rolePagesWithJobs(), ...needPagesWithJobs(), ...salaryPagesWithData(), ...(trustHooks.companyPaths().length ? ['/companies'] : []), ...trustHooks.companyPaths(), '/interview-tips', ...ROLE_PAGES.filter((r) => interviewTips.forRole(r.key)).map((r) => tipsPath(r)), '/categories', '/employers', '/hire', '/services', ...catalog.SERVICES.map((x) => `/services/${x.slug}`), '/industries', ...catalog.INDUSTRIES.map((x) => `/industries/${x.slug}`), '/about', '/blog', '/contact', '/privacy', '/terms', '/job-posting-policy', '/help/job-terms', '/accessibility'] }))
+  res.type('application/xml').send(seo.sitemap(BASE_URL, { jobs: openJobs().filter((j) => !isSample(j)), posts: livePosts(), staticPaths: ['/', '/jobs', ...catalog.WORK_PAGES.map((x) => `/jobs/${x.slug}`), ...catalog.JOB_INDUSTRIES.map((x) => `/jobs/industry/${x.slug}`), ...cityPagesWithJobs().map((c) => `/jobs/in/${c.slug}`), ...areaPagesWithJobs(), ...rolePagesWithJobs(), ...needPagesWithJobs(), ...salaryPagesWithData(), ...(trustHooks.companyPaths().length ? ['/companies'] : []), ...trustHooks.companyPaths(), '/interview-tips', ...ROLE_PAGES.filter((r) => interviewTips.forRole(r.key)).map((r) => tipsPath(r)), '/categories', '/job-seekers', '/employers', '/hire', '/services', ...catalog.SERVICES.map((x) => `/services/${x.slug}`), '/industries', ...catalog.INDUSTRIES.map((x) => `/industries/${x.slug}`), '/about', '/blog', '/contact', '/privacy', '/terms', '/job-posting-policy', '/help/job-terms', '/accessibility'] }))
 );
 
 // Things a new install still needs before it is ready for visitors, shown to
@@ -1598,6 +1598,16 @@ app.get('/services/staffing', (req, res) => res.redirect(301, '/services/contrac
 app.get('/services/bulk-hiring', (req, res) => res.redirect(301, '/services/bulk-rpo-hiring'));
 app.get('/employers/contact', (req, res) => res.redirect(301, '/employers#enquiry'));
 app.get('/hire-talent', (req, res) => res.redirect(301, '/employers'));
+// The job seekers' landing page: search, how it works, safety and the resume form.
+app.get('/job-seekers', (req, res) => {
+  res.render('job-seekers', {
+    title: 'Jobs for Job Seekers: Search, Apply and Send Your Resume', page: 'job-seekers', jobLocations: jobLocations(),
+    workPages: catalog.WORK_PAGES, safety: interviewTips.SAFETY,
+    metaDescription: `Find the right job, faster. Search jobs across India, apply in one tap, get job alerts and send your resume to ${site.name}. Free for job seekers.`,
+  });
+});
+app.get('/jobseekers', (req, res) => res.redirect(301, '/job-seekers'));
+app.get('/for-job-seekers', (req, res) => res.redirect(301, '/job-seekers'));
 // The Employers / Hire Talent page: services, how it works and the enquiry form.
 app.get('/employers', (req, res) => {
   res.render('employers', {

@@ -2216,3 +2216,10 @@ p, li, dd { text-wrap: pretty; }
 .grievance-officer { font-style: normal; line-height: 1.7; padding: 14px 18px; border-left: 3px solid var(--primary, #123B70); background: rgba(18, 59, 112, .04); border-radius: 0 10px 10px 0; margin: 0 0 16px; }
 .enquiry-sources { margin: 0 0 14px; padding: 10px 14px; border: 1px solid var(--line, #e3e8f0); border-radius: 10px; }
 .enquiry-sources summary { cursor: pointer; font-weight: 600; }
+
+/* Job seekers page */
+.seeker-search { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
+.seeker-search input, .seeker-search select { flex: 1 1 180px; min-height: 46px; }
+.seeker-search .btn { flex: 1 1 100%; }
+@media (min-width: 720px) { .seeker-search .btn { flex: 0 0 auto; } }
+.safety-card .checks li { margin-bottom: 6px; }
