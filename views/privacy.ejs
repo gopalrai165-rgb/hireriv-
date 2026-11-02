@@ -84,7 +84,9 @@
     <p>Passwords are stored as salted hashes, and sign-in links are single-use and expire. The admin area is restricted by role and needs two-step sign-in for privileged staff. Resumes and documents are encrypted where they are stored and can be downloaded only through short-lived links, and each opening is logged. We watch for suspicious sign-ins, refused requests and unusual downloads, and we have a written plan for security incidents. No system is completely secure, so if we become aware of a breach that affects you, we will tell you, the Data Protection Board of India and CERT-In as the law requires.</p>
 
     <h2>Grievances and contact</h2>
-    <p>For questions or complaints about your personal data, contact our Grievance Officer at <a href="mailto:<%= site.email %>"><%= site.email %></a> or <%= site.phone %>, or write to <%= site.address %>. We respond within 30 days. If you are not satisfied, you may approach the Data Protection Board of India.</p>
+    <p>For questions or complaints about your personal data, contact our Grievance Officer:</p>
+    <%- include('partials/grievance-officer') %>
+    <p>We acknowledge a complaint within 24 hours and respond within 15 days (30 days at most for requests about your personal data). If you are not satisfied, you may approach the Data Protection Board of India.</p>
 
     <h2>Changes to this policy</h2>
     <p>If we change this policy, we will update the date at the top of this page. Significant changes will also be highlighted on the site.</p>

@@ -44,7 +44,7 @@
             <% requests.forEach(function (r) { %><li><b><%= r.number %></b> · <%= r.typeLabel %> · <%= r.statusLabel %> · sent <%= when(r.createdAt) %><%= r.closedAt ? '' : ', answer by ' + when(r.dueAt) %><% if (r.resolution) { %><br><%= r.resolution %><% } %></li><% }) %>
           </ul>
         <% } %>
-        <p class="small muted">Not happy with an answer? Write to our Grievance Officer at <a href="mailto:<%= site.email %>"><%= site.email %></a>. You may also complain to the Data Protection Board of India.</p>
+        <p class="small muted"><% const go = grievanceOf(site); %>Not happy with an answer? Write to our Grievance Officer<%= go.name ? ', ' + go.name + ',' : '' %> at <a href="mailto:<%= go.email %>"><%= go.email %></a>. You may also complain to the Data Protection Board of India.</p>
       </section>
     </div>
   </div>

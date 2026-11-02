@@ -703,6 +703,11 @@ app.locals.testimonialsFor = (s) => (Array.isArray(s.testimonials) ? s.testimoni
 app.locals.maxTestimonials = MAX_TESTIMONIALS;
 app.locals.maxTeam = require('./content').MAX_TEAM;
 app.locals.pricedServices = require('./content').PRICED_SERVICES;
+// The Grievance Officer: their own email when given, otherwise the site email.
+app.locals.grievanceOf = (s) => {
+  const g = s.grievance || {};
+  return { name: g.name || '', designation: g.designation || '', email: g.email || s.email, phone: g.phone || '' };
+};
 app.locals.priceOf = (s, slug) => (s.pricing && s.pricing[slug]) || '';
 // Google Analytics (public pages, after consent) and Search Console's ownership tag.
 app.locals.gaId = GA_ID;
@@ -828,6 +833,7 @@ function setupTodo() {
   if (backupProblem) todo.push({ text: backupProblem, href: '/admin?tab=settings#backups' });
   if (/0{5}/.test(site.phone) || /^\d{2}0+$/.test(site.whatsapp)) todo.push({ text: 'Add your real phone and WhatsApp numbers', href: settings });
   if (!site.address || /^your office address/i.test(site.address)) todo.push({ text: 'Add your office address', href: settings });
+  if (!(site.grievance && site.grievance.name)) todo.push({ text: 'Name your Grievance Officer for the privacy policy and terms', href: '/admin?tab=settings#grievance' });
   if (!Object.values(site.social || {}).some((u) => /^https?:\/\//.test(u))) todo.push({ text: 'Add your LinkedIn or other social links (icons stay hidden until you do)', href: settings });
   const b = site.billing || {};
   if (!b.legalName || !b.gstin || !b.bank) todo.push({ text: 'Add your legal name, GSTIN and bank details for invoices', href: settings });
@@ -1644,7 +1650,7 @@ const ACCESSIBILITY_REVIEWED = '2026-10-25';
 app.get('/accessibility', (req, res) => res.render('accessibility', { title: 'Accessibility', page: 'help', reviewedOn: ACCESSIBILITY_REVIEWED, metaDescription: `How ${site.name} works with keyboards, screen readers, voice input, larger text and in Hindi, what is still being improved, and how to tell us about a problem.` }));
 app.get('/contact', (req, res) => res.render('contact', { title: 'Contact Us', page: 'contact', metaDescription: `Contact ${site.name} by phone, WhatsApp or email: questions about jobs, applications, hiring or staffing.` }));
 // Bump LEGAL_UPDATED whenever the wording of either page changes.
-const LEGAL_UPDATED = '2026-10-25';
+const LEGAL_UPDATED = '2026-11-02';
 app.get('/privacy', (req, res) => res.render('privacy', { title: 'Privacy Policy', page: 'legal', updated: LEGAL_UPDATED, policyVersion: privacyModule.POLICY_VERSION, purposes: privacyModule.PURPOSES, metaDescription: `How ${site.name} collects, uses and protects the personal data of candidates, clients and visitors.` }));
 app.get('/job-posting-policy', (req, res) => res.render('job-posting-policy', { title: 'Job posting rules', page: 'legal', updated: LEGAL_UPDATED, metaDescription: `What employers may and may not post on ${site.name}: real vacancies, honest pay, no fees from candidates.` }));
 app.get('/terms', (req, res) => res.render('terms', { title: 'Terms of Use', page: 'legal', updated: LEGAL_UPDATED, metaDescription: `The terms for using the ${site.name} website as a job seeker or employer.` }));

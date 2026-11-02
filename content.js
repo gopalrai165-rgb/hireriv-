@@ -189,6 +189,17 @@ function parseSettings(body, current) {
     if (!m.name || !m.role) errors.push(`team member ${i + 1} needs a name and a role`);
     next.company.team.push(m);
   }
+  // The Grievance Officer named in the privacy policy and the terms.
+  next.grievance = {
+    name: get('grievance_name', 120),
+    designation: get('grievance_designation', 120),
+    email: get('grievance_email', 160).toLowerCase(),
+    phone: get('grievance_phone', 20),
+  };
+  const g = next.grievance;
+  if ((g.designation || g.email || g.phone) && !g.name) errors.push('the Grievance Officer needs a name');
+  if (g.email && !/^[^\s@<>]+@[^\s@<>]+\.[a-z]{2,}$/i.test(g.email)) errors.push('the Grievance Officer email does not look right');
+  if (g.phone && !/^\+?[\d\s-]{8,20}$/.test(g.phone)) errors.push('the Grievance Officer phone should be a phone number');
   // Starting prices: empty means the page shows only "Request a Quote".
   next.pricing = {};
   for (const p of PRICED_SERVICES) {

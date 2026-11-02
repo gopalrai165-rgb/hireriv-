@@ -2211,3 +2211,6 @@ p, li, dd { text-wrap: pretty; }
 @media (max-width: 560px) { .services-grid-4 { grid-template-columns: 1fr; } }
 .employers-hero .how-steps b { font-size: 1rem; }
 .hire-requests td form select { margin: 0 0 6px; display: block; }
+
+/* Grievance Officer block in the privacy policy and terms */
+.grievance-officer { font-style: normal; line-height: 1.7; padding: 14px 18px; border-left: 3px solid var(--primary, #123B70); background: rgba(18, 59, 112, .04); border-radius: 0 10px 10px 0; margin: 0 0 16px; }

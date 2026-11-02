@@ -48,6 +48,10 @@
     <h2>Governing law</h2>
     <p>These terms are governed by the laws of India. Disputes are subject to the jurisdiction of the courts where <%= site.name %> has its registered office.</p>
 
+    <h2 id="grievance">Complaints and Grievance Officer</h2>
+    <p>To complain about a job listing, an employer, a candidate or anything else on <%= site.name %>, contact our Grievance Officer. We acknowledge a complaint within 24 hours and resolve it within 15 days.</p>
+    <%- include('partials/grievance-officer') %>
+
     <h2>Contact</h2>
     <p>Questions about these terms? Email <a href="mailto:<%= site.email %>"><%= site.email %></a><% if (realContact(site).phone) { %> or call <%= site.phone %><% } %>.</p>
   </article>

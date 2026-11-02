@@ -1,0 +1,7 @@
+<% const go = grievanceOf(site), gc = realContact(site); %>
+<address class="grievance-officer">
+  <% if (go.name) { %><b>Grievance Officer:</b> <%= go.name %><% if (go.designation) { %>, <%= go.designation %><% } %><br><% } else { %><b>Grievance Officer</b><br><% } %>
+  <%= companyOf(site).operator %><br>
+  <% if (gc.address) { %><%= gc.address %><br><% } %>
+  Email: <a href="mailto:<%= go.email %>"><%= go.email %></a><% if (go.phone || gc.phone) { %><br>Phone: <a href="tel:<%= (go.phone || gc.phone).replace(/[\s-]/g, '') %>"><%= go.phone || gc.phone %></a><% } %>
+</address>

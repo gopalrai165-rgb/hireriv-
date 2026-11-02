@@ -36,6 +36,18 @@
     <% } %>
   </section>
 
+  <% const gv = form.grievance || {}; %>
+  <section class="form-card" id="grievance">
+    <h2>Grievance Officer</h2>
+    <p class="muted small">Indian law asks the site to name the person who handles complaints and personal data requests. Shown in the privacy policy and the terms. The email defaults to the site email.</p>
+    <div class="form-grid">
+      <label>Name<input name="grievance_name" maxlength="120" value="<%= gv.name || '' %>" autocomplete="off"></label>
+      <label>Designation <span class="muted small">(optional)</span><input name="grievance_designation" maxlength="120" value="<%= gv.designation || '' %>" placeholder="e.g. Director"></label>
+      <label>Email <span class="muted small">(optional)</span><input type="email" name="grievance_email" maxlength="160" value="<%= gv.email || '' %>" placeholder="<%= form.email || '' %>"></label>
+      <label>Phone <span class="muted small">(optional)</span><input type="tel" name="grievance_phone" maxlength="20" value="<%= gv.phone || '' %>"></label>
+    </div>
+  </section>
+
   <section class="form-card" id="pricing">
     <h2>Employer prices</h2>
     <p class="muted small">Starting prices shown on the Employers page and the service pages. Leave a price empty to show only "Request a Quote" for that service. The grey text is a suggestion and is not published.</p>
