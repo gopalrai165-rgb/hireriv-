@@ -75,13 +75,13 @@ test('the team sees the request, opens the job description and moves the follow-
   assert.equal((await srv.request(link.split('?')[0], { cookie: admin })).status, 410, 'unsigned links do not work');
 
   const h = srv.records('hire-requests').find((r) => r.company === 'Nova Foods');
-  const res = await srv.request(`/admin/hire-requests/${h.id}/follow-up`, { method: 'POST', cookie: admin, form: { followUp: 'Quote sent' } });
+  const res = await srv.request(`/admin/hire-requests/${h.id}/follow-up`, { method: 'POST', cookie: admin, form: { followUp: 'Contacted' } });
   assert.equal(res.status, 302);
   const after = srv.records('hire-requests').find((r) => r.id === h.id);
-  assert.equal(after.followUp, 'Quote sent');
+  assert.equal(after.followUp, 'Contacted');
   assert.ok(after.followUpAt);
   assert.equal((await srv.request(`/admin/hire-requests/${h.id}/follow-up`, { method: 'POST', cookie: admin, form: { followUp: 'Whatever' } })).status, 302);
-  assert.equal(srv.records('hire-requests').find((r) => r.id === h.id).followUp, 'Quote sent');
+  assert.equal(srv.records('hire-requests').find((r) => r.id === h.id).followUp, 'Contacted');
 });
 
 test('bad websites, dates and files are refused', async () => {

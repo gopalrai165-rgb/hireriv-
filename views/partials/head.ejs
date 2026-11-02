@@ -49,7 +49,7 @@
       <a href="/jobs" class="<%= page === 'jobs' ? 'active' : '' %>"><%= t('nav.findJobs') %></a>
       <a href="/categories" class="<%= page === 'categories' ? 'active' : '' %>"><%= t('nav.categories') %></a>
       <a href="/services" class="<%= page === 'services' || page === 'industries' ? 'active' : '' %>"><%= t('nav.staffing') %></a>
-      <a href="/hire" class="<%= page === 'hire' ? 'active' : '' %>"><%= t('nav.employers') %></a>
+      <a href="/employers" class="<%= page === 'employers' || page === 'hire' ? 'active' : '' %>"><%= t('nav.employers') %></a>
       <a href="/blog" class="<%= page === 'blog' ? 'active' : '' %>"><%= t('nav.resources') %></a>
       <a href="/saved" class="nav-saved <%= page === 'saved' ? 'active' : '' %>"><svg class="i" aria-hidden="true"><use href="#i-bookmark"/></svg><%= t('nav.saved') %><span class="saved-count" hidden></span></a>
       <details class="nav-login">

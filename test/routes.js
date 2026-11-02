@@ -12,7 +12,7 @@ const EXPAND = {
   '`/employer/jobs/:id/${action}`': ['/employer/jobs/:id/publish', '/employer/jobs/:id/pause', '/employer/jobs/:id/resume', '/employer/jobs/:id/close'],
   '`/account/interviews/:appId/:ivId/${answer}`': ['/account/interviews/:appId/:ivId/confirm', '/account/interviews/:appId/:ivId/reschedule'],
   '`/api/ats/offers/:offerId/${path}`': ['/api/ats/offers/:offerId/approve', '/api/ats/offers/:offerId/response'],
-  from: ['/employers', '/employers/register', '/employers/login', '/employers/dashboard', '/employers/company-profile', '/employers/jobs', '/employers/jobs/create', '/employers/applicants', '/employers/ats', '/employers/interviews', '/employers/team', '/employers/settings'],
+  from: ['/employers/register', '/employers/login', '/employers/dashboard', '/employers/company-profile', '/employers/jobs', '/employers/jobs/create', '/employers/applicants', '/employers/ats', '/employers/interviews', '/employers/team', '/employers/settings'],
   '`/candidate${from}`': ['/candidate', '/candidate/dashboard', '/candidate/register', '/candidate/login', '/candidate/forgot-password', '/candidate/profile', '/candidate/resumes', '/candidate/applications', '/candidate/saved-jobs', '/candidate/alerts', '/candidate/interviews', '/candidate/settings', '/candidate/recommendations', '/candidate/saved-searches'],
 };
 

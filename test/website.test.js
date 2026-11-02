@@ -139,6 +139,7 @@ test('job structured data: only open, real vacancies, accurate details; closed j
 test('indexing rules keep private areas and search variants out', async () => {
   const robots = await html('/robots.txt');
   for (const p of ['/admin', '/api/', '/account', '/employer', '/crm/', '/client', '/notifications', '/saved', '/feedback']) assert.ok(robots.includes(`Disallow: ${p}\n`), p);
+  assert.ok(robots.includes('Allow: /employers\n'), 'the Employers page is crawlable');
   assert.match(robots, /Sitemap: http/);
   const search = await html('/jobs?q=accountant');
   assert.match(search, /<meta name="robots" content="noindex, follow">/);
@@ -151,7 +152,7 @@ test('indexing rules keep private areas and search variants out', async () => {
   assert.equal(missing.status, 404);
   assert.match(await missing.text(), /noindex/);
   // The planned addresses lead to the existing pages.
-  for (const [from, to] of [['/services/recruitment', '/services/permanent-staffing'], ['/services/staffing', '/services/contract-staffing'], ['/services/bulk-hiring', '/services/bulk-rpo-hiring'], ['/employers/contact', '/hire']]) {
+  for (const [from, to] of [['/services/recruitment', '/services/permanent-staffing'], ['/services/staffing', '/services/contract-staffing'], ['/services/bulk-hiring', '/services/bulk-rpo-hiring'], ['/employers/contact', '/employers#enquiry']]) {
     const res = await get(from);
     assert.equal(res.status, 301, from);
     assert.equal(res.headers.get('location'), to);

@@ -654,7 +654,6 @@ Total: 727 routes.
 | GET | `/employer/forgot` | public |  |
 | POST | `/employer/forgot` | public |  |
 | POST | `/employer/switch` | employer | Only companies the person is a member of |
-| GET | `/employers` | public | Moved (301) to the matching /employer page |
 | GET | `/employers/register` | public | Moved (301) to the matching /employer page |
 | GET | `/employers/login` | public | Moved (301) to the matching /employer page |
 | GET | `/employers/dashboard` | public | Moved (301) to the matching /employer page |
@@ -688,7 +687,9 @@ Total: 727 routes.
 | POST | `/employer/candidates/:appId/feedback` | employer | Candidates shared with this company; owners, managers and recruiters |
 | GET | `/employer/invoices/:id` | employer | Company owners only; this company's invoices |
 | GET | `/employer/invoices/:id/credit-notes/:cnId` | employer | Company owners only; this company's invoices |
-| GET | `/employers/contact` | public | Moved (301) to /hire |
+| GET | `/employers/contact` | public | Moved (301) to /employers#enquiry |
+| GET | `/hire-talent` | public | Moved (301) to /employers |
+| GET | `/employers` | public | The Employers / Hire Talent page with the enquiry form |
 | POST | `/employer/timesheets/:pid/:tsId/approve` | employer | Owners and hiring managers; this company's placements |
 | POST | `/employer/timesheets/:pid/:tsId/reject` | employer | Owners and hiring managers; this company's placements |
 | GET | `/employer/workforce` | employer | The company's workers on assignment; site supervisors only those they supervise; no pay rates, emails or documents |

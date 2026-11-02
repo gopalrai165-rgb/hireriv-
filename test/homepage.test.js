@@ -18,7 +18,7 @@ const found = (html) => Number((html.match(/<b>(\d+)<\/b> jobs? found/) || [])[1
 
 test('header: Find Jobs, Job Categories, Staffing Solutions, Employers, Career Resources, Login and Post a Job', async () => {
   const home = await page('/');
-  for (const [href, label] of [['/jobs', 'Find Jobs'], ['/categories', 'Job Categories'], ['/services', 'Staffing Solutions'], ['/hire', 'Employers'], ['/blog', 'Career Resources']]) {
+  for (const [href, label] of [['/jobs', 'Find Jobs'], ['/categories', 'Job Categories'], ['/services', 'Staffing Solutions'], ['/employers', 'Employers'], ['/blog', 'Career Resources']]) {
     assert.match(home, new RegExp(`<a href="${href}"[^>]*>${label}</a>`), label);
   }
   assert.match(home, /href="\/account\/login"/);

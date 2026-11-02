@@ -707,7 +707,9 @@ app.locals.gaId = GA_ID;
 app.locals.searchConsoleToken = /^[\w-]{10,100}$/.test(process.env.GOOGLE_SITE_VERIFICATION || '') ? process.env.GOOGLE_SITE_VERIFICATION : '';
 // The company behind the site (Admin → Settings → About the company).
 app.locals.companyOf = (s) => ({ operator: 'Raigozen Private Limited', cin: '', founded: '', story: '', capabilities: [], team: [], ...(s.company || {}) });
-app.locals.hireFollowUps = ['New', 'Contacted', 'Quote sent', 'In progress', 'Hired', 'Not proceeding'];
+// Where an employer enquiry is: New → Contacted → Requirement received → Candidates shared → Closed.
+const HIRE_FOLLOW_UPS = ['New', 'Contacted', 'Requirement received', 'Candidates shared', 'Closed'];
+app.locals.hireFollowUps = HIRE_FOLLOW_UPS;
 app.locals.formatIst = interviews.formatIst;
 // The pill colour for a hiring stage ("On hold" → st-on-hold).
 app.locals.stageClass = (s) => `st-${String(s || 'New').toLowerCase().replace(/\s+/g, '-')}`;
@@ -787,6 +789,7 @@ Disallow: /worker
 Disallow: /job-alerts/
 Disallow: /appeal/
 Disallow: /healthz
+Allow: /employers
 
 Sitemap: ${BASE_URL}/sitemap.xml
 `)
@@ -811,7 +814,7 @@ function needPagesWithJobs() {
 }
 const cityPagesWithJobs = () => { const live = openJobs().filter((j) => !isSample(j)); return geo.CITY_PAGES.filter((c) => live.some((j) => c.locations.includes(j.location))); };
 app.get('/sitemap.xml', (req, res) =>
-  res.type('application/xml').send(seo.sitemap(BASE_URL, { jobs: openJobs().filter((j) => !isSample(j)), posts: livePosts(), staticPaths: ['/', '/jobs', ...catalog.WORK_PAGES.map((x) => `/jobs/${x.slug}`), ...catalog.JOB_INDUSTRIES.map((x) => `/jobs/industry/${x.slug}`), ...cityPagesWithJobs().map((c) => `/jobs/in/${c.slug}`), ...areaPagesWithJobs(), ...rolePagesWithJobs(), ...needPagesWithJobs(), ...salaryPagesWithData(), ...(trustHooks.companyPaths().length ? ['/companies'] : []), ...trustHooks.companyPaths(), '/interview-tips', ...ROLE_PAGES.filter((r) => interviewTips.forRole(r.key)).map((r) => tipsPath(r)), '/categories', '/hire', '/services', ...catalog.SERVICES.map((x) => `/services/${x.slug}`), '/industries', ...catalog.INDUSTRIES.map((x) => `/industries/${x.slug}`), '/about', '/blog', '/contact', '/privacy', '/terms', '/job-posting-policy', '/help/job-terms', '/accessibility'] }))
+  res.type('application/xml').send(seo.sitemap(BASE_URL, { jobs: openJobs().filter((j) => !isSample(j)), posts: livePosts(), staticPaths: ['/', '/jobs', ...catalog.WORK_PAGES.map((x) => `/jobs/${x.slug}`), ...catalog.JOB_INDUSTRIES.map((x) => `/jobs/industry/${x.slug}`), ...cityPagesWithJobs().map((c) => `/jobs/in/${c.slug}`), ...areaPagesWithJobs(), ...rolePagesWithJobs(), ...needPagesWithJobs(), ...salaryPagesWithData(), ...(trustHooks.companyPaths().length ? ['/companies'] : []), ...trustHooks.companyPaths(), '/interview-tips', ...ROLE_PAGES.filter((r) => interviewTips.forRole(r.key)).map((r) => tipsPath(r)), '/categories', '/employers', '/hire', '/services', ...catalog.SERVICES.map((x) => `/services/${x.slug}`), '/industries', ...catalog.INDUSTRIES.map((x) => `/industries/${x.slug}`), '/about', '/blog', '/contact', '/privacy', '/terms', '/job-posting-policy', '/help/job-terms', '/accessibility'] }))
 );
 
 // Things a new install still needs before it is ready for visitors, shown to
@@ -829,6 +832,8 @@ function setupTodo() {
   if (!process.env.SMTP_HOST) todo.push({ text: 'Set up email sending (SMTP_HOST). Until then emails are only saved to data/outbox' });
   if (process.env.NODE_ENV === 'production' && !process.env.SITE_URL) todo.push({ text: 'Set SITE_URL to your live https:// address' });
   for (const problem of notify.problems()) todo.push({ text: `Email delivery: ${problem}`, href: '/admin/notifications' });
+  const overdueEnquiries = readSubmissions('hire-requests').filter(hireOverdue).length;
+  if (overdueEnquiries) todo.push({ text: `${overdueEnquiries} employer enquir${overdueEnquiries === 1 ? 'y has' : 'ies have'} not been contacted within one working day`, href: '/admin?tab=hire-requests' });
   const waitingJobs = jobs.filter((j) => j.status === 'pending').length;
   if (waitingJobs) todo.push({ text: `${waitingJobs} employer job${waitingJobs === 1 ? ' is' : 's are'} waiting for your review`, href: '/admin?tab=jobs' });
   const waitingClients = clients.read().filter((c) => c.active && c.selfSignup && c.emailVerifiedAt && !c.approvedAt).length;
@@ -1582,7 +1587,16 @@ app.get('/hire', (req, res) => {
 app.get('/services/recruitment', (req, res) => res.redirect(301, '/services/permanent-staffing'));
 app.get('/services/staffing', (req, res) => res.redirect(301, '/services/contract-staffing'));
 app.get('/services/bulk-hiring', (req, res) => res.redirect(301, '/services/bulk-rpo-hiring'));
-app.get('/employers/contact', (req, res) => res.redirect(301, '/hire'));
+app.get('/employers/contact', (req, res) => res.redirect(301, '/employers#enquiry'));
+app.get('/hire-talent', (req, res) => res.redirect(301, '/employers'));
+// The Employers / Hire Talent page: services, how it works and the enquiry form.
+app.get('/employers', (req, res) => {
+  res.render('employers', {
+    title: 'Hire Talent: Recruitment & Staffing for Employers', page: 'employers', industries: EMPLOYER_INDUSTRIES,
+    services: ['permanent-staffing', 'contract-staffing', 'bulk-rpo-hiring', 'executive-search'].map(catalog.serviceBySlug),
+    metaDescription: `Hire the right talent, faster. ${site.name} by Raigozen offers permanent hiring, contract staffing, bulk recruitment and executive search across India. Request a callback.`,
+  });
+});
 
 // ---------- services and industry desks (content in catalog.js) ----------
 const guaranteeDays = () => (site.billing && Number.isInteger(site.billing.guaranteeDays) ? site.billing.guaranteeDays : placements.BILLING_DEFAULTS.guaranteeDays);
@@ -1756,9 +1770,26 @@ app.post('/api/resume-parse', limit('resume-parse', 20), (req, res) => {
 // /api/public/employer-inquiries: kept, emailed to the team and added to the
 // sales CRM (a repeat from the same person goes to their existing lead).
 const INQUIRY_THANKS = 'Thank you! We have received your requirement and sent a confirmation to your email. A recruiter will call you within one working day to understand your hiring needs.';
-// What happens to a hiring request after it comes in; the team moves it along in admin.
-const HIRE_FOLLOW_UPS = ['New', 'Contacted', 'Quote sent', 'In progress', 'Hired', 'Not proceeding'];
+// Enquiries still "New" after one working day (Monday to Saturday, India time) are overdue.
+function workingDaysSince(iso, now = Date.now()) {
+  let days = 0;
+  for (let t = new Date(iso).getTime() + DAY_MS; t <= now; t += DAY_MS) if (new Date(t + 5.5 * 3600000).getUTCDay() !== 0) days++;
+  return days;
+}
+const hireOverdue = (h) => (h.followUp || 'New') === 'New' && workingDaysSince(h.createdAt) >= 1;
+app.locals.hireOverdue = hireOverdue;
+// The statuses before Step 123, mapped once to the new ones.
+if (!db.metaGet('upgraded:hire-follow-ups-v2')) {
+  const old = { 'Quote sent': 'Requirement received', 'In progress': 'Candidates shared', Hired: 'Closed', 'Not proceeding': 'Closed' };
+  const list = db.all('hire-requests');
+  let n = 0;
+  for (const h of list) if (old[h.followUp]) { h.followUp = old[h.followUp]; n++; }
+  if (n) db.replaceAll('hire-requests', list);
+  db.metaSet('upgraded:hire-follow-ups-v2', new Date().toISOString());
+}
 const HIRE_FIELDS = ['IT', 'Non-IT', 'Both'];
+// The Employers page's industry list: the specialist desks, plus "Other".
+const EMPLOYER_INDUSTRIES = [...catalog.INDUSTRIES.map((i) => i.name), 'Other'];
 // A job description sent with a hiring request: PDF or Word, up to 5 MB.
 const jdUpload = multer({
   storage: multer.diskStorage({
@@ -1773,10 +1804,13 @@ const jdUpload = multer({
 });
 
 function employerInquiry(req, body, file) {
-  const data = clean({ ...body, website: body.companySite }, ['company', 'website', 'name', 'email', 'phone', 'field', 'department', 'roles', 'headcount', 'hiringType', 'budget', 'deadline', 'location', 'timeline', 'message']);
+  const data = clean({ ...body, website: body.companySite }, ['company', 'website', 'name', 'email', 'phone', 'industry', 'field', 'department', 'roles', 'headcount', 'hiringType', 'budget', 'deadline', 'location', 'timeline', 'message']);
   const errors = validate(data, ['company', 'name', 'email', 'phone', 'roles']);
   if (data.hiringType && !catalog.HIRE_OPTIONS.includes(data.hiringType)) errors.push('hiringType is not one we offer');
   if (data.field && !HIRE_FIELDS.includes(data.field)) errors.push('field must be IT, Non-IT or both');
+  if (data.industry && !EMPLOYER_INDUSTRIES.includes(data.industry)) errors.push('industry is not one on the list');
+  // Forms with a consent box (the Employers page) must have it ticked.
+  if (body.consentAsked === '1' && body.consent !== '1') errors.push('please agree to be contacted about your enquiry (consent)');
   if (data.website) {
     const url = /^https?:\/\//i.test(data.website) ? data.website : `https://${data.website}`;
     if (!/^https?:\/\/[a-z0-9-]+(\.[a-z0-9-]+)+(:\d+)?(\/[^\s"'<>]*)?$/i.test(url)) errors.push('website should look like www.yourcompany.com');
@@ -1789,13 +1823,13 @@ function employerInquiry(req, body, file) {
   const from = String(body.from || '');
   const service = /^service:/.test(from) && catalog.serviceBySlug(from.slice(8));
   const desk = /^desk:/.test(from) && catalog.industryBySlug(from.slice(5));
-  const page = service ? `service page: ${service.name}` : desk ? `industry page: ${desk.name}` : from === 'home' ? 'homepage' : '';
-  const entry = saveSubmission('hire-requests', { ...data, ...(page ? { fromPage: page } : {}), ...(file ? { jd: file.filename, jdName: path.basename(file.originalname).slice(0, 120) } : {}), followUp: 'New' });
+  const page = service ? `service page: ${service.name}` : desk ? `industry page: ${desk.name}` : from === 'home' ? 'homepage' : from === 'employers' ? 'Employers page' : '';
+  const entry = saveSubmission('hire-requests', { ...data, ...(page ? { fromPage: page } : {}), ...(body.consent === '1' ? { consentAt: new Date().toISOString() } : {}), ...(file ? { jd: file.filename, jdName: path.basename(file.originalname).slice(0, 120) } : {}), followUp: 'New' });
   mailer.hireRequestReceived(entry);
   mailer.hireRequestAcknowledged(entry);
   events.staffingRequest(entry);
   leadCapture.capture('Website inquiry', data, { sourceRef: entry.id, sourceDetail: `Hire with us form${page ? `, ${page}` : ''}` });
-  siteAnalytics.track('employer-inquiry', service ? service.name : desk ? desk.name : from === 'home' ? 'Homepage' : data.hiringType || 'Hire page', req);
+  siteAnalytics.track('employer-inquiry', service ? service.name : desk ? desk.name : from === 'home' ? 'Homepage' : from === 'employers' ? 'Employers page' : data.hiringType || 'Hire page', req);
   return [];
 }
 app.post('/api/hire', limit('hire', 5), (req, res) => {
@@ -2850,21 +2884,34 @@ app.post('/admin/applications/:id/status', adminAuth, sameOrigin, (req, res, nex
   res.redirect(adminUrl('applications', `${entry.name} moved to ${status}${emailed ? ' (candidate emailed)' : ''}`) + back);
 });
 
-// Hiring requests: the team records where each one is (New → Contacted → Quote sent …).
+// Hiring requests: the team records where each one is (New → Contacted →
+// Requirement received → Candidates shared → Closed) and who owns it.
 app.post('/admin/hire-requests/:id/follow-up', adminAuth, sameOrigin, (req, res, next) => {
   const status = String(req.body.followUp || '');
   if (!HIRE_FOLLOW_UPS.includes(status)) return res.redirect(adminUrl('hire-requests', 'Choose a follow-up status from the list'));
+  const ownerId = req.body.ownerId === undefined ? undefined : String(req.body.ownerId);
+  if (ownerId && !team.members().some((m) => m.id === ownerId && m.active !== false)) return res.redirect(adminUrl('hire-requests', 'Choose a lead owner from the team'));
   const list = readSubmissions('hire-requests');
   const entry = list.find((s) => s.id === req.params.id);
   if (!entry) return next();
+  const done = [];
   if (entry.followUp !== status) {
     entry.followUp = status;
     entry.followUpAt = new Date().toISOString();
     entry.followUpBy = req.admin.name || req.admin.email || '';
-    writeSubmissions('hire-requests', list);
-    team.log(req.admin, `Hiring request from ${entry.company}: ${status}`);
+    done.push(status);
   }
-  res.redirect(adminUrl('hire-requests', `${entry.company}: ${status}`));
+  if (ownerId !== undefined && (entry.ownerId || '') !== ownerId) {
+    entry.ownerId = ownerId || null;
+    const owner = ownerId && team.members().find((m) => m.id === ownerId);
+    done.push(owner ? `owner ${owner.name}` : 'no owner');
+    if (owner && owner.id !== req.admin.id) events.hireRequestAssigned(entry, owner.id);
+  }
+  if (done.length) {
+    writeSubmissions('hire-requests', list);
+    team.log(req.admin, `Hiring request from ${entry.company}: ${done.join(', ')}`);
+  }
+  res.redirect(adminUrl('hire-requests', `${entry.company}: ${done.join(', ') || 'no change'}`));
 });
 app.get('/admin/hire-requests/jd/:file', adminAuth, (req, res) => {
   if (!downloadLinks.valid(req)) return linkExpired(res, '/admin?tab=hire-requests');

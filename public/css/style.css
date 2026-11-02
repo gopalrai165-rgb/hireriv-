@@ -2199,3 +2199,15 @@ p, li, dd { text-wrap: pretty; }
 .consent-bar { position: fixed; z-index: 60; left: 12px; right: 12px; bottom: 12px; max-width: 560px; margin: 0 auto; display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; padding: 14px 16px; background: #fff; border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow-lg); font-size: .92rem; }
 .consent-bar p { margin: 0; flex: 1 1 260px; }
 @media (max-width: 760px) { .consent-bar { bottom: 76px; } }
+
+/* Employers / Hire Talent page */
+.pill-row { list-style: none; padding: 0; margin: 18px 0 0; display: flex; flex-wrap: wrap; gap: 8px; }
+.pill-row a { display: inline-block; padding: 8px 14px; border-radius: 999px; background: #fff; border: 1px solid var(--line); font-weight: 600; color: var(--ink); }
+.callback-card { padding: 26px; border-radius: var(--radius); background: #fff; border: 1px solid var(--line); box-shadow: var(--shadow-lg); display: grid; gap: 12px; align-self: center; }
+.callback-card h2 { margin: 0; font-size: 1.4rem; }
+.callback-card p { margin: 0; }
+.services-grid-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+@media (max-width: 1000px) { .services-grid-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 560px) { .services-grid-4 { grid-template-columns: 1fr; } }
+.employers-hero .how-steps b { font-size: 1rem; }
+.hire-requests td form select { margin: 0 0 6px; display: block; }
