@@ -703,6 +703,7 @@ app.locals.testimonialsFor = (s) => (Array.isArray(s.testimonials) ? s.testimoni
 app.locals.maxTestimonials = MAX_TESTIMONIALS;
 app.locals.maxTeam = require('./content').MAX_TEAM;
 app.locals.pricedServices = require('./content').PRICED_SERVICES;
+app.locals.sourceName = (s) => require('./reports').sourceName(s);
 // The Grievance Officer: their own email when given, otherwise the site email.
 app.locals.grievanceOf = (s) => {
   const g = s.grievance || {};
@@ -1826,6 +1827,9 @@ function employerInquiry(req, body, file) {
   }
   if (data.deadline && !(/^\d{4}-\d{2}-\d{2}$/.test(data.deadline) && !Number.isNaN(Date.parse(data.deadline)))) errors.push('deadline must be a date');
   for (const k of ['department', 'budget', 'location']) data[k] = data[k].slice(0, 120);
+  // Where the employer came from (utm_source or the referring site) and the campaign.
+  data.source = reportsModule.cleanSource(body.source);
+  data.campaign = String(body.campaign || '').replace(/[^\w .:/-]/g, '').trim().slice(0, 60);
   for (const k of Object.keys(data)) if (!data[k]) delete data[k];
   if (errors.length) { siteAnalytics.track('form-rejected', 'Employer inquiry', req); return errors; }
   const from = String(body.from || '');
@@ -1836,7 +1840,8 @@ function employerInquiry(req, body, file) {
   mailer.hireRequestReceived(entry);
   mailer.hireRequestAcknowledged(entry);
   events.staffingRequest(entry);
-  leadCapture.capture('Website inquiry', data, { sourceRef: entry.id, sourceDetail: `Hire with us form${page ? `, ${page}` : ''}` });
+  const via = data.source ? `, via ${reportsModule.sourceName(data.source)}${data.campaign ? ` (${data.campaign})` : ''}` : '';
+  leadCapture.capture('Website inquiry', data, { sourceRef: entry.id, sourceDetail: `Hire with us form${page ? `, ${page}` : ''}${via}` });
   siteAnalytics.track('employer-inquiry', service ? service.name : desk ? desk.name : from === 'home' ? 'Homepage' : from === 'employers' ? 'Employers page' : data.hiringType || 'Hire page', req);
   return [];
 }

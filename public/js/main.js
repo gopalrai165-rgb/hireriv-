@@ -746,6 +746,23 @@ if (bulkForm) {
     try { sessionStorage.setItem(KEY, source); } catch (e) { /* storage blocked */ }
   }
   document.querySelectorAll('input[data-source]').forEach((el) => { el.value = source; });
+  // The campaign (utm_campaign) is kept the same way, for employer enquiries.
+  const CKEY = 'hireriv:campaign';
+  let campaign = '';
+  try { campaign = sessionStorage.getItem(CKEY) || ''; } catch (e) { /* storage blocked */ }
+  const fromUrl = new URLSearchParams(location.search).get('utm_campaign');
+  if (fromUrl) {
+    campaign = fromUrl.slice(0, 60);
+    try { sessionStorage.setItem(CKEY, campaign); } catch (e) { /* storage blocked */ }
+  }
+  if (campaign) {
+    document.querySelectorAll('input[data-source]').forEach((el) => {
+      if (!el.form || el.form.elements.campaign) return;
+      const c = document.createElement('input');
+      c.type = 'hidden'; c.name = 'campaign'; c.value = campaign;
+      el.after(c);
+    });
+  }
 })();
 
 // Apply form: read the resume as soon as it's picked and fill in any empty

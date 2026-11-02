@@ -104,3 +104,25 @@ test('starting prices appear only once the owner types them in Settings', async 
   assert.match(await page('/services/permanent-staffing'), /<b>Starting from:<\/b> 8\.33% of annual CTC/);
   assert.doesNotMatch(await page('/services/executive-search'), /Starting from:/);
 });
+
+test('enquiries remember where the employer came from, for the team email, the CRM and the admin summary', async () => {
+  const html = await page('/employers');
+  assert.match(html, /<input type="hidden" name="source" value="" data-source>/);
+  assert.match(await page('/'), /name="source" value="" data-source/);
+  assert.match(await page('/hire'), /name="source" value="" data-source/);
+
+  const res = await send({ ...enquiry, company: 'Tagged Foods', email: 'hr@tagged.example', phone: '9845011111', source: 'LinkedIn<script>', campaign: 'launch-nov <b>' });
+  assert.equal(res.status, 200);
+  const h = srv.records('hire-requests').find((r) => r.company === 'Tagged Foods');
+  assert.equal(h.source, 'linkedinscript');
+  assert.equal(h.campaign, 'launch-nov b');
+  const again = await send({ ...enquiry, company: 'Linked Co', email: 'hr@linked.example', phone: '9845022222', source: 'linkedin', campaign: 'launch' });
+  assert.equal(again.status, 200);
+  assert.ok(await srv.waitForEmail((m) => m.includes('New hiring request: Linked Co') && m.includes('LinkedIn (campaign: launch)')));
+  assert.match(srv.records('crm-leads').find((l) => l.companyName === 'Linked Co').sourceDetail, /via LinkedIn \(launch\)/);
+
+  const admin2 = await page('/admin?tab=hire-requests', { cookie: admin });
+  assert.match(admin2, /Came via LinkedIn \(launch\)/);
+  assert.match(admin2, /Where enquiries came from in the last 90 days/);
+  assert.match(admin2, /<li><b>1<\/b> · LinkedIn \(launch\)<\/li>/);
+});

@@ -1,5 +1,15 @@
 <%# Hiring requests from the website, with their follow-up status. The CRM keeps the lead for each one. %>
 <p class="muted small">Call every new enquiry within one working day. Status: New → Contacted → Requirement received → Candidates shared → Closed.</p>
+<% const since = Date.now() - 90 * 864e5, bySource = {};
+   rows.filter(function (r) { return Date.parse(r.createdAt) >= since; }).forEach(function (r) { const k = r.source ? sourceName(r.source) + (r.campaign ? ' (' + r.campaign + ')' : '') : 'Not tracked'; bySource[k] = (bySource[k] || 0) + 1; });
+   const sourceRows = Object.entries(bySource).sort(function (a, b) { return b[1] - a[1]; }); %>
+<% if (sourceRows.length) { %>
+  <details class="enquiry-sources">
+    <summary>Where enquiries came from in the last 90 days</summary>
+    <ul class="plain-list"><% sourceRows.forEach(function (s) { %><li><b><%= s[1] %></b> · <%= s[0] %></li><% }) %></ul>
+    <p class="muted small">Add <code>?utm_source=linkedin&amp;utm_campaign=launch</code> to links you share so enquiries from them are named here.</p>
+  </details>
+<% } %>
 <% if (!rows.length) { %>
   <div class="empty"><p>No hiring requests yet. They arrive from the Hire a Team form, the homepage and the service pages.</p></div>
 <% } else { %>
@@ -9,7 +19,7 @@
     <tbody>
       <% rows.forEach(function (r) { %>
         <tr>
-          <td><%= new Date(r.createdAt).toLocaleString('en-IN') %><% if (r.fromPage) { %><br><span class="muted small">From the <%= r.fromPage %></span><% } %>
+          <td><%= new Date(r.createdAt).toLocaleString('en-IN') %><% if (r.fromPage) { %><br><span class="muted small">From the <%= r.fromPage %></span><% } %><% if (r.source) { %><br><span class="muted small">Came via <%= sourceName(r.source) %><%= r.campaign ? ' (' + r.campaign + ')' : '' %></span><% } %>
             <% if (hireOverdue(r)) { %><br><span class="pill st-rejected">Not contacted for over a working day</span><% } %></td>
           <td>
             <b><%= r.company %></b><% if (r.website) { %><br><a class="small" href="<%= r.website %>" target="_blank" rel="noopener nofollow"><%= r.website.replace(/^https?:\/\//, '') %></a><% } %>

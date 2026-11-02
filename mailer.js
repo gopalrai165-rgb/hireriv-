@@ -201,7 +201,7 @@ function createMailer(site) {
             ['Company', h.company], ['Website', h.website], ['Contact', h.name], ['Email', h.email], ['Phone', h.phone],
             ['IT / Non-IT', h.field], ['Department', h.department], ['Roles', h.roles], ['Headcount', h.headcount], ['Hiring type', h.hiringType],
             ['City', h.location], ['Salary budget', h.budget], ['Hiring deadline', h.deadline], ['Timeline', h.timeline], ['Job description', h.jdName ? `${h.jdName} (attached in admin)` : ''],
-            ['From', h.fromPage], ['Source', h.source], ['Additional requirements', h.message],
+            ['From', h.fromPage], ['Source', h.source ? require('./reports').sourceName(h.source) + (h.campaign ? ` (campaign: ${h.campaign})` : '') : ''], ['Additional requirements', h.message],
           ]) + button(`${baseUrl}/admin?tab=hire-requests`, 'Open in admin'),
       });
     },
