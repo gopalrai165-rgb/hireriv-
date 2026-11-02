@@ -1845,14 +1845,14 @@ function employerInquiry(req, body, file) {
   const from = String(body.from || '');
   const service = /^service:/.test(from) && catalog.serviceBySlug(from.slice(8));
   const desk = /^desk:/.test(from) && catalog.industryBySlug(from.slice(5));
-  const page = service ? `service page: ${service.name}` : desk ? `industry page: ${desk.name}` : from === 'home' ? 'homepage' : from === 'employers' ? 'Employers page' : '';
+  const page = service ? `service page: ${service.name}` : desk ? `industry page: ${desk.name}` : from === 'home' ? 'homepage' : from === 'employers' ? 'Employers page' : from === 'contact' ? 'Contact page' : '';
   const entry = saveSubmission('hire-requests', { ...data, ...(page ? { fromPage: page } : {}), ...(body.consent === '1' ? { consentAt: new Date().toISOString() } : {}), ...(file ? { jd: file.filename, jdName: path.basename(file.originalname).slice(0, 120) } : {}), followUp: 'New' });
   mailer.hireRequestReceived(entry);
   mailer.hireRequestAcknowledged(entry);
   events.staffingRequest(entry);
   const via = data.source ? `, via ${reportsModule.sourceName(data.source)}${data.campaign ? ` (${data.campaign})` : ''}` : '';
   leadCapture.capture('Website inquiry', data, { sourceRef: entry.id, sourceDetail: `Hire with us form${page ? `, ${page}` : ''}${via}` });
-  siteAnalytics.track('employer-inquiry', service ? service.name : desk ? desk.name : from === 'home' ? 'Homepage' : from === 'employers' ? 'Employers page' : data.hiringType || 'Hire page', req);
+  siteAnalytics.track('employer-inquiry', service ? service.name : desk ? desk.name : from === 'home' ? 'Homepage' : from === 'employers' ? 'Employers page' : from === 'contact' ? 'Contact page' : data.hiringType || 'Hire page', req);
   return [];
 }
 app.post('/api/hire', limit('hire', 5), (req, res) => {
@@ -1875,10 +1875,20 @@ app.post('/api/public/employer-inquiries', limit('hire', 5), sameOrigin, (req, r
   res.status(202).json({ ok: true, message: INQUIRY_THANKS });
 });
 
+const CONTACT_SUBJECTS = ['I want to hire', "I'm looking for a job", 'Partnership', 'Other'];
 app.post('/api/contact', limit('contact', 5), (req, res) => {
   if (isBot(req.body)) return respond(req, res, [], "Thanks for reaching out. We'll get back to you shortly.");
   const data = clean(req.body, ['name', 'email', 'phone', 'subject', 'message']);
+  // Employers writing in go to Hire requests (owner, status, reminders, CRM).
+  if (data.subject === 'I want to hire') {
+    const body = req.body || {};
+    const missing = [!String(body.company || '').trim() && 'your company name', !data.phone && 'a phone number'].filter(Boolean);
+    if (missing.length) return respond(req, res, [`Please add ${missing.join(' and ')} so our team can call you about hiring`]);
+    const errors = employerInquiry(req, { company: body.company, name: data.name, email: data.email, phone: data.phone, roles: data.message, from: 'contact', source: body.source });
+    return respond(req, res, errors, INQUIRY_THANKS);
+  }
   const errors = validate(data, ['name', 'email', 'message']);
+  if (data.subject && !CONTACT_SUBJECTS.includes(data.subject)) errors.push('please choose a subject from the list');
   if (!errors.length) mailer.contactReceived(saveSubmission('contacts', data));
   respond(req, res, errors, "Thanks for reaching out. We'll get back to you shortly.");
 });

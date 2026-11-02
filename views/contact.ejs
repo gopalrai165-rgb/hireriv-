@@ -34,17 +34,19 @@
       <h2>Send us a message</h2>
       <form class="form js-form" action="/api/contact" method="post">
   <%- include('partials/honeypot') %>
+        <input type="hidden" name="source" value="" data-source>
         <div class="form-grid">
           <label>Name*<input name="name" required autocomplete="name"></label>
           <label>Email*<input type="email" name="email" required autocomplete="email"></label>
-          <label>Phone<input type="tel" name="phone" autocomplete="tel"></label>
-          <label>Subject
-            <select name="subject"><option>I want to hire</option><option>I'm looking for a job</option><option>Partnership</option><option>Other</option></select>
+          <label>Subject*
+            <select name="subject" required><option value="">Choose one</option><option>I want to hire</option><option>I'm looking for a job</option><option>Partnership</option><option>Other</option></select>
           </label>
+          <label>Phone <span class="muted small">(needed if you are hiring)</span><input type="tel" name="phone" autocomplete="tel"></label>
+          <label class="span-2">Company <span class="muted small">(if you are hiring)</span><input name="company" maxlength="160" autocomplete="organization"></label>
           <label class="span-2">Message*<textarea name="message" rows="5" required></textarea></label>
         </div>
         <button class="btn btn-primary btn-block" type="submit">Send message</button>
-        <p class="muted small form-note">We use these details only to reply to you. See our <a href="/privacy">Privacy Policy</a>.</p>
+        <p class="muted small form-note">We use these details only to reply to you. See our <a href="/privacy">Privacy Policy</a>. Looking for a job? <a href="/job-seekers#resume">Send your resume</a> instead, so recruiters can match you.</p>
       </form>
     </div>
   </div>
