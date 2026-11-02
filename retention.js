@@ -109,6 +109,7 @@ function create({ db, site, uploadsDir, readSubmissions, writeSubmissions, log }
         const list = readSubmissions(type);
         const old = new Set(entriesDue(list, { months: m }).map((s) => s.id));
         if (old.size) {
+          for (const s of list) if (old.has(s.id) && s.jd) fs.unlink(path.join(uploadsDir, path.basename(s.jd)), () => {});
           writeSubmissions(type, list.filter((s) => !old.has(s.id)));
           done[key] = old.size;
         }

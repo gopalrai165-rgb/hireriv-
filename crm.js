@@ -324,7 +324,7 @@ function register(app, deps) {
         companyName: String(input.company || '').trim().slice(0, 120), contactName: String(input.name || '').trim().slice(0, 120),
         email: emailKey(input.email).slice(0, 160), phone: String(input.phone || '').trim().slice(0, 20), industry: String(input.industry || '').trim().slice(0, 80),
         location: String(input.location || input.city || '').trim().slice(0, 120), designation: '',
-        hiringNeeds: [input.roles && `Roles: ${input.roles}`, input.headcount && `Headcount: ${input.headcount}`, input.hiringType && `Type: ${input.hiringType}`, input.timeline && `Timeline: ${input.timeline}`, input.message].filter(Boolean).join('\n').slice(0, 1000),
+        hiringNeeds: [input.roles && `Roles: ${input.roles}`, input.field && `IT / Non-IT: ${input.field}`, input.department && `Department: ${input.department}`, input.headcount && `Headcount: ${input.headcount}`, input.hiringType && `Type: ${input.hiringType}`, input.budget && `Salary budget: ${input.budget}`, input.deadline && `Hiring deadline: ${input.deadline}`, input.timeline && `Timeline: ${input.timeline}`, input.website && `Website: ${input.website}`, input.message].filter(Boolean).join('\n').slice(0, 1000),
         source, sourceDetail: extra.sourceDetail || '', lawfulBasis: 'Asked us to contact them', marketingConsent: false,
       };
       if (!values.companyName || !values.contactName || (!EMAIL_RE.test(values.email) && !PHONE_RE.test(values.phone))) return null;

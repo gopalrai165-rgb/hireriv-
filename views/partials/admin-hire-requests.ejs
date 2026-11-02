@@ -1,0 +1,39 @@
+<%# Hiring requests from the website, with their follow-up status. The CRM keeps the lead for each one. %>
+<% if (!rows.length) { %>
+  <div class="empty"><p>No hiring requests yet. They arrive from the Hire a Team form, the homepage and the service pages.</p></div>
+<% } else { %>
+<div class="table-wrap">
+  <table class="hire-requests">
+    <thead><tr><th>Received</th><th>Company</th><th>Requirement</th><th>Follow-up</th><th></th></tr></thead>
+    <tbody>
+      <% rows.forEach(function (r) { %>
+        <tr>
+          <td><%= new Date(r.createdAt).toLocaleString('en-IN') %><% if (r.fromPage) { %><br><span class="muted small">From the <%= r.fromPage %></span><% } %></td>
+          <td>
+            <b><%= r.company %></b><% if (r.website) { %><br><a class="small" href="<%= r.website %>" target="_blank" rel="noopener nofollow"><%= r.website.replace(/^https?:\/\//, '') %></a><% } %>
+            <br><%= r.name %><br><a href="mailto:<%= r.email %>"><%= r.email %></a><br><a href="tel:<%= String(r.phone || '').replace(/[^\d+]/g, '') %>"><%= r.phone %></a>
+          </td>
+          <td>
+            <b><%= r.roles %></b>
+            <ul class="plain small">
+              <% [['IT / Non-IT', r.field], ['Department', r.department], ['Hires', r.headcount], ['Type', r.hiringType], ['City', r.location], ['Salary budget', r.budget], ['Deadline', r.deadline ? formatDate(r.deadline) : ''], ['Timeline', r.timeline]].forEach(function (x) { if (x[1]) { %><li><span class="muted"><%= x[0] %>:</span> <%= x[1] %></li><% } }) %>
+            </ul>
+            <% if (r.jd) { %><a class="small" href="<%= signedLink('/admin/hire-requests/jd/' + r.jd) %>">Job description: <%= r.jdName || 'download' %></a><% } %>
+            <% if (r.message) { %><p class="small"><%= r.message %></p><% } %>
+          </td>
+          <td>
+            <form method="post" action="/admin/hire-requests/<%= r.id %>/follow-up" class="inline-form">
+              <label class="sr-only" for="fu-<%= r.id %>">Follow-up status for <%= r.company %></label>
+              <select id="fu-<%= r.id %>" name="followUp"><% hireFollowUps.forEach(function (f) { %><option<%= (r.followUp || 'New') === f ? ' selected' : '' %>><%= f %></option><% }) %></select>
+              <button class="btn btn-sm btn-outline">Save</button>
+            </form>
+            <% if (r.followUpAt) { %><span class="muted small"><%= formatDate(r.followUpAt.slice(0, 10)) %><%= r.followUpBy ? ' · ' + r.followUpBy : '' %></span><% } %>
+            <br><a class="small" href="/admin/crm/leads?q=<%= encodeURIComponent(r.email) %>">Lead in CRM</a>
+          </td>
+          <td><% if (isAdmin) { %><form method="post" action="/admin/hire-requests/<%= r.id %>/delete" data-confirm="Delete this request?"><button class="btn btn-sm btn-danger">Delete</button></form><% } %></td>
+        </tr>
+      <% }) %>
+    </tbody>
+  </table>
+</div>
+<% } %>

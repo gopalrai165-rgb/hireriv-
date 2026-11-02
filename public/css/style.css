@@ -2169,3 +2169,9 @@ p, li, dd { text-wrap: pretty; }
 .compliance-grid > div { padding: 20px; border: 1px solid var(--line); border-radius: var(--radius); background: #fff; }
 .compliance-grid dt { font-weight: 700; color: var(--ink); margin-bottom: 6px; }
 .compliance-grid dd { margin: 0; }
+
+/* Hire a Team: IT / Non-IT choice in one row; admin hiring requests */
+.choice-row { border: 0; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: 6px 18px; align-items: center; }
+.choice-row legend { width: 100%; padding: 0; margin-bottom: 4px; font-weight: 600; }
+.hire-requests ul.plain { list-style: none; padding: 0; margin: 6px 0; }
+.hire-requests select { width: auto; }

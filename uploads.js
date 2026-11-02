@@ -76,8 +76,8 @@ function create({ clamHost = process.env.CLAMAV_HOST, clamPort = Number(process.
     const drop = () => { try { fs.unlinkSync(file.path); } catch { /* already gone */ } };
     if (!types.includes(path.extname(file.originalname || '').toLowerCase()) || !hasValidSignature(file.path, file.originalname)) {
       drop();
-      return what === 'resume'
-        ? "That file doesn't look like a real PDF or Word document. Please upload your resume as a PDF, DOC or DOCX."
+      return types === RESUME_TYPES
+        ? `That file doesn't look like a real PDF or Word document. Please upload your ${what} as a PDF, DOC or DOCX.`
         : "That file doesn't look like a real PDF, JPG or PNG. Please upload a photo or scan of the document.";
     }
     // A file that passed is encrypted on disk straight away (vault.js).

@@ -689,6 +689,7 @@ app.locals.realContact = (s) => ({
 // Only real testimonials saved in Settings; none means the section is hidden.
 app.locals.testimonialsFor = (s) => (Array.isArray(s.testimonials) ? s.testimonials : []);
 app.locals.maxTestimonials = MAX_TESTIMONIALS;
+app.locals.hireFollowUps = ['New', 'Contacted', 'Quote sent', 'In progress', 'Hired', 'Not proceeding'];
 app.locals.formatIst = interviews.formatIst;
 // The pill colour for a hiring stage ("On hold" → st-on-hold).
 app.locals.stageClass = (s) => `st-${String(s || 'New').toLowerCase().replace(/\s+/g, '-')}`;
@@ -1550,7 +1551,7 @@ app.get('/hire', (req, res) => {
   const chosen = catalog.serviceBySlug(String(req.query.service || ''));
   const desk = catalog.industryBySlug(String(req.query.desk || ''));
   res.render('hire', {
-    title: 'Hire a Team', page: 'hire', hireOptions: catalog.HIRE_OPTIONS, selectedService: chosen ? chosen.hiringType : '',
+    title: 'Hire a Team', page: 'hire', hireOptions: catalog.HIRE_OPTIONS, selectedService: chosen ? chosen.hiringType : '', selectedField: chosen && chosen.field ? chosen.field : '',
     from: chosen ? `service:${chosen.slug}` : desk ? `desk:${desk.slug}` : '',
     metaDescription: `Tell ${site.name} who you need to hire: permanent, contract, bulk or executive roles. A recruiter calls you back within one working day.`,
   });
@@ -1732,26 +1733,60 @@ app.post('/api/resume-parse', limit('resume-parse', 20), (req, res) => {
 // An employer's inquiry from the "Hire with us" form or POST
 // /api/public/employer-inquiries: kept, emailed to the team and added to the
 // sales CRM (a repeat from the same person goes to their existing lead).
-const INQUIRY_THANKS = 'Thank you! Our client partner will call you within one working day to understand your hiring needs.';
-function employerInquiry(req, body) {
-  const data = clean(body, ['company', 'name', 'email', 'phone', 'roles', 'headcount', 'hiringType', 'location', 'timeline', 'message']);
+const INQUIRY_THANKS = 'Thank you! We have received your requirement and sent a confirmation to your email. A recruiter will call you within one working day to understand your hiring needs.';
+// What happens to a hiring request after it comes in; the team moves it along in admin.
+const HIRE_FOLLOW_UPS = ['New', 'Contacted', 'Quote sent', 'In progress', 'Hired', 'Not proceeding'];
+const HIRE_FIELDS = ['IT', 'Non-IT', 'Both'];
+// A job description sent with a hiring request: PDF or Word, up to 5 MB.
+const jdUpload = multer({
+  storage: multer.diskStorage({
+    destination: UPLOADS_DIR,
+    filename: (req, file, cb) => cb(null, `jd-${Date.now()}-${crypto.randomBytes(4).toString('hex')}${path.extname(file.originalname).toLowerCase()}`),
+  }),
+  limits: { fileSize: 5 * 1024 * 1024, files: 1 },
+  fileFilter: (req, file, cb) => {
+    const ok = ['.pdf', '.doc', '.docx'].includes(path.extname(file.originalname).toLowerCase());
+    cb(ok ? null : new Error('The job description must be a PDF, DOC or DOCX file'), ok);
+  },
+});
+
+function employerInquiry(req, body, file) {
+  const data = clean({ ...body, website: body.companySite }, ['company', 'website', 'name', 'email', 'phone', 'field', 'department', 'roles', 'headcount', 'hiringType', 'budget', 'deadline', 'location', 'timeline', 'message']);
   const errors = validate(data, ['company', 'name', 'email', 'phone', 'roles']);
   if (data.hiringType && !catalog.HIRE_OPTIONS.includes(data.hiringType)) errors.push('hiringType is not one we offer');
+  if (data.field && !HIRE_FIELDS.includes(data.field)) errors.push('field must be IT, Non-IT or both');
+  if (data.website) {
+    const url = /^https?:\/\//i.test(data.website) ? data.website : `https://${data.website}`;
+    if (!/^https?:\/\/[a-z0-9-]+(\.[a-z0-9-]+)+(:\d+)?(\/[^\s"'<>]*)?$/i.test(url)) errors.push('website should look like www.yourcompany.com');
+    else data.website = url.slice(0, 200);
+  }
+  if (data.deadline && !(/^\d{4}-\d{2}-\d{2}$/.test(data.deadline) && !Number.isNaN(Date.parse(data.deadline)))) errors.push('deadline must be a date');
+  for (const k of ['department', 'budget', 'location']) data[k] = data[k].slice(0, 120);
+  for (const k of Object.keys(data)) if (!data[k]) delete data[k];
   if (errors.length) { siteAnalytics.track('form-rejected', 'Employer inquiry', req); return errors; }
   const from = String(body.from || '');
   const service = /^service:/.test(from) && catalog.serviceBySlug(from.slice(8));
   const desk = /^desk:/.test(from) && catalog.industryBySlug(from.slice(5));
   const page = service ? `service page: ${service.name}` : desk ? `industry page: ${desk.name}` : from === 'home' ? 'homepage' : '';
-  const entry = saveSubmission('hire-requests', { ...data, ...(page ? { fromPage: page } : {}) });
+  const entry = saveSubmission('hire-requests', { ...data, ...(page ? { fromPage: page } : {}), ...(file ? { jd: file.filename, jdName: path.basename(file.originalname).slice(0, 120) } : {}), followUp: 'New' });
   mailer.hireRequestReceived(entry);
+  mailer.hireRequestAcknowledged(entry);
   events.staffingRequest(entry);
   leadCapture.capture('Website inquiry', data, { sourceRef: entry.id, sourceDetail: `Hire with us form${page ? `, ${page}` : ''}` });
   siteAnalytics.track('employer-inquiry', service ? service.name : desk ? desk.name : from === 'home' ? 'Homepage' : data.hiringType || 'Hire page', req);
   return [];
 }
 app.post('/api/hire', limit('hire', 5), (req, res) => {
-  if (isBot(req.body)) return respond(req, res, [], 'Thank you! Our client partner will be in touch.');
-  respond(req, res, employerInquiry(req, req.body || {}), INQUIRY_THANKS);
+  jdUpload.single('jd')(req, res, async (err) => {
+    const drop = () => { if (req.file) fs.unlink(req.file.path, () => {}); };
+    if (!err && isBot(req.body)) { drop(); return respond(req, res, [], 'Thank you! Our client partner will be in touch.'); }
+    if (err) { drop(); return respond(req, res, [err.code === 'LIMIT_FILE_SIZE' ? 'The job description must be under 5 MB' : err.message]); }
+    const bad = await resumeCheck.vet(req.file, { what: 'job description' });
+    if (bad) return respond(req, res, [bad]);
+    const errors = employerInquiry(req, req.body || {}, req.file);
+    if (errors.length) drop();
+    respond(req, res, errors, INQUIRY_THANKS);
+  });
 });
 app.post('/api/public/employer-inquiries', limit('hire', 5), sameOrigin, (req, res) => {
   const body = req.body && typeof req.body === 'object' ? req.body : {};
@@ -2793,6 +2828,29 @@ app.post('/admin/applications/:id/status', adminAuth, sameOrigin, (req, res, nex
   res.redirect(adminUrl('applications', `${entry.name} moved to ${status}${emailed ? ' (candidate emailed)' : ''}`) + back);
 });
 
+// Hiring requests: the team records where each one is (New → Contacted → Quote sent …).
+app.post('/admin/hire-requests/:id/follow-up', adminAuth, sameOrigin, (req, res, next) => {
+  const status = String(req.body.followUp || '');
+  if (!HIRE_FOLLOW_UPS.includes(status)) return res.redirect(adminUrl('hire-requests', 'Choose a follow-up status from the list'));
+  const list = readSubmissions('hire-requests');
+  const entry = list.find((s) => s.id === req.params.id);
+  if (!entry) return next();
+  if (entry.followUp !== status) {
+    entry.followUp = status;
+    entry.followUpAt = new Date().toISOString();
+    entry.followUpBy = req.admin.name || req.admin.email || '';
+    writeSubmissions('hire-requests', list);
+    team.log(req.admin, `Hiring request from ${entry.company}: ${status}`);
+  }
+  res.redirect(adminUrl('hire-requests', `${entry.company}: ${status}`));
+});
+app.get('/admin/hire-requests/jd/:file', adminAuth, (req, res) => {
+  if (!downloadLinks.valid(req)) return linkExpired(res, '/admin?tab=hire-requests');
+  const file = path.basename(req.params.file);
+  if (!readSubmissions('hire-requests').some((h) => h.jd === file)) return res.status(404).render('404', { title: 'Page not found', page: '', noindex: true });
+  vault.send(res, path.join(UPLOADS_DIR, file), file, 'Job description');
+});
+
 app.post('/admin/:type/:id/delete', adminAuth, requireAdmin, sameOrigin, (req, res, next) => {
   const { type, id } = req.params;
   if (!FORM_TYPES.includes(type)) return next();
@@ -2800,7 +2858,7 @@ app.post('/admin/:type/:id/delete', adminAuth, requireAdmin, sameOrigin, (req, r
   const entry = list.find((s) => s.id === id);
   if (!entry) return next();
   writeSubmissions(type, list.filter((s) => s !== entry));
-  if (entry.resume) fs.unlink(path.join(UPLOADS_DIR, path.basename(entry.resume)), () => {});
+  for (const k of ['resume', 'jd']) if (entry[k]) fs.unlink(path.join(UPLOADS_DIR, path.basename(entry[k])), () => {});
   res.redirect(adminUrl(type, 'Deleted 1 entry'));
 });
 

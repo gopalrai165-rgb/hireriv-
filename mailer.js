@@ -198,10 +198,24 @@ function createMailer(site) {
         heading: 'New hiring request',
         html:
           detailsTable([
-            ['Company', h.company], ['Contact', h.name], ['Email', h.email], ['Phone', h.phone],
-            ['Roles', h.roles], ['Headcount', h.headcount], ['Hiring type', h.hiringType],
-            ['Location', h.location], ['Timeline', h.timeline], ['Budget', h.budget], ['Source', h.source], ['Message', h.message],
+            ['Company', h.company], ['Website', h.website], ['Contact', h.name], ['Email', h.email], ['Phone', h.phone],
+            ['IT / Non-IT', h.field], ['Department', h.department], ['Roles', h.roles], ['Headcount', h.headcount], ['Hiring type', h.hiringType],
+            ['City', h.location], ['Salary budget', h.budget], ['Hiring deadline', h.deadline], ['Timeline', h.timeline], ['Job description', h.jdName ? `${h.jdName} (attached in admin)` : ''],
+            ['From', h.fromPage], ['Source', h.source], ['Additional requirements', h.message],
           ]) + button(`${baseUrl}/admin?tab=hire-requests`, 'Open in admin'),
+      });
+    },
+
+    // Sent to the employer straight away, so they know the request arrived.
+    hireRequestAcknowledged(h) {
+      return send(site, {
+        to: h.email,
+        subject: `We have received your hiring requirement - ${site.name}`,
+        heading: `Thanks, ${first(h.name)}`,
+        html:
+          p(`We have received your requirement for <b>${esc(h.roles)}</b> at <b>${esc(h.company)}</b>. A recruiter will call you within one working day to understand the role and agree the next steps and terms.`) +
+          detailsTable([['Roles', h.roles], ['Number of hires', h.headcount], ['Hiring type', h.hiringType], ['City', h.location], ['Hiring deadline', h.deadline], ['Job description', h.jdName]]) +
+          p(`Need to add something? Just reply to this email.`),
       });
     },
 
