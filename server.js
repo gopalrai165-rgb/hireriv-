@@ -2433,7 +2433,10 @@ if (process.env.NOTIFY_WORKER !== 'off') notify.start();
 const pruneNotifications = ops.track('notification-prune', () => notify.prune(), 24 * 3600000);
 pruneNotifications();
 setInterval(pruneNotifications, 24 * 3600000).unref();
-const scanEvents = ops.track('scheduled-reminders', () => events.scan(todayIst), 60 * 60 * 1000);
+const scanEvents = ops.track('scheduled-reminders', () => {
+  events.scan(todayIst);
+  try { events.hireOverdueScan(hireOverdue); } catch (e) { console.error('Enquiry reminders failed:', e.message); }
+}, 60 * 60 * 1000);
 setTimeout(scanEvents, 60 * 1000).unref();
 setInterval(scanEvents, 60 * 60 * 1000).unref();
 // Candidates who turned off "let recruiters find me" stay out of the Talent pool.

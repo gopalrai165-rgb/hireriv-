@@ -220,6 +220,16 @@ function create(deps) {
       return { who, subject: `Your job closed: ${job.title}`, heading: 'A job reached its closing date', intro: `${job.title} passed its last day to apply (${job.closesOn}) and closed by itself. Reopen it from your jobs if you're still hiring.`, rows: [], link: `${baseUrl}/employer/jobs`, label: 'Your jobs', why: 'your jobs closing' };
     },
   };
+  NOTICES['hire-request-overdue'] = (refs, to) => {
+    const h = readSubmissions('hire-requests').find((x) => x.id === refs.hireRequestId);
+    const who = h && person(to);
+    if (!who || (h.followUp || 'New') !== 'New') return null;
+    return {
+      who, subject: `Call ${h.company} today: enquiry not yet contacted`, heading: 'An employer enquiry is waiting for a call',
+      intro: `${h.company} asked about hiring more than a working day ago and is still marked New. Please call ${h.name}${h.phone ? ` on ${h.phone}` : ''}, then set the status to Contacted.`,
+      rows: [['Requirement', h.roles], ['Number of employees', h.headcount || ''], ['Location', h.location || '']], link: `${baseUrl}/admin?tab=hire-requests`, label: 'Open hire requests', why: 'employer enquiries waiting for a call',
+    };
+  };
   T('notice', (refs, to) => {
     const n = NOTICES[refs.kind] && NOTICES[refs.kind](refs, to);
     if (!n) return null;
@@ -472,6 +482,25 @@ function create(deps) {
     emit({ key: `requisition-assigned:${r.id}:${userId}`, type: 'requisition-assigned', to: [team.byId(userId) ? { kind: 'team', userId } : null], inApp: { title: `Requisition assigned to you: ${r.number}`, body: `${r.openings} × ${r.title}${client ? ` for ${client.company}` : ''}`, link: `/admin/requisitions/${r.id}` } });
   }
 
+  // An employer enquiry still New after a working day: one reminder to its
+  // owner, or to the admins (the team inbox when there are none).
+  function hireOverdueScan(isOverdue) {
+    let n = 0;
+    for (const h of readSubmissions('hire-requests')) {
+      if (!isOverdue(h)) continue;
+      const owner = h.ownerId && team.byId(h.ownerId);
+      const admins = team.members().filter((u) => u.active !== false && u.role === 'Admin');
+      const to = owner && owner.active !== false ? [{ kind: 'team', userId: owner.id }] : admins.length ? admins.map((u) => ({ kind: 'team', userId: u.id })) : [{ kind: 'inbox' }];
+      const r = emit({
+        key: `hire-request-overdue:${h.id}`, type: 'hire-request-overdue', to,
+        inApp: to[0].kind === 'inbox' ? undefined : { title: `Not yet contacted: ${h.company}`, body: `Enquiry from ${h.name} is over a working day old. Please call them today.`, link: '/admin?tab=hire-requests' },
+        email: { template: 'notice', refs: { kind: 'hire-request-overdue', hireRequestId: h.id } },
+      });
+      n += r.notifications + r.deliveries ? 1 : 0;
+    }
+    return n;
+  }
+
   // ---------- account ----------
   function accountSecurity(email, title, body) {
     emit({ key: `security:${notify.candidateRk(email)}:${Date.now()}`, type: 'account-security', to: [{ kind: 'candidate', email }], inApp: { title, body, link: '/account/settings' } });
@@ -489,7 +518,7 @@ function create(deps) {
 
   return {
     applicationSubmitted, newApplication, stageMoved, statusEmail, interviewBooked, interviewRescheduled, interviewCancelled, interviewReminder, interviewAnswered,
-    feedbackDueScan, offerCreated, offerApproved, offerAnswered, offerDeadlineScan, assigned, jobDecision, jobExpired, jobSubmitted, jobAlerts, jobDigest, jobInvite, contactUnlocked, applicationViewed, staffingRequest, hireRequestAssigned, agencyAssigned,
+    feedbackDueScan, offerCreated, offerApproved, offerAnswered, offerDeadlineScan, assigned, jobDecision, jobExpired, jobSubmitted, jobAlerts, jobDigest, jobInvite, contactUnlocked, applicationViewed, staffingRequest, hireRequestAssigned, hireOverdueScan, agencyAssigned,
     accountSecurity, scan, JOB_ALERTS_PER_DAY,
   };
 }
