@@ -37,7 +37,7 @@ test('job lists: no fade-in, compact cards on phones, pay in bold', async () => 
 test('the homepage is for job seekers; the employer story is on /hire', async () => {
   const home = await html('/');
   for (const gone of ['Recruiters who know your industry', 'A shortlist you can trust', 'One partner for both sides', 'Your extended HR department']) assert.ok(!home.includes(gone), gone);
-  assert.match(home, /Hiring\? We&#39;ll find the right people|Hiring\? We'll find the right people/);
+  assert.match(home, /Recruitment and staffing services/);
   assert.match(home, /Specialist recruiters for: <a href="\/industries\//);
   const hire = await html('/hire');
   for (const here of ['Recruiters who know your industry', 'A shortlist you can trust, every time', 'Your extended HR department']) assert.ok(hire.includes(here), here);

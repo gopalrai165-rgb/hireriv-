@@ -162,7 +162,7 @@ test('the sign-in page offers mobile or email, and the homepage leads with jobs 
   assert.match(login, /action="\/account\/login\/phone"/);
   assert.match(login, /autocomplete="tel-national"/);
   const hindi = await text('/?lang=hi');
-  assert.match(hindi, /अपने पास नौकरी खोजें/);
+  assert.match(hindi, /सही लोग खोजें/);
   assert.match(hindi, /मेरे पास/);
 });
 

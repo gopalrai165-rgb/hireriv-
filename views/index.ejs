@@ -2,15 +2,16 @@
 <%# Sections for employers are in English only for now: lang="en" tells screen readers. %>
 <% const enOnly = locale !== 'en' ? ' lang="en"' : ''; %>
 
-<!-- HERO: search by job and place, near me -->
+<!-- HERO: who we are, job search, and a way in for employers -->
 <section class="hero hero-seek">
   <div class="hero-bg" aria-hidden="true"></div>
   <div class="container hero-grid">
     <div class="hero-copy">
-      <span class="eyebrow"><svg class="i" aria-hidden="true"><use href="#i-spark"/></svg> <%= t('home.eyebrow') %></span>
-      <h1><%= t('home.seekTitle1') %> <span class="grad"><%= t('home.seekTitle2') %></span></h1>
-      <p class="lead"><%= t('home.seekLead') %></p>
-      <form class="hero-search hero-search-seek" action="/jobs" method="get" role="search">
+      <p class="hero-brand"><b><%= site.name.toUpperCase() %></b> <span>By Raigozen</span></p>
+      <h1><%= t('home.brandTitle1') %> <span class="grad"><%= t('home.brandTitle2') %></span></h1>
+      <p class="lead"><%= t('home.brandLead') %></p>
+      <p class="hero-ctas"><a class="btn btn-primary" href="/jobs"><%= t('home.findJobs') %></a> <a class="btn btn-outline" href="/hire#requirement"><%= t('home.hireEmployees') %></a></p>
+      <form class="hero-search hero-search-seek" action="/jobs" method="get" role="search" aria-label="<%= t('home.searchLabel') %>">
         <div class="hs-field">
           <svg class="i" aria-hidden="true"><use href="#i-search"/></svg>
           <label class="sr-only" for="hero-q"><%= t('home.searchLabel') %></label>
@@ -31,36 +32,39 @@
         <a class="small" href="/jobs#f-near"><%= t('near.byPin') %></a>
         <span class="near-status small" role="status" data-near-status></span>
       </div>
-      <p class="hero-popular small"><%= t('home.popular') %>
-        <% popularRoles.slice(0, 6).forEach(function (r) { %><a href="<%= r.href %>"><%= t('roles.' + r.key) %></a> <% }) %>
-      </p>
       <ul class="hero-points small">
         <li><svg class="i ok" aria-hidden="true"><use href="#i-check"/></svg> <%= t('home.pointFree') %></li>
         <li><svg class="i ok" aria-hidden="true"><use href="#i-check"/></svg> <%= t('home.pointChecked') %></li>
-        <li><svg class="i ok" aria-hidden="true"><use href="#i-check"/></svg> <%= t('home.pointHr') %></li>
       </ul>
-      <p class="hero-employer small"><%= t('home.hiring') %> <a href="/hire"><%= t('home.hireTalent') %></a> · <a href="/hire?service=contract-staffing#requirement"><%= t('home.requestStaffing') %></a> · <a href="/post-a-job"><%= t('nav.postJob') %></a></p>
     </div>
-    <div class="hero-visual" aria-hidden="true">
-      <span class="deco deco-dots"></span>
-      <span class="deco deco-ring"></span>
-      <span class="deco deco-spark"></span>
-      <figure class="photo-arch"><img src="/img/photos/hero-team.webp" alt="" width="900" height="1040" fetchpriority="high"></figure>
-      <div class="float-card fc-small fc-a"><svg class="i ok"><use href="#i-check"/></svg><div><b>Verified employer</b><span class="muted small">Checked by our team</span></div></div>
-      <div class="float-card fc-small fc-b"><svg class="i sun"><use href="#i-clock"/></svg><div><b>Apply in one tap</b><span class="muted small">With your saved profile</span></div></div>
+    <div class="hero-side">
+      <div class="hero-visual" aria-hidden="true">
+        <span class="deco deco-dots"></span>
+        <span class="deco deco-ring"></span>
+        <figure class="photo-arch"><img src="/img/photos/hero-team.webp" alt="" width="900" height="1040" fetchpriority="high"></figure>
+      </div>
+      <aside class="employer-ask"<%- enOnly %> aria-labelledby="employer-ask-h">
+        <h2 id="employer-ask-h"><%= t('home.employerAsk') %></h2>
+        <p><%= t('home.employerText') %></p>
+        <a class="btn btn-accent btn-block" href="/hire#requirement"><%= t('home.employerButton') %></a>
+        <p class="small"><a href="/post-a-job"><%= t('nav.postJob') %></a> · <a href="/services">Our services</a></p>
+      </aside>
     </div>
   </div>
 </section>
 
-<!-- POPULAR ROLES -->
+<!-- FIGURES: real ones from Settings, or what we offer -->
+<%- include('partials/figures', { enOnly: enOnly }) %>
+
+<!-- 1. JOB SEARCH: by role and by city -->
 <section class="section section-tight" aria-labelledby="roles-title">
   <div class="container">
     <div class="section-head row">
       <div>
-        <h2 id="roles-title"><%= t('home.rolesTitle') %></h2>
-        <p><%= t('home.rolesText') %></p>
+        <h2 id="roles-title"><%= t('home.searchTitle') %></h2>
+        <p><%= t('home.searchText') %></p>
       </div>
-      <a href="/categories" class="btn btn-outline"><%= t('home.allCategories') %> <svg class="i" aria-hidden="true"><use href="#i-arrow"/></svg></a>
+      <a href="/jobs" class="btn btn-outline"><%= t('home.viewAll') %> <svg class="i" aria-hidden="true"><use href="#i-arrow"/></svg></a>
     </div>
     <ul class="role-grid">
       <% popularRoles.forEach(function (r) { %>
@@ -74,13 +78,9 @@
   </div>
 </section>
 
-<!-- TOP CITIES -->
-<section class="section section-tint section-tight" aria-labelledby="cities-title">
+<section class="section section-tight section-flush" aria-labelledby="cities-title">
   <div class="container">
-    <div class="section-head">
-      <h2 id="cities-title"><%= t('home.citiesTitle') %></h2>
-      <p><%= t('home.citiesText') %></p>
-    </div>
+    <h3 id="cities-title" class="sub-head"><%= t('home.citiesTitle') %></h3>
     <ul class="city-grid">
       <% topCities.forEach(function (c) { %>
         <li><a class="city-tile" href="<%= c.href %>">
@@ -92,26 +92,8 @@
   </div>
 </section>
 
-<!-- HOW IT WORKS (job seekers) -->
-<section class="section section-tight" aria-labelledby="how-title">
-  <div class="container">
-    <div class="section-head center">
-      <h2 id="how-title"><%= t('home.howTitle') %></h2>
-    </div>
-    <ol class="how-steps">
-      <li><span class="how-num" aria-hidden="true">1</span><svg class="i" aria-hidden="true"><use href="#i-locate"/></svg><b><%= t('home.how1Title') %></b><span class="small muted"><%= t('home.how1Text') %></span></li>
-      <li><span class="how-num" aria-hidden="true">2</span><svg class="i" aria-hidden="true"><use href="#i-check"/></svg><b><%= t('home.how2Title') %></b><span class="small muted"><%= t('home.how2Text') %></span></li>
-      <li><span class="how-num" aria-hidden="true">3</span><svg class="i" aria-hidden="true"><use href="#i-phone"/></svg><b><%= t('home.how3Title') %></b><span class="small muted"><%= t('home.how3Text') %></span></li>
-    </ol>
-    <p class="center how-cta"><a class="btn btn-primary btn-lg" href="/account/register"><%= t('home.createProfile') %></a> <a class="btn btn-outline btn-lg" href="/account/login?with=phone"><%= t('home.signInMobile') %></a></p>
-  </div>
-</section>
-
-<!-- FIGURES: real ones from Settings, or what we offer -->
-<%- include('partials/figures', { enOnly: enOnly }) %>
-
-<!-- JOB CATEGORIES -->
-<section class="section" id="categories">
+<!-- 2. POPULAR JOB CATEGORIES -->
+<section class="section section-tint" id="categories">
   <div class="container">
     <div class="section-head row">
       <div>
@@ -134,8 +116,8 @@
   </div>
 </section>
 
-<!-- FEATURED JOBS -->
-<section class="section section-tint">
+<!-- 3. LATEST VERIFIED JOBS -->
+<section class="section" id="latest-jobs">
   <div class="container">
     <div class="section-head row">
       <div>
@@ -150,43 +132,126 @@
     </div>
     <% } else { %>
     <div class="empty">
-      <p><b>New opportunities are added regularly.</b> Only real vacancies from employers are listed here.</p>
-      <p><a class="btn btn-primary" href="/account/register"><%= t('home.createProfile') %></a> <a class="btn btn-outline" href="/jobs#alerts">Get job alerts</a></p>
+      <p><b><%= t('home.noJobsTitle') %></b> <%= t('home.noJobsText') %></p>
+      <p><a class="btn btn-primary" href="/account/register"><%= t('home.createProfile') %></a> <a class="btn btn-outline" href="/jobs#alerts"><%= t('home.jobAlerts') %></a></p>
     </div>
     <% } %>
   </div>
 </section>
 
-<!-- EMPLOYERS -->
+<!-- 4. RECRUITMENT AND STAFFING SERVICES -->
 <section class="section section-dark employer-band" id="employers"<%- enOnly %>>
   <div class="container">
     <div class="section-head">
       <span class="eyebrow">For employers</span>
-      <h2>Hiring? We'll find the right people</h2>
-      <p>From one manager to a hundred shop-floor staff: tell us who you need and a dedicated recruiter sends a screened shortlist.</p>
+      <h2>Recruitment and staffing services</h2>
+      <p>Tell us who you need, from one developer to fifty warehouse staff, and a recruiter sends you screened candidates.</p>
     </div>
-    <div class="employer-grid">
-      <% [
-        ['/post-a-job', 'i-plus', 'Post a Job', 'Share the role and we start sourcing the same day.'],
-        ['/hire#requirement', 'i-search', 'Find Candidates', 'Screened profiles from our talent pool, matched to your role.'],
-        ['/services/bulk-rpo-hiring', 'i-users', 'Bulk Hiring', 'Ten to hundreds of hires for plants, warehouses, stores and BPOs.'],
-        ['/services/permanent-staffing', 'i-briefcase', 'Permanent Recruitment', 'Full-time hires with a replacement guarantee.'],
-        ['/services/contract-staffing', 'i-clock', 'Contract Staffing', 'Contract and temporary staff on our payroll, deployed fast.'],
-      ].forEach(function (c) { %>
-        <a class="employer-card" href="<%= c[0] %>">
-          <span class="service-icon"><svg class="i"><use href="#<%= c[1] %>"/></svg></span>
-          <h3><%= c[2] %></h3>
-          <p><%= c[3] %></p>
+    <div class="employer-grid employer-grid-4">
+      <% homeServices.forEach(function (c) { %>
+        <a class="employer-card" href="<%= c.href %>">
+          <span class="service-icon"><svg class="i"><use href="#<%= c.icon %>"/></svg></span>
+          <h3><%= c.name %></h3>
+          <p><%= c.text %></p>
         </a>
       <% }) %>
     </div>
-    <p class="employer-more"><a href="/services" class="btn btn-primary">All staffing solutions <svg class="i"><use href="#i-arrow"/></svg></a> <a href="/employer/login">Already a client? Log in</a></p>
-    <p class="small employer-desks">Specialist recruiters for: <% catalog.INDUSTRIES.forEach(function (ind, i) { %><a href="/industries/<%= ind.slug %>"><%= ind.name %></a><%= i < catalog.INDUSTRIES.length - 1 ? ' · ' : '' %><% }) %>. <a href="/hire#industries">How we hire</a></p>
+    <p class="employer-more"><a href="/services" class="btn btn-primary">All staffing services <svg class="i"><use href="#i-arrow"/></svg></a> <a href="/employer/login">Already a client? Log in</a></p>
+    <p class="small employer-desks">Also: <% catalog.SERVICES.forEach(function (s, i) { %><a href="/services/<%= s.slug %>"><%= s.name %></a><%= i < catalog.SERVICES.length - 1 ? ' · ' : '' %><% }) %>.</p>
+    <p class="small employer-desks">Specialist recruiters for: <% catalog.INDUSTRIES.forEach(function (ind, i) { %><a href="/industries/<%= ind.slug %>"><%= ind.name %></a><%= i < catalog.INDUSTRIES.length - 1 ? ' · ' : '' %><% }) %>.</p>
   </div>
 </section>
 
+<!-- 5. WHY CHOOSE HIRERIV -->
+<section class="section" aria-labelledby="why-title"<%- enOnly %>>
+  <div class="container">
+    <div class="section-head center">
+      <h2 id="why-title">Why choose <%= site.name %></h2>
+    </div>
+    <ul class="why-grid">
+      <% [
+        ['i-check', 'Free for job seekers', 'No fee to register, apply or get a job. Ever.'],
+        ['i-shield', 'Listings checked by our team', 'Every job is reviewed before it goes live, and you can report one that looks wrong.'],
+        ['i-briefcase', 'IT and non-IT hiring', 'Developers and accountants to delivery, warehouse and support staff.'],
+        ['i-users', 'One point of contact', 'Employers deal with one recruiter from the first call to the joining day.'],
+        ['i-phone', 'Talk to a real person', 'Call or WhatsApp us, and call the HR of a job after you apply where they allow it.'],
+        ['i-wallet', 'Clear terms for employers', 'You know the fee and the replacement terms before we start.'],
+      ].forEach(function (w) { %>
+        <li class="why-item"><span class="service-icon" aria-hidden="true"><svg class="i"><use href="#<%= w[0] %>"/></svg></span><div><b><%= w[1] %></b><span class="muted small"><%= w[2] %></span></div></li>
+      <% }) %>
+    </ul>
+  </div>
+</section>
 
-<!-- TESTIMONIALS (edited in Admin → Settings; hidden when there are none) -->
+<!-- 6. HOW HIRERIV WORKS -->
+<section class="section section-tint" aria-labelledby="how-title">
+  <div class="container">
+    <div class="section-head center">
+      <h2 id="how-title">How <%= site.name %> works</h2>
+    </div>
+    <div class="how-cols">
+      <div>
+        <h3><%= t('home.howTitle') %></h3>
+        <ol class="how-steps">
+          <li><span class="how-num" aria-hidden="true">1</span><svg class="i" aria-hidden="true"><use href="#i-locate"/></svg><b><%= t('home.how1Title') %></b><span class="small muted"><%= t('home.how1Text') %></span></li>
+          <li><span class="how-num" aria-hidden="true">2</span><svg class="i" aria-hidden="true"><use href="#i-check"/></svg><b><%= t('home.how2Title') %></b><span class="small muted"><%= t('home.how2Text') %></span></li>
+          <li><span class="how-num" aria-hidden="true">3</span><svg class="i" aria-hidden="true"><use href="#i-phone"/></svg><b><%= t('home.how3Title') %></b><span class="small muted"><%= t('home.how3Text') %></span></li>
+        </ol>
+      </div>
+      <div<%- enOnly %>>
+        <h3>Hire staff in three steps</h3>
+        <ol class="how-steps">
+          <li><span class="how-num" aria-hidden="true">1</span><svg class="i" aria-hidden="true"><use href="#i-mail"/></svg><b>Share your requirement</b><span class="small muted">Fill the short form or call us. A recruiter calls back to understand the role.</span></li>
+          <li><span class="how-num" aria-hidden="true">2</span><svg class="i" aria-hidden="true"><use href="#i-users"/></svg><b>Get screened candidates</b><span class="small muted">We source, call and screen candidates, then send a shortlist with notes.</span></li>
+          <li><span class="how-num" aria-hidden="true">3</span><svg class="i" aria-hidden="true"><use href="#i-briefcase"/></svg><b>Interview and hire</b><span class="small muted">We arrange interviews and follow up until your new hire joins.</span></li>
+        </ol>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 7. EMPLOYER ENQUIRY -->
+<section class="section" id="enquiry" aria-labelledby="enquiry-title"<%- enOnly %>>
+  <div class="container split enquiry-split">
+    <div>
+      <span class="eyebrow">Employer enquiry</span>
+      <h2 id="enquiry-title">Need staff? Tell us in a minute</h2>
+      <p>Share the basics and a recruiter will call you back within one working day. For a job description, budget and more details, use the <a href="/hire#requirement">full hiring form</a>.</p>
+      <% if (site.whatsapp && !/0{6}/.test(site.whatsapp)) { %><p><a class="btn btn-whatsapp" href="https://wa.me/<%= site.whatsapp %>?text=<%= encodeURIComponent('Hi ' + site.name + ', I would like to hire staff.') %>" rel="noopener"><svg class="i" aria-hidden="true"><use href="#i-phone"/></svg> WhatsApp us</a></p><% } %>
+    </div>
+    <div class="form-card">
+      <form class="form js-form" action="/api/hire" method="post">
+        <input type="hidden" name="from" value="home">
+        <%- include('partials/honeypot') %>
+        <div class="form-grid">
+          <label>Company name*<input name="company" required autocomplete="organization"></label>
+          <label>Your name*<input name="name" required autocomplete="name"></label>
+          <label>Work email*<input type="email" name="email" required autocomplete="email"></label>
+          <label>Phone*<input type="tel" name="phone" required autocomplete="tel"></label>
+          <label class="span-2">Roles you're hiring for*<input name="roles" required placeholder="e.g. 5 delivery executives in Pune"></label>
+        </div>
+        <button class="btn btn-primary btn-block" type="submit">Send enquiry</button>
+        <p class="muted small form-note">We use these details only to respond to your enquiry. See our <a href="/privacy">Privacy Policy</a>.</p>
+      </form>
+    </div>
+  </div>
+</section>
+
+<!-- 8. CANDIDATE REGISTRATION -->
+<section class="cta-band" aria-labelledby="register-title">
+  <div class="container cta-inner">
+    <div>
+      <h2 id="register-title"><%= t('home.registerTitle') %></h2>
+      <p><%= t('home.registerText') %></p>
+    </div>
+    <div class="cta-actions">
+      <a href="/account/register" class="btn btn-light btn-lg"><%= t('home.createProfile') %></a>
+      <a href="/account/login?with=phone" class="btn btn-ghost-light btn-lg"><%= t('home.signInMobile') %></a>
+    </div>
+  </div>
+</section>
+
+<!-- 9. TESTIMONIALS: only real ones from Admin → Settings; hidden when there are none -->
 <% const testimonials = testimonialsFor(site); %>
 <% if (testimonials.length) { %>
 <section class="section section-testimonials"<%- enOnly %>>
@@ -209,70 +274,38 @@
 </section>
 <% } %>
 
-<!-- FAQ -->
+<!-- 10. FAQS AND CONTACT DETAILS -->
 <section class="section section-tint" id="faq"<%- enOnly %>>
   <div class="container faq-wrap">
     <div class="section-head left">
       <span class="eyebrow">FAQ</span>
       <h2>Questions, answered</h2>
-      <p>Can't find what you're looking for? <a href="/contact">Talk to our team</a>.</p>
-      <figure class="faq-photo"><img src="/img/photos/contact.webp" alt="" width="900" height="700" loading="lazy" decoding="async"></figure>
+      <% const realPhone = site.phone && !/0{5}/.test(site.phone); %>
+      <% const realWhatsapp = site.whatsapp && !/0{6}/.test(site.whatsapp); %>
+      <% const realAddress = site.address && !/your office address/i.test(site.address); %>
+      <ul class="contact-lines">
+        <% if (realPhone) { %><li><svg class="i" aria-hidden="true"><use href="#i-phone"/></svg> <a href="tel:<%= site.phone.replace(/\s/g, '') %>"><%= site.phone %></a></li><% } %>
+        <% if (realWhatsapp) { %><li><svg class="i" aria-hidden="true"><use href="#i-phone"/></svg> <a href="https://wa.me/<%= site.whatsapp %>" rel="noopener">WhatsApp us</a></li><% } %>
+        <% if (site.email) { %><li><svg class="i" aria-hidden="true"><use href="#i-mail"/></svg> <a href="mailto:<%= site.email %>"><%= site.email %></a></li><% } %>
+        <% if (realAddress) { %><li><svg class="i" aria-hidden="true"><use href="#i-pin"/></svg> <%= site.address %></li><% } %>
+        <% if (site.hours) { %><li><svg class="i" aria-hidden="true"><use href="#i-clock"/></svg> <%= site.hours %></li><% } %>
+      </ul>
+      <p><a class="btn btn-outline" href="/contact">Contact us</a></p>
     </div>
     <div class="faq">
       <% [
-        ['What makes Hireriv different from other staffing agencies?', 'We combine AI-assisted matching with a six-stage human screening process, specialist recruiters for each industry, and a dedicated account manager, so you get fewer, better profiles and a faster hire.'],
-        ['Which industries do you specialise in?', 'Technology, Finance & Accounting, Banking & Insurance, Sales, Marketing & Creative, Healthcare & Pharma, Engineering & Manufacturing, Customer Support & BPO, Retail & E-commerce, Logistics & Operations, Construction & Facility Management, and Hospitality & Travel, plus HR, education, legal and admin roles.'],
-        ['How quickly can you share candidates?', 'For most roles we share a first shortlist within 72 hours of the brief. Niche and leadership roles typically take one to two weeks.'],
-        ['Do you only help with hiring, or offer end-to-end HR support?', 'Both. Beyond recruitment we offer contract staffing with payroll, background verification, onboarding and corporate training, so we can act as your extended HR team.'],
-        ['What is the six-stage filter?', 'Need analysis, sourcing, candidate evaluation, interview presentation, background checks, and offer negotiation & closure. Every candidate passes all six before joining.'],
-        ['Can you handle urgent or high-volume hiring?', 'Yes. Our bulk hiring and RPO teams run hiring drives for dozens to hundreds of roles, with clear SLAs and weekly reporting.'],
-        ['Is it free for job seekers?', 'Always. Candidates never pay Hireriv for job placement, interview preparation or career advice.'],
-        ['How do we get started?', 'Share your requirement on the Hire a Team page or call us. A client partner will set up a short brief call, agree on terms and start sourcing the same day.']
+        ['Is it free for job seekers?', 'Yes. Registering, applying and getting a job through ' + site.name + ' is always free. Nobody from ' + site.name + ' will ever ask you for money for a job; if anyone does, report it to us.'],
+        ['How do I apply for a job?', 'Search for a job, open it and tap Apply. With a free profile you apply in one tap and can follow every application from your account.'],
+        ['Are the jobs real?', 'Yes. Only real vacancies from employers are listed, and our team checks each one before it goes live. You can report any job that looks wrong.'],
+        ['What kind of hiring do you help employers with?', 'IT recruitment, non-IT recruitment, bulk hiring and contract staffing across India, plus executive search, background verification and training.'],
+        ['How quickly can you share candidates?', 'It depends on the role and the city. We agree a timeline with you at the start and keep you updated each week.'],
+        ['How do employers get started?', 'Send the enquiry form above, use the full hiring form, or call or WhatsApp us. A recruiter calls you back to understand the role and agree the terms before any work starts.'],
       ].forEach(function (f, i) { %>
         <details class="faq-item"<%= i === 0 ? ' open' : '' %>>
           <summary><%= f[0] %><svg class="i"><use href="#i-plus"/></svg></summary>
           <p><%= f[1] %></p>
         </details>
       <% }) %>
-    </div>
-  </div>
-</section>
-
-<!-- BLOG -->
-<section class="section"<%- enOnly %>>
-  <div class="container">
-    <div class="section-head row">
-      <div>
-        <span class="eyebrow">News &amp; articles</span>
-        <h2>From the Hireriv blog</h2>
-      </div>
-      <a href="/blog" class="btn btn-outline">All articles <svg class="i"><use href="#i-arrow"/></svg></a>
-    </div>
-    <div class="posts-grid">
-      <% posts.forEach(function (p) { %>
-        <a class="post-card reveal" href="/blog/<%= p.slug %>">
-          <div class="post-thumb thumb-<%= p.category.toLowerCase() %>"><span><%= p.category %></span></div>
-          <div class="post-body">
-            <span class="muted small"><%= formatDate(p.date) %></span>
-            <h3><%= p.title %></h3>
-            <p><%= p.excerpt %></p>
-          </div>
-        </a>
-      <% }) %>
-    </div>
-  </div>
-</section>
-
-<!-- CTA -->
-<section class="cta-band"<%- enOnly %>>
-  <div class="container cta-inner">
-    <div>
-      <h2>Ready to build your dream team?</h2>
-      <p>Tell us what you need. We'll send the right people.</p>
-    </div>
-    <div class="cta-actions">
-      <a href="/hire" class="btn btn-light btn-lg">Share a requirement</a>
-      <a href="tel:<%= site.phone.replace(/\s/g, '') %>" class="btn btn-ghost-light btn-lg"><svg class="i"><use href="#i-phone"/></svg> Call us</a>
     </div>
   </div>
 </section>

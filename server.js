@@ -814,15 +814,21 @@ app.get('/', (req, res) => {
   // Opened from the home-screen icon (the manifest's start_url).
   if (req.query.source === 'pwa') siteAnalytics.track('app-launch', /Mobi|Android|iPhone|iPad/.test(req.get('User-Agent') || '') ? 'Phone or tablet' : 'Computer', req);
   const live = openJobs();
-  // Real openings first; sample listings only fill the gaps on a new site.
-  const featured = [...live.filter((j) => !isSample(j)), ...live.filter(isSample)].slice(0, 6);
+  const featured = live.filter((j) => !isSample(j)).slice(0, 6);
   res.render('index', {
     title: 'Find Jobs & Hire Staff Across India', page: 'home', jobs: featured, posts: livePosts().slice(0, 3), locations: jobLocations(),
-    categoryGroups: groupCategories(jobCategories()), groups: fromJobs('groups', () => groupCounts(live)), jsonLd: seo.homePage(site, BASE_URL),
+    categoryGroups: groupCategories(jobCategories()), groups: fromJobs('groups', () => groupCounts(live)), jsonLd: seo.homePage(site, BASE_URL), homeServices: HOME_SERVICES,
     popularRoles: fromJobs('roles', () => popularRoles(live.filter((j) => !isSample(j)))), topCities: fromJobs('cities', () => topCities(live.filter((j) => !isSample(j)))),
   });
 });
 
+// The four services the homepage leads with, for employers.
+const HOME_SERVICES = [
+  { name: 'IT Recruitment', icon: 'i-code', href: '/hire?service=it#requirement', text: 'Software developers, testers, designers, cloud engineers and other IT professionals.' },
+  { name: 'Non-IT Recruitment', icon: 'i-briefcase', href: '/hire?service=non-it#requirement', text: 'Sales, accounts, operations, warehouse, manufacturing and customer support staff.' },
+  { name: 'Bulk Hiring', icon: 'i-users', href: '/services/bulk-rpo-hiring', text: 'Many hires at once for plants, warehouses, stores and support teams.' },
+  { name: 'Contract Staffing', icon: 'i-clock', href: '/services/contract-staffing', text: 'Temporary and project staff on our payroll, with payroll and compliance handled.' },
+];
 const groupCounts = (list) => JOB_GROUPS.map((g) => ({ ...g, count: list.filter((j) => inGroup(g, j)).length }));
 // The homepage's quick ways in: common roles (each a keyword search, named in
 // the page's language under "roles") and the cities with the most live jobs.
@@ -1733,12 +1739,12 @@ function employerInquiry(req, body) {
   const from = String(body.from || '');
   const service = /^service:/.test(from) && catalog.serviceBySlug(from.slice(8));
   const desk = /^desk:/.test(from) && catalog.industryBySlug(from.slice(5));
-  const page = service ? `service page: ${service.name}` : desk ? `industry page: ${desk.name}` : '';
+  const page = service ? `service page: ${service.name}` : desk ? `industry page: ${desk.name}` : from === 'home' ? 'homepage' : '';
   const entry = saveSubmission('hire-requests', { ...data, ...(page ? { fromPage: page } : {}) });
   mailer.hireRequestReceived(entry);
   events.staffingRequest(entry);
   leadCapture.capture('Website inquiry', data, { sourceRef: entry.id, sourceDetail: `Hire with us form${page ? `, ${page}` : ''}` });
-  siteAnalytics.track('employer-inquiry', service ? service.name : desk ? desk.name : data.hiringType || 'Hire page', req);
+  siteAnalytics.track('employer-inquiry', service ? service.name : desk ? desk.name : from === 'home' ? 'Homepage' : data.hiringType || 'Hire page', req);
   return [];
 }
 app.post('/api/hire', limit('hire', 5), (req, res) => {

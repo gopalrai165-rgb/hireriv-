@@ -25,7 +25,17 @@ test('header: Find Jobs, Job Categories, Staffing Solutions, Employers, Career R
   assert.match(home, /href="\/employer\/login"/);
   assert.match(home, /href="\/post-a-job"[^>]*>[^<]*Post a Job/);
   // Job seekers first: search by job and city, near me, popular roles, top cities.
-  assert.match(home, /Find jobs near you\./);
+  assert.match(home, /HIRERIV<\/b> <span>By Raigozen/);
+  assert.match(home, /Find Talent\. Build Careers\. <span class="grad">Grow Faster\./);
+  assert.match(home, /recruitment and staffing partner for IT and non-IT hiring across India/);
+  assert.match(home, />Hire Employees</);
+  assert.match(home, /placeholder="Job title, skill or company"/);
+  assert.match(home, /Are you an employer\?[\s\S]*Request Staffing \/ Hire Talent/);
+  // The sections below the banner, in order.
+  const order = ['Search jobs by role or city', 'Popular job categories', 'Latest verified jobs', 'Recruitment and staffing services', 'Why choose Hireriv', 'How Hireriv works', 'Need staff? Tell us in a minute', 'Looking for a job? Register free', 'Questions, answered'];
+  const at = order.map((h) => home.indexOf(h));
+  assert.ok(at.every((i, n) => i > 0 && (n === 0 || i > at[n - 1])), JSON.stringify(at));
+  for (const svc of ['IT Recruitment', 'Non-IT Recruitment', 'Bulk Hiring', 'Contract Staffing']) assert.match(home, new RegExp(`<h3>${svc}</h3>`));
   assert.match(home, /<input id="hero-q" name="q"[^>]*data-suggest/);
   assert.match(home, /<select id="hero-loc" name="location">/);
   assert.match(home, /data-near-me/);
@@ -101,4 +111,11 @@ test('real figures and testimonials from Settings are shown', async () => {
   assert.match(home, /Placements this year/);
   assert.match(home, /They found our accountant in a week\./);
   assert.doesNotMatch(home, /Free registration/);
+});
+
+test('the homepage enquiry form reaches the team as a hiring request from the homepage', async () => {
+  const res = await srv.request('/api/hire', { method: 'POST', headers: { accept: 'application/json' }, form: { from: 'home', company: 'Nova Foods', name: 'Ravi', email: 'ravi@nova.example', phone: '9800000001', roles: '5 packers in Pune' } });
+  assert.equal(res.status, 200);
+  const req = srv.records('hire-requests').find((r) => r.company === 'Nova Foods');
+  assert.equal(req.fromPage, 'homepage');
 });

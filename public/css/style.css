@@ -2120,3 +2120,39 @@ p, li, dd { text-wrap: pretty; }
 /* What the site offers, shown instead of figures until real ones are entered */
 .stats .stat-offer .i { display: block; margin-inline: auto; width: 28px; height: 28px; color: var(--primary-600); margin-bottom: 6px; }
 .stats .stat-offer b { font-size: clamp(1.1rem, 2vw, 1.35rem); letter-spacing: -0.01em; }
+
+/* Homepage: brand line, employer box beside the search, services, why us, how it works */
+.hero-brand { display: flex; align-items: baseline; gap: 10px; margin: 0 0 14px; letter-spacing: .14em; font-size: .9rem; color: var(--muted); }
+.hero-brand b { font-family: var(--font-display); font-size: 1.05rem; color: var(--ink); }
+.hero-brand span { letter-spacing: .02em; font-weight: 600; }
+.page-home .hero-brand, .page-home .hero-brand b { color: #fff; }
+.page-home .hero-brand span { color: var(--home-gold); }
+.page-home .hero .hero-ctas { margin: 0 0 18px; }
+.hero-side { display: grid; gap: 18px; justify-items: end; }
+.employer-ask { width: 100%; max-width: 420px; padding: 22px 24px; border-radius: var(--radius); background: #fff; color: var(--text); box-shadow: var(--shadow-lg); border: 1px solid var(--line); }
+.employer-ask h2 { font-size: 1.3rem; margin: 0 0 4px; color: var(--ink); }
+.employer-ask p { margin: 0 0 14px; }
+.employer-ask p.small { margin: 12px 0 0; text-align: center; }
+.hero-side .hero-visual { padding-bottom: 0; }
+.employer-grid-4 { grid-template-columns: repeat(4, 1fr); }
+@media (max-width: 900px) { .employer-grid-4 { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 520px) { .employer-grid-4 { grid-template-columns: 1fr; } }
+.why-grid { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
+.why-item { display: flex; gap: 14px; align-items: flex-start; padding: 20px; border: 1px solid var(--line); border-radius: var(--radius); background: #fff; }
+.why-item .service-icon { flex: none; }
+.why-item b { display: block; color: var(--ink); margin-bottom: 4px; }
+.how-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; }
+.how-cols h3 { margin: 0 0 14px; }
+.how-cols .how-steps { grid-template-columns: 1fr; }
+.how-cols .how-steps li { background: #fff; }
+@media (max-width: 860px) { .how-cols { grid-template-columns: 1fr; } }
+.section-flush { padding-top: 0; }
+.sub-head { margin: 0 0 14px; font-size: 1.15rem; }
+.contact-lines { list-style: none; padding: 0; margin: 18px 0; display: grid; gap: 10px; }
+.contact-lines li { display: flex; gap: 10px; align-items: center; }
+.contact-lines .i { width: 18px; height: 18px; color: var(--primary); flex: none; }
+.enquiry-split { align-items: start; }
+@media (max-width: 760px) {
+  .hero-seek .hero-side { justify-items: stretch; }
+  .employer-ask { max-width: none; }
+}

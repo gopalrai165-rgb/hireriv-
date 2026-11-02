@@ -105,8 +105,8 @@ test('landing pages for job seekers list the right live jobs, with breadcrumbs a
   assert.match(desk, /href="\/hire\?desk=construction-facility-management#requirement"/);
   const home = await html('/');
   for (const w of catalog.WORK_PAGES) assert.match(home, new RegExp(`href="/jobs/${w.slug}"`));
-  assert.match(home, /href="\/hire"[^>]*>Hire Talent</);
-  assert.match(home, /href="\/hire\?service=contract-staffing#requirement"[^>]*>Request Staffing</);
+  assert.match(home, /href="\/hire#requirement"[^>]*>Hire Employees</);
+  assert.match(home, /href="\/hire#requirement"[^>]*>Request Staffing \/ Hire Talent</);
 });
 
 test('job structured data: only open, real vacancies, accurate details; closed jobs say so', async () => {

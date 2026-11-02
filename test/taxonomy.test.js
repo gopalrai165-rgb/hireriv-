@@ -54,7 +54,7 @@ test('Find Work: kind-of-work tabs, job type filter and grouped categories', asy
 
 test('homepage links to each job category group with its count', async () => {
   const home = await (await srv.request('/')).text();
-  assert.match(home, /Jobs for every kind of work/);
+  assert.match(home, /Popular job categories/);
   assert.match(home, /href="\/jobs\?group=skilled-field"[\s\S]*?<span class="cat-count">6 jobs<\/span>/);
   assert.match(home, /href="\/jobs\?group=freshers"/);
 });
