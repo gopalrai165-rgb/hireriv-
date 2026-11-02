@@ -107,6 +107,14 @@ const DEFAULT_JOB_LOCATIONS = [
 
 const MAX_TESTIMONIALS = 6;
 const MAX_TEAM = 6;
+// Services whose starting price the owner may publish from Settings, with the
+// suggested launch wording shown as a placeholder (not published until typed).
+const PRICED_SERVICES = [
+  { slug: 'permanent-staffing', name: 'Permanent recruitment', how: 'A one-time fee, a percentage of the annual CTC, when the candidate joins', hint: '8.33% of annual CTC' },
+  { slug: 'contract-staffing', name: 'Contract staffing', how: 'A monthly staffing fee per person, quoted for your requirement', hint: 'Monthly fee, quoted individually' },
+  { slug: 'bulk-rpo-hiring', name: 'Bulk hiring', how: 'A fixed fee per successful hire', hint: '₹1,000–₹3,000 per successful hire' },
+  { slug: 'executive-search', name: 'Executive search', how: 'A percentage of the annual CTC, agreed before the search starts', hint: '12%–15% of annual CTC' },
+];
 
 // Testimonials from the settings form: only real quotes, given with the
 // person's permission. None hides the homepage section.
@@ -181,6 +189,13 @@ function parseSettings(body, current) {
     if (!m.name || !m.role) errors.push(`team member ${i + 1} needs a name and a role`);
     next.company.team.push(m);
   }
+  // Starting prices: empty means the page shows only "Request a Quote".
+  next.pricing = {};
+  for (const p of PRICED_SERVICES) {
+    const v = get(`price_${p.slug}`, 80);
+    if (v && /[<>]/.test(v)) errors.push(`the ${p.name.toLowerCase()} price cannot contain < or >`);
+    else if (v) next.pricing[p.slug] = v;
+  }
   next.jobCategories = parseList(body.jobCategories, 60, 50);
   if (!next.jobCategories.length) errors.push('add at least one job category');
   next.jobLocations = parseList(body.jobLocations, 60, 150);
@@ -221,4 +236,4 @@ const jobSlug = (job) => [slugify(job.title).slice(0, 60).replace(/-+$/, ''), sl
 const jobPath = (job) => `/jobs/${jobSlug(job)}`;
 const findJobBySlug = (list, param) => list.find((j) => param === j.id) || list.find((j) => param.endsWith(`-${j.id}`));
 
-module.exports = { jobSlug, jobPath, findJobBySlug, parsePost, slugify, parseSettings, SOCIAL, DEFAULT_JOB_CATEGORIES, DEFAULT_JOB_LOCATIONS, MAX_TESTIMONIALS, MAX_TEAM, WORK_KINDS, WORK_KEYS, CATEGORY_WORK, workOf, workOfCategory, RESUME_OPTIONS, resumeNeeded, JOB_GROUPS, inGroup, isFresherJob };
+module.exports = { jobSlug, jobPath, findJobBySlug, parsePost, slugify, parseSettings, SOCIAL, DEFAULT_JOB_CATEGORIES, DEFAULT_JOB_LOCATIONS, MAX_TESTIMONIALS, MAX_TEAM, PRICED_SERVICES, WORK_KINDS, WORK_KEYS, CATEGORY_WORK, workOf, workOfCategory, RESUME_OPTIONS, resumeNeeded, JOB_GROUPS, inGroup, isFresherJob };

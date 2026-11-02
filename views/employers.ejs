@@ -62,15 +62,16 @@
     </div>
     <div class="table-wrap guide-table">
       <table>
-        <thead><tr><th>Service</th><th>How you pay</th></tr></thead>
+        <% const priced = pricedServices.some(function (p) { return priceOf(site, p.slug); }); %>
+        <thead><tr><th>Service</th><th>How you pay</th><% if (priced) { %><th>Starting from</th><% } %></tr></thead>
         <tbody>
-          <tr><td>Permanent recruitment</td><td>A one-time fee, a percentage of the annual CTC, when the candidate joins</td></tr>
-          <tr><td>Contract staffing</td><td>A monthly staffing fee per person, quoted for your requirement</td></tr>
-          <tr><td>Bulk hiring</td><td>A fixed fee per successful hire</td></tr>
-          <tr><td>Executive search</td><td>A percentage of the annual CTC, agreed before the search starts</td></tr>
+          <% pricedServices.forEach(function (p) { %>
+            <tr><td><%= p.name %></td><td><%= p.how %></td><% if (priced) { %><td><%= priceOf(site, p.slug) || 'On request' %></td><% } %></tr>
+          <% }) %>
         </tbody>
       </table>
     </div>
+    <% if (priced) { %><p class="center muted small">Starting prices exclude GST. Your written quote depends on the roles, numbers and locations.</p><% } %>
     <p class="center"><a class="btn btn-primary" href="#enquiry">Request a Quote</a></p>
   </div>
 </section>

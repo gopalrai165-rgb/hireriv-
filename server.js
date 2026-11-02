@@ -702,6 +702,8 @@ app.locals.realContact = (s) => ({
 app.locals.testimonialsFor = (s) => (Array.isArray(s.testimonials) ? s.testimonials : []);
 app.locals.maxTestimonials = MAX_TESTIMONIALS;
 app.locals.maxTeam = require('./content').MAX_TEAM;
+app.locals.pricedServices = require('./content').PRICED_SERVICES;
+app.locals.priceOf = (s, slug) => (s.pricing && s.pricing[slug]) || '';
 // Google Analytics (public pages, after consent) and Search Console's ownership tag.
 app.locals.gaId = GA_ID;
 app.locals.searchConsoleToken = /^[\w-]{10,100}$/.test(process.env.GOOGLE_SITE_VERIFICATION || '') ? process.env.GOOGLE_SITE_VERIFICATION : '';

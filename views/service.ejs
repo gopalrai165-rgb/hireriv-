@@ -53,6 +53,7 @@
       <span class="service-icon"><svg class="i"><use href="#i-wallet"/></svg></span>
       <h2 class="h3">How billing works</h2>
       <p><%= service.billing %></p>
+      <% if (priceOf(site, service.slug)) { %><p><b>Starting from:</b> <%= priceOf(site, service.slug) %> <span class="muted small">(plus GST; final price in your written quote)</span></p><% } %>
       <% if (service.slug === 'permanent-staffing' && guaranteeDays > 0) { %><p class="muted small">Our standard replacement guarantee is <%= guaranteeDays %> days.</p><% } %>
       <p class="muted small">Every invoice is a GST invoice, and clients on the portal can view and download theirs at any time.</p>
     </div>

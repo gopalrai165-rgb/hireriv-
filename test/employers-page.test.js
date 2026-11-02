@@ -81,3 +81,26 @@ test('enquiries not contacted within one working day are flagged and listed in t
     assert.equal(old.records('hire-requests').find((r) => r.id === 'h-moved').followUp, 'Requirement received', 'old statuses are mapped once');
   } finally { old.stop(); }
 });
+
+test('starting prices appear only once the owner types them in Settings', async () => {
+  const before = await page('/employers');
+  assert.doesNotMatch(before, /Starting from|8\.33%/, 'no prices are published by default');
+  assert.doesNotMatch(await page('/admin?tab=settings', { cookie: admin }), /value="8\.33% of annual CTC"/, 'the suggestion is only a placeholder');
+  const settings = await page('/admin?tab=settings', { cookie: admin });
+  assert.match(settings, /name="price_permanent-staffing"[^>]*placeholder="8\.33% of annual CTC"/);
+
+  const form = { tagline: 'Hiring', phone: '+91 98765 43210', whatsapp: '919876543210', email: 'hello@hireriv.com', address: '2nd floor, MG Road, Pune 411001', hours: '9-6', jobCategories: 'Technology', jobLocations: 'Pune', billing_feePercent: '8.33', billing_guaranteeDays: '90', billing_gstPercent: '18', billing_paymentDays: '15', billing_tdsPercent: '10', retentionMonths: '0' };
+  const bad = await srv.request('/admin/settings', { method: 'POST', cookie: admin, form: { ...form, 'price_permanent-staffing': '<b>8%</b>' } });
+  assert.notEqual(bad.status, 500);
+  assert.doesNotMatch(await page('/employers'), /Starting from/);
+
+  const res = await srv.request('/admin/settings', { method: 'POST', cookie: admin, form: { ...form, 'price_permanent-staffing': '8.33% of annual CTC', 'price_bulk-rpo-hiring': '₹1,500 per successful hire' } });
+  assert.equal(res.status, 302);
+  const html = await page('/employers');
+  assert.match(html, /<th>Starting from<\/th>/);
+  assert.match(html, /<td>8\.33% of annual CTC<\/td>/);
+  assert.match(html, /<td>₹1,500 per successful hire<\/td>/);
+  assert.match(html, /<td>On request<\/td>/, 'services without a price say so');
+  assert.match(await page('/services/permanent-staffing'), /<b>Starting from:<\/b> 8\.33% of annual CTC/);
+  assert.doesNotMatch(await page('/services/executive-search'), /Starting from:/);
+});

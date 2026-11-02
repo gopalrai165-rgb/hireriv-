@@ -36,6 +36,16 @@
     <% } %>
   </section>
 
+  <section class="form-card" id="pricing">
+    <h2>Employer prices</h2>
+    <p class="muted small">Starting prices shown on the Employers page and the service pages. Leave a price empty to show only "Request a Quote" for that service. The grey text is a suggestion and is not published.</p>
+    <div class="form-grid">
+      <% pricedServices.forEach(function (p) { %>
+        <label><%= p.name %> <span class="muted small">(optional)</span><input name="price_<%= p.slug %>" maxlength="80" value="<%= (form.pricing || {})[p.slug] || '' %>" placeholder="<%= p.hint %>"></label>
+      <% }) %>
+    </div>
+  </section>
+
   <section class="form-card">
     <h2>Social links</h2>
     <p class="muted small">Paste the full profile address, starting with https://. Leave empty to hide the link target.</p>
