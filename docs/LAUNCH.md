@@ -8,6 +8,8 @@ This is the launch-gap report for Hireriv as of 27 October 2026 (commit after `0
 
 Nothing here says Hireriv is "compliant" or "secure". It lists what exists, what was checked and what is still open.
 
+The short list of checks to finish before switching on (applications, resumes, dashboards, login, WhatsApp, mobile, security, privacy, payments and SEO) is in [PRE-LAUNCH-CHECKS.md](PRE-LAUNCH-CHECKS.md).
+
 ## 1. Launch-gap report
 
 | # | Area | Status | What is in place | What is still missing |
