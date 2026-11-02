@@ -2194,3 +2194,8 @@ p, li, dd { text-wrap: pretty; }
 .team-card b { display: block; }
 .team-card p { margin: 8px 0 0; }
 .footer-operator { opacity: .8; }
+
+/* Cookie notice for Google Analytics (analytics.js) */
+.consent-bar { position: fixed; z-index: 60; left: 12px; right: 12px; bottom: 12px; max-width: 560px; margin: 0 auto; display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; padding: 14px 16px; background: #fff; border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow-lg); font-size: .92rem; }
+.consent-bar p { margin: 0; flex: 1 1 260px; }
+@media (max-width: 760px) { .consent-bar { bottom: 76px; } }

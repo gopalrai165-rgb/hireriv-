@@ -76,8 +76,9 @@
       <li><b>Requests:</b> <a href="/privacy/requests">send us a request</a> (or, signed in, from <a href="/account/privacy">Privacy &amp; data</a>) to get a copy of your data, correct or delete it, withdraw a consent, or complain. We confirm it's you, give it a number, and answer within 30 days. If we can't do what you ask (for example, invoices we must keep by law), we tell you why. You can also email <a href="mailto:<%= site.email %>"><%= site.email %></a>, including to nominate someone to act for you.</li>
     </ul>
 
-    <h2>Cookies and browser storage</h2>
+    <h2 id="cookies">Cookies and browser storage</h2>
     <p>We use only the cookies needed to keep you signed in to your job-seeker account, the client portal or the team admin area. We do not use advertising or tracking cookies. Jobs you save are stored in your own browser, and also in your account when you're signed in to one, so they show on your other devices. You can clear them from the <a href="/saved">Saved jobs</a> page. The site loads fonts from Google Fonts, which receives your IP address when the page loads.</p>
+    <% if (gaId) { %><p><b>Google Analytics.</b> Only if you press "Allow" on the cookie notice, we use Google Analytics to count visits and which pages and forms are used, with IP addresses shortened. It sets cookies in your browser and sends this information to Google. If you choose "No thanks", or make no choice, nothing from Google Analytics is loaded. To change your choice, clear this site's data in your browser.</p><% } %>
 
     <h2>Security</h2>
     <p>Passwords are stored as salted hashes, and sign-in links are single-use and expire. The admin area is restricted by role and needs two-step sign-in for privileged staff. Resumes and documents are encrypted where they are stored and can be downloaded only through short-lived links, and each opening is logged. We watch for suspicious sign-ins, refused requests and unusual downloads, and we have a written plan for security incidents. No system is completely secure, so if we become aware of a breach that affects you, we will tell you, the Data Protection Board of India and CERT-In as the law requires.</p>

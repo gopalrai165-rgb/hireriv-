@@ -191,6 +191,8 @@ document.querySelectorAll('form.js-form').forEach((form) => {
         forgetDraft(form);
         resetReview(form);
         toast(data.message);
+        // For conversion counting (analytics.js, only when the visitor allowed it).
+        form.dispatchEvent(new CustomEvent('hireriv:sent', { bubbles: true, detail: { action: new URL(form.action, location.href).pathname } }));
         // After applying: point to similar jobs on the same page (job.ejs).
         const similar = form.dataset.applyForm !== undefined && document.querySelector('[data-similar-prompt]');
         if (similar) { similar.hidden = false; similar.focus(); }

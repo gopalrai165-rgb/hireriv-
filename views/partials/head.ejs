@@ -3,8 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title><%= tm(title) %> | <%= site.name %></title>
+  <title><%= (typeof fullTitle !== 'undefined' && fullTitle) || tm(title) + ' | ' + site.name %></title>
   <meta name="description" content="<%= metaDescription %>">
+  <% if (searchConsoleToken && page === 'home') { %><meta name="google-site-verification" content="<%= searchConsoleToken %>"><% } %>
   <%# Each language version of a public page has its own address (?lang=hi); English is the default. %>
   <% const here = locale === 'en' ? canonical : urlIn(canonical, locale); %>
   <% if (noindex) { %><meta name="robots" content="<%= noindex === 'follow' ? 'noindex, follow' : 'noindex, nofollow' %>">
@@ -13,7 +14,7 @@
   <% }) %><link rel="alternate" hreflang="x-default" href="<%= canonical %>"><% } %>
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="<%= site.name %>">
-  <meta property="og:title" content="<%= tm(title) %> | <%= site.name %>">
+  <meta property="og:title" content="<%= (typeof fullTitle !== 'undefined' && fullTitle) || tm(title) + ' | ' + site.name %>">
   <meta property="og:description" content="<%= metaDescription %>">
   <meta property="og:url" content="<%= here %>">
   <meta property="og:locale" content="<%= langInfo.tag.replace('-', '_') %>">

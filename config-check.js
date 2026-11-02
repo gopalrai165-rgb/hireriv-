@@ -50,6 +50,10 @@ function check(env = process.env) {
   if (!set('MAIL_FROM')) warnings.push('MAIL_FROM is not set: emails come from the site email in Admin → Settings');
   if (set('EMAIL_WEBHOOK_SECRET') && String(env.EMAIL_WEBHOOK_SECRET).length < MIN_SECRET) errors.push(`EMAIL_WEBHOOK_SECRET must be at least ${MIN_SECRET} characters`);
 
+  // Google: Analytics (after consent) and Search Console's ownership tag.
+  if (set('GA_MEASUREMENT_ID') && !/^G-[A-Z0-9]{4,12}$/.test(String(env.GA_MEASUREMENT_ID))) errors.push('GA_MEASUREMENT_ID should look like G-XXXXXXXXXX (a Google Analytics 4 measurement ID)');
+  if (set('GOOGLE_SITE_VERIFICATION') && !/^[\w-]{10,100}$/.test(String(env.GOOGLE_SITE_VERIFICATION))) errors.push('GOOGLE_SITE_VERIFICATION should be only the content="..." value of the meta tag Search Console gives you');
+
   // Text messages: mobile sign-in and sign-up are hidden without a provider.
   const smsGaps = sms.missing(env);
   if (smsGaps.length) errors.push(`Text messages are half set up (SMS_PROVIDER=${sms.provider(env)}): ${smsGaps.join(', ')} missing`);

@@ -98,5 +98,6 @@
 <%# Words the page scripts show, in this page's language only (data, never run). %>
 <script type="application/json" id="i18n-strings"><%- JSON.stringify(Object.assign(scriptStrings(), { voiceTitle: t('voice.consentTitle'), voiceText: t('voice.consentText', { site: site.name }), voiceAllow: t('voice.allow'), voiceCancel: t('voice.cancel') })).replace(/</g, '\\u003c') %></script>
 <script src="/js/main.js?v=<%= assetVersion %>" defer></script>
+<% if (gaId && !ws && !noindex) { %><script src="/js/analytics.js?v=<%= assetVersion %>" data-ga="<%= gaId %>" defer></script><% } %>
 </body>
 </html>

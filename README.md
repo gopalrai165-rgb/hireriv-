@@ -278,6 +278,17 @@ Without a provider nothing is sent on the live site (development writes `.whatsa
 | Page content | `views/*.ejs` |
 | Logo | `public/img/logo.svg` |
 
+## Google: Search Console and Analytics
+
+What the site already does for search engines: a unique title and description on every public page (checked for every page in the sitemap by `test/seo-pages.test.js`), a canonical address on each, `JobPosting` structured data for real open vacancies (closed jobs, previews and anything not yet approved are left out), `/sitemap.xml` with every public page that has content, and `/robots.txt` that keeps the signed-in areas out and points to the sitemap. Pages are compressed (zstd, Brotli or gzip), images are WebP with sizes set, and scripts load deferred.
+
+**Search Console** (owner task, once the domain is live):
+1. In [Google Search Console](https://search.google.com/search-console) add a **URL prefix** property for your `SITE_URL` (for example `https://hireriv.com/`).
+2. Choose the **HTML tag** method, copy only the `content="…"` value into `GOOGLE_SITE_VERIFICATION`, restart, then press Verify. (A Domain property verified by a DNS TXT record works too and needs nothing here.)
+3. Under **Sitemaps**, submit `sitemap.xml`. Check **Pages** and **Enhancements → Job postings** after a few days.
+
+**Google Analytics 4** (optional): create a GA4 web data stream and set `GA_MEASUREMENT_ID=G-…`. Visitors on public pages see a short cookie notice; nothing from Google loads until they press **Allow** (the choice is kept in their browser), and signed-in areas are never tracked. Form sends are counted as events: `generate_lead` (employer enquiries), `apply_job`, `contact`, `job_alert` and `sign_up`. Mark `generate_lead` and `apply_job` as key events in GA to see conversions. The privacy policy describes this only while it is switched on. Without it, the site's own cookie-free counts (Admin → Site analytics) still work.
+
 ## Data & backups
 Everything the site stores (jobs, blog posts, settings, applications, requests, messages, subscribers, client accounts and sign-in sessions) lives in one SQLite database, `data/hireriv.db`, using the SQLite built into Node.js (22.13 or newer), so there is nothing extra to install. Resumes are saved in `uploads/`.
 

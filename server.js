@@ -518,13 +518,17 @@ app.use(express.json({ limit: '100kb', verify: (req, res, buf) => { if (req.url.
 app.use((req, res, next) => { if (req.body === undefined) req.body = {}; next(); });
 // Security headers. The CSP only allows our own scripts (no inline JS), Google
 // Fonts for type, and never lets another site frame these pages.
+// Google Analytics (GA_MEASUREMENT_ID) adds Google's tag and collection hosts;
+// public/js/analytics.js loads it only after the visitor allows it.
+const GA_ID = /^G-[A-Z0-9]{4,12}$/.test(process.env.GA_MEASUREMENT_ID || '') ? process.env.GA_MEASUREMENT_ID : '';
+const GA_HOSTS = GA_ID ? ' https://www.googletagmanager.com https://*.google-analytics.com https://*.analytics.google.com' : '';
 const CSP = [
   "default-src 'self'",
-  "script-src 'self'",
+  `script-src 'self'${GA_ID ? ' https://www.googletagmanager.com' : ''}`,
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   "font-src 'self' https://fonts.gstatic.com",
-  "img-src 'self' data:",
-  "connect-src 'self'",
+  `img-src 'self' data:${GA_HOSTS}`,
+  `connect-src 'self'${GA_HOSTS}`,
   "form-action 'self'",
   "frame-ancestors 'none'",
   "base-uri 'self'",
@@ -698,6 +702,9 @@ app.locals.realContact = (s) => ({
 app.locals.testimonialsFor = (s) => (Array.isArray(s.testimonials) ? s.testimonials : []);
 app.locals.maxTestimonials = MAX_TESTIMONIALS;
 app.locals.maxTeam = require('./content').MAX_TEAM;
+// Google Analytics (public pages, after consent) and Search Console's ownership tag.
+app.locals.gaId = GA_ID;
+app.locals.searchConsoleToken = /^[\w-]{10,100}$/.test(process.env.GOOGLE_SITE_VERIFICATION || '') ? process.env.GOOGLE_SITE_VERIFICATION : '';
 // The company behind the site (Admin → Settings → About the company).
 app.locals.companyOf = (s) => ({ operator: 'Raigozen Private Limited', cin: '', founded: '', story: '', capabilities: [], team: [], ...(s.company || {}) });
 app.locals.hireFollowUps = ['New', 'Contacted', 'Quote sent', 'In progress', 'Hired', 'Not proceeding'];
@@ -741,6 +748,8 @@ app.use((req, res, next) => {
     ogImage: `${BASE_URL}/og/site.png?v=${og.siteVersion(site)}`,
     ogImageAlt: `${site.name}: ${site.tagline}`,
     metaDescription: `${site.name} – ${site.tagline}. Permanent, contract and executive staffing across Technology, Finance, BFSI, Sales, Marketing, Healthcare, Manufacturing, Logistics and more.`,
+    // A page's whole <title> when it should not end in "| Hireriv" (the homepage).
+    fullTitle: '',
     jsonLd: null,
     noindex: req.path.startsWith('/admin'),
     toJsonLd: seo.toJsonLd,
@@ -802,7 +811,7 @@ function needPagesWithJobs() {
 }
 const cityPagesWithJobs = () => { const live = openJobs().filter((j) => !isSample(j)); return geo.CITY_PAGES.filter((c) => live.some((j) => c.locations.includes(j.location))); };
 app.get('/sitemap.xml', (req, res) =>
-  res.type('application/xml').send(seo.sitemap(BASE_URL, { jobs: openJobs().filter((j) => !isSample(j)), posts: livePosts(), staticPaths: ['/', '/jobs', ...catalog.WORK_PAGES.map((x) => `/jobs/${x.slug}`), ...catalog.JOB_INDUSTRIES.map((x) => `/jobs/industry/${x.slug}`), ...cityPagesWithJobs().map((c) => `/jobs/in/${c.slug}`), ...areaPagesWithJobs(), ...rolePagesWithJobs(), ...needPagesWithJobs(), ...salaryPagesWithData(), '/companies', ...trustHooks.companyPaths(), '/interview-tips', ...ROLE_PAGES.filter((r) => interviewTips.forRole(r.key)).map((r) => tipsPath(r)), '/categories', '/hire', '/services', ...catalog.SERVICES.map((x) => `/services/${x.slug}`), '/industries', ...catalog.INDUSTRIES.map((x) => `/industries/${x.slug}`), '/about', '/blog', '/contact', '/privacy', '/terms', '/job-posting-policy', '/help/job-terms', '/accessibility'] }))
+  res.type('application/xml').send(seo.sitemap(BASE_URL, { jobs: openJobs().filter((j) => !isSample(j)), posts: livePosts(), staticPaths: ['/', '/jobs', ...catalog.WORK_PAGES.map((x) => `/jobs/${x.slug}`), ...catalog.JOB_INDUSTRIES.map((x) => `/jobs/industry/${x.slug}`), ...cityPagesWithJobs().map((c) => `/jobs/in/${c.slug}`), ...areaPagesWithJobs(), ...rolePagesWithJobs(), ...needPagesWithJobs(), ...salaryPagesWithData(), ...(trustHooks.companyPaths().length ? ['/companies'] : []), ...trustHooks.companyPaths(), '/interview-tips', ...ROLE_PAGES.filter((r) => interviewTips.forRole(r.key)).map((r) => tipsPath(r)), '/categories', '/hire', '/services', ...catalog.SERVICES.map((x) => `/services/${x.slug}`), '/industries', ...catalog.INDUSTRIES.map((x) => `/industries/${x.slug}`), '/about', '/blog', '/contact', '/privacy', '/terms', '/job-posting-policy', '/help/job-terms', '/accessibility'] }))
 );
 
 // Things a new install still needs before it is ready for visitors, shown to
@@ -835,7 +844,9 @@ app.get('/', (req, res) => {
   const live = openJobs();
   const featured = live.filter((j) => !isSample(j)).slice(0, 6);
   res.render('index', {
-    title: 'Find Jobs & Hire Staff Across India', page: 'home', jobs: featured, posts: livePosts().slice(0, 3), locations: jobLocations(),
+    title: 'Find Jobs & Hire Staff Across India', page: 'home', jobs: featured,
+    fullTitle: `${site.name} – Find Jobs & Recruitment Staffing Services in India`,
+    metaDescription: `Find IT and non-IT jobs across India. ${site.name} by Raigozen offers recruitment, permanent hiring, bulk hiring and contract staffing solutions.`, posts: livePosts().slice(0, 3), locations: jobLocations(),
     categoryGroups: groupCategories(jobCategories()), groups: fromJobs('groups', () => groupCounts(live)), jsonLd: seo.homePage(site, BASE_URL), homeServices: HOME_SERVICES,
     popularRoles: fromJobs('roles', () => popularRoles(live.filter((j) => !isSample(j)))), topCities: fromJobs('cities', () => topCities(live.filter((j) => !isSample(j)))),
   });
