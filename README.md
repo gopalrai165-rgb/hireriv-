@@ -259,6 +259,12 @@ Without a provider, messages are saved next to the emails in the outbox folder a
 ```
 Every code the site sends uses exactly these words (with your site name if it isn't Hireriv), so one template covers them all. Messages that don't match a registered template are dropped by the operators.
 
+**WhatsApp updates** (`whatsapp.js`): job seekers who tick "Application and interview updates on WhatsApp" (at sign-up or in Settings; each change is recorded as consent given or withdrawn) also get their application and interview notifications on WhatsApp, never job adverts or marketing. Set `WHATSAPP_PROVIDER`:
+- `meta`: the WhatsApp Cloud API, with `WHATSAPP_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID` and `WHATSAPP_TEMPLATE`. Messages a business starts must use a template Meta has approved: create a **Utility** template with one body variable, for example `{{1}}`, and give its name (language in `WHATSAPP_TEMPLATE_LANG`, default `en`). The whole update ("Hireriv: Interview invitation. Mon 10 am https://…") goes in the variable.
+- `webhook`: `WHATSAPP_WEBHOOK_URL` and `WHATSAPP_WEBHOOK_TOKEN`; each message is POSTed as JSON `{"to": "+919876543210", "message": "..."}`.
+
+Without a provider nothing is sent on the live site (development writes `.whatsapp.txt` files to the outbox folder); `npm run check:config` stops a start with a provider that has a setting missing.
+
 ## Customise
 | What | Where |
 |---|---|

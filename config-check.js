@@ -53,7 +53,10 @@ function check(env = process.env) {
   // Text messages: mobile sign-in and sign-up are hidden without a provider.
   const smsGaps = sms.missing(env);
   if (smsGaps.length) errors.push(`Text messages are half set up (SMS_PROVIDER=${sms.provider(env)}): ${smsGaps.join(', ')} missing`);
-  else if (!sms.provider(env)) warnings.push('No text-message provider (SMS_PROVIDER): signing in and signing up with a mobile code are hidden, and employer mobile codes are only saved to the outbox folder');
+  const wa = require('./whatsapp');
+  const waGaps = wa.missing(env);
+  if (waGaps.length) errors.push(`WhatsApp is half set up (WHATSAPP_PROVIDER=${wa.provider(env)}): ${waGaps.join(', ')} missing`);
+  if (!sms.provider(env)) warnings.push('No text-message provider (SMS_PROVIDER): signing in and signing up with a mobile code are hidden, and employer mobile codes are only saved to the outbox folder');
   else if (sms.provider(env) === 'webhook' && !/^https:/.test(String(env.SMS_WEBHOOK_URL))) errors.push('SMS_WEBHOOK_URL must start with https://');
 
   // Payments: all three Razorpay values together, or none.

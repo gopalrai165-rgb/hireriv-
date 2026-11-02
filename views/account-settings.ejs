@@ -66,7 +66,8 @@
           </fieldset>
           <fieldset class="check-set"><legend>How we may contact you</legend>
             <p class="small muted">We always email you about your applications and account.</p>
-            <label class="check-row"><input type="checkbox" name="whatsapp" value="1"<%= c.comms.whatsapp ? ' checked' : '' %>> <span>Job matches and updates on WhatsApp</span></label>
+            <label class="check-row"><input type="checkbox" name="whatsapp" value="1"<%= c.comms.whatsapp ? ' checked' : '' %>> <span>Application and interview updates on WhatsApp</span></label>
+            <p class="small muted">With this on, you agree that <%= site.name %> may send updates about your applications and interviews to <%= c.profile.phone ? c.profile.phone : 'your mobile number' %> on WhatsApp. Never adverts. Switch it off here any time.</p>
             <label class="check-row"><input type="checkbox" name="sms" value="1"<%= c.comms.sms ? ' checked' : '' %>> <span>Interview reminders by SMS</span></label>
             <label class="check-row"><input type="checkbox" name="offers" value="1"<%= (typeof marketingOn !== 'undefined' ? marketingOn : c.comms.offers) ? ' checked' : '' %>> <span>Career tips and news from <%= site.name %></span></label>
           </fieldset>

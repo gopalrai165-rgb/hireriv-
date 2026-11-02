@@ -1,0 +1,25 @@
+<%# A new job seeker's path, in order: register, resume, skills and experience, place, matching jobs, apply, track. Hidden once every step is done. %>
+<% const gap = function (k) { return completion.missing.some(function (m) { return m.key === k; }); }; %>
+<% const applied = apps.some(function (a) { return !a.withdrawn && !a.general; }); %>
+<% const journey = [
+  { label: 'Register with your mobile number or email', done: true },
+  { label: 'Upload your resume', done: !gap('resume'), href: '/account/profile#resume' },
+  { label: 'Add your skills and experience', done: !gap('skills') && !gap('experience'), href: '/account/profile#skills' },
+  { label: 'Choose where you want to work', done: !gap('preferences'), href: '/account/profile#preferences' },
+  { label: 'See jobs that match you', done: applied, href: '/account/recommendations' },
+  { label: 'Apply with one tap', done: applied, href: '/jobs' },
+  { label: 'Follow your application status', done: applied, href: '#applications' },
+]; %>
+<% if (journey.some(function (s) { return !s.done; })) { %>
+<section class="dash-card dash-wide getting-started" aria-labelledby="start-h">
+  <div class="dash-head"><h2 id="start-h">Get your first job in 7 steps</h2><span class="muted small"><%= journey.filter(function (s) { return s.done; }).length %> of 7 done</span></div>
+  <ol class="journey">
+    <% journey.forEach(function (s, i) { %>
+      <li class="<%= s.done ? 'is-done' : '' %>"><span class="journey-num" aria-hidden="true"><%= s.done ? '✓' : i + 1 %></span>
+        <% if (s.done || !s.href) { %><span><%= s.label %><% if (s.done) { %><span class="sr-only"> (done)</span><% } %></span><% } else { %><a href="<%= s.href %>"><%= s.label %></a><% } %>
+      </li>
+    <% }) %>
+  </ol>
+  <p class="small muted">Registering and applying are always free.</p>
+</section>
+<% } %>

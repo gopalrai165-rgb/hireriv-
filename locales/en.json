@@ -501,7 +501,7 @@
     "useNote": "We use these details to keep your account, send each application to the employer you apply to, and tell you what happens next. Each choice below is separate and optional, and you can change it any time under Privacy & data.",
     "agree": "I agree to the {terms} and have read the {privacy}.",
     "considered": "Let {site} recruiters consider me for other jobs that fit and contact me about them",
-    "whatsapp": "Also send me job matches on WhatsApp",
+    "whatsapp": "Send me updates about my applications and interviews on WhatsApp",
     "whatsappNote": "(optional, switch off any time in Settings)",
     "create": "Create account",
     "createNote": "We'll email you a link to open your account. Your details are shared with an employer only when you apply or agree to it.",

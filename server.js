@@ -79,6 +79,7 @@ const PORT = process.env.PORT || 3004;
 const ADMIN_USER = process.env.ADMIN_USER || 'admin';
 const ADMIN_PASS = process.env.ADMIN_PASS || '';
 // Public origin used for canonical URLs, sitemap and structured data.
+const whatsapp = require('./whatsapp');
 const BASE_URL = (process.env.SITE_URL || `http://localhost:${PORT}`).replace(/\/$/, '');
 
 const DATA_DIR = path.join(__dirname, 'data');
@@ -208,6 +209,13 @@ const notify = notifyModule.create({ db });
 // devices people turned them on for, in the areas they chose.
 const push = pushModule.create({ db, siteUrl: process.env.SITE_URL || '' });
 notify.onNotification((n) => push.deliver(n, notify.pushAllowed));
+// WhatsApp (whatsapp.js): application and interview updates for job seekers who
+// agreed to them. In production only once a provider is set (no outbox files of
+// personal data on the server); in development they go to the outbox folder.
+if (whatsapp.configured() || process.env.NODE_ENV !== 'production') {
+  const toWhatsapp = whatsapp.notifier({ candidates: () => db.all('candidates'), rkOf: notify.candidateRk, siteName: site.name, baseUrl: BASE_URL });
+  notify.onNotification((n) => { Promise.resolve(toWhatsapp(n)).catch(() => {}); });
+}
 const events = notifyEvents.create({
   notify, mailer, site, baseUrl: BASE_URL, db, readSubmissions: (t) => db.all(t), getJobs: () => jobs, formatIst: interviews.formatIst, interviewIcs, jobPath,
   appOwner: (a) => appOwner(a), team: { byId: (id) => team.byId(id), members: () => team.members() }, clients: () => clients,
