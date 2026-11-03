@@ -228,12 +228,12 @@ function register(app, deps) {
     res.set('Content-Disposition', 'attachment; filename="hireriv-jobs-template.csv"');
     res.type('text/csv').send(`\uFEFF${jobImport.template()}`);
   });
-  app.post('/employer/jobs/import', requireEmployer, clients.allow('jobs.create'), limit('employer-job-import', 20), (req, res, next) => {
+  app.post('/employer/jobs/import', requireEmployer, clients.allow('jobs.create'), limit('employer-job-import', 20), sameOrigin, (req, res, next) => {
     importUpload.single('file')(req, res, (err) => {
       if (err) return importPage(req, res, { fileErrors: [err.code === 'LIMIT_FILE_SIZE' ? `the file is too large (up to ${jobImport.MAX_BYTES / 1024} KB)` : 'the file could not be read'] }, 400);
       next();
     });
-  }, sameOrigin, (req, res) => {
+  }, (req, res) => {
     const csv = req.file ? req.file.buffer.toString('utf8') : String(req.body.csv || '');
     if (!csv.trim()) return importPage(req, res, { fileErrors: ['choose a CSV file, or paste the rows'] }, 400);
     const { rows, errors: fileErrors } = jobImport.read(csv, importLists());

@@ -217,6 +217,13 @@ function create({ db, mailer, baseUrl, ownerUser, ownerPass, site = {}, resetOwn
   // ---------- login ----------
   const failed = new Map();
   const tooMany = (ip) => (failed.get(ip) || []).filter((t) => Date.now() - t < 15 * 60000).length >= 10;
+  // The same limit per sign-in name, so guesses from many addresses also stop.
+  const failedLogins = new Map();
+  const accountLocked = (login) => (failedLogins.get(login) || []).filter((t) => Date.now() - t < 15 * 60000).length >= 10;
+  const noteFailure = (map, key) => {
+    map.set(key, [...(map.get(key) || []).filter((t) => Date.now() - t < 15 * 60000), Date.now()]);
+    if (map.size > 5000) for (const [k, v] of map) { if (!v.some((t) => Date.now() - t < 15 * 60000)) map.delete(k); }
+  };
   const safeNext = (n) => (/^\/admin(\/|\?|$)/.test(String(n || '')) ? String(n) : '/admin');
   const page = (res, view, locals, status = 200) => res.status(status).render(view, { page: 'admin', noindex: true, errors: [], ...locals });
 
@@ -231,7 +238,7 @@ function create({ db, mailer, baseUrl, ownerUser, ownerPass, site = {}, resetOwn
       const login = String(req.body.login || '').trim().toLowerCase().slice(0, 160);
       const pw = String(req.body.password || '');
       const next = safeNext(req.body.next);
-      if (tooMany(req.ip)) return page(res, 'admin-login', { title: 'Team sign in', login, next, errors: ['Too many failed attempts. Try again in 15 minutes.'] }, 429);
+      if (tooMany(req.ip) || (login && accountLocked(login))) return page(res, 'admin-login', { title: 'Team sign in', login, next, errors: ['Too many failed attempts. Try again in 15 minutes.'] }, 429);
       let user = null;
       if (ownerPass && safeEq(sha(login), sha(ownerUser.toLowerCase())) && safeEq(sha(pw), sha(ownerPass))) user = owner;
       else {
@@ -241,7 +248,8 @@ function create({ db, mailer, baseUrl, ownerUser, ownerPass, site = {}, resetOwn
         if (ok) user = u;
       }
       if (!user) {
-        failed.set(req.ip, [...(failed.get(req.ip) || []), Date.now()]);
+        noteFailure(failed, req.ip);
+        if (login) noteFailure(failedLogins, login);
         return page(res, 'admin-login', { title: 'Team sign in', login, next, errors: ['Email or password is incorrect.'] }, 401);
       }
       if (has2fa(user.id)) {
@@ -291,7 +299,7 @@ function create({ db, mailer, baseUrl, ownerUser, ownerPass, site = {}, resetOwn
       }
       const used = useSecondFactor(p.user.id, String(req.body.code || '').slice(0, 40));
       if (!used) {
-        failed.set(req.ip, [...(failed.get(req.ip) || []), Date.now()]);
+        noteFailure(failed, req.ip);
         const tries = (codeTries.get(p.key) || 0) + 1;
         codeTries.set(p.key, tries);
         if (tries >= CODE_TRIES) {

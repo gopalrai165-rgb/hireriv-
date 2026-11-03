@@ -738,7 +738,7 @@ function register(app, deps) {
   const unsubscribeToken = (leadId) => `${leadId}.${hmac(`unsubscribe:${leadId}`).slice(0, 32)}`;
   const leadFromUnsubscribe = (token) => {
     const [id, sig] = String(token || '').split('.');
-    if (!id || !sig || sig.length !== 32) return null;
+    if (!id || !/^[0-9a-f]{32}$/.test(sig || '')) return null;
     const want = hmac(`unsubscribe:${id}`).slice(0, 32);
     return crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(want)) ? leadById(id) : null;
   };

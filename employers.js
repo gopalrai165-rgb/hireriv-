@@ -554,6 +554,7 @@ function register(app, deps) {
       // The link reached their inbox, so the email is confirmed too.
       Object.assign(user, { passwordHash: hashPassword(pw), link: null, passwordSetAt: now(), emailVerifiedAt: user.emailVerifiedAt || now() });
       team.saveUser(user);
+      loginFailures.delete(String(user.email || '').toLowerCase());
       // A password change ends every other session for this person.
       endUserSessions(user.id);
       if (!emp) return expired(res, 'Your password is saved, but your login is not linked to a company any more.');
@@ -569,13 +570,27 @@ function register(app, deps) {
     page(res, 'employer-login', { title: 'Employer login', email: '' });
   });
 
+  // Wrong passwords per account (any connection): 10 in 15 minutes locks that
+  // account's password sign-in for the rest of the 15 minutes.
+  const loginFailures = new Map();
+  const LOCK_MS = 15 * 60 * 1000;
+  const MAX_LOGIN_FAILURES = 10;
+  const recentLoginFailures = (email) => (loginFailures.get(email) || []).filter((t) => Date.now() - t < LOCK_MS);
   app.post('/employer/login', limit('employer-login', 10, 15 * 60 * 1000), sameOrigin, (req, res) => {
-    const email = String(req.body.email || '').trim().toLowerCase();
-    const pw = String(req.body.password || '');
+    const email = String(req.body.email || '').trim().toLowerCase().slice(0, 160);
+    const pw = String(req.body.password || '').slice(0, 200);
+    if (recentLoginFailures(email).length >= MAX_LOGIN_FAILURES) return page(res, 'employer-login', { title: 'Employer login', email, errors: ['Too many wrong passwords for this account. Wait 15 minutes, or reset your password.'] }, 429);
     const user = team.userByEmail(email);
     // Same message and similar work for unknown emails, so accounts can't be probed.
     const ok = user && user.active && user.passwordHash ? checkPassword(pw, user.passwordHash) : (hashPassword(pw), false);
-    if (!ok) return page(res, 'employer-login', { title: 'Employer login', email, errors: ['Email or password is incorrect.'] }, 401);
+    if (!ok) {
+      if (email) {
+        loginFailures.set(email, [...recentLoginFailures(email), Date.now()]);
+        if (loginFailures.size > 5000) for (const [k] of loginFailures) { if (!recentLoginFailures(k).length) loginFailures.delete(k); }
+      }
+      return page(res, 'employer-login', { title: 'Employer login', email, errors: ['Email or password is incorrect.'] }, 401);
+    }
+    loginFailures.delete(email);
     const emp = defaultCompany(user);
     if (!user.emailVerifiedAt) {
       if (emp) mailer.employerVerify(addressed(emp, user), issueLink(user, 'verify', VERIFY_HOURS), VERIFY_HOURS);
