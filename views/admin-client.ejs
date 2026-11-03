@@ -22,6 +22,16 @@
         <p class="muted small">The account manager changes this client's contracts and requisitions. Only Admins assign them.</p>
       </section>
 
+      <section class="dash-card" id="two-step-reset">
+        <h2>Two-step sign-in reset</h2>
+        <p class="muted small">For someone at <%= c.company %> who lost their phone and their recovery codes. Check it is really them first (call the number on file, or ask a company owner). They are signed out everywhere and set it up again after their password.</p>
+        <form class="form inline-form" method="post" action="/admin/clients/<%= c.id %>/reset-two-step" data-confirm="Reset two-step sign-in for this login? Only do this once you have checked who is asking.">
+          <label class="sr-only" for="tsr-email">Their login email</label>
+          <input id="tsr-email" type="email" name="email" required placeholder="Their login email" autocomplete="off">
+          <button class="btn btn-outline btn-sm" type="submit">Reset</button>
+        </form>
+      </section>
+
       <section class="dash-card">
         <h2>Requisitions</h2>
         <% if (!reqs.length) { %><p class="muted dash-empty">None yet.</p><% } else { %>

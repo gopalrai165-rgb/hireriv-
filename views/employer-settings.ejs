@@ -36,6 +36,49 @@
         <% } %>
       </section>
 
+      <section class="dash-card dash-wide" id="two-step">
+        <div class="dash-head"><h2>Two-step sign-in</h2><span class="pill <%= twoStep.on ? 'st-hired' : 'st-screening' %>"><%= twoStep.on ? 'On' : 'Off' %></span></div>
+        <% if (twoStep.required && !twoStep.on) { %><p class="notice notice-err" role="alert"><%= employer.company %> requires two-step sign-in. Set it up below to carry on to the portal.</p><% } %>
+        <% if (twoStep.codes) { %>
+          <div class="recovery-card">
+            <h3>Your recovery codes</h3>
+            <p class="small">If you lose your phone, each of these lets you sign in once instead of an app code. <b>They won't be shown again.</b> Print them or save them in a password manager.</p>
+            <ol class="recovery-codes"><% twoStep.codes.forEach(function (c) { %><li><code><%= c %></code></li><% }) %></ol>
+            <p><button class="btn btn-outline btn-sm" type="button" data-print>Print</button> <button class="btn btn-outline btn-sm" type="button" data-copy="<%= twoStep.codes.join('\n') %>">Copy all</button></p>
+          </div>
+        <% } %>
+        <% if (twoStep.on) { %>
+          <p class="muted small">On since <%= formatDate(twoStep.enabledAt) %> · <%= twoStep.recoveryLeft %> of 10 recovery codes unused. After your password you enter a code from your authenticator app.<% if (twoStep.recoveryLeft <= 3) { %> <b>You're running low on recovery codes: make new ones below.</b><% } %></p>
+          <form class="form inline-code" method="post" action="/employer/settings/two-step/recovery">
+            <label>Make new recovery codes (the old ones stop working)<input name="code" required autocomplete="one-time-code" inputmode="numeric" maxlength="12" placeholder="Current app code"></label>
+            <button class="btn btn-outline btn-sm" type="submit">Make new codes</button>
+          </form>
+          <% if (!twoStep.required) { %>
+            <form class="form inline-code" method="post" action="/employer/settings/two-step/off" data-confirm="Turn off two-step sign-in? Only your password will be needed to sign in.">
+              <label>Turn off two-step sign-in<input name="code" required autocomplete="one-time-code" inputmode="numeric" maxlength="12" placeholder="Current app code"></label>
+              <button class="btn btn-danger btn-sm" type="submit">Turn off</button>
+            </form>
+          <% } else { %><p class="muted small"><%= employer.company %> requires two-step sign-in, so it can't be turned off.</p><% } %>
+        <% } else if (twoStep.setup) { %>
+          <ol class="setup-steps">
+            <li>Install an authenticator app on your phone if you don't have one: Google Authenticator, Microsoft Authenticator or Authy all work.</li>
+            <li>In the app, add an account and scan this QR code.
+              <figure class="qr-box"><%- twoStep.setup.qr %></figure>
+              <details><summary>Can't scan it?</summary><p class="small">Choose "Enter a setup key" in the app and type this key (time-based):</p><p><code class="setup-key"><%= twoStep.setup.key %></code></p><p class="small">On this phone? <a href="<%= twoStep.setup.url %>">Open in the authenticator app</a></p></details>
+            </li>
+            <li>Enter the 6-digit code the app now shows for <%= site.name %>.</li>
+          </ol>
+          <form class="form inline-code" method="post" action="/employer/settings/two-step/confirm">
+            <label>Code from the app<input class="code-input" name="code" required autocomplete="one-time-code" inputmode="numeric" pattern="[0-9 ]{6,7}" maxlength="7"></label>
+            <button class="btn btn-primary" type="submit">Turn on</button>
+          </form>
+          <p class="muted small">This QR code works for 15 minutes. If it runs out, start again.</p>
+        <% } else { %>
+          <p>Add a second step to signing in: after your password, you type a 6-digit code from an app on your phone. Someone who learns your password still can't see your applicants without your phone.</p>
+          <form method="post" action="/employer/settings/two-step/start"><button class="btn btn-primary" type="submit">Set up two-step sign-in</button></form>
+        <% } %>
+      </section>
+
       <section class="dash-card">
         <div class="dash-head"><h2>Change password</h2></div>
         <form class="form" method="post" action="/employer/settings/password">

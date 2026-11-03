@@ -346,6 +346,17 @@ function createMailer(site) {
       });
     },
 
+    // Two-step sign-in changes on an employer login.
+    employerSecurityNotice(user, subject, message) {
+      return send(site, {
+        to: user.email,
+        replyTo: teamInbox,
+        subject: `${site.name}: ${subject}`,
+        heading: subject,
+        html: p(`Hi ${first(user.name)}, ${esc(message)}`) + button(`${baseUrl}/employer/settings#two-step`, 'Review sign-in security'),
+      });
+    },
+
     // ---------- employer self-signup ----------
     employerVerify(emp, link, hours) {
       return send(site, {

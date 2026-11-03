@@ -7,6 +7,7 @@ const path = require('path');
 const vault = require('./vault');
 const teamStore = require('./employer-team');
 const agencyRoles = require('./agency-roles');
+const tf = require('./twofactor');
 
 const { can, ROLES, ROLE_KEYS } = teamStore;
 
@@ -17,6 +18,11 @@ const COOKIE = 'hr_emp';
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 const PHONE_RE = /^[+\d][\d\s-]{7,16}$/;
 const VERIFY_HOURS = 24;
+// Two-step sign-in: the code page waits 10 minutes, a set-up QR code 15.
+const CODE_COOKIE = 'hr_emp_code';
+const CODE_MINUTES = 10;
+const SETUP_MINUTES = 15;
+const MAX_CODE_TRIES = 5;
 // Personal mailboxes: allowed (many small employers use them) but flagged for
 // the team, who check every self-signup before its jobs can go live.
 const FREE_EMAIL = new Set(['gmail.com', 'googlemail.com', 'yahoo.com', 'yahoo.co.in', 'ymail.com', 'outlook.com', 'hotmail.com', 'live.com', 'msn.com', 'rediffmail.com', 'icloud.com', 'me.com', 'aol.com', 'proton.me', 'protonmail.com', 'zohomail.in', 'gmx.com', 'mail.com']);
@@ -209,11 +215,16 @@ function register(app, deps) {
       can: (action, job) => can(c.member, action, job), myCompanies: companiesOf(c.user.id),
     });
   }
+  // Owners can require two-step sign-in for everyone in the company. Until a
+  // member sets it up they can only reach their settings (and sign out).
+  const needs2fa = (c) => Boolean(c.employer.require2fa) && !c.user.twoFactor;
+  const SETUP_PATHS = /^\/employer\/(settings|logout)(\/|$)/;
   const requireEmployer = (req, res, next) => {
     const c = context(req);
     if (!c) return res.redirect('/employer/login');
     attach(req, res, c);
     res.set('Cache-Control', 'no-store');
+    if (needs2fa(c) && !SETUP_PATHS.test(req.path)) return res.redirect(`/employer/settings?msg=${encodeURIComponent(`${c.employer.company} requires two-step sign-in. Set it up below to carry on.`)}#two-step`);
     next();
   };
   // The same for JSON: a 401 instead of the login page.
@@ -222,6 +233,7 @@ function register(app, deps) {
     if (!c) return res.status(401).json({ ok: false, errors: ['sign in to your employer account first'] });
     attach(req, res, c);
     res.set('Cache-Control', 'no-store');
+    if (needs2fa(c)) return res.status(403).json({ ok: false, errors: ['your company requires two-step sign-in: set it up under Settings first'] });
     next();
   };
   // Refuses (403) members whose role doesn't allow `action`.
@@ -298,6 +310,25 @@ function register(app, deps) {
       sentTo.push(u.email);
     }
     res.redirect(adminUrl('clients', sentTo.length ? `New link emailed to ${sentTo.join(', ')}` : `${emp.company} has no owner to email`));
+  });
+
+  // Someone at the company lost their phone and their recovery codes: the
+  // Hireriv team resets two-step sign-in (after checking who is asking) and
+  // signs them out everywhere; they set it up again after their password.
+  app.post('/admin/clients/:id/reset-two-step', adminAuth, roleGate('verify.review'), sameOrigin, (req, res, next) => {
+    const emp = read().find((e) => e.id === req.params.id);
+    if (!emp) return next();
+    const email = String(req.body.email || '').trim().toLowerCase().slice(0, 160);
+    const u = team.userByEmail(email);
+    const back = (msg) => res.redirect(`/admin/clients/${emp.id}?msg=${encodeURIComponent(msg)}`);
+    if (!u || !team.membership(u.id, emp.id)) return back(`${email || 'That email'} is not a login at ${emp.company}.`);
+    if (!u.twoFactor) return back(`${u.email} doesn't use two-step sign-in.`);
+    Object.assign(u, { twoFactor: null, twoFactorPending: null });
+    team.saveUser(u);
+    endUserSessions(u.id);
+    team.audit(emp.id, { id: '', name: `${req.admin.name} (${site.name} team)` }, 'two-step-reset', u.email);
+    mailer.employerSecurityNotice(u, 'Your two-step sign-in was reset', `the ${site.name} team reset two-step sign-in for your employer account at your request, and you were signed out. Sign in with your password and set it up again under Settings. If you didn't ask for this, reply to this email straight away.`);
+    back(`Two-step sign-in reset for ${u.email}. They were signed out and can set it up again.`);
   });
 
   app.post('/admin/clients/:id/toggle', adminAuth, sameOrigin, (req, res, next) => {
@@ -531,6 +562,7 @@ function register(app, deps) {
       mailer.employerSignedUp(emp, `${baseUrl}/admin?tab=clients`);
     }
     team.audit(emp.id, user, 'email-confirmed');
+    if (user.twoFactor) return page(res, 'employer-login', { title: 'Employer login', email: user.email, msg: 'Email confirmed. Sign in with your password and app code.' });
     startSession(res, user.id, emp.id);
     res.redirect('/employer?welcome=1');
   });
@@ -559,6 +591,7 @@ function register(app, deps) {
       endUserSessions(user.id);
       if (!emp) return expired(res, 'Your password is saved, but your login is not linked to a company any more.');
       team.audit(emp.id, user, kind === 'invite' ? 'joined' : 'password-reset');
+      if (user.twoFactor) return page(res, 'employer-login', { title: 'Employer login', email: user.email, msg: 'Password updated. Sign in with it and the code from your authenticator app.' });
       startSession(res, user.id, emp.id);
       res.redirect(kind === 'invite' ? '/employer?welcome=1' : '/employer?msg=' + encodeURIComponent('Password updated. You are signed in.'));
     });
@@ -597,8 +630,78 @@ function register(app, deps) {
       return page(res, 'employer-login', { title: 'Employer login', email, errors: ['Please confirm your email first. We\'ve sent you a new confirmation link.'] }, 403);
     }
     if (!emp) return page(res, 'employer-login', { title: 'Employer login', email, errors: ['Your login is not linked to an active company. Ask a company owner to add you again, or contact us.'] }, 403);
+    if (user.twoFactor) {
+      // The password is right; the session starts only once the code is too.
+      const token = newToken();
+      db.sessions.set('employer-code', sha(token), subjectOf(user.id, emp.id), Date.now() + CODE_MINUTES * 60000);
+      res.cookie(CODE_COOKIE, token, { httpOnly: true, sameSite: 'lax', secure: secureCookie, maxAge: CODE_MINUTES * 60000, path: '/employer/login' });
+      return res.redirect('/employer/login/code');
+    }
     startSession(res, user.id, emp.id);
     team.audit(emp.id, user, 'signed-in');
+    res.redirect('/employer');
+  });
+
+  // ---------- two-step sign-in ----------
+  // An authenticator code, or one of the single-use recovery codes.
+  function useSecondFactor(userId, input) {
+    const u = team.userById(userId);
+    const t = u && u.twoFactor;
+    if (!t) return null;
+    const step = tf.verifyCode(t.secret, input, { lastStep: t.lastStep });
+    if (step !== null) {
+      u.twoFactor = { ...t, lastStep: step };
+      team.saveUser(u);
+      return { how: 'code' };
+    }
+    const i = tf.findRecovery(t.recovery, input);
+    if (i < 0) return null;
+    const recovery = t.recovery.slice();
+    recovery[i] = null;
+    u.twoFactor = { ...t, recovery };
+    team.saveUser(u);
+    return { how: 'recovery', left: recovery.filter(Boolean).length };
+  }
+  const recoveryLeft = (t) => (t && t.recovery ? t.recovery.filter(Boolean).length : 0);
+  function pendingCode(req) {
+    const token = parseCookies(req.headers.cookie)[CODE_COOKIE];
+    const s = token && db.sessions.get('employer-code', sha(token));
+    if (!s) return null;
+    const [userId, employerId] = s.subject.split(':');
+    const user = team.userById(userId);
+    return user && user.active ? { key: sha(token), user, employerId } : null;
+  }
+  const endPending = (res, key) => { db.sessions.delete('employer-code', key); res.clearCookie(CODE_COOKIE, { path: '/employer/login' }); };
+  const codeTries = new Map();
+  const codePage = (res, errors = [], status = 200) => page(res, 'employer-code', { title: 'Enter your code', errors }, status);
+  app.get('/employer/login/code', (req, res) => {
+    if (!pendingCode(req)) return res.redirect('/employer/login');
+    res.set('Cache-Control', 'no-store');
+    codePage(res);
+  });
+  app.post('/employer/login/code', limit('employer-login-code', 20, 15 * 60 * 1000), sameOrigin, (req, res) => {
+    const p = pendingCode(req);
+    if (!p) return page(res, 'employer-login', { title: 'Employer login', email: '', errors: ['That took too long. Sign in again.'] }, 401);
+    const email = String(p.user.email || '').toLowerCase();
+    if (recentLoginFailures(email).length >= MAX_LOGIN_FAILURES) { endPending(res, p.key); return page(res, 'employer-login', { title: 'Employer login', email, errors: ['Too many wrong codes for this account. Wait 15 minutes, then sign in again.'] }, 429); }
+    const used = useSecondFactor(p.user.id, String(req.body.code || '').slice(0, 40));
+    if (!used) {
+      loginFailures.set(email, [...recentLoginFailures(email), Date.now()]);
+      const tries = (codeTries.get(p.key) || 0) + 1;
+      codeTries.set(p.key, tries);
+      if (tries >= MAX_CODE_TRIES) { codeTries.delete(p.key); endPending(res, p.key); return page(res, 'employer-login', { title: 'Employer login', email, errors: ['Too many wrong codes. Sign in again.'] }, 401); }
+      return codePage(res, ["That code didn't work. Codes change every 30 seconds, so use the one showing now."], 401);
+    }
+    codeTries.delete(p.key);
+    endPending(res, p.key);
+    loginFailures.delete(email);
+    const emp = read().find((e) => e.id === p.employerId && e.active) || defaultCompany(p.user);
+    if (!emp) return page(res, 'employer-login', { title: 'Employer login', email, errors: ['Your login is not linked to an active company. Ask a company owner to add you again, or contact us.'] }, 403);
+    startSession(res, p.user.id, emp.id);
+    if (used.how === 'recovery') {
+      team.audit(emp.id, p.user, 'signed-in', `with a recovery code (${used.left} left)`);
+      mailer.employerSecurityNotice(p.user, 'A recovery code was used to sign in', `someone signed in to your ${site.name} employer account with one of your recovery codes. ${used.left} unused code${used.left === 1 ? '' : 's'} left. If this wasn't you, change your password straight away and make new recovery codes.`);
+    } else team.audit(emp.id, p.user, 'signed-in');
     res.redirect('/employer');
   });
 
@@ -694,13 +797,27 @@ function register(app, deps) {
     const users = team.users();
     const rows = team.membersOf(req.employer.id).map((m) => {
       const u = users.find((x) => x.id === m.userId) || {};
-      return { ...m, name: u.name, email: u.email, joined: Boolean(u.passwordHash), you: m.userId === req.employerUser.id };
+      return { ...m, name: u.name, email: u.email, joined: Boolean(u.passwordHash), twoStep: Boolean(u.twoFactor), you: m.userId === req.employerUser.id };
     });
     const jobs = getJobs().filter((j) => j.employerId === req.employer.id);
-    page(res, 'employer-team', { title: `${req.employer.company} · Team`, tab: 'team', rows, roles: ROLES, jobs, log: can(req.member, 'team.manage') ? team.auditOf(req.employer.id, 40) : [], msg: String(req.query.msg || ''), values: {}, ...locals }, status);
+    page(res, 'employer-team', { title: `${req.employer.company} · Team`, tab: 'team', rows, roles: ROLES, jobs, require2fa: Boolean(req.employer.require2fa), meHas2fa: Boolean(req.employerUser.twoFactor), isOwner: req.member.role === 'owner', log: can(req.member, 'team.manage') ? team.auditOf(req.employer.id, 40) : [], msg: String(req.query.msg || ''), values: {}, ...locals }, status);
   };
   const toTeam = (res, msg) => res.redirect('/employer/team?msg=' + encodeURIComponent(msg));
   app.get('/employer/team', requireEmployer, (req, res) => teamPage(req, res));
+
+  // Owners require two-step sign-in for everyone (turning it on needs their own first).
+  app.post('/employer/team/require-two-step', requireEmployer, allow('team.manage'), limit('employer-team', 20), sameOrigin, (req, res) => {
+    if (req.member.role !== 'owner') return toTeam(res, 'Only a company owner can change this.');
+    const on = req.body.on === '1';
+    if (on && !req.employerUser.twoFactor) return toTeam(res, 'Turn on two-step sign-in for your own login first (Settings).');
+    const list = read();
+    const emp = list.find((e) => e.id === req.employer.id);
+    if (Boolean(emp.require2fa) === on) return toTeam(res, on ? 'Two-step sign-in is already required.' : 'Two-step sign-in is already optional.');
+    emp.require2fa = on;
+    write(list);
+    team.audit(req.employer.id, req.employerUser, on ? 'two-step-required' : 'two-step-optional');
+    toTeam(res, on ? 'Two-step sign-in is now required. Team members without it are asked to set it up next time they open the portal.' : 'Two-step sign-in is optional again.');
+  });
 
   app.post('/employer/team', requireEmployer, allow('team.manage'), limit('employer-team', 20), sameOrigin, (req, res) => {
     const name = String(req.body.name || '').trim().slice(0, 120);
@@ -762,9 +879,77 @@ function register(app, deps) {
   });
 
   // ---------- personal settings: name, mobile verification, password ----------
-  const settingsPage = (req, res, locals = {}, status = 200) => page(res, 'employer-settings', {
-    title: 'Your settings', tab: 'settings', user: req.employerUser, msg: String(req.query.msg || ''), smsReady: sms.configured(), codeSent: req.query.code === 'sent', ...locals,
-  }, status);
+  function twoStepOf(req) {
+    const u = team.userById(req.employerUser.id) || req.employerUser;
+    const pending = u.twoFactorPending && u.twoFactorPending.exp > Date.now() ? u.twoFactorPending : null;
+    let setup = null;
+    if (!u.twoFactor && pending) {
+      const url = tf.otpauthUrl({ issuer: site.name || 'Hireriv', account: u.email, secret: pending.secret });
+      setup = { qr: tf.qrSvg(url), key: tf.groupSecret(pending.secret), url };
+    }
+    return { on: Boolean(u.twoFactor), enabledAt: u.twoFactor ? u.twoFactor.enabledAt : '', recoveryLeft: recoveryLeft(u.twoFactor), setup, required: Boolean(req.employer.require2fa), codes: null };
+  }
+  const settingsPage = (req, res, locals = {}, status = 200) => {
+    res.set('Cache-Control', 'no-store');
+    const { codes, ...rest } = locals;
+    page(res, 'employer-settings', {
+      title: 'Your settings', tab: 'settings', user: req.employerUser, msg: String(req.query.msg || ''), smsReady: sms.configured(), codeSent: req.query.code === 'sent', ...rest,
+      twoStep: { ...twoStepOf(req), codes: codes || null },
+    }, status);
+  };
+  const toTwoStep = (res, msg) => res.redirect(`/employer/settings?msg=${encodeURIComponent(msg)}#two-step`);
+  function issueRecovery(userId) {
+    const { codes, hashes } = tf.newRecoveryCodes();
+    const u = team.userById(userId);
+    u.twoFactor = { ...u.twoFactor, recovery: hashes };
+    team.saveUser(u);
+    return codes;
+  }
+  app.post('/employer/settings/two-step/start', requireEmployer, limit('employer-2fa', 20), sameOrigin, (req, res) => {
+    const u = team.userById(req.employerUser.id);
+    if (u.twoFactor) return toTwoStep(res, 'Two-step sign-in is already on.');
+    u.twoFactorPending = { secret: tf.newSecret(), exp: Date.now() + SETUP_MINUTES * 60000 };
+    team.saveUser(u);
+    toTwoStep(res, 'Scan the QR code with your authenticator app.');
+  });
+  app.post('/employer/settings/two-step/confirm', requireEmployer, limit('employer-2fa', 20), sameOrigin, (req, res) => {
+    const u = team.userById(req.employerUser.id);
+    const pending = u.twoFactorPending && u.twoFactorPending.exp > Date.now() ? u.twoFactorPending : null;
+    if (u.twoFactor) return toTwoStep(res, 'Two-step sign-in is already on.');
+    if (!pending) return toTwoStep(res, 'The set-up timed out. Start again and scan the new QR code.');
+    const step = tf.verifyCode(pending.secret, req.body.code);
+    if (step === null) return toTwoStep(res, "That code didn't match. Check the app shows a code for this account and try the one showing now.");
+    Object.assign(u, { twoFactor: { secret: pending.secret, lastStep: step, recovery: [], enabledAt: now() }, twoFactorPending: null });
+    team.saveUser(u);
+    const codes = issueRecovery(u.id);
+    // Other sessions were opened with only a password: they end.
+    endUserSessions(u.id);
+    startSession(res, u.id, req.employer.id);
+    req.employerUser = team.userById(u.id);
+    team.audit(req.employer.id, u, 'two-step-on');
+    mailer.employerSecurityNotice(u, 'Two-step sign-in is on', `two-step sign-in is now on for your ${site.name} employer account. After your password you'll enter a code from your authenticator app. Keep your recovery codes somewhere safe.`);
+    settingsPage(req, res, { codes, msg: 'Two-step sign-in is on. Save your recovery codes now: they are shown only once.' });
+  });
+  app.post('/employer/settings/two-step/recovery', requireEmployer, limit('employer-2fa', 20), sameOrigin, (req, res) => {
+    if (!req.employerUser.twoFactor) return toTwoStep(res, 'Two-step sign-in is off.');
+    if (!useSecondFactor(req.employerUser.id, String(req.body.code || '').slice(0, 40))) return toTwoStep(res, "That code didn't work, so your recovery codes were not changed.");
+    const codes = issueRecovery(req.employerUser.id);
+    team.audit(req.employer.id, req.employerUser, 'two-step-recovery-codes');
+    settingsPage(req, res, { codes, msg: 'New recovery codes made. The old ones no longer work.' });
+  });
+  app.post('/employer/settings/two-step/off', requireEmployer, limit('employer-2fa', 20), sameOrigin, (req, res) => {
+    const u = team.userById(req.employerUser.id);
+    if (!u.twoFactor) return toTwoStep(res, 'Two-step sign-in is already off.');
+    const requiring = team.membershipsOf(u.id).map((m) => read().find((e) => e.id === m.employerId)).filter((e) => e && e.active && e.require2fa);
+    if (requiring.length) return toTwoStep(res, `${requiring[0].company} requires two-step sign-in, so it can't be turned off.`);
+    if (!useSecondFactor(u.id, String(req.body.code || '').slice(0, 40))) return toTwoStep(res, "That code didn't work, so two-step sign-in is still on.");
+    const fresh = team.userById(u.id);
+    Object.assign(fresh, { twoFactor: null, twoFactorPending: null });
+    team.saveUser(fresh);
+    team.audit(req.employer.id, fresh, 'two-step-off');
+    mailer.employerSecurityNotice(fresh, 'Two-step sign-in was turned off', `two-step sign-in was turned off for your ${site.name} employer account, so only your password is needed to sign in. If this wasn't you, change your password straight away.`);
+    toTwoStep(res, 'Two-step sign-in turned off.');
+  });
   const toSettings = (res, msg, extra = '') => res.redirect(`/employer/settings?msg=${encodeURIComponent(msg)}${extra}`);
   app.get('/employer/settings', requireEmployer, (req, res) => settingsPage(req, res));
   app.post('/employer/settings', requireEmployer, limit('employer-settings', 20), sameOrigin, (req, res) => {

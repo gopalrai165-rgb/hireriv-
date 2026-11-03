@@ -666,7 +666,9 @@ Total: 727 routes.
 | POST | `/employer/register` | public | Bot trap, per-IP limit; same reply whether or not the email has an account |
 | POST | `/api/employers/register` | public | Bot trap, per-IP limit; same reply whether or not the email has an account |
 | GET | `/employer/login` | public |  |
-| POST | `/employer/login` | public | Per-IP limit; same reply for unknown emails and wrong passwords |
+| POST | `/employer/login` | public | Per-IP and per-account limits; same reply for unknown emails and wrong passwords; with two-step sign-in on, the session starts only after the code |
+| GET | `/employer/login/code` | public | Needs the short-lived code cookie from a correct password |
+| POST | `/employer/login/code` | public | Same-origin, rate-limited; 5 wrong codes end the attempt; wrong codes count toward the account lock |
 | POST | `/employer/logout` | public |  |
 | GET | `/employer/forgot` | public |  |
 | POST | `/employer/forgot` | public |  |
@@ -689,12 +691,17 @@ Total: 727 routes.
 | GET | `/employer/team` | employer | Every member; the activity log for owners only |
 | POST | `/employer/team` | employer | Company owners only; up to 50 members |
 | POST | `/employer/team/:id` | employer | Company owners only; the last owner stays an owner |
+| POST | `/employer/team/require-two-step` | employer | Company owners only, with two-step sign-in on themselves |
 | POST | `/employer/team/:id/remove` | employer | Company owners only; the last owner can't be removed |
 | GET | `/employer/settings` | employer | The signed-in person's own details |
 | POST | `/employer/settings` | employer | A new mobile number needs verifying again |
 | POST | `/employer/settings/phone/send` | employer | 6-digit code by text message, valid 10 minutes; 5 per hour |
 | POST | `/employer/settings/phone/verify` | employer | 5 tries per code |
 | POST | `/employer/settings/password` | employer | Needs the current password; signs out other sessions |
+| POST | `/employer/settings/two-step/start` | employer | Same-origin, rate-limited; a set-up key that lasts 15 minutes |
+| POST | `/employer/settings/two-step/confirm` | employer | Needs a code from the new key; shows recovery codes once; signs out other sessions |
+| POST | `/employer/settings/two-step/recovery` | employer | Needs a current code |
+| POST | `/employer/settings/two-step/off` | employer | Needs a current code; refused while a company requires it |
 | GET | `/api/employers/me` | employer | 401 when signed out |
 | PATCH | `/api/employers/me` | employer | 401 when signed out; company owners only; unknown fields refused |
 | GET | `/api/client/company-profile` | employer | JSON; same as /api/employers/me |
@@ -806,6 +813,7 @@ Total: 727 routes.
 | POST | `/admin/jobs/:id/reject` | team | jobs.review; reason sent to the employer; recorded in the trust audit trail |
 | POST | `/admin/clients` | team |  |
 | POST | `/admin/clients/:id/invite` | team |  |
+| POST | `/admin/clients/:id/reset-two-step` | team | verify.review role; only a login of that company; signs them out everywhere |
 | POST | `/admin/clients/:id/toggle` | team | Not for companies suspended or closed by trust & safety |
 | POST | `/admin/clients/:id/approve` | team | verify.review; recorded in the trust audit trail |
 | POST | `/admin/clients/:id/reject` | team | verify.review; the company is emailed the reason and an appeal link |

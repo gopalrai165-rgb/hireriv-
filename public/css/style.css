@@ -2506,3 +2506,9 @@ td > a:first-child:not(.btn) { display: inline-block; padding-block: 6px; min-wi
 
 /* Applied-job titles in the account are easy to tap on phones */
 .my-app h3 a { display: inline-block; padding: 6px 0; }
+
+/* Employer two-step sign-in (Step 161) */
+.two-step-on { color: #1f7a45; font-weight: 600; }
+.two-step-require { margin: 16px 0 4px; padding: 14px 16px; border: 1px solid var(--line); border-radius: 12px; background: #f8fafc; }
+.two-step-require p { margin: 0 0 10px; }
+#two-step .recovery-card { margin-bottom: 14px; padding: 14px 16px; border: 2px dashed #1f9d55; border-radius: 12px; background: #f1fbf5; }

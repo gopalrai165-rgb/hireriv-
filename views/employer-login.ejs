@@ -6,6 +6,7 @@
       <span class="eyebrow">Employer portal</span>
       <h1>Employer login</h1>
       <p class="muted">Post jobs, review applicants and work with your hiring team.</p>
+      <% if (typeof msg !== 'undefined' && msg) { %><p class="notice" role="status"><%= msg %></p><% } %>
       <% if (errors.length) { %><p class="notice notice-err" role="alert"><%= errors.join(' ') %></p><% } %>
       <form class="form" method="post" action="/employer/login">
         <div class="form-grid">
