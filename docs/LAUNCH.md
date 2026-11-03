@@ -10,6 +10,8 @@ Nothing here says Hireriv is "compliant" or "secure". It lists what exists, what
 
 The short list of checks to finish before switching on (applications, resumes, dashboards, login, WhatsApp, mobile, security, privacy, payments and SEO) is in [PRE-LAUNCH-CHECKS.md](PRE-LAUNCH-CHECKS.md).
 
+How the November 2026 website review was answered, item by item, and what is left for the owner: [ROADMAP.md](ROADMAP.md).
+
 ## 1. Launch-gap report
 
 | # | Area | Status | What is in place | What is still missing |
