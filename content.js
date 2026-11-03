@@ -202,6 +202,10 @@ function parseSettings(body, current) {
   if ((g.designation || g.email || g.phone) && !g.name) errors.push('the Grievance Officer needs a name');
   if (g.email && !/^[^\s@<>]+@[^\s@<>]+\.[a-z]{2,}$/i.test(g.email)) errors.push('the Grievance Officer email does not look right');
   if (g.phone && !/^\+?[\d\s-]{8,20}$/.test(g.phone)) errors.push('the Grievance Officer phone should be a phone number');
+  // Service terms: the usual time to a first shortlist (optional).
+  const shortlist = get('terms_shortlistDays', 3);
+  next.serviceTerms = { shortlistDays: shortlist ? Number(shortlist) : null };
+  if (shortlist && !(/^\d+$/.test(shortlist) && +shortlist >= 1 && +shortlist <= 60)) errors.push('the shortlist time must be between 1 and 60 working days');
   // Starting prices: empty means the page shows only "Request a Quote".
   next.pricing = {};
   for (const p of PRICED_SERVICES) {

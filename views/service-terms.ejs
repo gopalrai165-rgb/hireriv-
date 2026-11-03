@@ -1,0 +1,86 @@
+<%- include('partials/head') %>
+<% const b = billing, st = serviceTerms || {}; %>
+
+<section class="page-hero page-hero-sm">
+  <span class="deco deco-spark" aria-hidden="true"></span><span class="deco deco-dots" aria-hidden="true"></span><span class="deco deco-squiggle" aria-hidden="true"></span>
+  <div class="container narrow">
+    <span class="eyebrow">For employers</span>
+    <h1>Service terms</h1>
+    <p class="muted">How an engagement works, timelines, replacements, payments, refunds and cancellation. Last updated <%= formatDate(updated) %></p>
+  </div>
+</section>
+
+<section class="section">
+  <article class="container narrow prose">
+    <p>These are the standard terms for recruitment and staffing services from <%= site.name %>. Before any work starts you receive a written quote and a service agreement; where the signed agreement differs from this page, the agreement applies.</p>
+    <p class="legal-who"><b>Who we are.</b> <%= brandLine(site) %></p>
+
+    <nav class="toc" aria-label="On this page">
+      <a href="#engagement">How an engagement starts</a> · <a href="#timelines">Timelines</a> · <a href="#replacement">Replacement policy</a> · <a href="#payment">Payment terms</a> · <a href="#refunds">Refunds and cancellation</a>
+    </nav>
+
+    <h2 id="engagement">How an engagement starts</h2>
+    <ol>
+      <li><b>Enquiry.</b> Send your requirement through the <a href="/employers#enquiry">Employers page</a>, the <a href="/hire">Hire a Team form</a> or the <a href="/contact">Contact page</a>. You get a confirmation email straight away.</li>
+      <li><b>Call.</b> A recruiter calls you within one working day to understand the roles, numbers, locations, salary range and timelines.</li>
+      <li><b>Quote and agreement.</b> We send a written quote. The work starts once you accept it and the service agreement is signed.</li>
+      <li><b>Sourcing and shortlist.</b> We search, screen and share a shortlist of candidates who match the requirement and have agreed to be put forward.</li>
+      <li><b>Interviews and selection.</b> You interview and choose. We arrange the interviews and keep both sides informed.</li>
+      <li><b>Offer and joining.</b> We help with the offer and follow the candidate through to the joining date.</li>
+      <li><b>Invoice.</b> The invoice is raised as described under Payment terms below.</li>
+    </ol>
+    <p>What we need from you: a contact person, a clear job description, the salary range, the interview panel's availability, and feedback on each shortlisted candidate within a few working days.</p>
+
+    <h2 id="timelines">Timelines</h2>
+    <ul>
+      <li>First call after an enquiry: within one working day.</li>
+      <li>First shortlist: <%= st.shortlistDays ? 'usually within ' + st.shortlistDays + ' working day' + (st.shortlistDays === 1 ? '' : 's') + ' of the agreement and a complete job description' : 'agreed in your quote, depending on the role, the number of hires and the location' %>.</li>
+      <li>Senior and specialist roles, and large-volume hiring, can take longer; the quote states the expected time for your requirement.</li>
+    </ul>
+    <p>These are working targets, not guarantees: hiring depends on candidates' availability and on interview and feedback times on both sides.</p>
+
+    <h2 id="replacement">Replacement policy</h2>
+    <% if (b.guaranteeDays > 0) { %>
+      <p>For permanent recruitment, if a candidate we placed leaves, or is let go for reasons of performance or conduct, within <b><%= b.guaranteeDays %> days</b> of joining, we find a replacement at no extra fee.</p>
+      <ul>
+        <li>Tell us in writing within 7 days of the candidate's last working day.</li>
+        <li>The replacement is for the same role, at a similar salary and location.</li>
+        <li>One replacement per position. If we cannot find a suitable replacement, the agreement states any credit or refund.</li>
+        <li>It does not apply when the role, salary or terms change after joining, the position is closed or made redundant, or the invoice is unpaid past its due date.</li>
+      </ul>
+    <% } else { %>
+      <p>Any replacement period is agreed in your quote and written into the service agreement.</p>
+    <% } %>
+    <p>Contract and bulk staff are covered by the terms of the staffing agreement, including replacing staff who leave during the contract.</p>
+
+    <h2 id="payment">Payment terms</h2>
+    <ul>
+      <li><b>Permanent recruitment and executive search:</b> invoiced when the candidate joins, as a percentage of the annual CTC or the fee in your quote.</li>
+      <li><b>Contract staffing:</b> invoiced monthly, based on the approved timesheets.</li>
+      <li><b>Bulk hiring:</b> invoiced per successful hire, as in your quote.</li>
+      <li>Invoices are due within <b><%= b.paymentDays %> days</b>. Every invoice is a GST invoice<%= b.gstPercent ? ' (GST at ' + b.gstPercent + '%)' : '' %>; clients on the portal can view and download theirs at any time.</li>
+      <li>If you deduct TDS, please send the certificate so it can be matched to the invoice.</li>
+    </ul>
+    <% if (pricedServices.some(function (p) { return priceOf(site, p.slug); })) { %><p>Starting prices are on the <a href="/employers#price-h">Employers page</a>. Your written quote sets the final price.</p><% } %>
+
+    <h2 id="refunds">Refunds and cancellation</h2>
+    <h3>Recruitment and staffing fees</h3>
+    <ul>
+      <li>You can cancel a requirement at any time before a candidate accepts an offer, by email. No fee is due for a requirement cancelled before an offer is accepted, unless the quote says otherwise (for example, an upfront fee for executive search).</li>
+      <li>Fees for a candidate who has joined are not refunded; the replacement policy above applies instead.</li>
+    </ul>
+    <h3>Plans and credits paid online</h3>
+    <ul>
+      <li><b>Cancelling a plan:</b> the plan runs to the end of the period you paid for, then your company moves to the free plan. You can undo the cancellation until then. Nothing is deleted.</li>
+      <li><b>Moving to a smaller plan:</b> takes effect when the paid period ends. No charge and no refund.</li>
+      <li><b>Upgrading:</b> starts the day you pay; unused days of your current paid plan come off the price.</li>
+      <li><b>Refunds:</b> paid plan periods are not refunded in part. Duplicate payments and charges made in error are refunded in full to the original payment method; contact us at <a href="mailto:<%= site.email %>"><%= site.email %></a>. Banks usually take 5 to 7 working days to show a refund.</li>
+      <li><b>Contact credits:</b> credits never expire. A credit pack refunded in full takes back the credits not yet used.</li>
+    </ul>
+
+    <h2>Questions and complaints</h2>
+    <p>Write to <a href="mailto:<%= site.email %>"><%= site.email %></a>, or see the Grievance Officer's details in the <a href="/terms#grievance">Terms of Use</a>.</p>
+  </article>
+</section>
+
+<%- include('partials/foot') %>
