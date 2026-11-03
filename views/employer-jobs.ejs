@@ -9,7 +9,7 @@
         <a class="chip<%= !status ? ' is-active' : '' %>" href="/employer/jobs">All</a>
         <% Object.keys(labels).forEach(function (s) { %><a class="chip<%= status === s ? ' is-active' : '' %>" href="/employer/jobs?status=<%= s %>"><%= labels[s] %> (<%= counts[s] %>)</a><% }) %>
       </nav>
-      <% if (can('jobs.create')) { %><a class="btn btn-primary btn-sm" href="/employer/jobs/new">+ Post a job</a><% } %>
+      <% if (can('jobs.create')) { %><span class="btn-pair"><a class="btn btn-outline btn-sm" href="/employer/jobs/import">Upload many (CSV)</a> <a class="btn btn-primary btn-sm" href="/employer/jobs/new">+ Post a job</a></span><% } %>
     </div>
 
     <% if (!rows.length) { %>

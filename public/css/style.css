@@ -2416,3 +2416,17 @@ td > a:only-child { display: inline-block; padding-block: 6px; min-width: 24px; 
 .refer-link { display: flex; gap: 8px; align-items: center; margin: 0 0 8px; }
 .refer-link input { flex: 1; min-width: 0; font-size: .85rem; padding: 8px 10px; border: 1px solid var(--line, #e3e8ef); border-radius: 10px; background: #fff; }
 .pill-referred { background: #eef2ff; color: #3949ab; }
+
+/* Bulk job upload (Step 149) */
+.btn-pair { display: inline-flex; gap: 8px; flex-wrap: wrap; }
+.import-grid { align-items: start; }
+.import-steps { padding-left: 1.2em; margin: 0 0 14px; }
+.import-steps li { margin-bottom: 6px; }
+.import-paste { margin: 10px 0; }
+.import-paste textarea { width: 100%; font-family: ui-monospace, Consolas, monospace; font-size: .85rem; }
+.import-errs { margin: 6px 0 0; padding-left: 1.1em; color: #b42318; }
+.import-create { margin-top: 14px; }
+.import-results { list-style: none; padding: 0; margin: 12px 0; }
+.import-results li { display: flex; gap: 10px; align-items: baseline; padding: 8px 0; border-bottom: 1px solid var(--line); }
+.import-results .pill { flex: none; }
+.import-cols td:first-child { white-space: nowrap; }

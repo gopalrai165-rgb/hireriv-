@@ -14,6 +14,8 @@ const ats = require('./ats');
 const { RECOMMENDATIONS } = require('./interviews');
 const { SHIFTS } = require('./candidate-profile');
 const { workOf } = require('./content');
+const multer = require('multer');
+const jobImport = require('./job-import');
 
 // A company can have this many jobs live, paused or waiting for review.
 const MAX_ACTIVE_JOBS = 50;
@@ -205,6 +207,56 @@ function register(app, deps) {
     const source = req.query.from ? companyJob(req, String(req.query.from).slice(0, 60)) : null;
     if (source && selfManaged(source)) return jobFormPage(req, res, copyOf(source), []);
     jobFormPage(req, res, { mode: 'On-site', type: 'Full-time', status: 'draft', skills: [], responsibilities: [] }, []);
+  });
+
+  // ---------- bulk upload (CSV) ----------
+  // Many jobs at once from a spreadsheet: the file is checked row by row
+  // first (nothing saved), then the rows without problems become drafts, and
+  // can be sent for review straight away. Each row is checked like the form.
+  const importUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: jobImport.MAX_BYTES, fieldSize: jobImport.MAX_BYTES * 2, files: 1 } });
+  const importLists = () => {
+    const l = jobFormLocals({}, []);
+    return { categories: l.categoryGroups.flatMap((g) => g.items || g.categories || []), locations: l.jobLocations, modes: l.modes, types: l.jobTypes, shifts: SHIFTS };
+  };
+  const importPage = (req, res, locals, status = 200) => page(res, 'employer-job-import', {
+    title: 'Upload many jobs', tab: 'jobs', columns: jobImport.COLUMNS, maxRows: jobImport.MAX_ROWS, csv: '', checked: null, done: null, fileErrors: [],
+    categories: importLists().categories, locations: importLists().locations, ...locals,
+  }, status);
+  app.get('/employer/jobs/import', requireEmployer, clients.allow('jobs.create'), (req, res) => importPage(req, res, {}));
+  app.get('/employer/jobs/import/template.csv', requireEmployer, clients.allow('jobs.create'), (req, res) => {
+    res.set('Content-Disposition', 'attachment; filename="hireriv-jobs-template.csv"');
+    res.type('text/csv').send(`\uFEFF${jobImport.template()}`);
+  });
+  app.post('/employer/jobs/import', requireEmployer, clients.allow('jobs.create'), limit('employer-job-import', 20), (req, res, next) => {
+    importUpload.single('file')(req, res, (err) => {
+      if (err) return importPage(req, res, { fileErrors: [err.code === 'LIMIT_FILE_SIZE' ? `the file is too large (up to ${jobImport.MAX_BYTES / 1024} KB)` : 'the file could not be read'] }, 400);
+      next();
+    });
+  }, sameOrigin, (req, res) => {
+    const csv = req.file ? req.file.buffer.toString('utf8') : String(req.body.csv || '');
+    if (!csv.trim()) return importPage(req, res, { fileErrors: ['choose a CSV file, or paste the rows'] }, 400);
+    const { rows, errors: fileErrors } = jobImport.read(csv, importLists());
+    const checked = rows.map((r) => ({ ...r, errors: employerJobInput(req.employer, r.input, null).errors }));
+    const blocking = fileErrors.filter((e) => !e.startsWith('these columns are not recognised'));
+    if (req.body.action !== 'create' || blocking.length || !checked.some((r) => !r.errors.length)) {
+      return importPage(req, res, { csv, checked, fileErrors }, blocking.length ? 400 : 200);
+    }
+    const sendNow = req.body.sendNow === '1';
+    const done = [];
+    for (const r of checked) {
+      if (r.errors.length) { done.push({ line: r.line, title: r.title, state: 'skipped', note: r.errors.join(', ') }); continue; }
+      const made = createEmployerJob(req, r.input);
+      if (made.errors.length) { done.push({ line: r.line, title: r.title, state: 'skipped', note: made.errors.join(', ') }); continue; }
+      const entry = { line: r.line, title: made.job.title, id: made.job.id, state: 'draft', note: '' };
+      if (sendNow) {
+        const s = submitJob(req, made.job);
+        if (s.errors.length) entry.note = `saved as a draft, not sent: ${s.errors.join(', ')}`;
+        else entry.state = 'sent';
+      }
+      done.push(entry);
+    }
+    team.audit(req.employer.id, req.employerUser, 'jobs-imported', `${done.filter((d) => d.id).length} jobs from a CSV file`);
+    importPage(req, res, { done, sendNow });
   });
 
   app.post('/employer/jobs', requireEmployer, clients.allow('jobs.create'), limit('employer-jobs', 30), sameOrigin, (req, res) => {

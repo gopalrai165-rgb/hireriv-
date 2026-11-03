@@ -1,0 +1,90 @@
+<%- include('partials/head') %>
+
+<section class="section admin portal">
+  <div class="container">
+    <%- include('partials/employer-nav', { heading: 'Upload many jobs', tab: 'jobs' }) %>
+    <p class="back-link small"><a href="/employer/jobs">← All jobs</a></p>
+
+    <% if (done) { const made = done.filter(function (d) { return d.id; }); const sent = done.filter(function (d) { return d.state === 'sent'; }); %>
+      <section class="dash-card dash-wide import-done" role="status">
+        <h2><%= made.length %> job<%= made.length === 1 ? '' : 's' %> created<%= sendNow ? ', ' + sent.length + ' sent for review' : ' as drafts' %></h2>
+        <p class="muted small"><%= sendNow ? 'Jobs sent for review go live once the ' + site.name + ' team has checked them.' : 'Open each draft to check it, then send it for review. Nothing is shown to job seekers until the ' + site.name + ' team has checked it.' %></p>
+        <ul class="import-results">
+          <% done.forEach(function (d) { %>
+            <li class="import-<%= d.state %>"><span class="pill <%= d.state === 'sent' ? 'st-hired' : d.state === 'draft' ? 'st-interview' : 'st-rejected' %>"><%= d.state === 'sent' ? 'Sent for review' : d.state === 'draft' ? 'Draft' : 'Skipped' %></span>
+              <span>Row <%= d.line %>: <% if (d.id) { %><a href="/employer/jobs/<%= d.id %>/edit"><%= d.title %></a><% } else { %><%= d.title || '(no title)' %><% } %><% if (d.note) { %> <span class="muted small">· <%= d.note %></span><% } %></span></li>
+          <% }) %>
+        </ul>
+        <p><a class="btn btn-primary btn-sm" href="/employer/jobs">See your jobs</a> <a class="btn btn-outline btn-sm" href="/employer/jobs/import">Upload another file</a></p>
+      </section>
+    <% } else { %>
+
+    <% if (checked) { const ok = checked.filter(function (r) { return !r.errors.length; }); %>
+      <section class="dash-card dash-wide" id="check">
+        <h2>Checked: <%= ok.length %> of <%= checked.length %> job<%= checked.length === 1 ? '' : 's' %> ready</h2>
+        <% if (fileErrors.length) { %><ul class="notice notice-err small"><% fileErrors.forEach(function (e) { %><li><%= e.charAt(0).toUpperCase() + e.slice(1) %>.</li><% }) %></ul><% } %>
+        <div class="table-wrap">
+          <table class="import-table">
+            <thead><tr><th>Row</th><th>Job</th><th>City</th><th>Pay</th><th>Result</th></tr></thead>
+            <tbody>
+              <% checked.forEach(function (r) { %>
+                <tr><td><%= r.line %></td><td><b><%= r.title || '(no title)' %></b><br><span class="muted small"><%= r.input.category || '' %></span></td><td><%= r.input.location || '' %></td>
+                <td class="small"><%= r.input.salaryMin ? '₹' + r.input.salaryMin + (r.input.salaryMax ? '–' + r.input.salaryMax : '') + ' / ' + r.input.salaryPeriod : (r.input.payNote || '—') %></td>
+                <td><% if (r.errors.length) { %><span class="pill st-rejected">Fix in the file</span><ul class="small import-errs"><% r.errors.forEach(function (e) { %><li><%= e %></li><% }) %></ul><% } else { %><span class="pill st-hired">Ready</span><% } %></td></tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+        <% if (ok.length) { %>
+          <form class="form import-create" method="post" action="/employer/jobs/import" enctype="multipart/form-data">
+            <textarea name="csv" hidden aria-hidden="true" tabindex="-1"><%= csv %></textarea>
+            <input type="hidden" name="action" value="create">
+            <label class="check-row"><input type="checkbox" name="sendNow" value="1"> <span>Send them for review straight away (otherwise they are saved as drafts for you to check)</span></label>
+            <button class="btn btn-primary" type="submit">Create <%= ok.length %> job<%= ok.length === 1 ? '' : 's' %></button>
+            <% if (ok.length < checked.length) { %><p class="muted small">Rows marked "Fix in the file" are left out. Correct them and upload the file again, or add those jobs one by one.</p><% } %>
+          </form>
+        <% } else { %>
+          <p class="muted">No row is ready yet. Correct the file and upload it again.</p>
+        <% } %>
+      </section>
+    <% } %>
+
+    <div class="dash-grid import-grid">
+      <section class="dash-card" id="upload">
+        <h2><%= checked ? 'Upload a corrected file' : 'Upload your jobs' %></h2>
+        <ol class="import-steps small">
+          <li><a href="/employer/jobs/import/template.csv" download>Download the template</a> and open it in Excel or Google Sheets.</li>
+          <li>Put one job per row, up to <%= maxRows %> jobs per file. Keep the header row.</li>
+          <li>Save it as CSV (Excel: File, Save as, "CSV UTF-8") and upload it here. We check every row before anything is saved.</li>
+        </ol>
+        <% if (!checked && fileErrors.length) { %><ul class="notice notice-err small" role="alert"><% fileErrors.forEach(function (e) { %><li><%= e.charAt(0).toUpperCase() + e.slice(1) %>.</li><% }) %></ul><% } %>
+        <form class="form" method="post" action="/employer/jobs/import" enctype="multipart/form-data">
+          <label>CSV file<input type="file" name="file" accept=".csv,text/csv"></label>
+          <details class="import-paste"><summary class="small">Or paste the rows instead</summary>
+            <label><span class="sr-only">CSV rows</span><textarea name="csv" rows="6" placeholder="Job title,City,Category,Description,Responsibilities"></textarea></label>
+          </details>
+          <input type="hidden" name="action" value="check">
+          <button class="btn btn-primary" type="submit">Check the file</button>
+        </form>
+      </section>
+      <section class="dash-card" id="columns">
+        <h2>Columns</h2>
+        <p class="muted small">Columns marked * are needed. Names are matched without caring about capitals; other columns are ignored.</p>
+        <div class="table-wrap">
+          <table class="import-cols small">
+            <thead><tr><th>Column</th><th>What to put</th></tr></thead>
+            <tbody><% columns.forEach(function (c) { %><tr><td><b><%= c.label %></b><%= c.required ? ' *' : '' %></td><td><%= c.help %></td></tr><% }) %></tbody>
+          </table>
+        </div>
+        <details class="small"><summary>Cities and categories you can use</summary>
+          <p><b>Cities:</b> <%= locations.join(', ') %></p>
+          <p><b>Categories:</b> <%= categories.join(', ') %></p>
+        </details>
+      </section>
+    </div>
+    <% } %>
+    <p class="muted small">Every job is checked by the <%= site.name %> team before it goes live, and your plan's limit on live jobs applies when they are sent for review. See the <a href="/job-posting-policy">job posting rules</a>.</p>
+  </div>
+</section>
+
+<%- include('partials/foot') %>

@@ -632,6 +632,9 @@ Total: 727 routes.
 | GET | `/employer/jobs` | employer | Jobs this member may see: all for owners and viewers, assigned or own jobs for others |
 | GET | `/employer/jobs/new` | employer | Owners and hiring managers |
 | POST | `/employer/jobs` | employer | Owners and hiring managers |
+| GET | `/employer/jobs/import` | employer | Members who may create jobs (jobs.create); the bulk upload page |
+| GET | `/employer/jobs/import/template.csv` | employer | Members who may create jobs (jobs.create); the CSV template |
+| POST | `/employer/jobs/import` | employer | Members who may create jobs (jobs.create); same-origin, rate-limited, CSV up to 300 KB and 50 rows; checks every row, then creates drafts (and sends them for review when asked) under the usual job checks and plan limits |
 | GET | `/employer/jobs/:id/edit` | employer | Own company's jobs only; owners, or hiring managers on jobs assigned to them |
 | GET | `/employer/jobs/:id/preview` | employer | Own company's jobs only, for members who may see the job (404 otherwise); the public job page at any stage, with no apply form, sharing, reporting or similar jobs; noindex and not cached |
 | POST | `/employer/jobs/:id` | employer | Owners, or hiring managers on assigned jobs; a live job goes back for review |
