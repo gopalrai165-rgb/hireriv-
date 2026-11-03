@@ -47,6 +47,7 @@ const TYPES = {
   'interview-reminder': { category: 'interviews', label: 'Interview reminder' },
   'offer-received': { category: 'applications', label: 'Job offer' },
   'offer-deadline': { category: 'applications', label: 'Offer deadline' },
+  'offer-response': { category: 'applications', label: 'Candidate answered an offer' },
   'job-alert': { category: 'jobs', optional: true, label: 'Job alert' },
   'job-digest': { category: 'jobs', optional: true, label: 'Saved search summary' },
   'job-invite': { category: 'jobs', optional: true, label: 'Invitation to apply' },

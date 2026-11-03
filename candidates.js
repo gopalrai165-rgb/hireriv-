@@ -94,7 +94,7 @@ function passwordProblem(pw, confirm) {
 function register(app, deps) {
   const { db, mailer, baseUrl, sameOrigin, limit, readSubmissions, writeSubmissions, uploadsDir, getJobs, interviewIcs, site, contractsFor } = deps;
   const { upload, saveApplication, isBot, isSample, isLive, resumeNeeded, skillMatch, saveSubmission, jobCategories, jobLocations, vetUpload, downloadLinks, linkExpired } = deps;
-  const { jobTypes, modes, stateOf, interviewResponded, events, notify, push, recommendFor, privacy } = deps;
+  const { jobTypes, modes, stateOf, interviewResponded, offerResponded, events, notify, push, recommendFor, privacy } = deps;
   const track = (event, label, req) => { if (deps.analytics) deps.analytics.track(event, label, req); };
   const secureCookie = /^https:/.test(baseUrl);
 
@@ -724,7 +724,10 @@ function register(app, deps) {
         const job = jobs.find((j) => j.id === a.jobId);
         const stage = stageOf(a);
         const interviews = (a.interviews || []).filter((iv) => upcoming(iv, now)).sort((x, y) => x.at.localeCompare(y.at));
-        return { id: a.id, jobTitle: a.jobTitle, general: a.jobId === 'general', job: job && isLive(job) ? job : null, createdAt: a.createdAt, viewedAt: a.viewedAt || '', stage, stepIndex: STEPS.indexOf(stage), withdrawn: Boolean(a.withdrawnAt), closedOut: ['Hired', 'Rejected'].includes(a.status), hasResume: Boolean(a.resume), interviews };
+        // The latest approved offer (the company's own notes stay with them).
+        const o = a.withdrawnAt ? null : (a.offers || []).filter((x) => !x.withdrawnAt && x.approval && x.approval.status === 'approved').pop();
+        const offer = o ? { id: o.id, title: o.title || a.jobTitle, company: job ? job.company : '', salary: o.salary, joiningDate: o.joiningDate, respondBy: o.respondBy, status: o.response.status, answeredAt: o.response.at, byCandidate: Boolean(o.response.byCandidate) } : null;
+        return { offer, id: a.id, jobTitle: a.jobTitle, general: a.jobId === 'general', job: job && isLive(job) ? job : null, createdAt: a.createdAt, viewedAt: a.viewedAt || '', stage, stepIndex: STEPS.indexOf(stage), withdrawn: Boolean(a.withdrawnAt), closedOut: ['Hired', 'Rejected'].includes(a.status), hasResume: Boolean(a.resume), interviews };
       });
     const s = shell(email, 'dashboard');
     page(res, 'account', {
@@ -732,7 +735,22 @@ function register(app, deps) {
       msg: String(req.query.msg || ''), welcome: req.query.welcome === '1' && !s.candidate.passwordHash, contracts: contractsFor(email),
       matches: recommendFor(email, { limit: 6 }), alerts: readSubmissions('job-alerts').filter((x) => x.email === email), categories: jobCategories(), locations: jobLocations(),
       savedCount: savedOf(email).length, referrals: referralsOf(email),
+      openOffers: apps.filter((a) => a.offer && a.offer.status === 'awaiting'),
     });
+  });
+
+  // The candidate accepts or declines a job offer. The company is told; it
+  // still marks them Hired when they join.
+  app.post('/account/offers/:appId/:offerId/:answer', requireCandidate, limit('offer-answer', 20), sameOrigin, (req, res, next) => {
+    const answer = req.params.answer;
+    if (!['accept', 'decline'].includes(answer) || !offerResponded) return next();
+    const toAccount = (msg) => res.redirect(303, `/account?msg=${encodeURIComponent(msg)}#offers`);
+    const r = offerResponded(req.candidateEmail, req.params.appId, req.params.offerId, answer, String(req.body.note || '').trim().slice(0, 500));
+    if (r.error) return toAccount(`Not saved: ${r.error}.`);
+    activity(req.candidateEmail, `offer-${r.response}`, r.jobTitle);
+    toAccount(r.response === 'accepted'
+      ? `Congratulations! The company has been told you accept the offer for ${r.jobTitle}. They will confirm your joining details.`
+      : `Thanks for letting them know. The company has been told you decline the offer for ${r.jobTitle}.`);
   });
 
   // ---------- profile ----------

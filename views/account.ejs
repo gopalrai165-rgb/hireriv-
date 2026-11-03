@@ -58,6 +58,35 @@
       <% } %>
     </section>
 
+    <% if (openOffers.length) { %>
+    <section class="dash-card dash-wide offer-card" id="offers" aria-labelledby="offers-title">
+      <div class="dash-head"><h2 id="offers-title"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg> You have <%= openOffers.length === 1 ? 'a job offer' : openOffers.length + ' job offers' %></h2></div>
+      <% openOffers.forEach(function (a) { var o = a.offer; %>
+        <article class="offer-item">
+          <h3><%= o.title %><% if (o.company) { %> <span class="muted">at <%= o.company %></span><% } %></h3>
+          <dl class="offer-facts">
+            <% if (o.salary) { %><div><dt>Pay</dt><dd>₹<%= o.salary.amount.toLocaleString('en-IN') %> a <%= o.salary.period %></dd></div><% } %>
+            <div><dt>Joining date</dt><dd><%= o.joiningDate ? formatDate(o.joiningDate) : 'To be agreed' %></dd></div>
+            <% if (o.respondBy) { %><div><dt>Reply by</dt><dd><%= formatDate(o.respondBy) %></dd></div><% } %>
+          </dl>
+          <p class="small muted">Read the offer letter and ask the company anything first. A genuine employer never asks you to pay for an offer, joining, training or a uniform.</p>
+          <div class="offer-actions">
+            <form method="post" action="/account/offers/<%= a.id %>/<%= o.id %>/accept" data-confirm="Accept the offer for <%= o.title %>? The company will be told straight away.">
+              <button class="btn btn-primary" type="submit">Accept offer</button>
+            </form>
+            <details class="offer-decline">
+              <summary class="btn btn-outline">Decline</summary>
+              <form method="post" action="/account/offers/<%= a.id %>/<%= o.id %>/decline" class="form">
+                <label>Reason (optional, shared with the company)<textarea name="note" rows="2" maxlength="500" placeholder="For example: I accepted another offer"></textarea></label>
+                <button class="btn btn-outline btn-sm" type="submit">Decline the offer</button>
+              </form>
+            </details>
+          </div>
+        </article>
+      <% }) %>
+    </section>
+    <% } %>
+
     <section class="dash-card dash-wide app-list" id="applications">
       <div class="dash-head"><h2>Your applications</h2><a class="small" href="/jobs">Find more jobs</a></div>
       <% if (!apps.length) { %><p class="muted dash-empty">You haven&#39;t applied for a job yet. Applying is free and takes a minute.</p><p><a class="btn btn-primary btn-sm" href="/jobs">Find jobs</a></p><% } %>
@@ -76,6 +105,11 @@
             </ol>
           <% } else if (a.stage === 'Not selected') { %>
             <p class="small muted">The team went ahead with other candidates for this role. Your profile stays in our talent pool for future matches.</p>
+          <% } %>
+          <% if (a.offer && a.offer.status !== 'awaiting') { %>
+            <p class="my-offer small <%= a.offer.status === 'accepted' ? 'is-accepted' : 'is-declined' %>"><b>Offer <%= a.offer.status %></b><% if (a.offer.answeredAt) { %> on <%= formatDate(a.offer.answeredAt) %><% } %><% if (a.offer.status === 'accepted') { %> · Joining <%= a.offer.joiningDate ? formatDate(a.offer.joiningDate) : 'date to be agreed' %><% } %></p>
+          <% } else if (a.offer) { %>
+            <p class="my-offer small"><a href="#offers"><b>Job offer waiting for your answer</b></a></p>
           <% } %>
           <% a.interviews.forEach(function (iv) { %>
             <div class="my-iv">

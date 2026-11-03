@@ -135,7 +135,7 @@
               </div>
               <% if (o.notes) { %><p class="small"><%= o.notes %></p><% } %>
               <% if (o.approval.by) { %><p class="muted small"><%= o.approval.status === 'approved' ? 'Approved' : 'Not approved' %> by <%= o.approval.by %> on <%= formatDate(o.approval.at) %><%= o.approval.note ? ': ' + o.approval.note : '' %></p><% } %>
-              <% if (o.response.recordedBy) { %><p class="muted small">Candidate's answer recorded by <%= o.response.recordedBy %> on <%= formatDate(o.response.at) %><%= o.response.note ? ': ' + o.response.note : '' %></p><% } %>
+              <% if (o.response.byCandidate) { %><p class="muted small">The candidate <%= o.response.status %> in their <%= site.name %> account on <%= formatDate(o.response.at) %><%= o.response.note ? ': ' + o.response.note : '' %></p><% } else if (o.response.recordedBy) { %><p class="muted small">Candidate's answer recorded by <%= o.response.recordedBy %> on <%= formatDate(o.response.at) %><%= o.response.note ? ': ' + o.response.note : '' %></p><% } %>
               <% if (!o.withdrawnAt) { %>
                 <div class="row-actions">
                   <% if (o.approval.status === 'pending' && can('offers.approve', job)) { %>

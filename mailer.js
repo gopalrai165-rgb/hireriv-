@@ -597,7 +597,8 @@ function createMailer(site) {
         heading: 'Your offer is waiting for your answer',
         html:
           p(`Hi ${first(a.name)}, <b>${esc(company)}</b> asked for your answer to their offer for <b>${esc(a.jobTitle)}</b> by <b>${esc(offer.respondBy)}</b>.`) +
-          p('Tell the company whether you accept, or ask them for more time if you need it.') +
+          p('Accept or decline in your account, or ask the company for more time if you need it.') +
+          button(`${baseUrl}/account#offers`, 'Answer the offer') +
           p(`<span style="color:#6b7690;font-size:13px">A genuine employer never asks you to pay for an offer, joining, training or a uniform. If anyone does, report it to ${esc(site.email)}.</span>`),
       });
     },
@@ -658,7 +659,8 @@ function createMailer(site) {
         html:
           p(`<b>${esc(company)}</b> would like to offer you the role of <b>${esc(a.jobTitle)}</b>.`) +
           detailsTable([['Joining date', offer.joiningDate || 'To be agreed'], ['Respond by', offer.respondBy || '']]) +
-          p('The company will share the offer letter and talk you through it. Tell them whether you accept, and ask them anything you need to know first.') +
+          p('The company will share the offer letter and talk you through it. Ask them anything you need to know first, then accept or decline in your account.') +
+          button(`${baseUrl}/account#offers`, 'Answer the offer') +
           p(`<span style="color:#6b7690;font-size:13px">A genuine employer never asks you to pay for an offer, joining, training or a uniform. If anyone does, report it to ${esc(site.email)}.</span>`),
       });
     },

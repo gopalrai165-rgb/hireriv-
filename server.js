@@ -2457,7 +2457,7 @@ const candidateAccounts = candidates.register(app, {
   contractsFor: (email) => timesheets.forCandidate(email),
   upload, saveApplication, isBot, isSample, isLive, resumeNeeded, skillMatch, saveSubmission, jobCategories, jobLocations,
   vetUpload: resumeCheck.vet, downloadLinks, linkExpired, jobTypes: JOB_TYPES, modes, stateOf: search.stateOf,
-  interviewResponded: (...args) => atsDesk.interviewResponded(...args), events, notify,
+  interviewResponded: (...args) => atsDesk.interviewResponded(...args), offerResponded: (...args) => atsDesk.offerAnsweredByCandidate(...args), events, notify,
   recommendFor: (...args) => recommendations.recommend(...args), analytics: siteAnalytics, push, privacy,
   audit: (...args) => trustDesk.record(...args),
 });

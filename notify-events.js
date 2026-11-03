@@ -197,6 +197,19 @@ function create(deps) {
       if (!who || iv.status !== 'scheduled' || (iv.feedback || []).length) return null;
       return { who, subject: `Interview feedback due for ${job ? job.title : a.jobTitle}`, heading: 'Please add your interview feedback', intro: `the interview with ${first(a.name)} on ${when(iv)} has no scorecard yet. A quick rating helps decide the next step.`, rows: [], link: applicantLink(who, a, 'interviews'), label: 'Add feedback', why: 'interview feedback that is due' };
     },
+    'offer-response'(refs, to) {
+      const a = appById(refs.applicationId);
+      const job = a && jobById(a.jobId);
+      const o = a && ats.findOffer(a, refs.offerId);
+      const who = o && !o.withdrawnAt && ['accepted', 'declined'].includes(o.response.status) && person(to, job, 'offers.respond');
+      if (!who) return null;
+      const accepted = o.response.status === 'accepted';
+      return {
+        who, subject: `${first(a.name)} ${accepted ? 'accepted' : 'declined'} your offer for ${job.title}`, heading: accepted ? 'Your offer was accepted' : 'Your offer was declined',
+        intro: accepted ? `${first(a.name)} accepted your offer for ${job.title}. Confirm the joining details with them, then mark them Hired when they join.` : `${first(a.name)} declined your offer for ${job.title}.`,
+        rows: [['Joining date', o.joiningDate || ''], ['Their note', o.response.note || '']], link: applicantLink(who, a), label: 'Open the applicant', why: 'answers to your job offers',
+      };
+    },
     'hiring-milestone'(refs, to) {
       const a = appById(refs.applicationId);
       const job = a && jobById(a.jobId);
@@ -390,7 +403,20 @@ function create(deps) {
     });
   }
   function offerApproved(a, o) {
-    emit({ key: `offer-made:${o.id}`, type: 'offer-received', to: [candidate(a)], inApp: { title: `Job offer: ${a.jobTitle}`, body: o.respondBy ? `Please reply by ${o.respondBy}.` : 'The company will share the details with you.', link: '/account#applications' }, email: { template: 'offer-made', refs: { applicationId: a.id, offerId: o.id } } });
+    emit({ key: `offer-made:${o.id}`, type: 'offer-received', to: [candidate(a)], inApp: { title: `Job offer: ${a.jobTitle}`, body: o.respondBy ? `Please reply by ${o.respondBy}.` : 'The company will share the details with you.', link: '/account#offers' }, email: { template: 'offer-made', refs: { applicationId: a.id, offerId: o.id } } });
+  }
+  // The candidate accepted or declined an offer from their account: the people
+  // who record offer answers hear about it (the team inbox for desk jobs).
+  function offerAnsweredByCandidate(a, o) {
+    const job = jobById(a.jobId);
+    if (!job) return;
+    const accepted = o.response.status === 'accepted';
+    const to = selfManaged(job) ? jobPeople(job, 'offers.respond') : [{ kind: 'inbox' }, ...[teamOwner(a)].filter(Boolean).map((r) => ({ ...r, mail: false }))];
+    emit({
+      key: `offer-answer:${o.id}`, type: 'offer-response', to,
+      inApp: (r) => ({ title: `Offer ${accepted ? 'accepted' : 'declined'}: ${job.title}`, body: `${first(a.name)} ${accepted ? 'accepted' : 'declined'} your offer${o.response.note ? `: "${o.response.note.slice(0, 120)}"` : '.'}`, link: inAppApplicant(r, a), jobId: job.id, perm: 'applicants.view' }),
+      email: { template: 'notice', refs: { kind: 'offer-response', applicationId: a.id, offerId: o.id } },
+    });
   }
   function offerAnswered(a, job, o, byUserId) {
     if (o.response.status === 'accepted') milestone(a, job, 'offer-accepted', byUserId);
@@ -404,7 +430,7 @@ function create(deps) {
       for (const o of ats.liveOffers(a)) {
         if (o.approval.status !== 'approved' || o.response.status !== 'awaiting' || !o.respondBy || o.respondBy < today || o.respondBy > tomorrow) continue;
         const job = jobById(a.jobId);
-        n += emit({ key: `offer-deadline:${o.id}`, type: 'offer-deadline', to: [candidate(a)], inApp: { title: `Reply to your offer: ${a.jobTitle}`, body: `The company asked for your answer by ${o.respondBy}.`, link: '/account#applications' }, email: { template: 'offer-deadline', refs: { applicationId: a.id, offerId: o.id } } }).deliveries;
+        n += emit({ key: `offer-deadline:${o.id}`, type: 'offer-deadline', to: [candidate(a)], inApp: { title: `Reply to your offer: ${a.jobTitle}`, body: `The company asked for your answer by ${o.respondBy}.`, link: '/account#offers' }, email: { template: 'offer-deadline', refs: { applicationId: a.id, offerId: o.id } } }).deliveries;
         if (job) emit({ key: `offer-deadline:${o.id}`, type: 'offer-deadline', to: jobPeople(job, 'offers.respond').map((r) => ({ ...r, mail: false })), inApp: { title: `Offer answer due for ${job.title}`, body: `${first(a.name)} was asked to reply by ${o.respondBy}. Record their answer when you have it.`, link: `/employer/applicants/${a.id}`, jobId: job.id, perm: 'offers.respond' } });
       }
     }
@@ -602,7 +628,7 @@ function create(deps) {
 
   return {
     applicationSubmitted, newApplication, stageMoved, statusEmail, interviewBooked, interviewOptionsOffered, interviewRescheduled, interviewCancelled, interviewReminder, interviewAnswered,
-    feedbackDueScan, offerCreated, offerApproved, offerAnswered, offerDeadlineScan, assigned, jobDecision, jobExpired, jobClosingSoonScan, jobSubmitted, jobAlerts, jobDigest, jobInvite, contactUnlocked, applicationViewed, staffingRequest, hireRequestAssigned, hireOverdueScan, leadSummaryScan, leadSummaryNow, agencyAssigned,
+    feedbackDueScan, offerCreated, offerApproved, offerAnswered, offerAnsweredByCandidate, offerDeadlineScan, assigned, jobDecision, jobExpired, jobClosingSoonScan, jobSubmitted, jobAlerts, jobDigest, jobInvite, contactUnlocked, applicationViewed, staffingRequest, hireRequestAssigned, hireOverdueScan, leadSummaryScan, leadSummaryNow, agencyAssigned,
     accountSecurity, scan, JOB_ALERTS_PER_DAY,
   };
 }

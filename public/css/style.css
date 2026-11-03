@@ -2484,3 +2484,22 @@ td > a:only-child { display: inline-block; padding-block: 6px; min-width: 24px; 
 td > a:first-child:not(.btn) { display: inline-block; padding-block: 6px; min-width: 24px; }
 @media (max-width: 700px) { td > a:first-child:not(.btn) { min-height: 32px; padding-block: 8px; } }
 .kanban-card > a:first-child { display: inline-block; padding-block: 8px; }
+
+/* Job offers in the candidate's account (Step 158) */
+.offer-card { border: 2px solid #1f9d55; background: linear-gradient(180deg, #f1fbf5, #fff 60%); }
+.offer-card h2 .i { color: #1f9d55; }
+.offer-item + .offer-item { border-top: 1px solid var(--line); margin-top: 16px; padding-top: 16px; }
+.offer-item h3 { margin: 0 0 10px; font-size: 1.1rem; }
+.offer-facts { display: flex; flex-wrap: wrap; gap: 10px 28px; margin: 0 0 10px; }
+.offer-facts div { min-width: 120px; }
+.offer-facts dt { font-size: .8rem; color: var(--muted); }
+.offer-facts dd { margin: 2px 0 0; font-weight: 700; }
+.offer-actions { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 10px; margin-top: 12px; }
+.offer-actions form { margin: 0; }
+.offer-decline summary { list-style: none; cursor: pointer; }
+.offer-decline summary::-webkit-details-marker { display: none; }
+.offer-decline[open] { flex: 1 1 100%; }
+.offer-decline form { margin-top: 10px; display: grid; gap: 8px; max-width: 520px; }
+.my-offer { margin: 8px 0 0; padding: 8px 12px; border-radius: 10px; background: #f1fbf5; }
+.my-offer.is-declined { background: #f6f7f9; }
+@media (max-width: 600px) { .offer-actions > form, .offer-actions > form .btn, .offer-decline summary { width: 100%; } .offer-actions > details { flex: 1 1 100%; } }

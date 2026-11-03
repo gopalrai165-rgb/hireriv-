@@ -213,6 +213,27 @@ function register(app, deps) {
     toApplicant(res, req.application, r.error ? `Not changed: ${r.error}.` : done);
   });
 
+  // ---------- the candidate answered an offer from their account (candidates.js) ----------
+  // Only their own application and an approved offer still waiting for an answer.
+  // The stage stays at Offer: the company marks them Hired when they join.
+  function offerAnsweredByCandidate(email, appId, offerId, answer, note) {
+    const list = readSubmissions('applications');
+    const a = list.find((x) => x.id === appId && String(x.email || '').toLowerCase() === email && !x.withdrawnAt && !x.duplicateOf);
+    const o = a && ats.findOffer(a, offerId);
+    if (!o || o.withdrawnAt || o.approval.status !== 'approved') return { error: 'this offer is no longer open' };
+    const response = answer === 'accept' ? 'accepted' : 'declined';
+    const problem = ats.recordResponse(o, { name: `${a.name} (candidate)` }, response, note);
+    if (problem) return { error: problem.replace(/^the candidate already/, 'you already') };
+    o.response.byCandidate = true;
+    const job = getJobs().find((j) => j.id === a.jobId);
+    db.transaction(() => {
+      writeSubmissions('applications', list);
+      events.offerAnsweredByCandidate(a, o);
+    });
+    if (job && hiring.selfManaged(job)) team.audit(job.employerId, null, `offer-${response}`, `${a.name} (${job.title}) by the candidate`);
+    return { response, jobTitle: a.jobTitle };
+  }
+
   // ---------- the candidate answered an interview invite (from candidates.js) ----------
   function interviewResponded(a, iv, confirmed) {
     const job = getJobs().find((j) => j.id === a.jobId);
@@ -295,7 +316,7 @@ function register(app, deps) {
     res.json({ ok: true, period: days ? `last ${days} days` : 'all time', definitions: DEFINITIONS, metrics: metricsFor(req, days) });
   });
 
-  return { interviewResponded, RECOMMENDATIONS };
+  return { interviewResponded, offerAnsweredByCandidate, RECOMMENDATIONS };
 }
 
 // Shown with the metrics so every number means the same thing.
