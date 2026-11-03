@@ -2299,3 +2299,51 @@ p, li, dd { text-wrap: pretty; }
   .cat-count { grid-column: 2; font-size: .72rem; }
   .section-head.row .btn-outline { padding: .45em 1em; }
 }
+
+/* Cards, banners and photos (Step 138) */
+/* The service links under the employer band sit on a light background. */
+.employer-desks { color: var(--muted); }
+.employer-desks a { color: var(--primary-600); text-decoration: none; font-weight: 600; }
+.employer-desks a:hover { text-decoration: underline; }
+/* Homepage service cards lead with a photo. */
+.employer-card { position: relative; overflow: hidden; }
+.employer-photo { position: relative; height: 150px; margin: -22px -22px 0; overflow: hidden; background: var(--primary-50); }
+.employer-photo img { width: 100%; height: 100%; object-fit: cover; object-position: center 18%; transition: transform .8s ease; }
+.employer-photo::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(13, 30, 58, 0) 50%, rgba(13, 30, 58, .32)); }
+.employer-card:hover .employer-photo img { transform: scale(1.06); }
+.employer-photo + .service-icon { position: relative; z-index: 1; margin: -24px 0 12px; border: 4px solid #fff; background: #fff; box-shadow: var(--shadow); }
+/* Why choose us: cards in a row line up and share a height. */
+.why-grid { align-items: stretch; }
+.why-item { transition: border-color .2s, box-shadow .2s, transform .2s; }
+.why-item:hover { border-color: rgba(40, 120, 212, .35); box-shadow: 0 12px 26px rgba(19, 37, 63, .08); transform: translateY(-2px); }
+/* Job cards: "Not interested" and "View & apply" on one line. */
+.job-card-actions .card-link { padding-top: 0; }
+/* Homepage categories on wide screens: the two groups on top, then five per row with no gaps. */
+@media (min-width: 961px) {
+  .page-home .cat-grid { grid-template-columns: repeat(10, 1fr); }
+  .page-home .cat-tile { grid-column: span 2; flex-direction: column; align-items: flex-start; gap: 10px; padding: 18px; }
+  .page-home .cat-tile-wide { grid-column: span 5; flex-direction: row; align-items: center; gap: 14px; }
+  .page-home .cat-tile:not(.cat-tile-wide) .cat-body .small { display: none; }
+}
+/* Employer enquiry: what happens after sending. */
+.next-steps { list-style: none; counter-reset: step; padding: 0; margin: 26px 0 0; display: grid; gap: 14px; }
+.next-steps li { counter-increment: step; position: relative; display: grid; gap: 2px; padding: 14px 16px 14px 60px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: #fff; }
+.next-steps li::before { content: counter(step); position: absolute; left: 16px; top: 14px; display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; background: var(--primary-50); color: var(--primary); font-weight: 800; }
+.next-steps b { color: var(--ink); }
+.next-steps span { font-size: .92rem; color: var(--muted); }
+/* Photos: no layout jump while loading, a soft tint behind them. */
+.photo-arch img, .card-photo img, .employer-photo img { display: block; }
+.card-photo, .photo-arch { background: var(--primary-50); }
+@media (max-width: 600px) {
+  .employer-photo { height: 130px; }
+  .next-steps li { padding: 12px 14px 12px 54px; }
+  .next-steps li::before { left: 14px; top: 12px; }
+}
+@media (max-width: 520px) {
+  .employer-card:has(.employer-photo) { display: grid; grid-template-columns: 104px 1fr; column-gap: 14px; padding: 0; }
+  .employer-card .employer-photo { grid-column: 1; grid-row: 1 / span 2; margin: 0; height: 100%; min-height: 112px; }
+  .employer-card .employer-photo + .service-icon { display: none; }
+  .employer-card:has(.employer-photo) h3 { grid-column: 2; margin: 14px 14px 4px 0; font-size: 1rem; }
+  .employer-card:has(.employer-photo) p { grid-column: 2; margin: 0 14px 14px 0; font-size: .86rem; }
+  .employer-grid-4 { gap: 10px; }
+}

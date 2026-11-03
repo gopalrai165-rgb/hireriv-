@@ -119,3 +119,18 @@ test('the homepage enquiry form reaches the team as a hiring request from the ho
   const req = srv.records('hire-requests').find((r) => r.company === 'Nova Foods');
   assert.equal(req.fromPage, 'homepage');
 });
+
+test('service cards lead with a photo, the enquiry says what happens next, and the service links are readable', async () => {
+  const home = await page('/');
+  for (const photo of ['svc-executive-search', 'svc-permanent-staffing', 'svc-bulk-rpo-hiring', 'svc-contract-staffing']) {
+    assert.match(home, new RegExp(`<figure class="employer-photo"><img src="/img/photos/${photo}\.webp" alt="" width="900" height="1000" loading="lazy" decoding="async"></figure>`), photo);
+    assert.equal((await srv.request(`/img/photos/${photo}.webp`)).status, 200, photo);
+  }
+  assert.match(home, /<ol class="next-steps">/);
+  for (const step of ['A recruiter calls you back', 'You get a quote', 'You receive a shortlist']) assert.match(home, new RegExp(`<b>${step}</b>`), step);
+  assert.match(home, /<a href="\/service-terms">service terms<\/a>/);
+  const css = await page('/css/style.css');
+  assert.match(css, /\.employer-desks \{ color: var\(--muted\); \}/, 'the links under the services band are not white on a light background');
+  assert.match(css, /\.why-grid \{ align-items: stretch; \}/);
+  assert.match(css, /\.page-home \.cat-grid \{ grid-template-columns: repeat\(10, 1fr\); \}/);
+});

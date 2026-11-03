@@ -150,6 +150,7 @@
     <div class="employer-grid employer-grid-4">
       <% homeServices.forEach(function (c) { %>
         <a class="employer-card" href="<%= c.href %>">
+          <figure class="employer-photo"><img src="/img/photos/<%= c.photo %>.webp" alt="" width="900" height="1000" loading="lazy" decoding="async"></figure>
           <span class="service-icon"><svg class="i"><use href="#<%= c.icon %>"/></svg></span>
           <h3><%= c.name %></h3>
           <p><%= c.text %></p>
@@ -217,6 +218,11 @@
       <span class="eyebrow">Employer enquiry</span>
       <h2 id="enquiry-title">Need staff? Tell us in a minute</h2>
       <p>Share the basics and a recruiter will call you back within one working day. For a job description, budget and more details, use the <a href="/hire#requirement">full hiring form</a>.</p>
+      <ol class="next-steps">
+        <li><b>A recruiter calls you back</b><span>Within one working day, to understand the roles, pay and location.</span></li>
+        <li><b>You get a quote</b><span>The fee and the replacement terms are agreed before any work starts. See the <a href="/service-terms">service terms</a>.</span></li>
+        <li><b>You receive a shortlist</b><span>Screened candidates with notes, and we arrange the interviews.</span></li>
+      </ol>
       <% if (realContact(site).whatsapp) { %><p><a class="btn btn-whatsapp" href="https://wa.me/<%= site.whatsapp %>?text=<%= encodeURIComponent('Hi ' + site.name + ', I would like to hire staff.') %>" rel="noopener"><svg class="i" aria-hidden="true"><use href="#i-phone"/></svg> WhatsApp us</a></p><% } %>
     </div>
     <div class="form-card">

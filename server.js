@@ -875,7 +875,7 @@ app.get('/', (req, res) => {
 });
 
 // The four services the homepage leads with, for employers.
-const HOME_SERVICES = catalog.PRIORITY_SERVICES.map((s) => ({ name: { 'bulk-rpo-hiring': 'Bulk Hiring', 'contract-staffing': 'Contract Staffing' }[s.slug] || s.name, icon: s.icon, href: `/services/${s.slug}`, text: s.card }));
+const HOME_SERVICES = catalog.PRIORITY_SERVICES.map((s) => ({ name: { 'bulk-rpo-hiring': 'Bulk Hiring', 'contract-staffing': 'Contract Staffing' }[s.slug] || s.name, icon: s.icon, href: `/services/${s.slug}`, text: s.card, photo: s.photo || `svc-${s.slug}` }));
 const groupCounts = (list) => JOB_GROUPS.map((g) => ({ ...g, count: list.filter((j) => inGroup(g, j)).length }));
 // The homepage's quick ways in: common roles (each a keyword search, named in
 // the page's language under "roles") and the cities with the most live jobs.
