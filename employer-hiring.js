@@ -288,6 +288,23 @@ function register(app, deps) {
     next();
   };
 
+  // Every draft this member may edit, sent for review in one go (after a CSV
+  // upload, say). Each goes through the usual checks; the first problem that
+  // stops one (the plan's job limit, the waiting limit, something missing) is
+  // reported and the rest stay drafts.
+  app.post('/employer/jobs/submit-drafts', requireEmployer, limit('employer-jobs', 30), sameOrigin, (req, res) => {
+    const drafts = visibleJobs(req.member).filter((j) => j.status === 'draft' && selfManaged(j) && can(req.member, 'job.edit', j));
+    if (!drafts.length) return toJobs(res, 'There are no drafts to send.');
+    let sent = 0; const problems = [];
+    for (const j of drafts) {
+      const r = submitJob(req, j);
+      if (r.errors.length) problems.push(`"${j.title}": ${r.errors[0]}`);
+      else sent++;
+    }
+    const left = drafts.length - sent;
+    toJobs(res, `${sent} draft${sent === 1 ? '' : 's'} sent to the ${site.name} team for review.${left ? ` ${left} still a draft: ${problems.slice(0, 2).join('; ')}${problems.length > 2 ? '…' : ''}.` : ''}`);
+  });
+
   // Keep a job open 30 more days: only the closing date moves (from today or
   // the current closing date, whichever is later), so it stays live and is
   // not checked again. Live and paused jobs with a closing date only.

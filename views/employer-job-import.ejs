@@ -15,7 +15,8 @@
               <span>Row <%= d.line %>: <% if (d.id) { %><a href="/employer/jobs/<%= d.id %>/edit"><%= d.title %></a><% } else { %><%= d.title || '(no title)' %><% } %><% if (d.note) { %> <span class="muted small">· <%= d.note %></span><% } %></span></li>
           <% }) %>
         </ul>
-        <p><a class="btn btn-primary btn-sm" href="/employer/jobs">See your jobs</a> <a class="btn btn-outline btn-sm" href="/employer/jobs/import">Upload another file</a></p>
+        <% if (!sendNow && made.length) { %><form method="post" action="/employer/jobs/submit-drafts" class="inline-form"><button class="btn btn-primary btn-sm" type="submit">Send all drafts for review now</button></form><% } %>
+        <p><a class="btn <%= sendNow ? 'btn-primary' : 'btn-outline' %> btn-sm" href="/employer/jobs">See your jobs</a> <a class="btn btn-outline btn-sm" href="/employer/jobs/import">Upload another file</a></p>
       </section>
     <% } else { %>
 

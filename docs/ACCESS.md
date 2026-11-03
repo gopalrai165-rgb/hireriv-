@@ -637,6 +637,7 @@ Total: 727 routes.
 | GET | `/employer/jobs` | employer | Jobs this member may see: all for owners and viewers, assigned or own jobs for others |
 | GET | `/employer/jobs/new` | employer | Owners and hiring managers |
 | POST | `/employer/jobs` | employer | Owners and hiring managers |
+| POST | `/employer/jobs/submit-drafts` | employer | Same-origin, rate-limited; every draft the member may edit (job.edit) is sent for review with the usual checks and limits |
 | POST | `/employer/jobs/:id/extend` | employer | Company members who may edit that job (job.edit; 404 for another company's job); live or paused jobs with a closing date: moves it 30 days on, without another review |
 | GET | `/employer/jobs/import` | employer | Members who may create jobs (jobs.create); the bulk upload page |
 | GET | `/employer/jobs/import/template.csv` | employer | Members who may create jobs (jobs.create); the CSV template |

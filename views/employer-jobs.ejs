@@ -9,7 +9,7 @@
         <a class="chip<%= !status ? ' is-active' : '' %>" href="/employer/jobs">All</a>
         <% Object.keys(labels).forEach(function (s) { %><a class="chip<%= status === s ? ' is-active' : '' %>" href="/employer/jobs?status=<%= s %>"><%= labels[s] %> (<%= counts[s] %>)</a><% }) %>
       </nav>
-      <% if (can('jobs.create')) { %><span class="btn-pair"><a class="btn btn-outline btn-sm" href="/employer/jobs/import">Upload many (CSV)</a> <a class="btn btn-primary btn-sm" href="/employer/jobs/new">+ Post a job</a></span><% } %>
+      <% if (can('jobs.create')) { %><span class="btn-pair"><% if (counts.draft && can('jobs.create')) { %><form method="post" action="/employer/jobs/submit-drafts" data-confirm="Send all <%= counts.draft %> draft<%= counts.draft === 1 ? '' : 's' %> to the <%= site.name %> team for review?"><button class="btn btn-outline btn-sm" type="submit">Send all <%= counts.draft %> draft<%= counts.draft === 1 ? '' : 's' %> for review</button></form><% } %> <a class="btn btn-outline btn-sm" href="/employer/jobs/import">Upload many (CSV)</a> <a class="btn btn-primary btn-sm" href="/employer/jobs/new">+ Post a job</a></span><% } %>
     </div>
 
     <% if (!rows.length) { %>
