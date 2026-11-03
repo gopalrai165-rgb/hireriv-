@@ -2456,6 +2456,7 @@ setInterval(pruneNotifications, 24 * 3600000).unref();
 const scanEvents = ops.track('scheduled-reminders', () => {
   events.scan(todayIst);
   try { events.hireOverdueScan(hireOverdue); } catch (e) { console.error('Enquiry reminders failed:', e.message); }
+  try { events.leadSummaryScan(hireOverdue); } catch (e) { console.error('Weekly enquiry summary failed:', e.message); }
 }, 60 * 60 * 1000);
 setTimeout(scanEvents, 60 * 1000).unref();
 setInterval(scanEvents, 60 * 60 * 1000).unref();
