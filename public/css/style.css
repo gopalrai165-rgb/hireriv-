@@ -2503,3 +2503,6 @@ td > a:first-child:not(.btn) { display: inline-block; padding-block: 6px; min-wi
 .my-offer { margin: 8px 0 0; padding: 8px 12px; border-radius: 10px; background: #f1fbf5; }
 .my-offer.is-declined { background: #f6f7f9; }
 @media (max-width: 600px) { .offer-actions > form, .offer-actions > form .btn, .offer-decline summary { width: 100%; } .offer-actions > details { flex: 1 1 100%; } }
+
+/* Applied-job titles in the account are easy to tap on phones */
+.my-app h3 a { display: inline-block; padding: 6px 0; }
