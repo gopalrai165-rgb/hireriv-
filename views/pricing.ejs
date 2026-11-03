@@ -1,0 +1,82 @@
+<%- include('partials/head') %>
+
+<section class="page-hero">
+  <div class="container">
+    <nav class="breadcrumbs small" aria-label="Breadcrumb"><a href="/">Home</a> › <a href="/employers">For employers</a> › <span aria-current="page">Pricing</span></nav>
+    <span class="eyebrow">Pricing</span>
+    <h1>Pricing for employers</h1>
+    <p class="lead">Post jobs yourself on a plan, or have our recruiters hire for you for a fee agreed before any work starts. Job seekers never pay anything.</p>
+    <div class="hero-ctas">
+      <a class="btn btn-primary btn-lg" href="/employer/register">Create an employer account</a>
+      <a class="btn btn-outline btn-lg" href="/employers#enquiry">Request a quote</a>
+    </div>
+  </div>
+</section>
+
+<section class="section" aria-labelledby="plans-h">
+  <div class="container">
+    <div class="section-head">
+      <h2 id="plans-h">Post jobs yourself</h2>
+      <p>Post jobs, receive applications, get calls from applicants, and contact job seekers who agreed to be found.</p>
+    </div>
+    <% if (plans.length) { %>
+      <div class="plan-grid pricing-plans">
+        <% plans.forEach(function (p) { %>
+          <article class="plan-card">
+            <h3><%= p.name %></h3>
+            <p class="plan-price"><%= p.custom ? 'Custom quote' : p.price.amountPaise === 0 ? 'Free' : p.price.display %><% if (!p.custom && p.price.amountPaise > 0) { %><span class="muted small"> / <%= p.interval === 'year' ? 'year' : 'month' %> + GST</span><% } %></p>
+            <p class="muted small"><%= p.summary %></p>
+            <ul class="small"><% p.features.forEach(function (f) { %><li><%= f %></li><% }) %></ul>
+            <% if (p.custom) { %><a class="btn btn-outline btn-sm" href="/employers#enquiry">Ask for a quote</a>
+            <% } else if (p.price.amountPaise === 0) { %><a class="btn btn-primary btn-sm" href="/employer/register">Start free</a>
+            <% } else { %><a class="btn btn-outline btn-sm" href="/employer/billing#plans">Choose <%= p.name %></a><% } %>
+          </article>
+        <% }) %>
+      </div>
+      <% if (creditPacks.length) { %>
+        <h3 class="sub-head">Contact credits</h3>
+        <p class="muted small">After your plan's free contacts each month, seeing a job seeker's mobile number uses one credit. Only job seekers who agreed to be contacted can be unlocked. Credits never expire.</p>
+        <div class="plan-grid">
+          <% creditPacks.forEach(function (p) { %><article class="plan-card"><h3><%= p.name %></h3><p class="plan-price"><%= p.price.display %> <span class="muted small">+ GST, one time</span></p><p class="muted small"><%= p.summary %></p></article><% }) %>
+        </div>
+      <% } %>
+      <p class="small muted">Prices exclude GST<%= terms.gstPercent ? ' (' + terms.gstPercent + '%)' : '' %>. Plans are paid online from your employer account; a paid plan renews each period from a reminder, never charged automatically.</p>
+    <% } else { %>
+      <div class="dash-card">
+        <p>Create a free employer account to see the current plans and post your first job. Every job is checked by our team before it goes live.</p>
+        <p><a class="btn btn-primary btn-sm" href="/employer/register">Create an employer account</a> <a class="btn btn-outline btn-sm" href="/employers#enquiry">Ask us about plans</a></p>
+      </div>
+    <% } %>
+  </div>
+</section>
+
+<section class="section section-tint" aria-labelledby="fees-h">
+  <div class="container">
+    <div class="section-head">
+      <h2 id="fees-h">Let our recruiters hire for you</h2>
+      <p>We source, call and screen candidates and arrange the interviews. You get a written quote before any work starts.</p>
+    </div>
+    <% const priced = pricedServices.some(function (p) { return priceOf(site, p.slug); }); %>
+    <div class="table-wrap guide-table">
+      <table>
+        <thead><tr><th>Service</th><th>How you pay</th><% if (priced) { %><th>Starting from</th><% } %></tr></thead>
+        <tbody><% pricedServices.forEach(function (p) { %><tr><td><a href="/services/<%= p.slug %>"><%= p.name %></a></td><td><%= p.how %></td><% if (priced) { %><td><%= priceOf(site, p.slug) || 'On request' %></td><% } %></tr><% }) %></tbody>
+      </table>
+    </div>
+    <ul class="checks pricing-terms">
+      <% if (terms.guaranteeDays) { %><li>For permanent recruitment, if the person we placed leaves within <%= terms.guaranteeDays %> days of joining, we find a replacement at no extra fee (see the <a href="/service-terms#replacement">replacement policy</a>).</li><% } %>
+      <% if (terms.paymentDays) { %><li>Invoices are due within <%= terms.paymentDays %> days.</li><% } %>
+      <li>Refunds and cancellation: <a href="/service-terms#refunds">service terms</a>.</li>
+    </ul>
+    <p><a class="btn btn-primary" href="/employers#enquiry">Request a quote</a></p>
+  </div>
+</section>
+
+<section class="section" aria-labelledby="free-h">
+  <div class="container">
+    <h2 id="free-h" class="sub-head">Always free for job seekers</h2>
+    <p>Registering, applying, job alerts and getting hired are free. No employer or recruiter on <%= site.name %> may ask a job seeker for money; listings that do are removed (<a href="/job-posting-policy">job posting policy</a>).</p>
+  </div>
+</section>
+
+<%- include('partials/foot') %>

@@ -795,10 +795,36 @@ function register(app, deps) {
     if (!Number.isInteger(grace) || grace < 0 || grace > 30) errors.push('Grace period must be 0–30 days');
     if (!days.length || days.length > 5 || days.some((d) => !Number.isInteger(d) || d < 1 || d > 30)) errors.push('Reminders: up to 5 numbers of days from 1 to 30, e.g. 7, 3, 1');
     if (errors.length) return desk(req, res, { view: 'settings', errors }, 400);
-    store.saveSettings({ graceDays: grace, reminderDays: days });
+    store.saveSettings({ ...store.settings(), graceDays: grace, reminderDays: days });
     trust.record(req.admin, 'billing-settings-changed', { entityType: 'policy', reason: 'renewal settings', detail: `grace ${grace} days, reminders ${days.join(', ')}` });
     toDesk(res, 'settings', 'Saved');
   });
+  // Whether the self-service plans appear on the public pricing page. Off until
+  // the team has checked the plans and prices (Admin, Plans & payments, Plans).
+  app.post('/admin/billing/public-plans', adminAuth, gate('plans.manage'), sameOrigin, (req, res) => {
+    const on = req.body.publicPlans === '1';
+    store.saveSettings({ ...store.settings(), publicPlans: on });
+    trust.record(req.admin, 'billing-settings-changed', { entityType: 'policy', reason: 'public pricing page', detail: on ? 'plans shown on /pricing' : 'plans hidden from /pricing' });
+    toDesk(res, 'settings', on ? 'The plans now show on the public pricing page' : 'The plans no longer show on the public pricing page');
+  });
+
+  // The public pricing page: self-service plans (when the team has chosen to
+  // show them), recruitment fees (starting prices from Settings, when set), and
+  // the terms. Job seekers never pay, and the page says so.
+  app.get('/pricing', (req, res) => {
+    const active = store.plans().filter((p) => p.active);
+    const show = Boolean(store.settings().publicPlans);
+    const b = billingOf(site);
+    res.render('pricing', {
+      title: 'Pricing for employers: plans and recruitment fees', page: 'employers', showPlans: show,
+      plans: show ? active.filter((p) => p.kind === 'subscription').map(store.publicPlan) : [],
+      creditPacks: show ? active.filter((p) => p.kind === 'package' && p.credits > 0).map(store.publicPlan) : [],
+      terms: { gstPercent: b.gstPercent, guaranteeDays: b.guaranteeDays, paymentDays: b.paymentDays },
+      metaDescription: `What hiring with ${site.name} costs: ${show ? 'self-service plans for posting jobs and contacting candidates, and ' : ''}recruitment fees for permanent, contract, bulk and executive hiring. Job seekers never pay.`,
+      canonical: `${baseUrl}/pricing`,
+    });
+  });
+
   // A company's plan set by the team: an agreed Enterprise quote, or a correction.
   // The company comes from the form (the desk) or the address (scripts).
   const setPlan = (req, res, next) => {

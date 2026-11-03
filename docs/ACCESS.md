@@ -388,6 +388,8 @@ Total: 727 routes.
 | GET | `/jobs/industry/:slug` | public | Landing page for job seekers by industry (catalog.js); 404 for unknown industries |
 | GET | `/jobs/in/:city` | public | City job pages (geo.js); a city without real live jobs is noindex and left out of the sitemap |
 | GET | `/hire/:role` | public | "Hire <role>" employer pages (Step 142): pay and open jobs from real listings, job seekers who asked to be found (shown from 10), what to post, the enquiry form |
+| GET | `/pricing` | public | Pricing for employers (Step 144): plans only when Admin, Plans & payments, Settings has "Show on the public pricing page" on; recruitment starting prices only when set |
+| POST | `/admin/billing/public-plans` | team | plans.manage (Admins); same-origin; shows or hides the plans on /pricing (recorded in the audit history) |
 | GET | `/jobs/states` | public | Jobs by state: every state with its cities and open jobs (Step 140) |
 | GET | `/jobs/state/:state` | public | One state's open jobs across its cities, with each city's count and a state job alert; noindex and out of the sitemap without real live jobs |
 | GET | `/jobs/in/:city/:area` | public | Area job pages (areas.js, geo.js areaOf); an area without real live jobs is noindex and left out of the sitemap |

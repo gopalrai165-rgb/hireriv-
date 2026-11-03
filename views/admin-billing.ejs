@@ -255,6 +255,14 @@
         </form>
         <p class="muted small">Renewals are paid each period from the reminder; automatic charging (mandates) is not switched on. During the grace period the company keeps its plan; after it, the company moves to the free plan and keeps everything already live.</p>
       </section>
+      <section class="dash-card narrow-card" id="public-plans">
+        <div class="dash-head"><h2>Public pricing page</h2><a class="small" href="/pricing">Open /pricing</a></div>
+        <form class="form" method="post" action="/admin/billing/public-plans">
+          <label class="check-row"><input type="checkbox" name="publicPlans" value="1"<%= settings.publicPlans ? ' checked' : '' %><%= can('plans.manage') ? '' : ' disabled' %>> <span>Show the active plans and contact credit packs, with their prices, on the public pricing page</span></label>
+          <% if (can('plans.manage')) { %><button class="btn btn-primary btn-sm" type="submit">Save</button><% } %>
+        </form>
+        <p class="muted small">Check the plans and prices first. Recruitment starting prices are set separately in Admin, Settings, and show only once typed in.</p>
+      </section>
     <% } %>
   </div>
 </section>

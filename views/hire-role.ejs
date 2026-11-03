@@ -59,7 +59,7 @@
           <a class="btn btn-outline btn-sm" href="#enquiry">Request a callback</a>
         </div>
       </div>
-      <p class="small">Fees and terms: <a href="/employers#price-h">pricing</a> and <a href="/service-terms">service terms</a>.</p>
+      <p class="small">Fees and terms: <a href="/pricing">pricing</a> and <a href="/service-terms">service terms</a>.</p>
     </div>
   </div>
 </section>
@@ -82,7 +82,7 @@
     <h2 id="faq-h" class="sub-head">Questions employers ask</h2>
     <div class="faq-list">
       <details><summary>How quickly can I hire <%= role.noun %>?</summary><p>A job you post goes live once our team has checked it, usually the same working day. When our recruiters hire for you, the first shortlist time is agreed in your quote; see the <a href="/service-terms#timelines">service terms</a>.</p></details>
-      <details><summary>What does it cost?</summary><p>See <a href="/employers#price-h">pricing</a>. Recruitment fees are agreed before any work starts, with the replacement terms. Candidates never pay anything.</p></details>
+      <details><summary>What does it cost?</summary><p>See <a href="/pricing">pricing</a>. Recruitment fees are agreed before any work starts, with the replacement terms. Candidates never pay anything.</p></details>
       <details><summary>Are the candidates checked?</summary><p>When our recruiters hire for you, every candidate on the shortlist has been called and screened against your requirements. Background verification is available as a separate service, with the candidate's consent.</p></details>
     </div>
     <% if (cities.length) { %><p class="small">We also recruit locally in <% cities.forEach(function (c, i) { %><%= i ? ', ' : '' %><a href="/recruitment-agency/<%= c.slug %>"><%= c.name %></a><% }) %>.</p><% } %>

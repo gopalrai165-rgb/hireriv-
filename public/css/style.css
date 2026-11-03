@@ -2403,3 +2403,8 @@ td > a:only-child { display: inline-block; padding-block: 6px; min-width: 24px; 
 .faq-list details { padding: 14px 18px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: #fff; }
 .faq-list summary { font-weight: 700; color: var(--ink); cursor: pointer; }
 .faq-list p { margin: 10px 0 0; }
+
+/* Public pricing page (Step 144) */
+.pricing-plans .plan-card .btn { margin-top: auto; align-self: flex-start; }
+.pricing-plans .plan-card { display: flex; flex-direction: column; }
+.pricing-terms { margin: 18px 0; }
