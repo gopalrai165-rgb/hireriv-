@@ -46,12 +46,13 @@
       <span class="logo-text"><span>Hire<b>riv</b></span><small>by Raigozen</small></span>
     </a>
     <nav class="main-nav" id="main-nav" aria-label="<%= t('nav.main') %>">
-      <a href="/jobs" class="<%= page === 'jobs' ? 'active' : '' %>"><%= t('nav.findJobs') %></a>
-      <a href="/categories" class="<%= page === 'categories' ? 'active' : '' %>"><%= t('nav.categories') %></a>
+      <a href="/jobs" class="<%= ['jobs', 'categories', 'job-seekers'].includes(page) ? 'active' : '' %>"><%= t('nav.findJobs') %></a>
+      <a href="/employers" class="<%= page === 'employers' || page === 'hire' ? 'active' : '' %>"><%= t('nav.forEmployers') %></a>
       <a href="/services" class="<%= page === 'services' || page === 'industries' ? 'active' : '' %>"><%= t('nav.staffing') %></a>
-      <a href="/employers" class="<%= page === 'employers' || page === 'hire' ? 'active' : '' %>"><%= t('nav.employers') %></a>
       <a href="/blog" class="<%= page === 'blog' ? 'active' : '' %>"><%= t('nav.resources') %></a>
-      <a href="/saved" class="nav-saved <%= page === 'saved' ? 'active' : '' %>"><svg class="i" aria-hidden="true"><use href="#i-bookmark"/></svg><%= t('nav.saved') %><span class="saved-count" hidden></span></a>
+      <a href="/about" class="<%= page === 'about' ? 'active' : '' %>"><%= t('nav.about') %></a>
+      <a href="/contact" class="<%= page === 'contact' ? 'active' : '' %>"><%= t('nav.contact') %></a>
+      <a href="/saved" class="nav-saved <%= page === 'saved' ? 'active' : '' %>" title="<%= t('common.savedJobs') %>"><svg class="i" aria-hidden="true"><use href="#i-bookmark"/></svg><span class="nav-saved-label"><%= t('nav.saved') %></span><span class="saved-count" hidden></span></a>
       <details class="nav-login">
         <summary><%= t('nav.login') %></summary>
         <div class="nav-login-menu">

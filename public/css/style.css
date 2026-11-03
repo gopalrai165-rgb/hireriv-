@@ -1923,7 +1923,7 @@ input[type="checkbox"], input[type="radio"] { min-width: 20px; min-height: 20px;
 .job-filters .near-row input, .job-filters .near-row select { width: auto; border: 1px solid var(--line); border-radius: var(--radius-sm); padding: .55em .7em; }
 .job-filters .near-row input { flex: 0 1 220px; }
 /* Phones: the search and popular jobs come first; the photo is for wide screens. */
-@media (max-width: 760px) { .hero-seek .hero-visual { display: none; } }
+@media (max-width: 960px) { .hero-seek .hero-visual { display: none; } }
 @media (min-width: 1000px) { .role-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); } }
 .form > label + .btn { margin-top: 14px; }
 .landing-nearby { margin-top: 14px; }
@@ -2152,7 +2152,7 @@ p, li, dd { text-wrap: pretty; }
 .contact-lines li { display: flex; gap: 10px; align-items: center; }
 .contact-lines .i { width: 18px; height: 18px; color: var(--primary); flex: none; }
 .enquiry-split { align-items: start; }
-@media (max-width: 760px) {
+@media (max-width: 960px) {
   .hero-seek .hero-side { justify-items: stretch; }
   .employer-ask { max-width: none; }
 }
@@ -2260,3 +2260,42 @@ p, li, dd { text-wrap: pretty; }
 .city-jobs { list-style: none; padding: 0; margin: 0 0 14px; display: grid; gap: 10px; }
 .city-jobs li { display: flex; flex-direction: column; gap: 2px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 10px; background: #fff; }
 .pill-row.center-row { justify-content: center; }
+
+/* Header and homepage arrangement (Step 137) */
+@media (min-width: 961px) {
+  .main-nav .nav-saved .nav-saved-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .main-nav .nav-saved { padding-left: .5em; padding-right: .5em; }
+}
+@media (max-width: 960px) {
+  .cat-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 600px) {
+  .role-grid { grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .role-tile { align-items: center; text-align: center; padding: 12px 6px; gap: 2px; }
+  .role-icon { width: 36px; height: 36px; border-radius: 10px; }
+  .role-icon .i { width: 18px; height: 18px; }
+  .role-tile b { font-size: .86rem; margin-top: 4px; }
+  .role-tile .small { font-size: .72rem; }
+  .city-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+  .city-tile { padding: 8px 12px; border-radius: 999px; gap: 6px; }
+  .city-initial { display: none; }
+  .city-tile > span:last-child { flex-direction: row; gap: 6px; align-items: baseline; }
+  .city-tile b { font-size: .86rem; }
+  .city-tile .small { font-size: .74rem; }
+  .cat-grid { gap: 8px; }
+  .cat-tile, .cat-tile-wide { grid-column: auto; flex-direction: column; align-items: flex-start; gap: 6px; padding: 12px; }
+  .cat-tile:hover { transform: none; }
+  .cat-body .small { display: none; }
+  .cat-icon { width: 34px; height: 34px; border-radius: 10px; }
+  .cat-icon .i { width: 18px; height: 18px; }
+  .cat-body b { font-size: .9rem; }
+  .cat-count { font-size: .76rem; }
+}
+@media (max-width: 600px) {
+  .cat-tile, .cat-tile-wide { display: grid; grid-template-columns: 30px 1fr; align-items: center; column-gap: 10px; row-gap: 0; padding: 10px 12px; }
+  .cat-icon { width: 30px; height: 30px; border-radius: 8px; grid-row: span 2; }
+  .cat-icon .i { width: 16px; height: 16px; }
+  .cat-body b { font-size: .86rem; line-height: 1.25; }
+  .cat-count { grid-column: 2; font-size: .72rem; }
+  .section-head.row .btn-outline { padding: .45em 1em; }
+}

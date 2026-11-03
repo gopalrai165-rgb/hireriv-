@@ -30,7 +30,7 @@
     "main": "Main",
     "findJobs": "Find Jobs",
     "categories": "Job Categories",
-    "staffing": "Staffing Solutions",
+    "staffing": "Services",
     "employers": "Employers",
     "resources": "Career Resources",
     "saved": "Saved",
@@ -48,7 +48,10 @@
     "home": "Home",
     "jobs": "Jobs",
     "nearMe": "Near me",
-    "me": "Me"
+    "me": "Me",
+    "forEmployers": "For Employers",
+    "about": "About",
+    "contact": "Contact"
   },
   "footer": {
     "newsTitle": "Get new roles & hiring insights",

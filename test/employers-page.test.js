@@ -29,7 +29,7 @@ test('the page has the agreed content, services, steps and the enquiry form', as
   assert.match(html, /name="consent" value="1" required/);
   assert.doesNotMatch(html, /wa\.me\/910000000000/, 'no WhatsApp button for the placeholder number');
   assert.equal((await srv.request('/hire-talent')).headers.get('location'), '/employers');
-  assert.match(await page('/'), /<a href="\/employers"[^>]*>Employers<\/a>/);
+  assert.match(await page('/'), /<a href="\/employers"[^>]*>For Employers<\/a>/);
   assert.match(await page('/sitemap.xml'), /\/employers<\/loc>/);
 });
 
