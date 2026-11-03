@@ -823,7 +823,6 @@ Disallow: /worker
 Disallow: /job-alerts/
 Disallow: /appeal/
 Disallow: /healthz
-Disallow: /developers
 Allow: /employers
 
 Sitemap: ${BASE_URL}/sitemap.xml
