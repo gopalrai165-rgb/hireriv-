@@ -2512,3 +2512,26 @@ td > a:first-child:not(.btn) { display: inline-block; padding-block: 6px; min-wi
 .two-step-require { margin: 16px 0 4px; padding: 14px 16px; border: 1px solid var(--line); border-radius: 12px; background: #f8fafc; }
 .two-step-require p { margin: 0 0 10px; }
 #two-step .recovery-card { margin-bottom: 14px; padding: 14px 16px; border: 2px dashed #1f9d55; border-radius: 12px; background: #f1fbf5; }
+
+/* Homepage role tiles: six wide cards (icon, role, what the work is, open jobs, arrow). */
+.page-home .role-grid-home { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.page-home .role-grid-home .role-tile { flex-direction: row; align-items: center; gap: 16px; padding: 20px 22px; height: 100%; text-align: left; }
+.page-home .role-grid-home .role-icon { width: 52px; height: 52px; border-radius: 14px; transition: background .2s, color .2s; }
+.page-home .role-grid-home .role-icon .i { width: 24px; height: 24px; }
+.role-grid-home .role-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+.role-grid-home .role-tile b { margin: 0; font-size: 1.08rem; }
+.role-grid-home .role-hint { color: var(--muted); font-size: .9rem; line-height: 1.35; }
+.role-grid-home .role-count { color: #8a6935; font-size: .82rem; font-weight: 700; margin-top: 4px; }
+.role-grid-home .role-go { width: 18px; height: 18px; color: var(--muted); flex-shrink: 0; transition: transform .2s, color .2s; }
+.page-home .role-grid-home .role-tile:hover .role-icon { background: #8a6935; color: #fff; }
+.role-grid-home .role-tile:hover .role-go { color: #8a6935; transform: translateX(4px); }
+@media (max-width: 960px) { .page-home .role-grid-home { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 600px) {
+  .page-home .role-grid-home { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .page-home .role-grid-home .role-tile { padding: 12px; gap: 10px; }
+  .page-home .role-grid-home .role-icon { width: 38px; height: 38px; border-radius: 10px; }
+  .page-home .role-grid-home .role-icon .i { width: 18px; height: 18px; }
+  .role-grid-home .role-tile b { font-size: .92rem; }
+  .role-grid-home .role-hint, .role-grid-home .role-go { display: none; }
+  .role-grid-home .role-count { margin-top: 0; font-size: .74rem; }
+}

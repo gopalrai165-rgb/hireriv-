@@ -914,7 +914,7 @@ const groupCounts = (list) => JOB_GROUPS.map((g) => ({ ...g, count: list.filter(
 // The homepage's quick ways in: common roles (each a keyword search, named in
 // the page's language under "roles") and the cities with the most live jobs.
 const POPULAR_ROLES = [
-  ['delivery', 'delivery', 'i-box'], ['driver', 'driver', 'i-steering'], ['telecaller', 'telecaller', 'i-headset'], ['sales', 'sales', 'i-cart'],
+  ['delivery', 'delivery', 'i-box'], ['driver', 'driver', 'i-steering'], ['telecaller', 'telecaller', 'i-headset'], ['sales', 'sales', 'i-target'],
   ['dataEntry', 'data entry', 'i-chart'], ['warehouse', 'warehouse', 'i-box'], ['security', 'security', 'i-shield'], ['electrician', 'electrician', 'i-hardhat'],
   ['cook', 'cook', 'i-utensils'], ['accountant', 'accountant', 'i-finance'], ['nurse', 'nurse', 'i-health'], ['developer', 'developer', 'i-code'],
 ];
@@ -926,7 +926,9 @@ const ROLE_PAGES = POPULAR_ROLES.map(([key, q, icon]) => {
 const rolePageBySlug = (slug) => ROLE_PAGES.find((r) => r.slug === slug) || null;
 const rolePath = (role, city) => `/jobs/role/${role.slug}${city ? `/in/${city.slug}` : ''}`;
 app.locals.rolePages = ROLE_PAGES;
-const popularRoles = (live) => ROLE_PAGES.map((r) => ({ key: r.key, icon: r.icon, href: rolePath(r), count: search.searchJobs(live, { q: r.q }).jobs.length }));
+// The roles shown on the homepage, in this order (every role keeps its own pages).
+const HOME_ROLES = ['telecaller', 'sales', 'warehouse', 'accountant', 'developer', 'electrician'];
+const popularRoles = (live) => HOME_ROLES.map((k) => ROLE_PAGES.find((r) => r.key === k)).map((r) => ({ key: r.key, icon: r.icon, href: rolePath(r), count: search.searchJobs(live, { q: r.q }).jobs.length }));
 // Pages for what job seekers ask for first: working from home, part-time,
 // night shifts, jobs for freshers, walk-in interviews and jobs that need no
 // English. /jobs/<slug>, and (except working from home) /jobs/<slug>/in/<city>.

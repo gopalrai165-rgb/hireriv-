@@ -32,7 +32,8 @@
     "categories": "Job Categories",
     "staffing": "Services",
     "employers": "Employers",
-    "pricing": "Pricing", "resources": "Career Resources",
+    "pricing": "Pricing",
+    "resources": "Career Resources",
     "saved": "Saved",
     "login": "Login",
     "loginSeekers": "Job seekers",
@@ -317,7 +318,15 @@
     "share": "Share this job",
     "shareWhatsapp": "Share on WhatsApp",
     "shareLinkedin": "Share on LinkedIn",
-    "referTitle": "Know someone for this job?", "referText": "Send them your link. When a friend applies through it, you will see it on your account.", "referWhatsapp": "This job may suit you: {title} in {location}. Apply free on {site}:", "referWhatsappBtn": "Refer a friend on WhatsApp", "referLinkLabel": "Your referral link for this job", "referPrivacy": "Your friend's first name and the job show on your account, and the employer sees that you referred them.", "referSee": "Your referrals", "takeHome": "What you take home", "copyLink": "Copy link",
+    "referTitle": "Know someone for this job?",
+    "referText": "Send them your link. When a friend applies through it, you will see it on your account.",
+    "referWhatsapp": "This job may suit you: {title} in {location}. Apply free on {site}:",
+    "referWhatsappBtn": "Refer a friend on WhatsApp",
+    "referLinkLabel": "Your referral link for this job",
+    "referPrivacy": "Your friend's first name and the job show on your account, and the employer sees that you referred them.",
+    "referSee": "Your referrals",
+    "takeHome": "What you take home",
+    "copyLink": "Copy link",
     "copyLinkLabel": "Copy link to this job",
     "more": "More",
     "moreLabel": "More sharing options",
@@ -802,5 +811,13 @@
     "accountant": "Accountant",
     "nurse": "Nurse",
     "developer": "Developer"
+  },
+  "roleHints": {
+    "telecaller": "Calling and customer support",
+    "sales": "Field and inside sales",
+    "warehouse": "Packing, picking and loading",
+    "accountant": "Accounts, GST and Tally",
+    "developer": "Software and web development",
+    "electrician": "Wiring, repair and maintenance"
   }
 }

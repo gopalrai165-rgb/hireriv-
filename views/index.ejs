@@ -89,12 +89,16 @@
       </div>
       <a href="/jobs" class="btn btn-outline"><%= t('home.viewAll') %> <svg class="i" aria-hidden="true"><use href="#i-arrow"/></svg></a>
     </div>
-    <ul class="role-grid">
+    <ul class="role-grid role-grid-home">
       <% popularRoles.forEach(function (r) { %>
         <li><a class="role-tile" href="<%= r.href %>">
           <span class="role-icon" aria-hidden="true"><svg class="i"><use href="#<%= r.icon %>"/></svg></span>
-          <b><%= t('roles.' + r.key) %></b>
-          <span class="muted small"><%= r.count ? t('home.jobCount', { count: r.count }) : t('home.seeJobs') %></span>
+          <span class="role-text">
+            <b><%= t('roles.' + r.key) %></b>
+            <span class="role-hint"><%= t('roleHints.' + r.key) %></span>
+            <span class="role-count"><%= r.count ? t('home.jobCount', { count: r.count }) : t('home.seeJobs') %></span>
+          </span>
+          <svg class="i role-go" aria-hidden="true"><use href="#i-arrow"/></svg>
         </a></li>
       <% }) %>
     </ul>

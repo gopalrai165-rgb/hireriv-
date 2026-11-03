@@ -39,7 +39,8 @@ test('header: Find Jobs, For Employers, Services, Career Resources, About, Conta
   assert.match(home, /<input id="hero-q" name="q"[^>]*data-suggest/);
   assert.match(home, /<select id="hero-loc" name="location">/);
   assert.match(home, /data-near-me/);
-  assert.match(home, /class="role-tile" href="\/jobs\/role\/delivery"/);
+  const tiles = [...home.matchAll(/class="role-tile" href="\/jobs\/role\/([a-z-]+)"/g)].map((m) => m[1]);
+  assert.deepEqual(tiles, ['telecaller', 'sales', 'warehouse', 'accountant', 'developer', 'electrician']);
   assert.match(home, /class="city-tile" href="\/jobs\/in\/mumbai"/);
   assert.match(home, /href="\/account\/login\?with=phone"/);
   assert.match(home, /<nav class="bottom-nav"/);
