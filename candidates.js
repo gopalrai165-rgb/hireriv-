@@ -1038,7 +1038,12 @@ function register(app, deps) {
     const all = mine(req.candidateEmail).flatMap((a) => (a.interviews || []).map((iv) => ({ ...iv, appId: a.id, jobTitle: a.jobTitle })));
     const next = all.filter((iv) => upcoming(iv, now)).sort((x, y) => x.at.localeCompare(y.at));
     const past = all.filter((iv) => !upcoming(iv, now)).sort((x, y) => y.at.localeCompare(x.at)).slice(0, 30);
-    page(res, 'account-interviews', { title: 'Your interviews', ...shell(req.candidateEmail, 'interviews'), upcoming: next, past, msg: String(req.query.msg || '') });
+    // Times an employer offered to choose from (only those still ahead).
+    const jobsById = new Map(getJobs().map((j) => [j.id, j]));
+    const offers = mine(req.candidateEmail).filter((a) => !a.withdrawnAt && a.interviewOptions && a.interviewOptions.status === 'open')
+      .map((a) => ({ appId: a.id, offerId: a.interviewOptions.id, jobTitle: a.jobTitle, company: (jobsById.get(a.jobId) || {}).company || '', f: a.interviewOptions.f, slots: a.interviewOptions.slots.map((s) => s.at).filter((at) => Date.parse(at) > now) }))
+      .filter((o) => o.slots.length);
+    page(res, 'account-interviews', { title: 'Your interviews', ...shell(req.candidateEmail, 'interviews'), upcoming: next, past, offers, msg: String(req.query.msg || '') });
   });
 
   // The candidate confirms an interview, or asks for another time. Only their

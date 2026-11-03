@@ -8,6 +8,7 @@
 // Jobs the Hireriv team runs for a client stay with the team: the client sees
 // counts and the candidates the team shortlists, not every applicant.
 const path = require('path');
+const crypto = require('crypto');
 const vault = require('./vault');
 const { can } = require('./employer-team');
 const ats = require('./ats');
@@ -347,6 +348,7 @@ function register(app, deps) {
       allowedMoves: may('applicants.manage') ? ats.allowedMoves(a) : [],
       hrContacts: (a.hrContacts || []).map((c) => ({ via: c.via, at: c.at })),
       referredBy: a.referredBy ? a.referredBy.name : '',
+      interviewOptions: a.interviewOptions && a.interviewOptions.status === 'open' ? { slots: a.interviewOptions.slots.map((s) => s.at), createdAt: a.interviewOptions.createdAt } : null,
     };
     if (may('applicants.contact')) Object.assign(v, { email: require('./identity').realEmail(a.email), phone: a.phone || '', linkedin: a.linkedin || '', message: a.message || '', hasResume: Boolean(a.resume) });
     // Internal: never shown to candidates.
@@ -457,7 +459,85 @@ function register(app, deps) {
     team.audit(req.employer.id, req.employerUser, 'interview-scheduled', `${a.name} on ${formatIst(at)} (${req.job.title})`);
     return { iv, at, errors: [] };
   }
+  // Times for the candidate to choose from (2 to 5): each checked like a
+  // booking (in the future, no clash for the interviewer); the candidate picks
+  // one from their account and it is booked, already confirmed. A new offer
+  // replaces an open one.
+  const MAX_OPTIONS = 5;
+  const companyApps = (employerId, list) => {
+    const ids = new Set(getJobs().filter((j) => j.employerId === employerId).map((j) => j.id));
+    return list.filter((x) => ids.has(x.jobId));
+  };
+  const extraSlots = (body) => [2, 3, 4, 5].filter((i) => String(body[`date${i}`] || '').trim() && String(body[`time${i}`] || '').trim());
+  function offerInterviewTimes(req, body) {
+    const a = req.application;
+    if (a.withdrawnAt) return { status: 409, errors: ['the candidate withdrew this application'] };
+    if (ats.CLOSED.includes(a.status)) return { status: 409, errors: [`the application is ${ats.label(a.status)}`] };
+    const pairs = [[body.date, body.time], ...extraSlots(body).map((i) => [body[`date${i}`], body[`time${i}`]])].slice(0, MAX_OPTIONS);
+    const errors = [];
+    const slots = [];
+    let f = null;
+    pairs.forEach(([date, time], n) => {
+      const r = parseInterview({ ...body, date, time }, a);
+      f = f || r.f;
+      if (r.errors.length) { errors.push(...r.errors.map((e) => `time ${n + 1}: ${e}`)); return; }
+      const problem = ats.scheduleProblem(companyApps(req.employer.id, req.applications), a, r.at, r.f.duration, r.f.interviewerEmail);
+      if (problem) errors.push(`time ${n + 1}: ${problem}`);
+      else if (slots.some((s) => s.at === r.at.toISOString())) errors.push(`time ${n + 1} is the same as another`);
+      else slots.push({ at: r.at.toISOString() });
+    });
+    if (!errors.length && slots.length < 2) errors.push('offer at least two times, or book one');
+    if (errors.length) return { status: 400, errors: [...new Set(errors)], f: { ...(f || {}), ...Object.fromEntries([2, 3, 4, 5].flatMap((i) => [[`date${i}`, body[`date${i}`] || ''], [`time${i}`, body[`time${i}`] || '']])) } };
+    const offer = {
+      id: crypto.randomUUID(), status: 'open', createdAt: now(), byUserId: req.employerUser.id, by: byLine(req),
+      f: { duration: f.duration, mode: f.mode, where: f.where, interviewer: f.interviewer, interviewerEmail: f.interviewerEmail, message: f.message },
+      slots: slots.sort((x, y) => x.at.localeCompare(y.at)),
+    };
+    a.interviewOptions = offer;
+    if (!a.assignedTo && can(req.member, 'applicants.manage', req.job)) a.assignedTo = req.employerUser.id;
+    writeSubmissions('applications', req.applications);
+    if (events.interviewOptionsOffered) events.interviewOptionsOffered(a, offer);
+    team.audit(req.employer.id, req.employerUser, 'interview-times-offered', `${a.name}: ${slots.length} times (${req.job.title})`);
+    return { offer, errors: [] };
+  }
+  // The candidate (signed in, their own application) picks one of the times.
+  function chooseInterviewTime(email, appId, offerId, at) {
+    const list = readSubmissions('applications');
+    const a = list.find((x) => x.id === appId && String(x.email).toLowerCase() === email && !x.withdrawnAt && !x.duplicateOf);
+    const offer = a && a.interviewOptions;
+    const job = a && getJobs().find((j) => j.id === a.jobId);
+    if (!offer || offer.id !== offerId || offer.status !== 'open' || !job) return { error: 'These times are no longer open. The employer will be in touch.' };
+    const slot = offer.slots.find((s) => s.at === at);
+    if (!slot || Date.parse(slot.at) <= Date.now()) return { error: 'That time has passed or is not one of the options. Please choose another.' };
+    const when = new Date(slot.at);
+    const problem = ats.scheduleProblem(companyApps(job.employerId, list), a, when, offer.f.duration, offer.f.interviewerEmail);
+    if (problem) return { error: 'That time was just taken. Please choose another one.' };
+    const { iv } = interviewDesk.book(list, a, offer.f, when, `${a.name} chose an interview time`, { actor: 'candidate' });
+    const fresh = readSubmissions('applications');
+    const saved = fresh.find((x) => x.id === a.id);
+    const ivSaved = saved && (saved.interviews || []).find((x) => x.id === iv.id);
+    if (ivSaved) Object.assign(ivSaved, { confirmation: 'confirmed', answeredAt: now() });
+    if (saved) saved.interviewOptions = { ...offer, status: 'chosen', chosenAt: now(), chosen: slot.at, interviewId: iv.id };
+    writeSubmissions('applications', fresh);
+    if (events.interviewAnswered && saved && ivSaved) events.interviewAnswered(saved, ivSaved, true);
+    return { at: when, jobTitle: a.jobTitle };
+  }
+  app.post('/employer/applicants/:id/interview-options/cancel', requireEmployer, withApplicant('interviews.manage'), limit('employer-interviews', 30), sameOrigin, (req, res) => {
+    const a = req.application;
+    if (a.interviewOptions && a.interviewOptions.status === 'open') {
+      a.interviewOptions = { ...a.interviewOptions, status: 'withdrawn', withdrawnAt: now() };
+      writeSubmissions('applications', req.applications);
+      team.audit(req.employer.id, req.employerUser, 'interview-times-withdrawn', `${a.name} (${req.job.title})`);
+    }
+    res.redirect(`/employer/applicants/${a.id}?msg=${encodeURIComponent('The interview times were withdrawn.')}`);
+  });
+
   app.post('/employer/applicants/:id/interview', requireEmployer, withApplicant('interviews.manage'), limit('employer-interviews', 30), sameOrigin, (req, res) => {
+    if (extraSlots(req.body).length) {
+      const o = offerInterviewTimes(req, req.body);
+      if (o.errors.length) return o.f ? interviewForm(req, res, o.f, o.errors, o.status) : res.redirect(`/employer/applicants/${req.application.id}?msg=${encodeURIComponent(o.errors.join(', '))}`);
+      return res.redirect(`/employer/applicants/${req.application.id}?msg=${encodeURIComponent(`${o.offer.slots.length} interview times sent. ${req.application.email ? `${req.application.name} was emailed and picks one from their account; it is then booked.` : 'They have no email on file, so call them to agree a time.'}`)}`);
+    }
     const r = bookInterview(req, req.body);
     if (r.errors.length) return r.f ? interviewForm(req, res, r.f, r.errors, r.status) : res.redirect(`/employer/applicants/${req.application.id}?msg=${encodeURIComponent(r.errors.join(', '))}`);
     res.redirect(`/employer/applicants/${req.application.id}?msg=${encodeURIComponent(`Interview booked for ${formatIst(r.at)}. ${req.application.email ? 'The candidate was emailed an invite.' : 'They have no email on file, so call them with the details.'}`)}`);
@@ -580,7 +660,7 @@ function register(app, deps) {
 
   return {
     hooks, approveJob, sendBackJob, lockedByModeration, selfManaged, STATUS_LABELS, applicantView, applicationsFor, withApplicant, withJob, visibleJobs, companyJob, changeStatus, bookInterview, actorOf, byLine,
-    createEmployerJob, updateEmployerJob, submitJob, setJobState, employerJobView,
+    createEmployerJob, updateEmployerJob, submitJob, setJobState, employerJobView, chooseInterviewTime,
   };
 }
 

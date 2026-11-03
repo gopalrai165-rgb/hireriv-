@@ -254,6 +254,20 @@ function create(deps) {
       link: `${baseUrl}/admin?tab=hire-requests`, label: 'Open hire requests', why: 'the weekly summary of employer enquiries',
     };
   };
+  // Interview times offered for the candidate to choose from.
+  NOTICES['interview-options'] = (refs, to) => {
+    const a = appById(refs.applicationId);
+    const offer = a && a.interviewOptions;
+    if (!offer || offer.id !== refs.offerId || offer.status !== 'open') return null;
+    const job = jobById(a.jobId);
+    const slots = offer.slots.filter((s) => Date.parse(s.at) > Date.now());
+    if (!slots.length) return null;
+    return {
+      who: { name: a.name, email: a.email, kind: 'candidate' }, subject: `Choose a time for your interview: ${a.jobTitle}`, heading: 'Pick a time for your interview',
+      intro: `${job ? job.company : 'The employer'} would like to interview you for ${a.jobTitle} and offered ${slots.length} times (${offer.f.mode}, ${offer.f.duration} minutes). Choose the one that suits you; the others are released.`,
+      rows: slots.map((s, i) => [`Option ${i + 1}`, formatIst(new Date(s.at))]), link: `${baseUrl}/account/interviews#choose`, label: 'Choose a time', why: 'your job applications',
+    };
+  };
   T('notice', (refs, to) => {
     const n = NOTICES[refs.kind] && NOTICES[refs.kind](refs, to);
     if (!n) return null;
@@ -317,6 +331,9 @@ function create(deps) {
   // ---------- interviews ----------
   function interviewBooked(a, iv) {
     emit({ key: `interview-invite:${iv.id}`, type: 'interview-invited', to: [candidate(a)], inApp: { title: `Interview invitation: ${a.jobTitle}`, body: `${when(iv)} (${iv.mode}). Please confirm or ask for another time.`, link: '/account/interviews' }, email: { template: 'interview-invite', refs: { applicationId: a.id, interviewId: iv.id } } });
+  }
+  function interviewOptionsOffered(a, offer) {
+    emit({ key: `interview-options:${offer.id}`, type: 'interview-options', to: [candidate(a)], inApp: { title: `Choose an interview time: ${a.jobTitle}`, body: `${offer.slots.length} times to choose from. Pick the one that suits you.`, link: '/account/interviews#choose' }, email: { template: 'notice', refs: { kind: 'interview-options', applicationId: a.id, offerId: offer.id } } });
   }
   function interviewRescheduled(a, iv, previous) {
     emit({ key: `interview-moved:${iv.id}:${iv.sequence}`, type: 'interview-rescheduled', to: [candidate(a)], inApp: { title: `Interview moved: ${a.jobTitle}`, body: `New time: ${when(iv)}. Please confirm it.`, link: '/account/interviews' }, email: { template: 'interview-rescheduled', refs: { applicationId: a.id, interviewId: iv.id, previous } } });
@@ -584,7 +601,7 @@ function create(deps) {
   }
 
   return {
-    applicationSubmitted, newApplication, stageMoved, statusEmail, interviewBooked, interviewRescheduled, interviewCancelled, interviewReminder, interviewAnswered,
+    applicationSubmitted, newApplication, stageMoved, statusEmail, interviewBooked, interviewOptionsOffered, interviewRescheduled, interviewCancelled, interviewReminder, interviewAnswered,
     feedbackDueScan, offerCreated, offerApproved, offerAnswered, offerDeadlineScan, assigned, jobDecision, jobExpired, jobClosingSoonScan, jobSubmitted, jobAlerts, jobDigest, jobInvite, contactUnlocked, applicationViewed, staffingRequest, hireRequestAssigned, hireOverdueScan, leadSummaryScan, leadSummaryNow, agencyAssigned,
     accountSecurity, scan, JOB_ALERTS_PER_DAY,
   };

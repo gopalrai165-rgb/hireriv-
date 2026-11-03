@@ -2458,3 +2458,14 @@ td > a:only-child { display: inline-block; padding-block: 6px; min-width: 24px; 
 
 /* Closing soon (Step 152) */
 .closing-soon { color: #b54708; font-weight: 600; }
+
+/* Interview times to choose from (Step 153) */
+.iv-options { border: 1px dashed var(--line); border-radius: 14px; padding: 10px 14px; }
+.iv-options summary { cursor: pointer; font-weight: 600; color: var(--primary); min-height: 40px; display: flex; align-items: center; }
+.iv-option-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 12px; }
+.iv-offer-note .inline-form { display: inline; margin-left: 6px; }
+.iv-choose { border: 1px solid var(--line); border-radius: 16px; padding: 16px; margin-bottom: 16px; background: #f7fbff; }
+.iv-slot { display: flex; align-items: center; gap: 10px; min-height: 48px; padding: 6px 12px; border: 1px solid var(--line); border-radius: 12px; margin: 8px 0; background: #fff; cursor: pointer; }
+.iv-slot input { width: 20px; height: 20px; }
+.iv-choose fieldset { border: 0; padding: 0; margin: 0 0 12px; }
+.iv-choose legend { padding: 0; margin-bottom: 4px; }

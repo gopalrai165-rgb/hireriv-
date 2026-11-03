@@ -3,6 +3,21 @@
 <section class="section admin portal">
   <div class="container">
     <%- include('partials/account-nav', { heading: 'Interviews' }) %>
+    <% offers.forEach(function (o) { %>
+      <section class="dash-card dash-wide iv-choose" id="choose">
+        <h2>Choose a time for your interview</h2>
+        <p><b><%= o.jobTitle %></b><%= o.company ? ' at ' + o.company : '' %> · <%= o.f.mode %>, <%= o.f.duration %> minutes<%= o.f.where && o.f.mode !== 'Phone call' ? ' · ' + o.f.where : '' %></p>
+        <% if (o.f.message) { %><p class="small muted"><%= o.f.message %></p><% } %>
+        <form method="post" action="/account/interviews/<%= o.appId %>/choose">
+          <input type="hidden" name="offerId" value="<%= o.offerId %>">
+          <fieldset><legend class="small muted">Pick the one that suits you (India time)</legend>
+            <% o.slots.forEach(function (at, i) { %><label class="iv-slot"><input type="radio" name="at" value="<%= at %>"<%= i === 0 ? ' required' : '' %>> <span><%= formatIst(at) %></span></label><% }) %>
+          </fieldset>
+          <button class="btn btn-primary" type="submit">Book this time</button>
+        </form>
+        <p class="small muted">None of these work? Reply to the employer's email or call them; never pay anyone to get an interview.</p>
+      </section>
+    <% }) %>
     <section class="dash-card dash-wide">
       <div class="dash-head"><h2>Coming up</h2></div>
       <p class="small">Getting ready? <a href="/interview-tips">Interview tips: what to bring, what they ask and what to say</a>.</p>

@@ -2560,6 +2560,12 @@ const companyTrust = require('./company-trust').register(app, {
   follows: companyFollows(),
 });
 trustHooks.labelsFor = companyTrust.labelsFor;
+// A job seeker picks one of the interview times an employer offered.
+app.post('/account/interviews/:appId/choose', candidateAccounts.requireCandidate, limit('interview-answer', 20), sameOrigin, (req, res) => {
+  const r = hiring.chooseInterviewTime(req.candidateEmail, req.params.appId, String(req.body.offerId || ''), String(req.body.at || ''));
+  const msg = r.error || `Booked: your interview for ${r.jobTitle} is on ${interviews.formatIst(r.at)}. You'll get a calendar invite by email.`;
+  res.redirect(303, `/account/interviews?msg=${encodeURIComponent(msg)}`);
+});
 trustHooks.hrContactFor = companyTrust.hrContactFor;
 trustHooks.companyPaths = companyTrust.companyPaths;
 

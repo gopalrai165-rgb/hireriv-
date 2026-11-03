@@ -41,6 +41,7 @@ const TYPES = {
   'application-submitted': { category: 'applications', label: 'Application received' },
   'application-status': { category: 'applications', optional: true, label: 'Application updates' },
   'interview-invited': { category: 'interviews', label: 'Interview invitation' },
+  'interview-options': { category: 'interviews', label: 'Interview times to choose from' },
   'interview-rescheduled': { category: 'interviews', label: 'Interview moved' },
   'interview-cancelled': { category: 'interviews', label: 'Interview cancelled' },
   'interview-reminder': { category: 'interviews', label: 'Interview reminder' },
