@@ -8,7 +8,8 @@
     <div>
       <span class="eyebrow">About us</span>
       <h1><%= site.name %> helps <span class="grad">employers and job seekers</span> find each other</h1>
-      <p class="lead"><%= site.name %> is a recruitment and staffing service for IT and non-IT hiring across India, operated by <%= co.operator %>.</p>
+      <p class="lead"><%= site.name %> is a recruitment and staffing service for IT and non-IT hiring across India.</p>
+      <p class="brand-line"><%= brandLine(site) %></p>
       <div class="hero-ctas">
         <a href="/hire" class="btn btn-primary btn-lg">Hire a Team <svg class="i"><use href="#i-arrow"/></svg></a>
         <a href="/jobs" class="btn btn-outline btn-lg">Find Work</a>
@@ -36,6 +37,12 @@
         <p>Every job on this site is checked by our team before it goes live, and job seekers never pay us anything.</p>
       <% } %>
     </div>
+    <% if (co.mission || co.vision) { %>
+      <div class="mission-vision">
+        <% if (co.mission) { %><div><h3 class="h4">Our mission</h3><p><%= co.mission %></p></div><% } %>
+        <% if (co.vision) { %><div><h3 class="h4">Our vision</h3><p><%= co.vision %></p></div><% } %>
+      </div>
+    <% } %>
     <dl class="company-facts">
       <div><dt>Operated by</dt><dd><%= co.operator %></dd></div>
       <% if (co.cin) { %><div><dt>CIN</dt><dd><%= co.cin %></dd></div><% } %>

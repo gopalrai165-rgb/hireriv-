@@ -714,7 +714,9 @@ app.locals.priceOf = (s, slug) => (s.pricing && s.pricing[slug]) || '';
 app.locals.gaId = GA_ID;
 app.locals.searchConsoleToken = /^[\w-]{10,100}$/.test(process.env.GOOGLE_SITE_VERIFICATION || '') ? process.env.GOOGLE_SITE_VERIFICATION : '';
 // The company behind the site (Admin → Settings → About the company).
-app.locals.companyOf = (s) => ({ operator: 'Raigozen Private Limited', cin: '', founded: '', story: '', capabilities: [], team: [], ...(s.company || {}) });
+app.locals.companyOf = (s) => ({ operator: 'Raigozen Private Limited', cin: '', founded: '', story: '', mission: '', vision: '', capabilities: [], team: [], ...(s.company || {}) });
+// "Hireriv is a recruitment and staffing brand operated by Raigozen Private Limited, India."
+app.locals.brandLine = (s) => `${s.name} is a recruitment and staffing brand operated by ${app.locals.companyOf(s).operator}, India.`;
 // Where an employer enquiry is: New → Contacted → Requirement received → Candidates shared → Closed.
 const enquiryStats = require('./enquiry-stats');
 const HIRE_FOLLOW_UPS = enquiryStats.STATUSES;
@@ -1662,7 +1664,7 @@ const ACCESSIBILITY_REVIEWED = '2026-10-25';
 app.get('/accessibility', (req, res) => res.render('accessibility', { title: 'Accessibility', page: 'help', reviewedOn: ACCESSIBILITY_REVIEWED, metaDescription: `How ${site.name} works with keyboards, screen readers, voice input, larger text and in Hindi, what is still being improved, and how to tell us about a problem.` }));
 app.get('/contact', (req, res) => res.render('contact', { title: 'Contact Us', page: 'contact', metaDescription: `Contact ${site.name} by phone, WhatsApp or email: questions about jobs, applications, hiring or staffing.` }));
 // Bump LEGAL_UPDATED whenever the wording of either page changes.
-const LEGAL_UPDATED = '2026-11-02';
+const LEGAL_UPDATED = '2026-11-03';
 app.get('/privacy', (req, res) => res.render('privacy', { title: 'Privacy Policy', page: 'legal', updated: LEGAL_UPDATED, policyVersion: privacyModule.POLICY_VERSION, purposes: privacyModule.PURPOSES, metaDescription: `How ${site.name} collects, uses and protects the personal data of candidates, clients and visitors.` }));
 app.get('/job-posting-policy', (req, res) => res.render('job-posting-policy', { title: 'Job posting rules', page: 'legal', updated: LEGAL_UPDATED, metaDescription: `What employers may and may not post on ${site.name}: real vacancies, honest pay, no fees from candidates.` }));
 app.get('/terms', (req, res) => res.render('terms', { title: 'Terms of Use', page: 'legal', updated: LEGAL_UPDATED, metaDescription: `The terms for using the ${site.name} website as a job seeker or employer.` }));

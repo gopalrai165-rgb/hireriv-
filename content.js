@@ -179,6 +179,8 @@ function parseSettings(body, current) {
     founded: get('company_founded', 4),
     story: String(body.company_story ?? '').trim().replace(/\r\n/g, '\n').slice(0, 2000),
     capabilities: parseList(body.company_capabilities, 160, 8),
+    mission: get('company_mission', 300),
+    vision: get('company_vision', 300),
     team: [],
   };
   if (next.company.cin && !/^[LU]\d{5}[A-Z]{2}\d{4}[A-Z]{3}\d{6}$/.test(next.company.cin)) errors.push('CIN should be 21 characters (e.g. U74999KA2024PTC123456)');

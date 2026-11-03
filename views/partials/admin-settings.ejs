@@ -22,6 +22,8 @@
       <label>CIN <span class="muted small">(optional)</span><input name="company_cin" maxlength="21" value="<%= co.cin || '' %>" placeholder="U74999KA2024PTC123456"></label>
       <label>Year founded <span class="muted small">(optional)</span><input name="company_founded" inputmode="numeric" maxlength="4" value="<%= co.founded || '' %>"></label>
       <label class="span-2">Company background<textarea name="company_story" rows="5" maxlength="2000" placeholder="Who started the company, when and why, and what you do today."><%= co.story || '' %></textarea></label>
+      <label>Mission <span class="muted small">(optional)</span><textarea name="company_mission" rows="3" maxlength="300" placeholder="What Hireriv does for employers and job seekers, in one or two sentences"><%= co.mission || '' %></textarea></label>
+      <label>Vision <span class="muted small">(optional)</span><textarea name="company_vision" rows="3" maxlength="300" placeholder="Where you want Hireriv to be in a few years"><%= co.vision || '' %></textarea></label>
       <label class="span-2">What you can do today, one per line<textarea name="company_capabilities" rows="4" placeholder="IT recruitment for start-ups in Bengaluru&#10;Warehouse and delivery staff in Pune"><%= (co.capabilities || []).join('\n') %></textarea></label>
     </div>
     <h3>Team</h3>

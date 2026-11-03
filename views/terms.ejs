@@ -12,6 +12,7 @@
 <section class="section">
   <article class="container narrow prose">
     <p>These terms apply to everyone who uses this website. By using it, you agree to them. If you are a client, the agreement you sign with <%= site.name %> for a specific engagement takes priority over these terms where they differ.</p>
+    <p class="legal-who"><b>Who we are.</b> <%= brandLine(site) %> In these terms, "we" and "us" mean <%= companyOf(site).operator %><%= companyOf(site).cin ? ' (CIN ' + companyOf(site).cin + ')' : '' %>.</p>
 
     <h2>For job seekers</h2>
     <ul>
@@ -37,7 +38,7 @@
     <p>Do not misuse the website: no automated scraping, spam submissions, attempts to access other people's accounts or data, or uploads containing malware. We may block access that breaks these rules.</p>
 
     <h2>Intellectual property</h2>
-    <p>The <%= site.name %> name, logo, website design and content belong to <%= site.name %>. You may share links to our job listings and articles freely.</p>
+    <p>The <%= site.name %> name, logo, website design and content belong to <%= companyOf(site).operator %>. You may share links to our job listings and articles freely.</p>
 
     <h2>Liability</h2>
     <p>The website is provided as it is. To the extent the law allows, <%= site.name %> is not liable for indirect losses arising from use of the website, or for decisions made by employers or candidates.</p>

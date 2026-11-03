@@ -23,7 +23,7 @@
     <div class="footer-brand">
       <a href="/" class="logo logo-light"><img src="/img/logo.svg" alt="" width="36" height="36"><span>Hire<b>riv</b></span></a>
       <p><%= site.tagline %>.</p>
-      <p class="small footer-operator">Operated by <%= companyOf(site).operator %><%= companyOf(site).cin ? ' · CIN ' + companyOf(site).cin : '' %></p>
+      <p class="small footer-operator"><%= brandLine(site) %><%= companyOf(site).cin ? ' CIN ' + companyOf(site).cin + '.' : '' %></p>
       <% const socials = [['linkedin', 'LinkedIn'], ['instagram', 'Instagram'], ['facebook', 'Facebook'], ['x', 'X']].filter(function (s) { return /^https?:\/\//.test(site.social[s[0]] || ''); }); %>
       <% if (socials.length) { %>
       <div class="social">

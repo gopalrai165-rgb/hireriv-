@@ -7,6 +7,7 @@
       <span class="eyebrow">Contact</span>
       <h1>Let's <span class="grad">talk</span></h1>
       <p class="lead">Questions about hiring, a role, or partnering with us? We usually reply within a few hours.</p>
+      <p class="brand-line"><%= brandLine(site) %></p>
       <% const real = realContact(site); %>
       <div class="hero-ctas">
         <% if (real.phone) { %><a href="tel:<%= real.phone.replace(/\s/g, '') %>" class="btn btn-primary btn-lg"><svg class="i"><use href="#i-phone"/></svg> Call <%= real.phone %></a><% } %>

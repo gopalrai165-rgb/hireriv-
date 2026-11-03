@@ -27,7 +27,9 @@ test('a new site says who runs it and makes no claims about history or experienc
   assert.match(html, /<dt>Email<\/dt>/);
   for (const claim of ['years of experience hiring for global firms', 'tired of CV-forwarding', 'We started as a technology staffing specialist', 'Our team', 'Client feedback']) assert.ok(!html.includes(claim), claim);
   assert.doesNotMatch(html, /<dt>Office<\/dt>|<dt>Phone<\/dt>/, 'placeholder office and phone are left out');
-  assert.match(await page('/'), /Operated by Raigozen Private Limited/, 'the footer names the company');
+  assert.match(await page('/'), /Hireriv is a recruitment and staffing brand operated by Raigozen Private Limited, India\./, 'the footer names the company');
+  for (const p of ['/about', '/contact', '/privacy', '/terms']) assert.match(await page(p), /recruitment and staffing brand operated by Raigozen Private Limited, India/, p);
+  assert.doesNotMatch(await page('/about'), /Our mission|Our vision/, 'no empty mission or vision');
   assert.match(await page('/'), /"legalName":"Raigozen Private Limited"/);
 });
 
@@ -37,6 +39,7 @@ test('company details, background, capabilities and team come from Settings', as
     company_story: 'Started in Pune in 2024 by two recruiters.\n\nWe now hire for start-ups and warehouses.',
     company_capabilities: 'IT recruitment for start-ups in Pune\nWarehouse staff in Pune and Mumbai',
     team_name_0: 'Divya Rai', team_role_0: 'Founder', team_bio_0: 'Runs recruitment.',
+    company_mission: 'Help growing businesses hire reliable people quickly.', company_vision: 'A trusted hiring partner across India.',
   }) });
   assert.equal(res.status, 302);
   const html = await page('/about');
@@ -46,8 +49,11 @@ test('company details, background, capabilities and team come from Settings', as
   assert.match(html, /<dt>Office<\/dt><dd>2nd floor, MG Road, Pune 411001/);
   assert.match(html, /<dt>Phone<\/dt>/);
   assert.match(html, /IT recruitment for start-ups in Pune/);
+  assert.match(html, /Our mission<\/h3><p>Help growing businesses hire reliable people quickly\.<\/p>/);
+  assert.match(html, /Our vision<\/h3><p>A trusted hiring partner across India\.<\/p>/);
   assert.match(html, /The people you will work with[\s\S]*Divya Rai[\s\S]*Founder/);
-  assert.match(await page('/'), /Operated by Raigozen Private Limited · CIN U74999KA2024PTC123456/);
+  assert.match(await page('/'), /operated by Raigozen Private Limited, India\. CIN U74999KA2024PTC123456\./);
+  assert.match(await page('/privacy'), /mean Raigozen Private Limited \(CIN U74999KA2024PTC123456\)/);
 });
 
 test('settings check the CIN, the year and team rows', () => {
