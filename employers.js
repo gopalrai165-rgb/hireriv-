@@ -850,10 +850,13 @@ function register(app, deps) {
     const interviews = apps.filter((a) => ownIds.has(a.jobId)).flatMap((a) => (a.interviews || []).filter((iv) => iv.status === 'scheduled' && new Date(iv.at).getTime() > nowMs).map((iv) => ({ ...iv, candidate: a.name, jobTitle: a.jobTitle, appId: a.id })))
       .sort((x, y) => x.at.localeCompare(y.at)).slice(0, 5);
     const requirements = readSubmissions('hire-requests').filter((h) => h.employerId === emp.id);
+    // Candidates who called or messaged the hiring contact about the jobs this member runs, newest first.
+    const contacted = apps.filter((a) => ownIds.has(a.jobId) && !a.withdrawnAt).flatMap((a) => (a.hrContacts || []).map((c) => ({ ...c, candidate: a.name, jobTitle: a.jobTitle, appId: a.id })))
+      .sort((x, y) => y.at.localeCompare(x.at)).slice(0, 8);
     page(res, 'employer-dashboard', {
       title: `${emp.company} · Employer dashboard`, tab: 'dashboard', approved: isApproved(emp), verification: verificationOf(emp), myJobs, requirements, stages: appStatuses,
       counts: { open: count('open'), draft: count('draft'), pending: count('pending'), paused: count('paused'), closed: count('closed'), rejected: count('rejected') },
-      newApplicants: myJobs.filter((j) => j.createdBy === 'employer').reduce((n, j) => n + j.fresh, 0), interviews,
+      newApplicants: myJobs.filter((j) => j.createdBy === 'employer').reduce((n, j) => n + j.fresh, 0), interviews, contacted,
       shortlist: shortlistFor(emp), placements: can(req.member, 'billing.view') ? placementsFor(emp) : [], timesheets: can(req.member, 'timesheets.review') ? timesheetsFor(emp) : [],
       decisions: DECISIONS, welcome: req.query.welcome === '1', msg: String(req.query.msg || ''), mobileVerified: Boolean(req.employerUser.phoneVerifiedAt),
     });

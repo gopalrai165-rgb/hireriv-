@@ -45,6 +45,18 @@
         <% } %>
       </section>
 
+      <% if (contacted.length) { %>
+      <section class="dash-card dash-wide" id="contacted">
+        <div class="dash-head dash-head-wrap"><h2>Candidates who called or messaged you</h2><a class="btn btn-outline btn-sm" href="/employer/applicants">All applicants</a></div>
+        <p class="muted small">Applicants who tapped Call or WhatsApp on your job after applying. Missed one? Call them back from their page.</p>
+        <ul class="activity">
+          <% contacted.forEach(function (c) { %>
+            <li><span class="activity-row"><span class="pill <%= c.via === 'call' ? 'st-interview' : 'st-hired' %>"><%= c.via === 'call' ? 'Call' : 'WhatsApp' %></span><span class="activity-text contact-who"><a href="/employer/applicants/<%= c.appId %>"><b><%= c.candidate %></b></a><span class="muted small"><%= c.jobTitle %></span><span class="muted small"><%= formatIst(c.at) %></span></span></span></li>
+          <% }) %>
+        </ul>
+      </section>
+      <% } %>
+
       <section class="dash-card dash-wide" id="interviews">
         <div class="dash-head"><h2>Upcoming interviews</h2><a class="btn btn-outline btn-sm" href="/employer/interviews">All interviews</a></div>
         <% if (!interviews.length) { %><p class="muted dash-empty">No interviews booked. Schedule one from an applicant's page.</p>

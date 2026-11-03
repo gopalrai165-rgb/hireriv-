@@ -277,6 +277,7 @@ function register(app, deps) {
         ...(may('feedback.view') ? { feedback: (iv.feedback || []).map((f) => ({ by: f.by, at: f.at, rating: f.rating, recommendation: f.recommendation, strengths: f.strengths || '', concerns: f.concerns || '' })) } : {}),
       })),
       allowedMoves: may('applicants.manage') ? ats.allowedMoves(a) : [],
+      hrContacts: (a.hrContacts || []).map((c) => ({ via: c.via, at: c.at })),
     };
     if (may('applicants.contact')) Object.assign(v, { email: require('./identity').realEmail(a.email), phone: a.phone || '', linkedin: a.linkedin || '', message: a.message || '', hasResume: Boolean(a.resume) });
     // Internal: never shown to candidates.

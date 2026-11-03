@@ -57,6 +57,7 @@ function timeline(a) {
     if (iv.cancelledAt) ev.push({ at: iv.cancelledAt, kind: 'Interview', text: 'Interview cancelled' });
     for (const f of iv.feedback || []) ev.push({ at: f.at, kind: 'Feedback', text: `Interview feedback: ${f.recommendation}, ${f.rating}/5`, by: f.by });
   }
+  for (const c of a.hrContacts || []) ev.push({ at: c.at, kind: 'Contact', text: c.via === 'call' ? 'Candidate tapped Call HR' : 'Candidate tapped WhatsApp HR' });
   for (const m of a.emails || []) ev.push({ at: m.at, kind: 'Email', text: `Emailed: ${m.subject}`, by: m.by });
   if (a.shared) {
     ev.push({ at: a.shared.sharedAt, kind: 'Shared', text: 'Shared with client' });

@@ -431,6 +431,7 @@ Total: 727 routes.
 | POST | `/api/public/events` | public | Counts an application form being opened; only events a browser may report; no personal data; 60 per 10 minutes |
 | GET | `/api/jobs/:id` | public | Open, published jobs only |
 | POST | `/api/jobs/:id/report` | public | 5 per 10 minutes per IP; also opens or adds to a trust & safety case |
+| POST | `/api/jobs/:id/hr-contact` | public | Signed-in job seeker only (401 otherwise), and only for a job they applied to (404 otherwise); same-origin; 30 per 10 minutes per IP; notes a Call or WhatsApp tap to HR on the application for the employer (Step 141) |
 | POST | `/api/job-alerts` | public | Bot trap, per-IP limit. Signed out: confirmed by an emailed link, same reply either way. Signed in as a candidate (own email): on at once |
 | POST | `/api/newsletter` | public |  |
 | GET | `/post-a-job` | public | Signed-in employer: the job form; anyone else: employer sign-up |

@@ -247,6 +247,27 @@ function register(app, deps) {
     return { email, name: profile.name || '', phone: profile.phone || '', hasResume: Boolean(profile.resume), applied: applied ? applied.createdAt : null, missing };
   }
 
+  // Calls and WhatsApp messages to HR from a job page, after applying: kept on
+  // the application so the employer (or our team, for jobs we run) sees who
+  // got in touch and when. A second tap within two minutes is the same contact.
+  const HR_VIA = ['call', 'whatsapp'];
+  app.post('/api/jobs/:id/hr-contact', limit('hr-contact', 30), sameOrigin, (req, res) => {
+    const email = currentEmail(req);
+    if (!email) return res.status(401).json({ ok: false, errors: ['sign in first'] });
+    const via = HR_VIA.includes(req.body && req.body.via) ? req.body.via : '';
+    if (!via) return res.status(400).json({ ok: false, errors: ['via must be call or whatsapp'] });
+    const list = readSubmissions('applications');
+    const a = list.find((x) => x.jobId === req.params.id && String(x.email).toLowerCase() === email && !x.withdrawnAt && !x.duplicateOf);
+    if (!a) return res.status(404).json({ ok: false, errors: ['apply to this job first'] });
+    const last = (a.hrContacts || []).filter((c) => c.via === via).pop();
+    if (!last || Date.now() - Date.parse(last.at) > 2 * 60 * 1000) {
+      a.hrContacts = [...(a.hrContacts || []), { via, at: nowIso() }].slice(-20);
+      writeSubmissions('applications', list);
+      track('hr-contact', via, req);
+    }
+    res.json({ ok: true, contacts: a.hrContacts.length });
+  });
+
   // One-tap apply from job lists: for a signed-in job seeker, which jobs they
   // already applied to and whether their profile has what a quick application
   // needs (jobs that need a resume also need one on file). Null when signed out.

@@ -2381,3 +2381,11 @@ td > a:only-child { display: inline-block; padding-block: 6px; min-width: 24px; 
 .nearby-cities a { display: grid; gap: 2px; padding: 14px 16px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: #fff; color: var(--ink); }
 .nearby-cities a:hover { border-color: var(--action); box-shadow: var(--shadow); }
 .state-jobs-link { margin: -4px 0 12px; }
+
+/* Candidates who called or messaged HR (Step 141) */
+.pill-contacted { background: #e7f7ee; color: #167a3e; }
+.hr-contacted { display: flex; gap: 10px; align-items: flex-start; }
+.hr-contacted .i { flex: none; width: 20px; height: 20px; color: var(--primary); margin-top: 2px; }
+.tl-contact .tl-what { color: #167a3e; }
+.contact-who { display: grid; gap: 2px; }
+.contact-who > span { white-space: normal; overflow: visible; text-overflow: clip; }

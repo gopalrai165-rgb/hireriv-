@@ -1088,3 +1088,11 @@ document.querySelectorAll('input[data-suggest]').forEach((input) => {
   });
   input.addEventListener('blur', () => setTimeout(close, 100));
 });
+
+// Calling or messaging HR after applying is noted on the application, so the
+// employer sees who got in touch. The call itself is never held up.
+document.addEventListener('click', (e) => {
+  const link = e.target.closest('[data-hr-contact]');
+  if (!link || !navigator.sendBeacon) return;
+  navigator.sendBeacon(`/api/jobs/${encodeURIComponent(link.dataset.job)}/hr-contact`, new URLSearchParams({ via: link.dataset.hrContact }));
+});
