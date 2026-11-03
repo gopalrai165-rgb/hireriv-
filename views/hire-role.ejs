@@ -1,0 +1,104 @@
+<%- include('partials/head') %>
+<% const real = realContact(site); %>
+
+<section class="page-hero employers-hero">
+  <span class="deco deco-spark" aria-hidden="true"></span>
+  <div class="container split">
+    <div>
+      <nav class="breadcrumbs small" aria-label="Breadcrumb"><a href="/">Home</a> › <a href="/employers">For employers</a> › <span aria-current="page">Hire <%= role.noun %></span></nav>
+      <span class="eyebrow">For employers</span>
+      <h1>Hire <span class="grad"><%= role.noun %></span></h1>
+      <p class="lead">Post a job and get applications and calls from <%= role.noun %>, or tell us what you need and our recruiters send you a shortlist of screened candidates.</p>
+      <ul class="hire-facts">
+        <% if (pay) { %><li><b><%= inr(pay.typicalLow) %> – <%= inr(pay.typicalHigh) %></b><span>typical monthly pay on <%= site.name %> listings (<a href="<%= salaryHref %>">details</a>)</span></li><% } %>
+        <li><b><%= open %></b><span>open <%= role.label.toLowerCase() %> <%= open === 1 ? 'job' : 'jobs' %> on <%= site.name %> now (<a href="<%= jobsHref %>">see them</a>)</span></li>
+        <% if (seekers) { %><li><b><%= seekers %></b><span>job seekers who want this work and asked employers to find them</span></li><% } %>
+      </ul>
+    </div>
+    <div class="callback-card">
+      <h2>Two ways to hire <%= role.noun %></h2>
+      <a class="btn btn-accent btn-lg btn-block" href="/employer/jobs/new">Post a job yourself</a>
+      <p class="small muted">Reviewed by our team, then live. Applicants can call or WhatsApp you after applying, if you allow it.</p>
+      <a class="btn btn-primary btn-block" href="#enquiry">Let our recruiters hire for you</a>
+      <% if (real.whatsapp) { %><a class="btn btn-whatsapp btn-block" href="https://wa.me/<%= real.whatsapp %>?text=<%= encodeURIComponent('Hi ' + site.name + ', I want to hire ' + role.noun + '.') %>" rel="noopener">Enquire on WhatsApp</a><% } %>
+    </div>
+  </div>
+</section>
+
+<section class="section" aria-labelledby="post-h">
+  <div class="container split">
+    <div>
+      <h2 id="post-h">What to put in your job post</h2>
+      <p>Clear posts get more of the right applicants and fewer drop-outs. For <%= role.noun %>, say:</p>
+      <ul class="checks">
+        <% role.mention.forEach(function (m) { %><li><%= m %></li><% }) %>
+        <li>The monthly in-hand pay as a range, before incentives</li>
+        <li>The exact work location, so people can judge the commute</li>
+      </ul>
+      <p class="small muted">Never ask candidates for a fee, deposit or uniform charge: such posts are removed. See the <a href="/job-posting-policy">job posting policy</a>.</p>
+    </div>
+    <div>
+      <h2>How each way works</h2>
+      <div class="hire-ways">
+        <div class="hire-way">
+          <h3>Post a job yourself</h3>
+          <ol class="small">
+            <li>Create a free employer account and post the job.</li>
+            <li>Our team reviews it, usually the same working day, and it goes live.</li>
+            <li>Applicants come to your dashboard; they can call or WhatsApp your hiring contact if you allow it, and you see who did.</li>
+          </ol>
+          <a class="btn btn-outline btn-sm" href="/employer/register">Create an employer account</a>
+        </div>
+        <div class="hire-way">
+          <h3>Let our recruiters hire for you</h3>
+          <ol class="small">
+            <li>Tell us the role, the number of people and the pay.</li>
+            <li>A recruiter calls you within one working day and agrees the fee.</li>
+            <li>We source, call and screen candidates and arrange the interviews.</li>
+          </ol>
+          <a class="btn btn-outline btn-sm" href="#enquiry">Request a callback</a>
+        </div>
+      </div>
+      <p class="small">Fees and terms: <a href="/employers#price-h">pricing</a> and <a href="/service-terms">service terms</a>.</p>
+    </div>
+  </div>
+</section>
+
+<% if (byCity.length) { %>
+<section class="section section-tint" aria-labelledby="city-pay-h">
+  <div class="container">
+    <h2 id="city-pay-h" class="sub-head">What <%= role.noun %> earn by city</h2>
+    <div class="table-wrap"><table class="salary-table">
+      <thead><tr><th scope="col">City</th><th scope="col">Typical monthly pay</th><th scope="col">Listings with pay</th></tr></thead>
+      <tbody><% byCity.forEach(function (c) { %><tr><th scope="row"><%= c.city.name %></th><td><%= inr(c.typicalLow) %> – <%= inr(c.typicalHigh) %></td><td><%= c.count %></td></tr><% }) %></tbody>
+    </table></div>
+    <p class="small muted">From the pay employers put on real <%= site.name %> listings. Offer at least the typical pay to fill the role faster.</p>
+  </div>
+</section>
+<% } %>
+
+<section class="section" aria-labelledby="faq-h">
+  <div class="container">
+    <h2 id="faq-h" class="sub-head">Questions employers ask</h2>
+    <div class="faq-list">
+      <details><summary>How quickly can I hire <%= role.noun %>?</summary><p>A job you post goes live once our team has checked it, usually the same working day. When our recruiters hire for you, the first shortlist time is agreed in your quote; see the <a href="/service-terms#timelines">service terms</a>.</p></details>
+      <details><summary>What does it cost?</summary><p>See <a href="/employers#price-h">pricing</a>. Recruitment fees are agreed before any work starts, with the replacement terms. Candidates never pay anything.</p></details>
+      <details><summary>Are the candidates checked?</summary><p>When our recruiters hire for you, every candidate on the shortlist has been called and screened against your requirements. Background verification is available as a separate service, with the candidate's consent.</p></details>
+    </div>
+    <% if (cities.length) { %><p class="small">We also recruit locally in <% cities.forEach(function (c, i) { %><%= i ? ', ' : '' %><a href="/recruitment-agency/<%= c.slug %>"><%= c.name %></a><% }) %>.</p><% } %>
+    <p class="small">Hire other roles: <% otherRoles.forEach(function (r, i) { %><%= i ? ' · ' : '' %><a href="<%= r.href %>"><%= r.noun %></a><% }) %></p>
+  </div>
+</section>
+
+<section class="section section-tint" id="enquiry" aria-labelledby="enquiry-h">
+  <div class="container split enquiry-split">
+    <div>
+      <span class="eyebrow">Employer enquiry</span>
+      <h2 id="enquiry-h">Tell us about the <%= role.noun %> you need</h2>
+      <p>How many people, where, the shift and the pay. You get a confirmation email straight away, and a recruiter calls you within one working day.</p>
+    </div>
+    <%- include('partials/employer-enquiry-form') %>
+  </div>
+</section>
+
+<%- include('partials/foot') %>

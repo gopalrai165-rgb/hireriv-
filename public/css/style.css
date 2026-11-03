@@ -2389,3 +2389,17 @@ td > a:only-child { display: inline-block; padding-block: 6px; min-width: 24px; 
 .tl-contact .tl-what { color: #167a3e; }
 .contact-who { display: grid; gap: 2px; }
 .contact-who > span { white-space: normal; overflow: visible; text-overflow: clip; }
+
+/* Hire <role> pages (Step 142) */
+.hire-facts { list-style: none; padding: 0; margin: 22px 0 0; display: grid; gap: 10px; }
+.hire-facts li { display: flex; gap: 12px; align-items: baseline; flex-wrap: wrap; }
+.hire-facts b { font-family: var(--font-display); font-size: 1.35rem; color: var(--ink); }
+.hire-facts span { color: var(--muted); font-size: .92rem; }
+.hire-ways { display: grid; gap: 14px; margin: 14px 0; }
+.hire-way { padding: 18px 20px; border: 1px solid var(--line); border-radius: var(--radius); background: #fff; }
+.hire-way h3 { margin: 0 0 6px; font-size: 1.05rem; }
+.hire-way ol { margin: 0 0 12px; padding-left: 1.2em; display: grid; gap: 4px; }
+.faq-list { display: grid; gap: 10px; margin: 14px 0 18px; }
+.faq-list details { padding: 14px 18px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: #fff; }
+.faq-list summary { font-weight: 700; color: var(--ink); cursor: pointer; }
+.faq-list p { margin: 10px 0 0; }

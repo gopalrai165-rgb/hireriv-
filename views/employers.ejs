@@ -103,4 +103,11 @@
   </div>
 </section>
 
+<section class="section section-flush" aria-labelledby="by-role-h">
+  <div class="container">
+    <h2 id="by-role-h" class="sub-head">Hire by role</h2>
+    <div class="chips"><% hireRoles.forEach(function (r) { %><a class="chip chip-link" href="<%= r.href %>">Hire <%= r.noun %></a><% }) %></div>
+  </div>
+</section>
+
 <%- include('partials/foot') %>

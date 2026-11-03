@@ -846,7 +846,7 @@ app.locals.stateJobsLink = (city) => {
 };
 const cityPagesWithJobs = () => { const live = openJobs().filter((j) => !isSample(j)); return geo.CITY_PAGES.filter((c) => live.some((j) => c.locations.includes(j.location))); };
 app.get('/sitemap.xml', (req, res) =>
-  res.type('application/xml').send(seo.sitemap(BASE_URL, { jobs: openJobs().filter((j) => !isSample(j)), posts: livePosts(), staticPaths: ['/', '/jobs', ...catalog.WORK_PAGES.map((x) => `/jobs/${x.slug}`), ...catalog.JOB_INDUSTRIES.map((x) => `/jobs/industry/${x.slug}`), ...cityPagesWithJobs().map((c) => `/jobs/in/${c.slug}`), ...(statePagesWithJobs().length ? ['/jobs/states'] : []), ...statePagesWithJobs().map(statePath), ...areaPagesWithJobs(), ...rolePagesWithJobs(), ...needPagesWithJobs(), ...salaryPagesWithData(), ...(trustHooks.companyPaths().length ? ['/companies'] : []), ...trustHooks.companyPaths(), '/interview-tips', ...ROLE_PAGES.filter((r) => interviewTips.forRole(r.key)).map((r) => tipsPath(r)), '/categories', '/job-seekers', '/employers', ...recruitCities().map((c) => `/recruitment-agency/${c.slug}`), '/hire', '/services', ...catalog.SERVICES.map((x) => `/services/${x.slug}`), '/industries', ...catalog.INDUSTRIES.map((x) => `/industries/${x.slug}`), '/about', '/blog', '/contact', '/privacy', '/terms', '/service-terms', '/company-profile', '/job-posting-policy', '/help/job-terms', '/accessibility'] }))
+  res.type('application/xml').send(seo.sitemap(BASE_URL, { jobs: openJobs().filter((j) => !isSample(j)), posts: livePosts(), staticPaths: ['/', '/jobs', ...catalog.WORK_PAGES.map((x) => `/jobs/${x.slug}`), ...catalog.JOB_INDUSTRIES.map((x) => `/jobs/industry/${x.slug}`), ...cityPagesWithJobs().map((c) => `/jobs/in/${c.slug}`), ...(statePagesWithJobs().length ? ['/jobs/states'] : []), ...statePagesWithJobs().map(statePath), ...areaPagesWithJobs(), ...rolePagesWithJobs(), ...needPagesWithJobs(), ...salaryPagesWithData(), ...(trustHooks.companyPaths().length ? ['/companies'] : []), ...trustHooks.companyPaths(), '/interview-tips', ...ROLE_PAGES.filter((r) => interviewTips.forRole(r.key)).map((r) => tipsPath(r)), '/categories', '/job-seekers', '/employers', ...app.locals.hireRoles.map((r) => r.href), ...recruitCities().map((c) => `/recruitment-agency/${c.slug}`), '/hire', '/services', ...catalog.SERVICES.map((x) => `/services/${x.slug}`), '/industries', ...catalog.INDUSTRIES.map((x) => `/industries/${x.slug}`), '/about', '/blog', '/contact', '/privacy', '/terms', '/service-terms', '/company-profile', '/job-posting-policy', '/help/job-terms', '/accessibility'] }))
 );
 
 // Things a new install still needs before it is ready for visitors, shown to
@@ -971,6 +971,10 @@ app.locals.popularNeedPages = NEED_PAGES.filter((x) => x.popular);
 const needJobs = (live, need, city) => live.filter((j) => need.matches(j) && (!city || city.locations.includes(j.location)));
 // Live jobs for a role, as its keyword search finds them, optionally in one city.
 const roleJobs = (live, role, city) => search.searchJobs(live, { q: role.q }).jobs.filter((j) => !city || city.locations.includes(j.location));
+// Pay figures come only from jobs that are this role by title or category: a
+// keyword search also finds, say, an IT job that mentions "delivery pipelines".
+const roleTitled = (role) => (j) => `${j.title} ${j.category}`.toLowerCase().includes(role.q);
+const rolePayJobs = (live, role, city) => roleJobs(live, role, city).filter(roleTitled(role));
 function topCities(live, n = 8) {
   const counts = {};
   for (const j of live) { const c = geo.cityPageFor(j.location); if (c) counts[c.name] = (counts[c.name] || 0) + 1; }
@@ -1466,13 +1470,13 @@ const salaryPool = () => salaries.pool(jobs, { isSample: (j) => j.sample === tru
 const fresherJob = (j) => search.searchJobs([j], { experience: 'fresher' }).jobs.length > 0;
 const salaryPath = (role, city) => `/salaries/${role.slug}${city ? `/in/${city.slug}` : ''}`;
 function roleSalary(role, city, list = salaryPool()) {
-  const found = roleJobs(list, role, city);
+  const found = rolePayJobs(list, role, city);
   return city ? { india: salaries.summarise(found), byCity: [], freshers: salaries.summarise(found.filter(fresherJob)) } : salaries.forRole(found, { cities: geo.CITY_PAGES, fresher: fresherJob });
 }
 app.locals.inr = salaries.inr;
 app.get('/salaries', (req, res) => {
   const list = salaryPool();
-  const rows = ROLE_PAGES.map((r) => ({ role: r, href: salaryPath(r), jobsHref: rolePath(r), ...salaries.summarise(roleJobs(list, r)) }));
+  const rows = ROLE_PAGES.map((r) => ({ role: r, href: salaryPath(r), jobsHref: rolePath(r), ...salaries.summarise(rolePayJobs(list, r)) }));
   res.render('salaries', {
     title: 'Salaries in India by job', page: 'jobs', view: 'index', rows, minListings: salaries.MIN_LISTINGS,
     metaDescription: `What jobs pay in India, from the salaries employers put on real ${site.name} listings: the typical monthly pay for delivery, driver, telecaller, sales, security, nurse and more.`,
@@ -1665,6 +1669,54 @@ app.get('/services/staffing', (req, res) => res.redirect(301, '/services/contrac
 app.get('/services/bulk-hiring', (req, res) => res.redirect(301, '/services/bulk-rpo-hiring'));
 app.get('/employers/contact', (req, res) => res.redirect(301, '/employers#enquiry'));
 app.get('/hire-talent', (req, res) => res.redirect(301, '/employers'));
+// "Hire <role>" pages for employers (/hire/telecaller): what the role pays on
+// real listings, how many such jobs are open, job seekers who asked to be found
+// (only once there are enough to mean something), what to put in the job post,
+// the two ways to hire, and the enquiry form with the role filled in.
+const HIRE_ROLES = {
+  delivery: { noun: 'delivery executives', mention: ['Whether a two-wheeler and licence are needed, or provided', 'Fixed pay and per-order incentives, stated separately', 'Shift timing and the hub or store location', 'Fuel, phone and data allowances'] },
+  driver: { noun: 'drivers', mention: ['The licence needed: LMV, commercial or heavy vehicle', 'The vehicle and the usual routes', 'Duty hours, night halts and overtime', 'Food and stay allowance on outstation trips'] },
+  telecaller: { noun: 'telecallers', mention: ['The languages callers must speak', 'Inbound or outbound calling, and the targets', 'Fixed pay and incentives, stated separately', 'Shift timing and office location'] },
+  sales: { noun: 'sales executives', mention: ['Field or office sales, and the area covered', 'Fixed pay, incentives and targets', 'Two-wheeler or travel allowance', 'What they will sell, and to whom'] },
+  dataEntry: { noun: 'data entry operators', mention: ['Typing speed and the software used (Excel, Tally, your own system)', 'Work from office or from home', 'Shift timing', 'The languages they type in'] },
+  warehouse: { noun: 'warehouse staff', mention: ['Picking, packing, loading or inventory work', 'Shift timing and overtime pay', 'PF and ESI', 'Transport, canteen or stay'] },
+  security: { noun: 'security guards', mention: ['Duty hours (8 or 12) and the weekly off', 'Uniform provided free (never charged to the guard)', 'PF and ESI', 'Site location and night duty'] },
+  electrician: { noun: 'electricians', mention: ['ITI or wireman licence needed', 'Domestic, industrial or panel work', 'Tools provided', 'Site location and travel'] },
+  cook: { noun: 'cooks', mention: ['The cuisine: North Indian, South Indian, Chinese or continental', 'Restaurant, hotel, canteen or home', 'Food and stay', 'Duty hours and the weekly off'] },
+  accountant: { noun: 'accountants', mention: ['Tally, GST, TDS and payroll work', 'Qualification (B.Com, M.Com, CA Inter) and years of experience', 'Office location', 'Fixed monthly pay'] },
+  nurse: { noun: 'nurses', mention: ['GNM, ANM or B.Sc Nursing, and registration', 'Ward, ICU, OT or home care', 'Shift rotation and night duty', 'Stay or transport'] },
+  developer: { noun: 'software developers', mention: ['The tech stack and years of experience', 'Office, hybrid or remote', 'CTC range', 'How long a notice period you can wait for'] },
+};
+const MIN_SEEKERS_SHOWN = 10;
+const hireRolePath = (role) => `/hire/${role.slug}`;
+const hireRoleOf = (role) => ({ ...role, ...HIRE_ROLES[role.key], href: hireRolePath(role) });
+app.locals.hireRoles = ROLE_PAGES.map(hireRoleOf);
+// Job seekers who chose to be found by employers and want this kind of work.
+function seekersFor(role) {
+  const q = role.q.toLowerCase();
+  return readSubmissions('candidates').filter((c) => c.privacy && c.privacy.discoverable && c.profile
+    && [c.profile.preferences && c.profile.preferences.roles, ...(c.profile.skills || []), c.profile.headline].some((v) => String(v || '').toLowerCase().includes(q))).length;
+}
+app.get('/hire/:role', (req, res, next) => {
+  const base = rolePageBySlug(req.params.role);
+  if (!base) return next();
+  const role = hireRoleOf(base);
+  const pay = roleSalary(base);
+  const open = roleJobs(openJobs().filter((j) => !isSample(j)), base).length;
+  const seekers = seekersFor(base);
+  const Noun = role.noun[0].toUpperCase() + role.noun.slice(1);
+  res.render('hire-role', {
+    title: `Hire ${Noun} in India: Post a Job or Get a Shortlist`, page: 'employers', role, Noun,
+    pay: pay.india.enough ? pay.india : null, byCity: (pay.byCity || []).filter((c) => c.enough).slice(0, 6), salaryHref: salaryPath(base),
+    open, jobsHref: rolePath(base), seekers: seekers >= MIN_SEEKERS_SHOWN ? seekers : 0,
+    otherRoles: app.locals.hireRoles.filter((r) => r.slug !== role.slug), cities: recruitCities(),
+    enquiryFrom: `role:${role.slug}`, enquiryRoles: `${Noun}: `, industries: EMPLOYER_INDUSTRIES,
+    metaDescription: `Hire ${role.noun} in India with ${site.name}: post a job and get applications and calls from ${role.noun}, or let our recruiters shortlist for you.${pay.india.enough ? ` Typical pay ${salaries.inr(pay.india.typicalLow)} – ${salaries.inr(pay.india.typicalHigh)} a month.` : ''}`,
+    canonical: `${BASE_URL}${hireRolePath(role)}`,
+    jsonLd: { '@context': 'https://schema.org', '@type': 'Service', serviceType: 'Recruitment', name: `Hire ${role.noun}`, url: `${BASE_URL}${hireRolePath(role)}`, areaServed: { '@type': 'Country', name: 'India' }, provider: { '@type': 'Organization', name: site.name, url: BASE_URL } },
+  });
+});
+
 // "Recruitment agency in <city>": only for cities chosen in Settings, with the
 // city's real open jobs, the roles being hired, its localities and the form.
 app.get('/recruitment-agency/:city', (req, res, next) => {
@@ -1948,14 +2000,15 @@ function employerInquiry(req, body, file) {
   const service = /^service:/.test(from) && catalog.serviceBySlug(from.slice(8));
   const desk = /^desk:/.test(from) && catalog.industryBySlug(from.slice(5));
   const cityPage = /^city:/.test(from) && recruitCities().find((c) => c.slug === from.slice(5));
-  const page = cityPage ? `City page: ${cityPage.name}` : service ? `service page: ${service.name}` : desk ? `industry page: ${desk.name}` : from === 'home' ? 'homepage' : from === 'employers' ? 'Employers page' : from === 'contact' ? 'Contact page' : '';
+  const hireRole = /^role:/.test(from) && app.locals.hireRoles.find((r) => r.slug === from.slice(5));
+  const page = hireRole ? `Hire page: ${hireRole.noun}` : cityPage ? `City page: ${cityPage.name}` : service ? `service page: ${service.name}` : desk ? `industry page: ${desk.name}` : from === 'home' ? 'homepage' : from === 'employers' ? 'Employers page' : from === 'contact' ? 'Contact page' : '';
   const entry = saveSubmission('hire-requests', { ...data, ...(page ? { fromPage: page } : {}), ...(body.consent === '1' ? { consentAt: new Date().toISOString() } : {}), ...(file ? { jd: file.filename, jdName: path.basename(file.originalname).slice(0, 120) } : {}), followUp: 'New' });
   mailer.hireRequestReceived(entry);
   mailer.hireRequestAcknowledged(entry);
   events.staffingRequest(entry);
   const via = data.source ? `, via ${reportsModule.sourceName(data.source)}${data.campaign ? ` (${data.campaign})` : ''}` : '';
   leadCapture.capture('Website inquiry', data, { sourceRef: entry.id, sourceDetail: `Hire with us form${page ? `, ${page}` : ''}${via}` });
-  siteAnalytics.track('employer-inquiry', cityPage ? `City: ${cityPage.name}` : service ? service.name : desk ? desk.name : from === 'home' ? 'Homepage' : from === 'employers' ? 'Employers page' : from === 'contact' ? 'Contact page' : data.hiringType || 'Hire page', req);
+  siteAnalytics.track('employer-inquiry', hireRole ? `Hire: ${hireRole.noun}` : cityPage ? `City: ${cityPage.name}` : service ? service.name : desk ? desk.name : from === 'home' ? 'Homepage' : from === 'employers' ? 'Employers page' : from === 'contact' ? 'Contact page' : data.hiringType || 'Hire page', req);
   return [];
 }
 app.post('/api/hire', limit('hire', 5), (req, res) => {

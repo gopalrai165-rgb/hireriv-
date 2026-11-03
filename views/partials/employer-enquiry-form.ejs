@@ -22,7 +22,7 @@
         <select name="headcount"><% ['1-5', '6-20', '21-50', '51-100', '100+'].forEach(function (h) { %><option><%= h %></option><% }) %></select>
       </label>
       <label>Hiring location<input name="location" maxlength="120" placeholder="City, or Remote" value="<%= typeof enquiryCity !== 'undefined' ? enquiryCity : '' %>"></label>
-      <label class="span-2">Hiring requirements*<textarea name="roles" required rows="4" maxlength="1500" placeholder="Roles, skills, experience, salary range and when you need them"></textarea></label>
+      <label class="span-2">Hiring requirements*<textarea name="roles" required rows="4" maxlength="1500" placeholder="Roles, skills, experience, salary range and when you need them"><%= typeof enquiryRoles !== 'undefined' ? enquiryRoles : '' %></textarea></label>
       <label class="span-2 check-row"><input type="checkbox" name="consent" value="1" required> <span>I agree that <%= site.name %> may contact me by phone, email or WhatsApp about this enquiry, as described in the <a href="/privacy">Privacy Policy</a>.</span></label>
     </div>
     <button class="btn btn-primary btn-block" type="submit">Request a Callback</button>

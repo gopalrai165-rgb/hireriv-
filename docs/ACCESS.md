@@ -387,6 +387,7 @@ Total: 727 routes.
 | GET | `/jobs/industrial-field-service` | public | Landing page for job seekers: live industrial, field and service jobs |
 | GET | `/jobs/industry/:slug` | public | Landing page for job seekers by industry (catalog.js); 404 for unknown industries |
 | GET | `/jobs/in/:city` | public | City job pages (geo.js); a city without real live jobs is noindex and left out of the sitemap |
+| GET | `/hire/:role` | public | "Hire <role>" employer pages (Step 142): pay and open jobs from real listings, job seekers who asked to be found (shown from 10), what to post, the enquiry form |
 | GET | `/jobs/states` | public | Jobs by state: every state with its cities and open jobs (Step 140) |
 | GET | `/jobs/state/:state` | public | One state's open jobs across its cities, with each city's count and a state job alert; noindex and out of the sitemap without real live jobs |
 | GET | `/jobs/in/:city/:area` | public | Area job pages (areas.js, geo.js areaOf); an area without real live jobs is noindex and left out of the sitemap |
