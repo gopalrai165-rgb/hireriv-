@@ -1,0 +1,40 @@
+<%- include('partials/head') %>
+
+<section class="page-hero page-hero-sm">
+  <span class="deco deco-spark" aria-hidden="true"></span><span class="deco deco-dots" aria-hidden="true"></span>
+  <div class="container narrow">
+    <span class="eyebrow">For employers</span>
+    <h1><%= site.name %> company profile</h1>
+    <p class="lead">Recruitment and staffing across India. Read it here, or download the PDF to share with your team.</p>
+    <p class="profile-actions">
+      <a class="btn btn-primary" href="/company-profile.pdf" download><svg class="i" aria-hidden="true"><use href="#i-arrow"/></svg> Download PDF</a>
+      <a class="btn btn-outline" href="/employers#enquiry">Request a Callback</a>
+    </p>
+  </div>
+</section>
+
+<section class="section">
+  <article class="container narrow company-profile">
+    <% profileSections.forEach(function (sec) { %>
+      <section class="profile-section" aria-label="<%= sec.heading %>">
+        <h2 class="h3"><%= sec.heading %></h2>
+        <% if (sec.heading === 'Company details') { %>
+          <dl class="company-facts">
+            <% sec.blocks.forEach(function (b) { %><div><dt><%= b.title %></dt><dd><%= b.text %></dd></div><% }) %>
+          </dl>
+        <% } else { %>
+          <% sec.blocks.forEach(function (b) { %>
+            <div class="profile-block">
+              <% if (b.title) { %><h3 class="h4"><%= b.title %></h3><% } %>
+              <% if (b.note) { %><p class="muted small"><%= b.note %></p><% } %>
+              <% if (b.text) { %><p><%= b.text %></p><% } %>
+            </div>
+          <% }) %>
+        <% } %>
+      </section>
+    <% }) %>
+    <p class="muted small">Details as of <%= formatDate(today) %>. The <a href="/service-terms">service terms</a> and your signed agreement set the final terms.</p>
+  </article>
+</section>
+
+<%- include('partials/foot') %>

@@ -109,7 +109,8 @@ function gaps(profile) {
 
 // Builds the PDF. `contact` is the line under the name (city, phone, email).
 // Returns { pdf: Buffer, pages, dropped: [characters left out] }.
-function build(profile, { summary = '', contact = [], title = 'Resume', now = new Date() } = {}) {
+// `sections` may be given to print other documents (the company profile).
+function build(profile, { summary = '', contact = [], title = 'Resume', now = new Date(), sections: given = null } = {}) {
   const p = profile || {};
   const dropped = new Set();
   const pages = [];
@@ -138,7 +139,7 @@ function build(profile, { summary = '', contact = [], title = 'Resume', now = ne
   if (contactLine) { y -= 2; para(contactLine, { size: 9.5, gray: true }); }
   y -= 6;
 
-  for (const sec of sections(p, { summary })) {
+  for (const sec of given || sections(p, { summary })) {
     room(40);
     y -= 18;
     text(encode(sec.heading.toUpperCase(), dropped), { size: 10.5, bold: true });

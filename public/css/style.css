@@ -2248,3 +2248,9 @@ p, li, dd { text-wrap: pretty; }
 .mission-vision > div { padding: 14px 16px; border: 1px solid var(--line); border-radius: 10px; background: #fff; }
 .mission-vision p { margin: 4px 0 0; }
 .legal-who { padding: 12px 16px; border-left: 3px solid var(--primary, #123B70); background: rgba(18, 59, 112, .04); border-radius: 0 10px 10px 0; }
+
+/* Company profile page */
+.company-profile .profile-section { margin-bottom: 30px; }
+.company-profile .profile-block { margin-bottom: 10px; }
+.company-profile .profile-block p { margin: 2px 0 0; }
+.profile-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }

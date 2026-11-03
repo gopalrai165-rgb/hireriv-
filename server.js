@@ -825,7 +825,7 @@ function needPagesWithJobs() {
 }
 const cityPagesWithJobs = () => { const live = openJobs().filter((j) => !isSample(j)); return geo.CITY_PAGES.filter((c) => live.some((j) => c.locations.includes(j.location))); };
 app.get('/sitemap.xml', (req, res) =>
-  res.type('application/xml').send(seo.sitemap(BASE_URL, { jobs: openJobs().filter((j) => !isSample(j)), posts: livePosts(), staticPaths: ['/', '/jobs', ...catalog.WORK_PAGES.map((x) => `/jobs/${x.slug}`), ...catalog.JOB_INDUSTRIES.map((x) => `/jobs/industry/${x.slug}`), ...cityPagesWithJobs().map((c) => `/jobs/in/${c.slug}`), ...areaPagesWithJobs(), ...rolePagesWithJobs(), ...needPagesWithJobs(), ...salaryPagesWithData(), ...(trustHooks.companyPaths().length ? ['/companies'] : []), ...trustHooks.companyPaths(), '/interview-tips', ...ROLE_PAGES.filter((r) => interviewTips.forRole(r.key)).map((r) => tipsPath(r)), '/categories', '/job-seekers', '/employers', '/hire', '/services', ...catalog.SERVICES.map((x) => `/services/${x.slug}`), '/industries', ...catalog.INDUSTRIES.map((x) => `/industries/${x.slug}`), '/about', '/blog', '/contact', '/privacy', '/terms', '/service-terms', '/job-posting-policy', '/help/job-terms', '/accessibility'] }))
+  res.type('application/xml').send(seo.sitemap(BASE_URL, { jobs: openJobs().filter((j) => !isSample(j)), posts: livePosts(), staticPaths: ['/', '/jobs', ...catalog.WORK_PAGES.map((x) => `/jobs/${x.slug}`), ...catalog.JOB_INDUSTRIES.map((x) => `/jobs/industry/${x.slug}`), ...cityPagesWithJobs().map((c) => `/jobs/in/${c.slug}`), ...areaPagesWithJobs(), ...rolePagesWithJobs(), ...needPagesWithJobs(), ...salaryPagesWithData(), ...(trustHooks.companyPaths().length ? ['/companies'] : []), ...trustHooks.companyPaths(), '/interview-tips', ...ROLE_PAGES.filter((r) => interviewTips.forRole(r.key)).map((r) => tipsPath(r)), '/categories', '/job-seekers', '/employers', '/hire', '/services', ...catalog.SERVICES.map((x) => `/services/${x.slug}`), '/industries', ...catalog.INDUSTRIES.map((x) => `/industries/${x.slug}`), '/about', '/blog', '/contact', '/privacy', '/terms', '/service-terms', '/company-profile', '/job-posting-policy', '/help/job-terms', '/accessibility'] }))
 );
 
 // Things a new install still needs before it is ready for visitors, shown to
@@ -1667,6 +1667,19 @@ app.get('/contact', (req, res) => res.render('contact', { title: 'Contact Us', p
 const LEGAL_UPDATED = '2026-11-03';
 app.get('/privacy', (req, res) => res.render('privacy', { title: 'Privacy Policy', page: 'legal', updated: LEGAL_UPDATED, policyVersion: privacyModule.POLICY_VERSION, purposes: privacyModule.PURPOSES, metaDescription: `How ${site.name} collects, uses and protects the personal data of candidates, clients and visitors.` }));
 app.get('/job-posting-policy', (req, res) => res.render('job-posting-policy', { title: 'Job posting rules', page: 'legal', updated: LEGAL_UPDATED, metaDescription: `What employers may and may not post on ${site.name}: real vacancies, honest pay, no fees from candidates.` }));
+// The company profile: a web page and the same content as a PDF to download.
+const companyProfile = require('./company-profile');
+const profileDeps = () => ({ companyOf: app.locals.companyOf, realContact: app.locals.realContact, billing: placements.billingOf(site), priceOf: app.locals.priceOf, pricedServices: app.locals.pricedServices, baseUrl: BASE_URL });
+app.get('/company-profile', (req, res) => res.render('company-profile', {
+  title: 'Company profile', page: 'employers', profileSections: companyProfile.sections(site, profileDeps()), today: todayIst(),
+  metaDescription: `${site.name} company profile: who we are, our recruitment and staffing services, how we work, commercial terms and contact details. Download the PDF.`,
+}));
+app.get('/company-profile.pdf', (req, res) => {
+  const { pdf } = companyProfile.buildPdf(site, profileDeps());
+  res.set({ 'Content-Type': 'application/pdf', 'Content-Disposition': `attachment; filename="${site.name.replace(/[^A-Za-z0-9]+/g, '-')}-company-profile.pdf"`, 'Cache-Control': 'no-cache' });
+  siteAnalytics.track('company-profile-download', 'PDF', req);
+  res.send(pdf);
+});
 // Standard terms for employers: engagement, timelines, replacement, payment, refunds.
 app.get('/service-terms', (req, res) => res.render('service-terms', { title: 'Service terms: replacement, payment and refund policy', page: 'legal', updated: LEGAL_UPDATED, billing: placements.billingOf(site), serviceTerms: site.serviceTerms || {}, metaDescription: `How ${site.name} recruitment engagements work: timelines, replacement policy, payment terms, refunds and cancellation.` }));
 app.get('/refund-policy', (req, res) => res.redirect(301, '/service-terms#refunds'));

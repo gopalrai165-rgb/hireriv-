@@ -18,6 +18,7 @@
       <h2>Need employees for your business?</h2>
       <p>Tell us your hiring requirements. Our team will contact you.</p>
       <a class="btn btn-accent btn-lg btn-block" href="#enquiry">Request a Callback</a>
+      <a class="btn btn-outline btn-block" href="/company-profile">Our company profile (PDF)</a>
       <% if (real.whatsapp) { %>
         <a class="btn btn-whatsapp btn-block" href="https://wa.me/<%= real.whatsapp %>?text=<%= encodeURIComponent('Hi ' + site.name + ', I would like to hire employees.') %>" rel="noopener"><svg class="i" aria-hidden="true"><use href="#i-phone"/></svg> Enquire on WhatsApp</a>
         <p class="small muted">Opens WhatsApp with a message to <%= site.name %>. Your WhatsApp number and name are shared with us only if you send it.</p>

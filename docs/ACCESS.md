@@ -689,6 +689,8 @@ Total: 727 routes.
 | GET | `/employer/invoices/:id/credit-notes/:cnId` | employer | Company owners only; this company's invoices |
 | GET | `/employers/contact` | public | Moved (301) to /employers#enquiry |
 | GET | `/hire-talent` | public | Moved (301) to /employers |
+| GET | `/company-profile` | public | The company profile from Settings and the service catalogue |
+| GET | `/company-profile.pdf` | public | The same profile as a PDF download |
 | GET | `/service-terms` | public | Service terms: engagement, timelines, replacement, payment, refunds |
 | GET | `/refund-policy` | public | Moved (301) to /service-terms#refunds |
 | GET | `/cancellation-policy` | public | Moved (301) to /service-terms#refunds |

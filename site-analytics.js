@@ -16,6 +16,7 @@ const EVENTS = {
   'industry-view': 'Industry pages viewed',
   'landing-view': 'Job landing pages viewed',
   'employer-inquiry': 'Employer inquiries submitted',
+  'company-profile-download': 'Company profile PDF downloads',
   'inquiry-qualified': 'Employer inquiries qualified by sales',
   'form-rejected': 'Public forms sent back with errors',
   'server-error': 'Server errors',
