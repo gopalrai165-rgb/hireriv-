@@ -1,0 +1,85 @@
+<%- include('partials/head') %>
+<% const R = calc.rupees; %>
+<section class="page-hero">
+  <div class="container">
+    <nav class="breadcrumbs small" aria-label="Breadcrumb"><a href="/">Home</a> › <a href="/salaries">Salaries</a> › <span aria-current="page">Salary calculator</span></nav>
+    <span class="eyebrow">Free tool</span>
+    <h1>What will I take home?</h1>
+    <p class="lead">Type your CTC or monthly salary to see your in-hand pay after PF, ESI, professional tax and income tax (new tax regime, FY <%= calc.FY %>).</p>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container calc-layout">
+    <form class="form form-card calc-form" method="get" action="/salary-calculator#result" novalidate>
+      <h2>Your salary</h2>
+      <% if (errors.length) { %><div class="notice notice-err" role="alert"><% errors.forEach(function (e) { %><p><%= e.charAt(0).toUpperCase() + e.slice(1) %>.</p><% }) %></div><% } %>
+      <div class="calc-amount">
+        <label>Salary in rupees<input type="text" inputmode="numeric" name="amount" value="<%= input.amount > 0 ? input.amount : '' %>" placeholder="for example 18000" required autocomplete="off"></label>
+        <label>Per<select name="per"><option value="month"<%= input.per === 'month' ? ' selected' : '' %>>Month (gross pay)</option><option value="year"<%= input.per === 'year' ? ' selected' : '' %>>Year (CTC)</option></select></label>
+      </div>
+      <details class="calc-more"<%= input.pf !== 'capped' || input.basicPercent !== 50 || input.pt !== 200 ? ' open' : '' %>>
+        <summary>More options (basic pay, PF, professional tax)</summary>
+        <label>Basic pay, as % of the salary<input type="number" name="basicPercent" min="20" max="100" value="<%= input.basicPercent %>"></label>
+        <label>PF<select name="pf">
+          <option value="capped"<%= input.pf === 'capped' ? ' selected' : '' %>>12% of basic, up to ₹<%= calc.PF_WAGE_CEILING.toLocaleString('en-IN') %> basic (most common)</option>
+          <option value="full"<%= input.pf === 'full' ? ' selected' : '' %>>12% of the full basic</option>
+          <option value="none"<%= input.pf === 'none' ? ' selected' : '' %>>No PF</option>
+        </select></label>
+        <label>Professional tax a month (₹)<input type="number" name="pt" min="0" max="300" value="<%= input.pt %>"></label>
+        <p class="muted small">Usually ₹200 a month in Maharashtra, Karnataka, West Bengal, Telangana and some other states; ₹0 in states without it, such as Delhi, Haryana and Uttar Pradesh. Your payslip shows the exact amount.</p>
+        <label class="check-row"><input type="hidden" name="ctcIncludesPf" value="0"><input type="checkbox" name="ctcIncludesPf" value="1"<%= input.per !== 'year' || input.ctcIncludesPf ? ' checked' : '' %>> <span>My CTC includes the employer's PF (for a yearly CTC)</span></label>
+      </details>
+      <button class="btn btn-primary btn-block" type="submit">Calculate</button>
+    </form>
+
+    <div class="calc-out" id="result">
+      <% if (result) { %>
+        <div class="dash-card calc-result" role="status">
+          <p class="muted small">Take-home pay a month</p>
+          <p class="calc-big"><%= R(result.inHandMonth) %></p>
+          <p class="muted small"><%= R(result.inHandYear) %> a year<% if (input.per === 'year') { %>, from a CTC of <%= R(result.ctcYear) %><% } %></p>
+          <div class="table-wrap calc-wrap"><table class="calc-table">
+            <tbody>
+              <tr><th scope="row">Gross pay a month</th><td><%= R(result.grossMonth) %></td></tr>
+              <tr><th scope="row">PF (your 12% share)</th><td>− <%= R(result.pf) %></td></tr>
+              <tr><th scope="row">ESI (0.75%)<% if (!result.esi) { %> <span class="muted small">only up to <%= R(calc.ESI_LIMIT) %> a month</span><% } %></th><td>− <%= R(result.esi) %></td></tr>
+              <tr><th scope="row">Professional tax</th><td>− <%= R(result.pt) %></td></tr>
+              <tr><th scope="row">Income tax<% if (result.noTax) { %> <span class="muted small">none: taxable income up to ₹12 lakh</span><% } %></th><td>− <%= R(result.taxMonth) %></td></tr>
+              <tr class="calc-total"><th scope="row">In hand</th><td><%= R(result.inHandMonth) %></td></tr>
+            </tbody>
+          </table></div>
+          <% if (result.employerPfYear) { %><p class="muted small">Your CTC includes <%= R(result.employerPfYear) %> a year of the employer's PF. It goes into your PF account, not your bank account.</p><% } %>
+          <p class="muted small">Income tax for the year: <%= R(result.taxYear) %>, on a taxable income of <%= R(result.taxable) %> after the <%= R(calc.STANDARD_DEDUCTION) %> standard deduction. This is an estimate; bonuses, allowances and your employer's rules change the real figure.</p>
+        </div>
+        <p><a class="btn btn-primary" href="/jobs?minPay=<%= Math.max(0, Math.round(result.grossMonth / 1000) * 1000) %>">Jobs that pay at least <%= R(Math.round(result.grossMonth / 1000) * 1000) %> a month</a></p>
+      <% } else { %>
+        <div class="dash-card calc-examples">
+          <h2>Examples</h2>
+          <ul class="calc-ex-list">
+            <li><a href="/salary-calculator?amount=15000&per=month#result">₹15,000 a month</a></li>
+            <li><a href="/salary-calculator?amount=25000&per=month#result">₹25,000 a month</a></li>
+            <li><a href="/salary-calculator?amount=600000&per=year#result">₹6 lakh CTC</a></li>
+            <li><a href="/salary-calculator?amount=1200000&per=year#result">₹12 lakh CTC</a></li>
+            <li><a href="/salary-calculator?amount=2000000&per=year#result">₹20 lakh CTC</a></li>
+          </ul>
+        </div>
+      <% } %>
+    </div>
+  </div>
+</section>
+
+<section class="section section-tint" aria-labelledby="how-h">
+  <div class="container narrow">
+    <h2 id="how-h">How it is worked out</h2>
+    <ul class="checks">
+      <li><b>PF:</b> 12% of basic pay. Most employers count basic only up to ₹<%= calc.PF_WAGE_CEILING.toLocaleString('en-IN') %> a month, so PF is at most ₹1,800. The employer adds the same again to your PF account.</li>
+      <li><b>ESI:</b> 0.75% of gross pay, only when gross pay is <%= R(calc.ESI_LIMIT) %> a month or less. It gives you and your family medical cover.</li>
+      <li><b>Professional tax:</b> a state tax, at most ₹2,500 a year.</li>
+      <li><b>Income tax (new regime, FY <%= calc.FY %>):</b> a <%= R(calc.STANDARD_DEDUCTION) %> standard deduction, then nil up to ₹4 lakh, 5% to ₹8 lakh, 10% to ₹12 lakh, 15% to ₹16 lakh, 20% to ₹20 lakh, 25% to ₹24 lakh and 30% above, plus 4% cess. No tax when taxable income is ₹12 lakh or less (rebate under section 87A), so a salary up to about ₹12.75 lakh a year pays no income tax.</li>
+    </ul>
+    <p class="small muted">Words like CTC, in-hand and gross are explained in <a href="/help/job-terms">Job words explained</a>. See what jobs pay on <a href="/salaries">Salaries</a>.</p>
+  </div>
+</section>
+
+<%- include('partials/foot') %>

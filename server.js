@@ -846,7 +846,7 @@ app.locals.stateJobsLink = (city) => {
 };
 const cityPagesWithJobs = () => { const live = openJobs().filter((j) => !isSample(j)); return geo.CITY_PAGES.filter((c) => live.some((j) => c.locations.includes(j.location))); };
 app.get('/sitemap.xml', (req, res) =>
-  res.type('application/xml').send(seo.sitemap(BASE_URL, { jobs: openJobs().filter((j) => !isSample(j)), posts: livePosts(), staticPaths: ['/', '/jobs', ...catalog.WORK_PAGES.map((x) => `/jobs/${x.slug}`), ...catalog.JOB_INDUSTRIES.map((x) => `/jobs/industry/${x.slug}`), ...cityPagesWithJobs().map((c) => `/jobs/in/${c.slug}`), ...(statePagesWithJobs().length ? ['/jobs/states'] : []), ...statePagesWithJobs().map(statePath), ...areaPagesWithJobs(), ...rolePagesWithJobs(), ...needPagesWithJobs(), ...salaryPagesWithData(), ...(trustHooks.companyPaths().length ? ['/companies'] : []), ...trustHooks.companyPaths(), '/interview-tips', ...ROLE_PAGES.filter((r) => interviewTips.forRole(r.key)).map((r) => tipsPath(r)), '/categories', '/job-seekers', '/employers', ...app.locals.hireRoles.map((r) => r.href), ...recruitCities().map((c) => `/recruitment-agency/${c.slug}`), '/hire', '/services', ...catalog.SERVICES.map((x) => `/services/${x.slug}`), '/industries', ...catalog.INDUSTRIES.map((x) => `/industries/${x.slug}`), '/about', '/blog', '/contact', '/privacy', '/terms', '/service-terms', '/pricing', '/company-profile', '/job-posting-policy', '/help/job-terms', '/accessibility'] }))
+  res.type('application/xml').send(seo.sitemap(BASE_URL, { jobs: openJobs().filter((j) => !isSample(j)), posts: livePosts(), staticPaths: ['/', '/jobs', ...catalog.WORK_PAGES.map((x) => `/jobs/${x.slug}`), ...catalog.JOB_INDUSTRIES.map((x) => `/jobs/industry/${x.slug}`), ...cityPagesWithJobs().map((c) => `/jobs/in/${c.slug}`), ...(statePagesWithJobs().length ? ['/jobs/states'] : []), ...statePagesWithJobs().map(statePath), ...areaPagesWithJobs(), ...rolePagesWithJobs(), ...needPagesWithJobs(), ...salaryPagesWithData(), ...(trustHooks.companyPaths().length ? ['/companies'] : []), ...trustHooks.companyPaths(), '/salary-calculator', '/interview-tips', ...ROLE_PAGES.filter((r) => interviewTips.forRole(r.key)).map((r) => tipsPath(r)), '/categories', '/job-seekers', '/employers', ...app.locals.hireRoles.map((r) => r.href), ...recruitCities().map((c) => `/recruitment-agency/${c.slug}`), '/hire', '/services', ...catalog.SERVICES.map((x) => `/services/${x.slug}`), '/industries', ...catalog.INDUSTRIES.map((x) => `/industries/${x.slug}`), '/about', '/blog', '/contact', '/privacy', '/terms', '/service-terms', '/pricing', '/company-profile', '/job-posting-policy', '/help/job-terms', '/accessibility'] }))
 );
 
 // Things a new install still needs before it is ready for visitors, shown to
@@ -1474,6 +1474,26 @@ function roleSalary(role, city, list = salaryPool()) {
   return city ? { india: salaries.summarise(found), byCity: [], freshers: salaries.summarise(found.filter(fresherJob)) } : salaries.forRole(found, { cities: geo.CITY_PAGES, fresher: fresherJob });
 }
 app.locals.inr = salaries.inr;
+// Take-home pay calculator (salary-calc.js): works without JavaScript (a GET
+// form), so a result can be shared or bookmarked. Nothing is stored.
+const salaryCalc = require('./salary-calc');
+app.locals.takeHomeLink = (job) => {
+  const p = job && job.pay;
+  if (!p || !['month', 'year'].includes(p.period) || !(p.max || p.min)) return '';
+  return `/salary-calculator?amount=${p.max || p.min}&per=${p.period}`;
+};
+app.get('/salary-calculator', (req, res) => {
+  const asked = req.query.amount !== undefined;
+  const { input, errors } = salaryCalc.parse(req.query);
+  const result = asked && !errors.length ? salaryCalc.compute(input) : null;
+  if (result) siteAnalytics.track('salary-calculator', input.per === 'year' ? 'CTC a year' : 'Pay a month', req);
+  res.render('salary-calculator', {
+    title: `Salary calculator: take-home pay from CTC or monthly salary (FY ${salaryCalc.FY})`, page: 'resources', input, errors: asked ? errors : [], result, calc: salaryCalc,
+    metaDescription: `Work out your in-hand salary from CTC or monthly pay: PF, ESI, professional tax and income tax under the new tax regime for FY ${salaryCalc.FY}. Free, with no sign-up.`,
+    canonical: `${BASE_URL}/salary-calculator`, noindex: asked,
+  });
+});
+
 app.get('/salaries', (req, res) => {
   const list = salaryPool();
   const rows = ROLE_PAGES.map((r) => ({ role: r, href: salaryPath(r), jobsHref: rolePath(r), ...salaries.summarise(rolePayJobs(list, r)) }));

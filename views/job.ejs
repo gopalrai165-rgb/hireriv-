@@ -108,7 +108,7 @@
         <div><dt><%= t('job.fType') %></dt><dd><%= tv('type', job.type) %></dd></div>
         <div><dt><%= t('job.fMode') %></dt><dd><%= tv('mode', job.mode) %></dd></div>
         <div><dt><%= t('job.fPlace') %></dt><dd><%= place %></dd></div>
-        <div><dt><%= t('job.fPay') %></dt><dd><%= pay || t('job.notDisclosed') %></dd></div>
+        <div><dt><%= t('job.fPay') %></dt><dd><%= pay || t('job.notDisclosed') %><% if (takeHomeLink(job)) { %> <a class="small take-home" href="<%= takeHomeLink(job) %>#result"><%= t('job.takeHome') %></a><% } %></dd></div>
         <div><dt><%= t('job.fExperience') %></dt><dd><%= job.experience ? tv('experience', job.experience) : t('job.notSpecified') %></dd></div>
         <% const minEdu = job.minEducation ? t('needs.edu_' + job.minEducation) : ''; %>
         <% if (minEdu || job.education) { %><div><dt><%= t('job.fEducation') %></dt><dd><%= [minEdu, job.education].filter(Boolean).join(' · ') %></dd></div><% } %>

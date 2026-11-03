@@ -2430,3 +2430,21 @@ td > a:only-child { display: inline-block; padding-block: 6px; min-width: 24px; 
 .import-results li { display: flex; gap: 10px; align-items: baseline; padding: 8px 0; border-bottom: 1px solid var(--line); }
 .import-results .pill { flex: none; }
 .import-cols td:first-child { white-space: nowrap; }
+
+/* Salary calculator (Step 150) */
+.calc-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 32px; align-items: start; }
+@media (max-width: 860px) { .calc-layout { grid-template-columns: 1fr; } }
+.calc-amount { display: grid; grid-template-columns: 1.4fr 1fr; gap: 12px; }
+@media (max-width: 420px) { .calc-amount { grid-template-columns: 1fr; } }
+.calc-more { margin: 12px 0 16px; }
+.calc-more summary { cursor: pointer; color: var(--primary); font-weight: 600; min-height: 44px; display: flex; align-items: center; }
+.calc-big { font-size: clamp(2.2rem, 6vw, 3rem); font-weight: 800; margin: 0; color: var(--primary-dark, #123b70); line-height: 1.1; }
+.calc-table { width: 100%; border-collapse: collapse; margin: 16px 0; }
+.calc-table th, .calc-table td { padding: 9px 0; border-bottom: 1px solid var(--line); text-align: left; font-weight: 500; }
+.calc-table td { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.calc-total th, .calc-total td { font-weight: 800; border-bottom: 0; font-size: 1.05rem; }
+.calc-ex-list { list-style: none; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: 8px; }
+.calc-ex-list a { display: inline-flex; min-height: 44px; align-items: center; padding: 0 14px; border: 1px solid var(--line); border-radius: 999px; }
+.take-home { margin-left: 6px; white-space: nowrap; }
+.calc-wrap { border: 0; box-shadow: none; margin: 16px 0; }
+.calc-wrap .calc-table { margin: 0; }
