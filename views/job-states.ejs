@@ -1,0 +1,28 @@
+<%- include('partials/head') %>
+
+<section class="page-hero">
+  <div class="container">
+    <nav class="breadcrumbs small" aria-label="Breadcrumb"><a href="/">Home</a> › <a href="/jobs">Jobs</a> › <span aria-current="page">Jobs by state</span></nav>
+    <span class="eyebrow"><%= total %> open <%= total === 1 ? 'job' : 'jobs' %></span>
+    <h1>Jobs by state</h1>
+    <p class="lead">Find work in your own state, or in a city you could move to. Each state shows its cities and how many jobs are open in each.</p>
+    <div class="hero-ctas"><a href="/jobs" class="btn btn-primary btn-lg">Search all jobs <svg class="i"><use href="#i-arrow"/></svg></a></div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container">
+    <ul class="state-grid">
+      <% states.forEach(function (s) { %>
+        <li class="state-card<%= s.count ? '' : ' is-empty' %>">
+          <a class="state-name" href="<%= s.href %>"><b><%= s.name %></b><span class="state-count"><%= s.count %> open <%= s.count === 1 ? 'job' : 'jobs' %></span></a>
+          <p class="small state-cities"><% s.cities.forEach(function (c, i) { %><a href="<%= c.href %>"><%= c.name %></a><span class="muted"> (<%= c.count %>)</span><%= i < s.cities.length - 1 ? ' · ' : '' %><% }) %></p>
+        </li>
+      <% }) %>
+    </ul>
+    <p class="small muted">No jobs in your state yet? <a href="/jobs#alerts">Set up a job alert</a> and we email you when one opens.</p>
+  </div>
+</section>
+
+<%- include('partials/cta-band', { heading: 'Hiring?', text: 'Share the role and a recruiter will call you within one working day.', href: '/hire#requirement', label: 'Hire talent' }) %>
+<%- include('partials/foot') %>

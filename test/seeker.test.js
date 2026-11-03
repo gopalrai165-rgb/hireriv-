@@ -212,7 +212,7 @@ test('city pages: live jobs there, nearby cities, in the sitemap only with real 
   assert.match(pune, /<title>Jobs in Pune \|/);
   assert.match(pune, /href="\/jobs\/role\/delivery\/in\/pune">Delivery<\/a>/);
   // Mumbai's page links to its neighbours.
-  assert.match(await text('/jobs/in/mumbai'), /href="\/jobs\/in\/navi-mumbai">Jobs in Navi Mumbai<\/a>/);
+  assert.match(await text('/jobs/in/mumbai'), /href="\/jobs\/in\/navi-mumbai"><b>Navi Mumbai<\/b>/);
   // No real jobs: kept for visitors, out of search engines and the sitemap.
   const patna = await text('/jobs/in/patna');
   assert.match(patna, /noindex, follow/);

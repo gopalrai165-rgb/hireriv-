@@ -20,6 +20,8 @@
   <div class="chips"><a class="chip chip-link" href="/interview-tips">How to get ready for an interview</a><% rolePages.slice(0, 6).forEach(function (r) { %><a class="chip chip-link" href="/interview-tips/<%= r.slug %>"><%= r.label %> interview tips</a><% }) %></div>
   <p class="small"><b>By city</b></p>
   <div class="chips"><% majorCityPages.filter(function (c) { return c.slug !== here; }).forEach(function (c) { %><a class="chip chip-link" href="/jobs/in/<%= c.slug %>">Jobs in <%= c.name %></a><% }) %></div>
+  <p class="small"><b>By state</b></p>
+  <div class="chips"><a class="chip chip-link" href="/jobs/states">All states</a><% statePages.filter(function (s) { return 'state-' + s.slug !== here; }).forEach(function (s) { %><a class="chip chip-link" href="/jobs/state/<%= s.slug %>">Jobs in <%= s.name %></a><% }) %></div>
   <p class="small"><b>By industry</b></p>
   <div class="chips"><% catalog.JOB_INDUSTRIES.filter(function (i) { return i.slug !== here; }).forEach(function (i) { %><a class="chip chip-link" href="/jobs/industry/<%= i.slug %>"><%= i.name %></a><% }) %></div>
   </details>

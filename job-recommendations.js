@@ -10,6 +10,7 @@ const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const jm = require('./job-match');
+const { inLocation } = require('./search');
 const cp = require('./candidate-profile');
 
 const FREQUENCIES = ['instant', 'daily', 'weekly'];
@@ -53,7 +54,7 @@ function register(app, deps) {
   // Those older alerts also include remote jobs, as they always did.
   const matchesSub = (sub, job) => (sub.filters
     ? matchesFilters(job, sub.filters)
-    : (!sub.category || sub.category === job.category) && (!sub.location || sub.location === job.location || job.mode === 'Remote'));
+    : (!sub.category || sub.category === job.category) && (!sub.location || inLocation(job, sub.location) || job.mode === 'Remote'));
   function view(sub) {
     const filters = filtersOf(sub);
     return {

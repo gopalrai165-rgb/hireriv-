@@ -2367,3 +2367,17 @@ p, li, dd { text-wrap: pretty; }
   .mini-stats div:last-child:nth-child(odd) { grid-column: 1 / -1; }
 }
 td > a:only-child { display: inline-block; padding-block: 6px; min-width: 24px; }
+
+/* Jobs by state, and nearby cities (Step 140) */
+.state-grid { list-style: none; padding: 0; margin: 0 0 20px; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(260px, 100%), 1fr)); gap: 14px; }
+.state-card { padding: 18px 20px; border: 1px solid var(--line); border-radius: var(--radius); background: #fff; transition: border-color .2s, box-shadow .2s; }
+.state-card:hover { border-color: rgba(40, 120, 212, .35); box-shadow: 0 12px 26px rgba(19, 37, 63, .08); }
+.state-card.is-empty { background: var(--paper, #fafafa); }
+.state-name { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; color: var(--ink); padding-block: 4px; }
+.state-count, .nearby-count { font-size: .82rem; font-weight: 700; color: var(--primary); white-space: nowrap; }
+.state-card.is-empty .state-count { color: var(--muted); font-weight: 600; }
+.state-cities { margin: 8px 0 0; line-height: 2; }
+.nearby-cities { list-style: none; padding: 0; margin: 14px 0 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(200px, 100%), 1fr)); gap: 10px; }
+.nearby-cities a { display: grid; gap: 2px; padding: 14px 16px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: #fff; color: var(--ink); }
+.nearby-cities a:hover { border-color: var(--action); box-shadow: var(--shadow); }
+.state-jobs-link { margin: -4px 0 12px; }

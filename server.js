@@ -828,9 +828,25 @@ function needPagesWithJobs() {
     return [needPath(x), ...(x.noCity ? [] : geo.CITY_PAGES.filter((c) => found.some((j) => c.locations.includes(j.location))).map((c) => needPath(x, c)))];
   });
 }
+// ---------- states ----------
+// One page per state (/jobs/state/maharashtra): the open jobs in all its cities.
+const STATE_PAGES = [...new Set(Object.values(search.CITY_STATE))].sort().map((name) => ({
+  name, slug: geo.citySlug(name), cities: Object.keys(search.CITY_STATE).filter((c) => search.CITY_STATE[c] === name),
+}));
+const statePageBySlug = (slug) => STATE_PAGES.find((s) => s.slug === slug) || null;
+const statePageOf = (city) => STATE_PAGES.find((s) => s.cities.includes(city)) || null;
+const statePath = (s) => `/jobs/state/${s.slug}`;
+const inCities = (list, cities) => list.filter((j) => cities.includes(j.location));
+const statePagesWithJobs = () => { const live = openJobs().filter((j) => !isSample(j)); return STATE_PAGES.filter((s) => inCities(live, s.cities).length); };
+app.locals.statePages = STATE_PAGES;
+// "All jobs in Maharashtra (12)" for a city, or null when the city's state is unknown.
+app.locals.stateJobsLink = (city) => {
+  const s = statePageOf(String(city || '').trim());
+  return s ? { name: s.name, href: statePath(s), count: inCities(openJobs(), s.cities).length } : null;
+};
 const cityPagesWithJobs = () => { const live = openJobs().filter((j) => !isSample(j)); return geo.CITY_PAGES.filter((c) => live.some((j) => c.locations.includes(j.location))); };
 app.get('/sitemap.xml', (req, res) =>
-  res.type('application/xml').send(seo.sitemap(BASE_URL, { jobs: openJobs().filter((j) => !isSample(j)), posts: livePosts(), staticPaths: ['/', '/jobs', ...catalog.WORK_PAGES.map((x) => `/jobs/${x.slug}`), ...catalog.JOB_INDUSTRIES.map((x) => `/jobs/industry/${x.slug}`), ...cityPagesWithJobs().map((c) => `/jobs/in/${c.slug}`), ...areaPagesWithJobs(), ...rolePagesWithJobs(), ...needPagesWithJobs(), ...salaryPagesWithData(), ...(trustHooks.companyPaths().length ? ['/companies'] : []), ...trustHooks.companyPaths(), '/interview-tips', ...ROLE_PAGES.filter((r) => interviewTips.forRole(r.key)).map((r) => tipsPath(r)), '/categories', '/job-seekers', '/employers', ...recruitCities().map((c) => `/recruitment-agency/${c.slug}`), '/hire', '/services', ...catalog.SERVICES.map((x) => `/services/${x.slug}`), '/industries', ...catalog.INDUSTRIES.map((x) => `/industries/${x.slug}`), '/about', '/blog', '/contact', '/privacy', '/terms', '/service-terms', '/company-profile', '/job-posting-policy', '/help/job-terms', '/accessibility'] }))
+  res.type('application/xml').send(seo.sitemap(BASE_URL, { jobs: openJobs().filter((j) => !isSample(j)), posts: livePosts(), staticPaths: ['/', '/jobs', ...catalog.WORK_PAGES.map((x) => `/jobs/${x.slug}`), ...catalog.JOB_INDUSTRIES.map((x) => `/jobs/industry/${x.slug}`), ...cityPagesWithJobs().map((c) => `/jobs/in/${c.slug}`), ...(statePagesWithJobs().length ? ['/jobs/states'] : []), ...statePagesWithJobs().map(statePath), ...areaPagesWithJobs(), ...rolePagesWithJobs(), ...needPagesWithJobs(), ...salaryPagesWithData(), ...(trustHooks.companyPaths().length ? ['/companies'] : []), ...trustHooks.companyPaths(), '/interview-tips', ...ROLE_PAGES.filter((r) => interviewTips.forRole(r.key)).map((r) => tipsPath(r)), '/categories', '/job-seekers', '/employers', ...recruitCities().map((c) => `/recruitment-agency/${c.slug}`), '/hire', '/services', ...catalog.SERVICES.map((x) => `/services/${x.slug}`), '/industries', ...catalog.INDUSTRIES.map((x) => `/industries/${x.slug}`), '/about', '/blog', '/contact', '/privacy', '/terms', '/service-terms', '/company-profile', '/job-posting-policy', '/help/job-terms', '/accessibility'] }))
 );
 
 // Things a new install still needs before it is ready for visitors, shown to
@@ -1293,7 +1309,33 @@ function cityLanding(city) {
       'You do not need Aadhaar or bank details to apply. Employers ask for joining documents only after an offer.',
     ],
     roles: ROLE_PAGES.map((r) => ({ label: r.label, href: rolePath(r, city) })),
-    nearby: geo.nearbyCities(city.name),
+    nearby: geo.nearbyCities(city.name, 100).map((c) => ({ ...c, count: inCities(openJobs(), c.locations).length })),
+    statePage: app.locals.stateJobsLink(city.name),
+  };
+}
+
+// A state's page: the open jobs in all its cities, each city with its count.
+function stateLanding(state) {
+  const live = openJobs();
+  const path = statePath(state);
+  const name = geo.cityPageBySlug(state.slug) ? `Jobs across ${state.name} state` : `Jobs in ${state.name}`;
+  return {
+    slug: `state-${state.slug}`, name, h1: name, title: name, state: state.name, city: '', locations: state.cities, path,
+    description: `Jobs in ${state.name}: open jobs in ${state.cities.filter((c) => c !== 'Delhi NCR').slice(0, 4).join(', ')} and more, from checked employers, with salary and shift on every listing. Apply in one tap on ${site.name}.`,
+    intro: [
+      `Open jobs across ${state.name}, in every city we list. Every listing is checked by our team before it goes live and shows the pay when the employer shares it.`,
+      'Ready to move or travel for the right job? Compare cities by the number of openings, set a job alert for the whole state, and apply in one tap.',
+    ],
+    tips: [
+      'Moving for a job? Ask HR about the joining date, accommodation and travel before you accept.',
+      'Say which cities you can work in on your profile, and we show you jobs in all of them.',
+      `You never pay to get a job through ${site.name}: not for the offer, joining, training or a uniform.`,
+      'You do not need Aadhaar or bank details to apply. Employers ask for joining documents only after an offer.',
+    ],
+    places: geo.CITY_PAGES.filter((c) => state.cities.includes(c.name)).map((c) => ({ label: `Jobs in ${c.name}`, href: `/jobs/in/${c.slug}`, count: inCities(live, c.locations).length }))
+      .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label)),
+    alertHref: `/jobs?location=${encodeURIComponent(state.name)}#alerts`,
+    trail: [['Jobs by state', '/jobs/states'], [name, path]],
   };
 }
 
@@ -1355,13 +1397,13 @@ function needLanding(need, city) {
 // Landing pages for job seekers: a kind of work, an industry (catalog.js), a city (geo.js), a role or a need.
 function jobLanding(req, res, landing, kind) {
   const live = openJobs();
-  const list = (kind === 'area' ? live.filter((j) => geo.areaOf(j) === landing.area) : kind === 'role' ? roleJobs(live, landing.role, landing.cityPage) : kind === 'need' ? needJobs(live, landing.need, landing.cityPage) : kind === 'work' ? live.filter((j) => workOf(j) === landing.work) : kind === 'city' ? live.filter((j) => landing.locations.includes(j.location)) : live.filter((j) => landing.categories.includes(j.category)))
+  const list = (kind === 'state' ? live.filter((j) => landing.locations.includes(j.location)) : kind === 'area' ? live.filter((j) => geo.areaOf(j) === landing.area) : kind === 'role' ? roleJobs(live, landing.role, landing.cityPage) : kind === 'need' ? needJobs(live, landing.need, landing.cityPage) : kind === 'work' ? live.filter((j) => workOf(j) === landing.work) : kind === 'city' ? live.filter((j) => landing.locations.includes(j.location)) : live.filter((j) => landing.categories.includes(j.category)))
     .sort((a, b) => Number(isSample(a)) - Number(isSample(b)) || String(b.posted).localeCompare(String(a.posted)));
-  const path = ['role', 'need', 'area'].includes(kind) ? landing.path : kind === 'work' ? `/jobs/${landing.slug}` : kind === 'city' ? `/jobs/in/${landing.slug}` : `/jobs/industry/${landing.slug}`;
+  const path = ['role', 'need', 'area', 'state'].includes(kind) ? landing.path : kind === 'work' ? `/jobs/${landing.slug}` : kind === 'city' ? `/jobs/in/${landing.slug}` : `/jobs/industry/${landing.slug}`;
   const { rows, pager } = paginate(list, { page: req.query.page, size: JOBS_PAGE_SIZE, query: {}, path });
   const desk = kind === 'industry' ? catalog.industryBySlug(landing.desk) : null;
-  const searchHref = ['role', 'need', 'area'].includes(kind) ? landing.searchHref : kind === 'work' ? `/jobs?work=${landing.work}` : kind === 'city' ? `/jobs?location=${encodeURIComponent(landing.city)}` : `/jobs?${landing.categories.map((c) => `category=${encodeURIComponent(c)}`).join('&')}`;
-  const trail = [['Home', '/'], ['Jobs', '/jobs'], ...(kind === 'industry' ? [['Industries', '/categories']] : []), ...(['role', 'need', 'area'].includes(kind) ? landing.trail : [[landing.name, path]])];
+  const searchHref = kind === 'state' ? `/jobs?location=${encodeURIComponent(landing.state)}` : ['role', 'need', 'area'].includes(kind) ? landing.searchHref : kind === 'work' ? `/jobs?work=${landing.work}` : kind === 'city' ? `/jobs?location=${encodeURIComponent(landing.city)}` : `/jobs?${landing.categories.map((c) => `category=${encodeURIComponent(c)}`).join('&')}`;
+  const trail = [['Home', '/'], ['Jobs', '/jobs'], ...(kind === 'industry' ? [['Industries', '/categories']] : []), ...(['role', 'need', 'area', 'state'].includes(kind) ? landing.trail : [[landing.name, path]])];
   const realCount = list.filter((j) => !isSample(j)).length;
   // Role pages say what the role typically pays, with a link to its salary page.
   if (kind === 'role') {
@@ -1374,7 +1416,7 @@ function jobLanding(req, res, landing, kind) {
     metaDescription: landing.description, canonical: `${BASE_URL}${path}${pager.page > 1 ? `?page=${pager.page}` : ''}`,
     jsonLd: seo.jobLandingPage(landing, path, trail, BASE_URL, rows.filter((j) => !isSample(j))),
     // A city with no real openings is a thin page: kept for visitors, out of search engines.
-    noindex: ['city', 'role', 'need', 'area'].includes(kind) && !realCount ? 'follow' : false,
+    noindex: ['city', 'role', 'need', 'area', 'state'].includes(kind) && !realCount ? 'follow' : false,
   });
 }
 app.get('/jobs/office-professional', (req, res) => jobLanding(req, res, catalog.workPageBySlug('office-professional'), 'work'));
@@ -1384,6 +1426,22 @@ app.get('/jobs/in/:city', (req, res, next) => {
   const city = geo.cityPageBySlug(req.params.city);
   if (!city) return next();
   jobLanding(req, res, cityLanding(city), 'city');
+});
+// States: the list, and one state's jobs.
+app.get('/jobs/states', (req, res) => {
+  const live = openJobs();
+  const states = STATE_PAGES.map((s) => ({ ...s, href: statePath(s), count: inCities(live, s.cities).length,
+    cities: geo.CITY_PAGES.filter((c) => s.cities.includes(c.name)).map((c) => ({ name: c.name, href: `/jobs/in/${c.slug}`, count: inCities(live, c.locations).length })) }));
+  res.render('job-states', {
+    title: 'Jobs by state in India', page: 'jobs', states, total: states.reduce((n, s) => n + s.count, 0),
+    metaDescription: `Open jobs in every Indian state we list, with the number of openings in each city. Find work in your own state or a city you can move to, on ${site.name}.`,
+    canonical: `${BASE_URL}/jobs/states`,
+  });
+});
+app.get('/jobs/state/:state', (req, res, next) => {
+  const state = statePageBySlug(req.params.state);
+  if (!state) return next();
+  jobLanding(req, res, stateLanding(state), 'state');
 });
 // An area's page (/jobs/in/pune/hinjewadi): its jobs, and nearby areas.
 app.get('/jobs/in/:city/:area', (req, res, next) => {
@@ -2136,7 +2194,7 @@ app.post('/api/job-alerts', limit('job-alerts', 5), (req, res) => {
   const data = clean(req.body, ['email', 'category', 'location']);
   const errors = validate(data, ['email']);
   if (data.category && !jobCategories().includes(data.category)) errors.push('category is invalid');
-  if (data.location && !jobLocations().includes(data.location)) errors.push('location is invalid');
+  if (data.location && !jobLocations().includes(data.location) && !search.statesOf(jobLocations()).includes(data.location)) errors.push('location is invalid');
   // Signed in as a candidate (and it's their own email): the alert is on at
   // once, and the JSON reply includes it.
   const own = candidateAccounts.currentEmail(req);

@@ -205,7 +205,8 @@
         <label class="sr-only" for="a-loc"><%= t('jobs.location') %></label>
         <select id="a-loc" name="location">
           <option value=""><%= t('jobs.anyLocation') %></option>
-          <% locations.forEach(function (l) { %><option <%= filters.location === l ? 'selected' : '' %>><%= l %></option><% }) %>
+          <optgroup label="Cities"><% locations.forEach(function (l) { %><option <%= filters.location === l ? 'selected' : '' %>><%= l %></option><% }) %></optgroup>
+          <% if (typeof states !== 'undefined' && states.length) { %><optgroup label="Whole state"><% states.forEach(function (s) { %><option <%= filters.location === s ? 'selected' : '' %>><%= s %></option><% }) %></optgroup><% } %>
         </select>
         <button class="btn btn-accent" type="submit"><%= t('jobs.createAlert') %></button>
       </form>
