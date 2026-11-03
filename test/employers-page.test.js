@@ -8,7 +8,7 @@ const { startServer } = require('./helpers');
 let srv;
 let admin;
 before(async () => {
-  srv = await startServer();
+  srv = await startServer({}, { site: [{ ...require('../data/site.json'), pricing: {} }] });
   admin = await srv.adminLogin();
 });
 after(() => srv && srv.stop());

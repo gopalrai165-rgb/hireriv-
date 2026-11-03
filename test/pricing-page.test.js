@@ -5,7 +5,7 @@ const assert = require('node:assert/strict');
 const { startServer } = require('./helpers');
 
 let srv; let admin;
-before(async () => { srv = await startServer(); admin = await srv.adminLogin(); });
+before(async () => { srv = await startServer({}, { site: [{ ...require('../data/site.json'), pricing: {} }] }); admin = await srv.adminLogin(); });
 after(() => srv && srv.stop());
 const page = async (p, cookie) => (await srv.request(p, { cookie })).text();
 
