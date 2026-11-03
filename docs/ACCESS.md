@@ -399,6 +399,7 @@ Total: 727 routes.
 | GET | `/jobs/${need.slug}/in/:city` | public | The same in one city (not work from home); same rules, noindex when the city has none |
 | POST | `/companies/:id/follow` | public | Same-origin, rate-limited; signed-out visitors go to sign-in; a signed-in job seeker follows (or with action=unfollow stops following) a company with a public page: a saved search for its new jobs |
 | POST | `/account/interviews/:appId/choose` | candidate | The signed-in job seeker's own application only; same-origin, rate-limited; books one of the times the employer offered, if still open, ahead and free |
+| POST | `/employer/applicants/bulk` | employer | Same-origin, rate-limited; up to 100 ticked applicants moved to one stage; each checked as a single move (this company's job, applicants.manage, an allowed move), the rest skipped |
 | POST | `/employer/applicants/:id/interview-options/cancel` | employer | Company members who may manage interviews for that job (interviews.manage); withdraws the times offered |
 | GET | `/salary-calculator` | public | Take-home pay from a salary (GET form, nothing stored; results not indexed) |
 | GET | `/salaries` | public | Typical monthly pay by role, from real listings with pay (salaries.js); figures only, never a listing's employer or applicants |

@@ -429,6 +429,31 @@ function register(app, deps) {
     team.audit(req.employer.id, req.employerUser, correction ? 'stage-corrected' : 'status-changed', `${a.name}: ${ats.label(from)} → ${ats.label(to)} (${req.job.title})${correction ? `: ${reason}` : ''}`);
     return { changed: true };
   }
+  // Several applicants moved to one stage at once (ticked in the list). Each
+  // one is checked as if moved on its own: this company's job, the member may
+  // manage it, the move is allowed; the rest are skipped and counted.
+  const MAX_BULK = 100;
+  app.post('/employer/applicants/bulk', requireEmployer, limit('employer-status', 120), sameOrigin, (req, res) => {
+    const ids = [...new Set([].concat(req.body.ids || []).map(String))].slice(0, MAX_BULK);
+    const to = String(req.body.status || '');
+    const keep = new URLSearchParams(Object.fromEntries(['job', 'status', 'sort'].map((k) => [k, String(req.body[`back_${k}`] || '')]).filter(([, v]) => v))).toString();
+    const back = (msg) => res.redirect(303, `/employer/applicants?${keep ? `${keep}&` : ''}msg=${encodeURIComponent(msg)}`);
+    if (!ids.length) return back('Tick the applicants to move first.');
+    if (!ats.STAGES.includes(to)) return back('Choose the stage to move them to.');
+    const list = readSubmissions('applications');
+    let moved = 0; const skipped = [];
+    for (const id of ids) {
+      const a = list.find((x) => x.id === id && !x.duplicateOf);
+      const job = a && getJobs().find((j) => j.id === a.jobId && j.employerId === req.employer.id);
+      if (!a || !job || !selfManaged(job) || !can(req.member, 'applicants.manage', job)) { skipped.push('not yours to change'); continue; }
+      const r = changeStatus(Object.assign(Object.create(req), { applications: list, application: a, job }), to);
+      if (r.error) skipped.push(`${a.name}: ${r.error}`);
+      else if (r.changed) moved++;
+    }
+    const label = ats.label(to);
+    back(`${moved} applicant${moved === 1 ? '' : 's'} moved to ${label}.${skipped.length ? ` ${skipped.length} not moved: ${skipped.slice(0, 3).join('; ')}${skipped.length > 3 ? '…' : ''}.` : ''}`);
+  });
+
   app.post('/employer/applicants/:id/status', requireEmployer, withApplicant('applicants.manage'), limit('employer-status', 120), sameOrigin, (req, res) => {
     const correction = req.body.correction === '1';
     const r = changeStatus(req, String(req.body.status || ''), { correction, reason: req.body.reason });

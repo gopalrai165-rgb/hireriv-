@@ -1104,3 +1104,22 @@ document.addEventListener('click', async (e) => {
   try { await navigator.clipboard.writeText(b.dataset.copyText); toast(say('linkCopied', 'Link copied. Paste it anywhere to share this job.')); } catch { window.prompt('Copy this link:', b.dataset.copyText); }
 });
 document.addEventListener('focusin', (e) => { if (e.target.matches('[data-select-all]')) e.target.select(); });
+
+// Applicants list: select all, and how many are ticked.
+const bulkBar = document.querySelector('[data-bulk-bar]');
+if (bulkBar) {
+  const form = bulkBar.closest('form');
+  const items = () => [...form.querySelectorAll('[data-bulk-item]')];
+  const all = bulkBar.querySelector('[data-bulk-all]');
+  const count = bulkBar.querySelector('[data-bulk-count]');
+  const paint = () => {
+    const n = items().filter((x) => x.checked).length;
+    count.textContent = n ? `${n} selected` : 'None selected';
+    all.checked = n > 0 && n === items().length;
+    all.indeterminate = n > 0 && n < items().length;
+  };
+  all.addEventListener('change', () => { items().forEach((x) => { x.checked = all.checked; }); paint(); });
+  form.addEventListener('change', (e) => { if (e.target.matches('[data-bulk-item]')) paint(); });
+  form.addEventListener('submit', (e) => { if (!items().some((x) => x.checked)) { e.preventDefault(); count.textContent = 'Tick at least one applicant first'; } });
+  paint();
+}

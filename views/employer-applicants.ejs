@@ -22,12 +22,24 @@
     <% } else if (!rows.length) { %>
       <p class="muted dash-empty">No applicants match.</p>
     <% } else { %>
+      <% const manageable = rows.filter(function (v) { return v.allowedMoves && v.allowedMoves.length && !v.withdrawn; }); %>
+      <form method="post" action="/employer/applicants/bulk" class="bulk-form" id="bulk" data-confirm="Move the selected applicants? Each of them sees their new status in their account.">
+      <% [['job', jobId], ['status', status], ['sort', sort]].forEach(function (k) { if (k[1]) { %><input type="hidden" name="back_<%= k[0] %>" value="<%= k[1] %>"><% } }) %>
+      <% if (manageable.length) { %>
+        <div class="bulk-bar" data-bulk-bar>
+          <label class="check-row bulk-all"><input type="checkbox" data-bulk-all> <span>Select all</span></label>
+          <span class="bulk-count small muted" data-bulk-count>None selected</span>
+          <label class="bulk-stage"><span class="sr-only">Move to</span><select name="status" required><option value="">Move selected to…</option><% statuses.forEach(function (s) { %><option value="<%= s %>"><%= s %></option><% }) %></select></label>
+          <button class="btn btn-primary btn-sm" type="submit">Move</button>
+        </div>
+      <% } %>
       <div class="table-wrap dash-card">
         <table class="cards-on-phone">
-          <thead><tr><th>Applicant</th><th>Job</th><th>Status</th><th>Applied</th></tr></thead>
+          <thead><tr><% if (manageable.length) { %><th class="bulk-col"><span class="sr-only">Select</span></th><% } %><th>Applicant</th><th>Job</th><th>Status</th><th>Applied</th></tr></thead>
           <tbody>
             <% rows.forEach(function (v) { %>
               <tr>
+                <% if (manageable.length) { %><td class="bulk-col" data-label="Select"><% if (manageable.indexOf(v) !== -1) { %><input type="checkbox" name="ids" value="<%= v.id %>" aria-label="Select <%= v.name %>" data-bulk-item><% } %></td><% } %>
                 <td><a href="/employer/applicants/<%= v.id %>"><b><%= v.name %></b></a><% if (!v.viewedAt && !v.withdrawn) { %> <span class="pill pill-unseen">Not opened</span><% } %><% if (v.referredBy) { %> <span class="pill pill-referred" title="Referred by <%= v.referredBy %>">Referred</span><% } %><% if (v.hrContacts.length) { %> <span class="pill pill-contacted"><%= v.hrContacts[v.hrContacts.length - 1].via === 'call' ? 'Called you' : 'WhatsApped you' %></span><% } %><br><span class="muted small"><%= [v.experience, v.location].filter(Boolean).join(' · ') || '—' %></span><% if (v.match) { %> <%- include('partials/match-chip', { match: v.match }) %><% } %></td>
                 <td><%= v.jobTitle %></td>
                 <td><span class="pill <%= stageClass(v.status) %>"><%= v.stageLabel %></span></td>
@@ -37,6 +49,7 @@
           </tbody>
         </table>
       </div>
+      </form>
     <% } %>
     <p class="muted small">Applicants' details are for this hiring process only. Opening an applicant's details or resume is recorded in your company's activity log.</p>
   </div>
