@@ -56,7 +56,7 @@ const seedJobs = [
 let srv;
 let admin;
 before(async () => {
-  srv = await startServer({ LANGUAGES: 'en,hi' }, { jobs: seedJobs });
+  srv = await startServer({}, { jobs: seedJobs });
   admin = await srv.adminLogin();
 });
 after(() => srv && srv.stop());
@@ -85,8 +85,6 @@ test('cards, filters and the job page show walk-ins and English', async () => {
   assert.match(page, /Ask for Priya, HR desk/);
   assert.match(page, /You never pay a fee/);
   assert.match(await (await srv.request('/jobs/hr-303')).text(), /The walk-in days are over/);
-  // Hindi labels.
-  assert.match(await (await srv.request('/jobs/hr-301?lang=hi')).text(), /अंग्रेज़ी ज़रूरी नहीं/);
 });
 
 test('the API filters and describes them', async () => {

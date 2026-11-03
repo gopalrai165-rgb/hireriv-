@@ -1,5 +1,5 @@
 // Step 67: automated accessibility checks on the public and candidate pages,
-// in English and Hindi. They catch what a machine can (labels, names, alt
+// in English. They catch what a machine can (labels, names, alt
 // text, headings, language, focus order); keyboard and screen-reader checks
 // by people are listed in docs/ACCESSIBILITY.md.
 const { test, before, after } = require('node:test');
@@ -17,7 +17,7 @@ let ip = 0;
 const get = (url, cookie) => srv.request(url, { cookie, headers: { 'x-forwarded-for': `10.8.0.${++ip % 250}` } });
 
 before(async () => {
-  srv = await startServer({ TRUST_PROXY: '1', LANGUAGES: 'en,hi' }, {
+  srv = await startServer({ TRUST_PROXY: '1' }, {
     jobs: [JOB],
     candidates: [{ id: 'c-1', email: 'meena@example.in', createdAt: iso(), emailVerifiedAt: iso(), passwordHash: hashPassword('meena long password'), profile: { ...cp.emptyProfile(), name: 'Meena' }, privacy: cp.defaultPrivacy(), comms: cp.defaultComms(), resumes: [], defaultResumeId: null }],
   });
@@ -66,7 +66,7 @@ function problems(raw) {
 
 const PAGES = ['/', '/jobs', jobPath(JOB), '/categories', '/saved', '/help/job-terms', '/accessibility', '/account/login', '/account/register', '/account/forgot', '/no-such-page'];
 
-for (const lang of ['en', 'hi']) {
+for (const lang of ['en']) {
   test(`public pages pass the automated checks (${lang})`, async () => {
     const found = {};
     for (const path of PAGES) {
@@ -90,10 +90,8 @@ test('candidate pages pass the automated checks', async () => {
   assert.deepEqual(found, {});
 });
 
-test('the job page offers the original, read-aloud and a labelled language choice', async () => {
-  const html = await (await get(jobPath(JOB), 'hr_lang=hi')).text();
-  assert.match(html, /class="lang-switch"[^>]*role="group"[^>]*aria-labelledby="lang-label"/);
-  assert.match(html, /<button type="submit" name="lang" value="hi" lang="hi" aria-current="true"/);
+test('the job page offers read-aloud and a labelled menu button', async () => {
+  const html = await (await get(jobPath(JOB))).text();
   assert.match(html, /data-read-aloud="#job-text"[^>]*hidden/, 'shown only where the browser can read aloud');
   assert.match(html, /data-apply-review[^>]*hidden/);
   assert.match(html, /<button[^>]*class="nav-toggle"[^>]*type="button"|<button[^>]*type="button"[^>]*class="nav-toggle"/);

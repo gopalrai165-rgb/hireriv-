@@ -9,22 +9,16 @@
 //   4. English.
 // The browser's Accept-Language is never used to switch a page by itself.
 //
-// Search terms people type in Hindi or Telugu ("ड्राइवर", "హైదరాబాద్") are
-// mapped to the English words jobs are written in (searchTerms below), so
-// search works whatever language the interface is in.
+// The site is in English only (the owner's choice): locales/en.json is the
+// only locale file and English the only language. searchTerms below still
+// maps words from any other locale file, so with none it changes nothing.
 const fs = require('fs');
 const path = require('path');
 
-// Every language Hireriv plans to support. A language is offered in the
-// selector when it is listed in LANGUAGES (default "en": English only; "en,hi" adds Hindi) and has a locale
-// file. The others are listed here so adding one needs no code changes.
+// The site's language. English only: no language selector, no translated
+// pages, no job translations (the LANGUAGES setting no longer adds any).
 const LANGUAGES = {
   en: { name: 'English', native: 'English', tag: 'en-IN', script: 'Latn' },
-  hi: { name: 'Hindi', native: 'हिन्दी', tag: 'hi-IN', script: 'Deva', font: 'Noto+Sans+Devanagari:wght@400;500;600;700' },
-  te: { name: 'Telugu', native: 'తెలుగు', tag: 'te-IN', script: 'Telu', font: 'Noto+Sans+Telugu:wght@400;500;600;700' },
-  ta: { name: 'Tamil', native: 'தமிழ்', tag: 'ta-IN', script: 'Taml', font: 'Noto+Sans+Tamil:wght@400;500;600;700' },
-  bn: { name: 'Bengali', native: 'বাংলা', tag: 'bn-IN', script: 'Beng', font: 'Noto+Sans+Bengali:wght@400;500;600;700' },
-  mr: { name: 'Marathi', native: 'मराठी', tag: 'mr-IN', script: 'Deva', font: 'Noto+Sans+Devanagari:wght@400;500;600;700' },
 };
 const DEFAULT = 'en';
 const COOKIE = 'hr_lang';
@@ -139,8 +133,8 @@ const translatorFor = (code) => {
 };
 
 // ---------- search in other languages ----------
-// "ड्राइवर दिल्ली" → { q: 'driver', location: 'Delhi' }. Every locale's search
-// words are used, whatever the interface language. Native digits become 0-9,
+// Search words from other locale files (none now: English only) map to the
+// English words jobs use. Native digits become 0-9,
 // and invisible joiners (which only change how letters are drawn) are dropped.
 const DIGITS = '०१२३४५६७८९౦౧౨౩౪౫౬౭౮౯';
 const normalise = (s) => String(s || '').normalize('NFC').replace(/[\u200b-\u200d\u2060\ufeff]/g, '').replace(/[\u0966-\u096f\u0c66-\u0c6f]/g, (d) => String(DIGITS.indexOf(d) % 10)).toLowerCase();

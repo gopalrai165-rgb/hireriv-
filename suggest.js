@@ -1,7 +1,7 @@
 // Search suggestions as you type (GET /api/suggest): job titles, skills,
 // categories and cities from the live jobs, matched at the start of any word
 // first and anywhere second. Words typed in Hindi or Telugu are matched as the
-// English words the jobs use (i18n.searchTerms), so "ड्राइवर" suggests
+// English words the jobs use (i18n.searchTerms; English only now), so a mapped word suggests
 // "Driver". Only public listing words are returned, never anything about
 // people, and the typed text is not stored.
 const MAX = 8;

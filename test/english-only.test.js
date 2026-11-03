@@ -1,13 +1,13 @@
-// By default the site is in English only: no language selector, no Hindi
-// versions for search engines, and asking for Hindi still shows English.
-// Hindi comes back with LANGUAGES=en,hi (docs/I18N.md).
+// The site is in English only: no language selector, no Hindi versions for
+// search engines, and asking for Hindi (address, cookie or the old
+// LANGUAGES=en,hi setting) still shows English.
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
 const { startServer } = require('./helpers');
 
 let srv;
 before(async () => {
-  const env = { LANGUAGES: '' };
+  const env = { LANGUAGES: 'en,hi,te' };
   srv = await startServer(env);
 });
 after(() => srv && srv.stop());
@@ -23,4 +23,7 @@ test('only English is offered', async () => {
   // A language cookie left from before shows English too.
   const cookie = await (await srv.request('/jobs', { cookie: 'hr_lang=hi' })).text();
   assert.match(cookie, /<html lang="en"/);
+  const i18n = require('../i18n');
+  assert.deepEqual(Object.keys(i18n.LOCALES), ['en'], 'only the English locale file');
+  assert.deepEqual(i18n.offered({ LANGUAGES: 'en,hi,te' }), ['en']);
 });

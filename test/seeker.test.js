@@ -9,8 +9,7 @@ const { startServer, decodeEmail } = require('./helpers');
 
 let srv;
 before(async () => {
-  // Hindi is off by default; these tests also check the Hindi pages.
-  srv = await startServer({ LANGUAGES: 'en,hi' });
+  srv = await startServer();
 });
 after(() => srv && srv.stop());
 
@@ -46,7 +45,7 @@ test('places: GPS rounded inside India, PIN codes by district, city names, and d
   assert.equal(geo.jobDistance({ location: 'Remote' }, geo.CITIES.Pune), null);
 });
 
-test('suggestions: start of words first, from live listings, Hindi words as the English the jobs use', () => {
+test('suggestions: start of words first, from live listings', () => {
   const jobs = [
     { title: 'Delivery Executive', skills: ['Two-wheeler'], category: 'Delivery & Driving', location: 'Pune' },
     { title: 'Driver (LMV)', skills: ['Driving licence'], category: 'Delivery & Driving', location: 'Mumbai' },
@@ -57,8 +56,6 @@ test('suggestions: start of words first, from live listings, Hindi words as the 
   assert.ok(got.some((x) => x.type === 'skill' && x.text === 'Driving licence'));
   assert.equal(got.find((x) => x.type === 'category').href, '/jobs?category=Delivery%20%26%20Driving');
   assert.deepEqual(suggestions('d', { jobs }), []);
-  const hindi = suggestions('ड्राइवर', { jobs, translate: (q) => i18n.searchTerms(q) });
-  assert.ok(hindi.some((x) => x.text === 'Driver (LMV)'), JSON.stringify(hindi));
 });
 
 test('the suggestion API answers with public listing words only', async () => {
@@ -161,9 +158,6 @@ test('the sign-in page offers mobile or email, and the homepage leads with jobs 
   const login = await text('/account/login?with=phone');
   assert.match(login, /action="\/account\/login\/phone"/);
   assert.match(login, /autocomplete="tel-national"/);
-  const hindi = await text('/?lang=hi');
-  assert.match(hindi, /सही लोग खोजें/);
-  assert.match(hindi, /मेरे पास/);
 });
 
 test('call or WhatsApp HR: only after applying, only a confirmed mobile the company chose to share', async () => {

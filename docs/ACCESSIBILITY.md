@@ -35,7 +35,6 @@ This page lists what is in place, what the automated tests check, and the manual
   - no flashing content
 - **Text size and reflow**:
   - rem-based sizes, so pages work at 200% zoom and at 320px wide (`test/mobile.test.js` checks tables scroll inside their own box)
-  - Hindi and Telugu get extra line height
 - **Targets**: controls are at least 24×24px (WCAG 2.5.8), and most are 44px on phones.
 - **Forced colours** (Windows high contrast): focus, the current language, pressed buttons and invalid fields keep a visible outline.
 - **Contrast**: body text (#45556E on white) is about 7.5:1, muted text (#5E6D85) about 5.3:1 on white and 4.8:1 on the light grey panels, and buttons have white on #1F6BC2 at about 5.3:1.
@@ -44,7 +43,7 @@ This page lists what is in place, what the automated tests check, and the manual
 
 ## 2. Automated checks
 
-`test/accessibility.test.js` renders the public pages in English and Hindi, and the candidate pages. It fails on:
+`test/accessibility.test.js` renders the public pages and the candidate pages (the site is in English only). It fails on:
 
 - no `lang`
 - not exactly one `h1`
@@ -55,7 +54,7 @@ This page lists what is in place, what the automated tests check, and the manual
 - a button or link without a name
 - an empty status pill
 
-`test/i18n.test.js` checks the language selector, Hindi pages end to end, and localised errors with field names. `test/mobile.test.js` checks the phone layout.
+`test/english-only.test.js` checks that only English is offered. `test/mobile.test.js` checks the phone layout.
 
 These catch only what a machine can see. They are not a conformance test.
 
@@ -63,13 +62,13 @@ These catch only what a machine can see. They are not a conformance test.
 
 Record the date, the person, the browser and the assistive technology for each.
 
-- [ ] Keyboard only: find a job, filter, save it, apply (with and without a resume), sign in, change the language, sign out. Check that focus is never lost or hidden.
-- [ ] NVDA with Firefox on Windows, and TalkBack with Chrome on Android, in English and Hindi. Check that Hindi is read with a Hindi voice and that errors are announced.
+- [ ] Keyboard only: find a job, filter, save it, apply (with and without a resume), sign in, sign out. Check that focus is never lost or hidden.
+- [ ] NVDA with Firefox on Windows, and TalkBack with Chrome on Android, Check that errors are announced.
 - [ ] VoiceOver on iPhone (Safari): the apply form, the check step and the error summary.
 - [ ] 200% browser zoom and 400% reflow at 1280px. Check that nothing is cut off and nothing scrolls sideways except tables.
 - [ ] Windows high contrast mode on the home page, jobs, the job page and the apply form.
 - [ ] Contrast of every status pill and chip, measured with a contrast checker.
-- [ ] Speech input with Chrome on Android in Hindi and Telugu, and read-aloud in Hindi.
+- [ ] Speech input with Chrome on Android, and read-aloud on the job page.
 - [ ] Employer workspace and Admin pages: these were not reviewed in this step and are English only.
 
 ## 4. Known gaps

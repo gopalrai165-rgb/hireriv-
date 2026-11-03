@@ -111,11 +111,11 @@ function mockProvider() {
           { question: 'Which of the listed skills have you used most recently?', why: 'Skills', listen_for: 'Specific tasks', type: 'skills' },
         ] };
       } else if (task === 'job-translation') {
-        // "हिन्दी: …" in front of every value; numbers kept, unless the
+        // "Translated: …" in front of every value; numbers kept, unless the
         // listing asks the mock to drop them (MOCK_DROP_NUMBERS).
         const src = JSON.parse((input.match(/<untrusted_job_listing>\n([\s\S]*)\n<\/untrusted_job_listing>/) || [])[1] || '{}');
         const drop = input.includes('MOCK_DROP_NUMBERS');
-        const tr = (x) => `हिन्दी: ${drop ? String(x).replace(/\d/g, '') : x}`;
+        const tr = (x) => `Translated: ${drop ? String(x).replace(/\d/g, '') : x}`;
         json = {
           title: tr(src.title || ''), description: tr(src.description || ''), responsibilities: (src.responsibilities || []).map(tr), qualifications: (src.qualifications || []).map(tr),
           benefits: (src.benefits || []).map(tr), unclear: ['"shift" was kept in English'],
