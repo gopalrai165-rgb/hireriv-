@@ -317,7 +317,7 @@
     "share": "Share this job",
     "shareWhatsapp": "Share on WhatsApp",
     "shareLinkedin": "Share on LinkedIn",
-    "copyLink": "Copy link",
+    "referTitle": "Know someone for this job?", "referText": "Send them your link. When a friend applies through it, you will see it on your account.", "referWhatsapp": "This job may suit you: {title} in {location}. Apply free on {site}:", "referWhatsappBtn": "Refer a friend on WhatsApp", "referLinkLabel": "Your referral link for this job", "referPrivacy": "Your friend's first name and the job show on your account, and the employer sees that you referred them.", "referSee": "Your referrals", "copyLink": "Copy link",
     "copyLinkLabel": "Copy link to this job",
     "more": "More",
     "moreLabel": "More sharing options",

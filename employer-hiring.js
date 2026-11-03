@@ -278,6 +278,7 @@ function register(app, deps) {
       })),
       allowedMoves: may('applicants.manage') ? ats.allowedMoves(a) : [],
       hrContacts: (a.hrContacts || []).map((c) => ({ via: c.via, at: c.at })),
+      referredBy: a.referredBy ? a.referredBy.name : '',
     };
     if (may('applicants.contact')) Object.assign(v, { email: require('./identity').realEmail(a.email), phone: a.phone || '', linkedin: a.linkedin || '', message: a.message || '', hasResume: Boolean(a.resume) });
     // Internal: never shown to candidates.

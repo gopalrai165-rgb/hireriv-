@@ -583,7 +583,7 @@ img { max-width: 100%; display: block; }
 .job-body h2 { font-size: 1.45rem; margin-top: 1.6em; }
 .job-body h2:first-child { margin-top: 0; }
 .sticky { position: sticky; top: 100px; }
-@media (max-width: 960px) { .job-layout { grid-template-columns: 1fr; } .sticky { position: static; } }
+@media (max-width: 960px) { .job-layout { grid-template-columns: 1fr; } .sticky { position: static; top: auto; } }
 
 /* ============ Forms ============ */
 .split { display: grid; grid-template-columns: 1fr 1fr; gap: 64px; align-items: start; }
@@ -2408,3 +2408,11 @@ td > a:only-child { display: inline-block; padding-block: 6px; min-width: 24px; 
 .pricing-plans .plan-card .btn { margin-top: auto; align-self: flex-start; }
 .pricing-plans .plan-card { display: flex; flex-direction: column; }
 .pricing-terms { margin: 18px 0; }
+
+/* Refer a friend (Step 147) */
+.refer-box { margin-top: 18px; padding: 16px; border: 1px solid var(--line, #e3e8ef); border-radius: 14px; background: #f7fbff; }
+.refer-box h3 { font-size: 1.05rem; margin: 0 0 6px; }
+.refer-box .btn-block { margin: 10px 0; }
+.refer-link { display: flex; gap: 8px; align-items: center; margin: 0 0 8px; }
+.refer-link input { flex: 1; min-width: 0; font-size: .85rem; padding: 8px 10px; border: 1px solid var(--line, #e3e8ef); border-radius: 10px; background: #fff; }
+.pill-referred { background: #eef2ff; color: #3949ab; }

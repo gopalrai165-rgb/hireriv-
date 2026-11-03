@@ -244,8 +244,53 @@ function register(app, deps) {
     if (!profile.name) missing.push('your name');
     if (!profile.phone) missing.push('a phone number');
     if (resumeNeeded(job) && !profile.resume) missing.push('a resume');
-    return { email, name: profile.name || '', phone: profile.phone || '', hasResume: Boolean(profile.resume), applied: applied ? applied.createdAt : null, missing };
+    return { email, name: profile.name || '', phone: profile.phone || '', hasResume: Boolean(profile.resume), applied: applied ? applied.createdAt : null, missing, refCode: job.status === 'open' ? refCodeFor(email) : '' };
   }
+
+  // ---------- refer a friend ----------
+  // A signed-in job seeker's job links carry their referral code (?ref=). A
+  // friend who opens one keeps the code for 30 days in a cookie; when they
+  // apply, the application notes who referred them (never themselves). The
+  // referrer sees their friends' first names and the jobs on their account;
+  // the employer sees who referred the applicant. No rewards are promised.
+  const REF_COOKIE = 'hr_ref';
+  const REF_RE = /^[a-z0-9]{8}$/;
+  function refCodeFor(email) {
+    const list = readSubmissions('candidates');
+    const c = list.find((x) => x.email === email);
+    if (!c) return '';
+    if (c.refCode) return c.refCode;
+    const taken = new Set(list.map((x) => x.refCode).filter(Boolean));
+    let code = '';
+    do { code = Array.from(crypto.randomBytes(8), (b) => 'abcdefghjkmnpqrstuvwxyz23456789'[b % 31]).join(''); } while (taken.has(code));
+    c.refCode = code; // not a profile change, so updatedAt stays as it is
+    writeSubmissions('candidates', list);
+    return code;
+  }
+  function noteReferral(req, res) {
+    const code = String(req.query.ref || '').toLowerCase();
+    if (!REF_RE.test(code)) return;
+    if (currentEmail(req) && (candidateOf(currentEmail(req)) || {}).refCode === code) return; // their own link
+    res.cookie(REF_COOKIE, code, { httpOnly: true, sameSite: 'lax', secure: secureCookie, maxAge: 30 * 86400000, path: '/' });
+  }
+  // `{ referredBy }` for a new application, or {} when there is no (other) referrer.
+  function referralFor(req, applicantEmail, applicantPhone) {
+    const code = parseCookies(req.headers.cookie)[REF_COOKIE];
+    if (!code || !REF_RE.test(code)) return {};
+    const r = readSubmissions('candidates').find((c) => c.refCode === code);
+    if (!r) return {};
+    const email = String(applicantEmail || '').toLowerCase();
+    const p = profileFor(r.email);
+    const digits = (x) => String(x || '').replace(/\D/g, '').slice(-10);
+    if ((email && email === r.email) || (applicantPhone && p.phone && digits(applicantPhone) === digits(p.phone))) return {};
+    track('referral-applied', 'Refer a friend', req);
+    return { referredBy: { email: r.email, name: p.name || 'A job seeker', at: nowIso() } };
+  }
+  // Friends who applied through this person's links, newest first: first name, job, date.
+  const referralsOf = (email) => readSubmissions('applications')
+    .filter((a) => a.referredBy && a.referredBy.email === email && !a.duplicateOf)
+    .sort((x, y) => String(y.createdAt).localeCompare(String(x.createdAt)))
+    .map((a) => ({ first: String(a.name || '').trim().split(/\s+/)[0] || 'A friend', jobTitle: a.jobTitle, at: a.createdAt }));
 
   // Calls and WhatsApp messages to HR from a job page, after applying: kept on
   // the application so the employer (or our team, for jobs we run) sees who
@@ -686,7 +731,7 @@ function register(app, deps) {
       title: 'My account', ...s, apps, steps: STEPS,
       msg: String(req.query.msg || ''), welcome: req.query.welcome === '1' && !s.candidate.passwordHash, contracts: contractsFor(email),
       matches: recommendFor(email, { limit: 6 }), alerts: readSubmissions('job-alerts').filter((x) => x.email === email), categories: jobCategories(), locations: jobLocations(),
-      savedCount: savedOf(email).length,
+      savedCount: savedOf(email).length, referrals: referralsOf(email),
     });
   });
 
@@ -926,7 +971,7 @@ function register(app, deps) {
         if (resumeNeeded(job)) return toJob("We couldn't find your resume. Upload it again in My account.");
       }
     }
-    saveApplication(data, file, job, { oneClick: true }, { announce: true })
+    saveApplication(data, file, job, { oneClick: true, ...referralFor(req, data.email, data.phone) }, { announce: true })
       .then(({ updated }) => {
         if (!updated) track('application-submitted', req.body.from === 'card' ? 'One-tap' : 'One-click', req);
         // From a job list, the job page shows what's next (and the hiring contact, where the employer shares it).
@@ -1426,7 +1471,7 @@ function register(app, deps) {
   const helpers = {
     requireCandidate, requireCandidateApi, candidateOf, saveCandidate, ensureCandidate, profileFor, updateProfile, profileContext, shell, page, back, mine, savedOf, activity,
   };
-  return { requireCandidate, currentEmail, accountForJob, oneTapFor, hiddenFromSearch, pruneAccounts, deleteEverything, helpers };
+  return { requireCandidate, currentEmail, noteReferral, referralFor, accountForJob, oneTapFor, hiddenFromSearch, pruneAccounts, deleteEverything, helpers };
 }
 
 module.exports = { register, CANDIDATE_STAGE, safeNext };

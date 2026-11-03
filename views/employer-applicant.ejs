@@ -4,6 +4,7 @@
   <div class="container">
     <%- include('partials/employer-nav', { heading: v.name, tab: 'applicants' }) %>
     <p class="muted">Applied for <b><%= v.jobTitle %></b> on <%= formatDate(v.appliedAt) %> · <a href="/employer/ats?job=<%= v.jobId %>">Pipeline for this job</a></p>
+    <% if (v.referredBy) { %><p class="notice referred-note small">Referred by <b><%= v.referredBy %></b>, a job seeker on <%= site.name %>, who shared this job with them.</p><% } %>
     <% if (v.hrContacts.length) { const lastC = v.hrContacts[v.hrContacts.length - 1]; %>
       <p class="notice hr-contacted"><svg class="i" aria-hidden="true"><use href="#i-phone"/></svg> <span><b><%= v.name %> <%= lastC.via === 'call' ? 'called' : 'sent a WhatsApp message to' %> your hiring contact</b> on <%= formatIst(lastC.at) %><% if (v.hrContacts.length > 1) { %> (<%= v.hrContacts.length %> times in all)<% } %>. If you missed it, call back from this page.</span></p>
     <% } %>

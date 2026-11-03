@@ -41,11 +41,12 @@
     </ul>
     <% if (live && !preview) { %>
       <%# Shared links carry utm_source so Reports can show which shares bring applicants. %>
-      <% const shareText = job.title + ' (' + job.location + ') – apply via ' + site.name + ': ' + canonical + '?utm_source=whatsapp'; %>
-      <div class="share-row" data-share-url="<%= canonical %>?utm_source=share" data-share-title="<%= job.title %> – <%= site.name %>">
+      <% const refQ = account && account.refCode ? '&ref=' + account.refCode : ''; %>
+      <% const shareText = job.title + ' (' + job.location + ') – apply via ' + site.name + ': ' + canonical + '?utm_source=whatsapp' + refQ; %>
+      <div class="share-row" data-share-url="<%= canonical %>?utm_source=share<%= refQ %>" data-share-title="<%= job.title %> – <%= site.name %>">
         <span class="share-label"><%= t('job.share') %></span>
         <a class="share-btn share-wa" href="https://wa.me/?text=<%= encodeURIComponent(shareText) %>" target="_blank" rel="noopener noreferrer" aria-label="<%= t('job.shareWhatsapp') %>"><svg class="i" aria-hidden="true"><use href="#i-whatsapp"/></svg><span>WhatsApp</span></a>
-        <a class="share-btn share-li" href="https://www.linkedin.com/sharing/share-offsite/?url=<%= encodeURIComponent(canonical + '?utm_source=linkedin') %>" target="_blank" rel="noopener noreferrer" aria-label="<%= t('job.shareLinkedin') %>"><svg class="i" aria-hidden="true"><use href="#i-linkedin"/></svg><span>LinkedIn</span></a>
+        <a class="share-btn share-li" href="https://www.linkedin.com/sharing/share-offsite/?url=<%= encodeURIComponent(canonical + '?utm_source=linkedin' + refQ) %>" target="_blank" rel="noopener noreferrer" aria-label="<%= t('job.shareLinkedin') %>"><svg class="i" aria-hidden="true"><use href="#i-linkedin"/></svg><span>LinkedIn</span></a>
         <button type="button" class="share-btn" data-copy-link aria-label="<%= t('job.copyLinkLabel') %>"><svg class="i" aria-hidden="true"><use href="#i-link"/></svg><span><%= t('job.copyLink') %></span></button>
         <button type="button" class="share-btn share-native" data-native-share hidden aria-label="<%= t('job.moreLabel') %>"><svg class="i" aria-hidden="true"><use href="#i-share"/></svg><span><%= t('job.more') %></span></button>
         <%# Read aloud with the browser's own voice; hidden where the browser has none. %>
@@ -238,6 +239,15 @@
           <%- include('partials/apply-form', { jobId: job.id, quick: quick, whatsappApply: whatsappApply }) %>
           <% if (related.length) { %><p class="notice small similar-prompt" data-similar-prompt hidden tabindex="-1"><%= t('job.similarSent') %> <a href="#similar"><%= t('job.similarCta') %></a></p><% } %>
           <% if (!account) { %><p class="small muted one-click-hint"><%= t('job.haveAccount') %> <a href="/account/login"><%= t('job.signIn') %></a> <%= t('job.oneClickHint') %> <a href="/account/register"><%= t('job.createFree') %></a>.</p><% } %>
+        <% } %>
+        <% if (account && account.refCode && !preview) { const refLink = canonical + '?utm_source=referral&ref=' + account.refCode; %>
+          <div class="refer-box" id="refer">
+            <h3><%= t('job.referTitle') %></h3>
+            <p class="small muted"><%= t('job.referText') %></p>
+            <a class="btn btn-whatsapp btn-block" href="https://wa.me/?text=<%= encodeURIComponent(t('job.referWhatsapp', { title: job.title, location: job.location, site: site.name }) + ' ' + refLink) %>" target="_blank" rel="noopener noreferrer"><svg class="i" aria-hidden="true"><use href="#i-whatsapp"/></svg> <%= t('job.referWhatsappBtn') %></a>
+            <p class="refer-link small"><input type="text" readonly value="<%= refLink %>" aria-label="<%= t('job.referLinkLabel') %>" data-select-all> <button type="button" class="btn btn-outline btn-sm" data-copy-text="<%= refLink %>"><%= t('job.copyLink') %></button></p>
+            <p class="small muted"><%= t('job.referPrivacy') %> <a href="/account#referrals"><%= t('job.referSee') %></a></p>
+          </div>
         <% } %>
       <% } %>
     </aside>

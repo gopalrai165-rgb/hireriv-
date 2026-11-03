@@ -1574,6 +1574,8 @@ app.get('/jobs/:id', (req, res, next) => {
     const qs = req.originalUrl.includes('?') ? req.originalUrl.slice(req.originalUrl.indexOf('?')) : '';
     return res.redirect(301, jobPath(job) + qs);
   }
+  // A friend's referral link (?ref=) is remembered for when this visitor applies.
+  candidateAccounts.noteReferral(req, res);
   // Signed-in candidates get one-click applying with their profile.
   const account = candidateAccounts.accountForJob(req, job);
   if (account) res.set('Cache-Control', 'private, no-store');
@@ -1902,7 +1904,7 @@ app.post('/api/apply', limit('apply', 6), (req, res) => {
     }
     resumeCheck.vet(req.file).then((bad) => {
       if (bad) return respond(req, res, [bad]);
-      return saveApplication(data, req.file, job, {}, { announce: true }).then(({ updated }) => {
+      return saveApplication(data, req.file, job, job ? candidateAccounts.referralFor(req, data.email, data.phone) : {}, { announce: true }).then(({ updated }) => {
       if (!updated) siteAnalytics.track('application-submitted', job ? WORK_KINDS.find((w) => w.key === workOf(job)).label : 'General application', req);
       siteAnalytics.track('application-language', req.locale, req);
       const first = data.name.split(' ')[0];

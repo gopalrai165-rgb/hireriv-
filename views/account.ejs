@@ -91,6 +91,18 @@
       <% }) %>
     </section>
 
+    <section class="dash-card dash-wide" id="referrals">
+      <div class="dash-head"><h2>Friends you referred</h2><a class="small" href="/jobs">Find a job to share</a></div>
+      <% if (referrals.length) { %>
+        <p class="muted small"><%= referrals.length %> <%= referrals.length === 1 ? 'friend has' : 'friends have' %> applied through your links.</p>
+        <ul class="activity">
+          <% referrals.slice(0, 10).forEach(function (r) { %><li><span class="activity-row"><span class="activity-text"><b><%= r.first %></b> applied for <%= r.jobTitle %></span><span class="muted small"><%= formatDate(r.at) %></span></span></li><% }) %>
+        </ul>
+      <% } else { %>
+        <p class="muted small">Know someone looking for work? Open any job and tap "Refer a friend on WhatsApp". When a friend applies through your link, it shows here.</p>
+      <% } %>
+    </section>
+
     <div class="dash-grid">
       <section class="dash-card" id="profile">
         <div class="dash-head"><h2>Your profile</h2><a class="small" href="/account/profile">Edit</a></div>

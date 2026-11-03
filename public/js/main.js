@@ -1096,3 +1096,11 @@ document.addEventListener('click', (e) => {
   if (!link || !navigator.sendBeacon) return;
   navigator.sendBeacon(`/api/jobs/${encodeURIComponent(link.dataset.job)}/hr-contact`, new URLSearchParams({ via: link.dataset.hrContact }));
 });
+
+// Copy a link shown on the page (Refer a friend): the button holds the text.
+document.addEventListener('click', async (e) => {
+  const b = e.target.closest('[data-copy-text]');
+  if (!b) return;
+  try { await navigator.clipboard.writeText(b.dataset.copyText); toast(say('linkCopied', 'Link copied. Paste it anywhere to share this job.')); } catch { window.prompt('Copy this link:', b.dataset.copyText); }
+});
+document.addEventListener('focusin', (e) => { if (e.target.matches('[data-select-all]')) e.target.select(); });
