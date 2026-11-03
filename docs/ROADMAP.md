@@ -23,7 +23,7 @@ Status: **Done** (in the code), **Step N** (built in that step of this plan),
 | Pricing / commercial explanation | Done | Employers page and service pages; prices from Settings (Step 124) |
 | SLA, replacement policy, payment terms | Step 134 | New Service terms page, numbers from Settings |
 | Refund and cancellation policy | Step 134 | Same page; needed because employer plans can be paid online |
-| Downloadable company profile | Step 135 | Printable company profile page (save as PDF) |
+| Downloadable company profile | Step 135 | /company-profile and /company-profile.pdf |
 | Employer onboarding guide | Step 134 | "How an engagement starts" on the Service terms page |
 | Example recruitment assignment | Owner | Only once a real assignment can be described with the client's permission |
 | 72-hour shortlist, 1:3 ratio claims | Done | Removed (Step 115); the replacement period comes from Settings |
@@ -37,8 +37,8 @@ Status: **Done** (in the code), **Step N** (built in that step of this plan),
 | Search Console, GA4, sitemap, robots, JobPosting data, Open Graph | Done | Step 121 and earlier; README → Google |
 | City job pages | Done | /jobs/in/<city> and /jobs/in/<city>/<area>, listed only when they have jobs |
 | Fresher jobs page | Done | /jobs/freshers |
-| Remote jobs page | Step 136 | /jobs/remote |
-| "Recruitment agency in <city>" pages for employers | Step 136 | Only for cities the owner chooses, with real local content |
+| Remote jobs page | Done | /jobs/work-from-home; /jobs/remote leads there (Step 136) |
+| "Recruitment agency in <city>" pages for employers | Step 136 | /recruitment-agency/<city>, only for cities ticked in Settings → City recruitment pages, with the city's open jobs, localities and the enquiry form |
 | Separate employer and job seeker journeys | Done | /employers (Step 123) and /job-seekers (Step 128) |
 | Prominent WhatsApp, mobile navigation, empty and error states | Done | Floating WhatsApp, bottom navigation on phones, empty states on lists |
 | Professional photography | Owner | Replace the stock images in public/img when real photos exist |
@@ -60,7 +60,7 @@ Status: **Done** (in the code), **Step N** (built in that step of this plan),
 ## 3. Owner checklist before marketing
 
 1. Push and deploy the latest code.
-2. Admin → Settings: real phone, WhatsApp, office address, @hireriv.in email, CIN, Grievance Officer, starting prices (optional), replacement and payment terms.
+2. Admin → Settings: tick the cities you recruit in; real phone, WhatsApp, office address, @hireriv.in email, CIN, Grievance Officer, starting prices (optional), replacement and payment terms.
 3. Set SMTP and send one test enquiry and one test application.
 4. Have a lawyer read the Privacy Policy, Terms and Service terms.
 5. Post the first genuine vacancies.

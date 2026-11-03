@@ -50,6 +50,16 @@
     </div>
   </section>
 
+  <section class="form-card" id="recruit-cities">
+    <h2>City recruitment pages</h2>
+    <p class="muted small">Tick the cities where you can really recruit for employers (up to <%= maxRecruitCities %>). Each gets a "Recruitment agency in &lt;city&gt;" page with its open jobs, localities and the enquiry form, and is listed for Google. Only tick cities you serve.</p>
+    <div class="check-grid">
+      <% cityPages.forEach(function (c) { %>
+        <label class="check-row"><input type="checkbox" name="recruitCities" value="<%= c.slug %>"<%= (form.recruitCities || []).includes(c.slug) ? ' checked' : '' %>> <span><%= c.name %></span></label>
+      <% }) %>
+    </div>
+  </section>
+
   <section class="form-card" id="pricing">
     <h2>Employer prices</h2>
     <p class="muted small">Starting prices shown on the Employers page and the service pages. Leave a price empty to show only "Request a Quote" for that service. The grey text is a suggestion and is not published.</p>

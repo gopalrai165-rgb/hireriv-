@@ -107,6 +107,7 @@ const DEFAULT_JOB_LOCATIONS = [
 
 const MAX_TESTIMONIALS = 6;
 const MAX_TEAM = 6;
+const MAX_RECRUIT_CITIES = 12;
 // Services whose starting price the owner may publish from Settings, with the
 // suggested launch wording shown as a placeholder (not published until typed).
 const PRICED_SERVICES = [
@@ -202,6 +203,11 @@ function parseSettings(body, current) {
   if ((g.designation || g.email || g.phone) && !g.name) errors.push('the Grievance Officer needs a name');
   if (g.email && !/^[^\s@<>]+@[^\s@<>]+\.[a-z]{2,}$/i.test(g.email)) errors.push('the Grievance Officer email does not look right');
   if (g.phone && !/^\+?[\d\s-]{8,20}$/.test(g.phone)) errors.push('the Grievance Officer phone should be a phone number');
+  // Cities with a "Recruitment agency in <city>" page for employers (up to 12).
+  const citySlugs = require('./geo').CITY_PAGES.map((c) => c.slug);
+  const picked = [].concat(body.recruitCities || []).map(String).filter((s) => citySlugs.includes(s));
+  next.recruitCities = [...new Set(picked)].slice(0, MAX_RECRUIT_CITIES);
+  if (new Set(picked).size > MAX_RECRUIT_CITIES) errors.push(`choose up to ${MAX_RECRUIT_CITIES} cities for recruitment pages`);
   // Service terms: the usual time to a first shortlist (optional).
   const shortlist = get('terms_shortlistDays', 3);
   next.serviceTerms = { shortlistDays: shortlist ? Number(shortlist) : null };
@@ -253,4 +259,4 @@ const jobSlug = (job) => [slugify(job.title).slice(0, 60).replace(/-+$/, ''), sl
 const jobPath = (job) => `/jobs/${jobSlug(job)}`;
 const findJobBySlug = (list, param) => list.find((j) => param === j.id) || list.find((j) => param.endsWith(`-${j.id}`));
 
-module.exports = { jobSlug, jobPath, findJobBySlug, parsePost, slugify, parseSettings, SOCIAL, DEFAULT_JOB_CATEGORIES, DEFAULT_JOB_LOCATIONS, MAX_TESTIMONIALS, MAX_TEAM, PRICED_SERVICES, WORK_KINDS, WORK_KEYS, CATEGORY_WORK, workOf, workOfCategory, RESUME_OPTIONS, resumeNeeded, JOB_GROUPS, inGroup, isFresherJob };
+module.exports = { jobSlug, jobPath, findJobBySlug, parsePost, slugify, parseSettings, SOCIAL, DEFAULT_JOB_CATEGORIES, DEFAULT_JOB_LOCATIONS, MAX_TESTIMONIALS, MAX_TEAM, MAX_RECRUIT_CITIES, PRICED_SERVICES, WORK_KINDS, WORK_KEYS, CATEGORY_WORK, workOf, workOfCategory, RESUME_OPTIONS, resumeNeeded, JOB_GROUPS, inGroup, isFresherJob };

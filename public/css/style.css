@@ -2254,3 +2254,9 @@ p, li, dd { text-wrap: pretty; }
 .company-profile .profile-block { margin-bottom: 10px; }
 .company-profile .profile-block p { margin: 2px 0 0; }
 .profile-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
+
+/* City recruitment pages */
+.check-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(160px, 100%), 1fr)); gap: 6px 14px; }
+.city-jobs { list-style: none; padding: 0; margin: 0 0 14px; display: grid; gap: 10px; }
+.city-jobs li { display: flex; flex-direction: column; gap: 2px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 10px; background: #fff; }
+.pill-row.center-row { justify-content: center; }

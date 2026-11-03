@@ -695,6 +695,8 @@ Total: 727 routes.
 | GET | `/refund-policy` | public | Moved (301) to /service-terms#refunds |
 | GET | `/cancellation-policy` | public | Moved (301) to /service-terms#refunds |
 | GET | `/replacement-policy` | public | Moved (301) to /service-terms#replacement |
+| GET | `/recruitment-agency/:city` | public | "Recruitment agency in <city>" for cities chosen in Settings; 404 for others |
+| GET | `/jobs/remote` | public | Moved (301) to /jobs/work-from-home |
 | GET | `/job-seekers` | public | The job seekers page with job search and the resume form |
 | GET | `/jobseekers` | public | Moved (301) to /job-seekers |
 | GET | `/for-job-seekers` | public | Moved (301) to /job-seekers |

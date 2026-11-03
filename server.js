@@ -703,6 +703,11 @@ app.locals.testimonialsFor = (s) => (Array.isArray(s.testimonials) ? s.testimoni
 app.locals.maxTestimonials = MAX_TESTIMONIALS;
 app.locals.maxTeam = require('./content').MAX_TEAM;
 app.locals.pricedServices = require('./content').PRICED_SERVICES;
+app.locals.maxRecruitCities = require('./content').MAX_RECRUIT_CITIES;
+app.locals.cityPages = geo.CITY_PAGES;
+// The cities the owner chose for "Recruitment agency in <city>" pages.
+const recruitCities = () => (site.recruitCities || []).map(geo.cityPageBySlug).filter(Boolean);
+app.locals.recruitCities = recruitCities;
 app.locals.sourceName = (s) => require('./reports').sourceName(s);
 // The Grievance Officer: their own email when given, otherwise the site email.
 app.locals.grievanceOf = (s) => {
@@ -825,7 +830,7 @@ function needPagesWithJobs() {
 }
 const cityPagesWithJobs = () => { const live = openJobs().filter((j) => !isSample(j)); return geo.CITY_PAGES.filter((c) => live.some((j) => c.locations.includes(j.location))); };
 app.get('/sitemap.xml', (req, res) =>
-  res.type('application/xml').send(seo.sitemap(BASE_URL, { jobs: openJobs().filter((j) => !isSample(j)), posts: livePosts(), staticPaths: ['/', '/jobs', ...catalog.WORK_PAGES.map((x) => `/jobs/${x.slug}`), ...catalog.JOB_INDUSTRIES.map((x) => `/jobs/industry/${x.slug}`), ...cityPagesWithJobs().map((c) => `/jobs/in/${c.slug}`), ...areaPagesWithJobs(), ...rolePagesWithJobs(), ...needPagesWithJobs(), ...salaryPagesWithData(), ...(trustHooks.companyPaths().length ? ['/companies'] : []), ...trustHooks.companyPaths(), '/interview-tips', ...ROLE_PAGES.filter((r) => interviewTips.forRole(r.key)).map((r) => tipsPath(r)), '/categories', '/job-seekers', '/employers', '/hire', '/services', ...catalog.SERVICES.map((x) => `/services/${x.slug}`), '/industries', ...catalog.INDUSTRIES.map((x) => `/industries/${x.slug}`), '/about', '/blog', '/contact', '/privacy', '/terms', '/service-terms', '/company-profile', '/job-posting-policy', '/help/job-terms', '/accessibility'] }))
+  res.type('application/xml').send(seo.sitemap(BASE_URL, { jobs: openJobs().filter((j) => !isSample(j)), posts: livePosts(), staticPaths: ['/', '/jobs', ...catalog.WORK_PAGES.map((x) => `/jobs/${x.slug}`), ...catalog.JOB_INDUSTRIES.map((x) => `/jobs/industry/${x.slug}`), ...cityPagesWithJobs().map((c) => `/jobs/in/${c.slug}`), ...areaPagesWithJobs(), ...rolePagesWithJobs(), ...needPagesWithJobs(), ...salaryPagesWithData(), ...(trustHooks.companyPaths().length ? ['/companies'] : []), ...trustHooks.companyPaths(), '/interview-tips', ...ROLE_PAGES.filter((r) => interviewTips.forRole(r.key)).map((r) => tipsPath(r)), '/categories', '/job-seekers', '/employers', ...recruitCities().map((c) => `/recruitment-agency/${c.slug}`), '/hire', '/services', ...catalog.SERVICES.map((x) => `/services/${x.slug}`), '/industries', ...catalog.INDUSTRIES.map((x) => `/industries/${x.slug}`), '/about', '/blog', '/contact', '/privacy', '/terms', '/service-terms', '/company-profile', '/job-posting-policy', '/help/job-terms', '/accessibility'] }))
 );
 
 // Things a new install still needs before it is ready for visitors, shown to
@@ -1496,6 +1501,7 @@ app.get('/jobs/industry/:slug', (req, res, next) => {
   jobLanding(req, res, landing, 'industry');
 });
 
+app.get('/jobs/remote', (req, res) => res.redirect(301, '/jobs/work-from-home'));
 app.get('/jobs/:id', (req, res, next) => {
   const job = findJobBySlug(jobs.filter(isPublicJob), req.params.id);
   if (!job) return next();
@@ -1601,6 +1607,23 @@ app.get('/services/staffing', (req, res) => res.redirect(301, '/services/contrac
 app.get('/services/bulk-hiring', (req, res) => res.redirect(301, '/services/bulk-rpo-hiring'));
 app.get('/employers/contact', (req, res) => res.redirect(301, '/employers#enquiry'));
 app.get('/hire-talent', (req, res) => res.redirect(301, '/employers'));
+// "Recruitment agency in <city>": only for cities chosen in Settings, with the
+// city's real open jobs, the roles being hired, its localities and the form.
+app.get('/recruitment-agency/:city', (req, res, next) => {
+  const city = recruitCities().find((c) => c.slug === req.params.city);
+  if (!city) return next();
+  const local = openJobs().filter((j) => !isSample(j) && city.locations.includes(j.location)).sort((a, b) => String(b.posted).localeCompare(String(a.posted)));
+  const roles = Object.entries(local.reduce((m, j) => { m[j.category] = (m[j.category] || 0) + 1; return m; }, {})).sort((a, b) => b[1] - a[1]).slice(0, 6);
+  const office = app.locals.realContact(site).address && city.locations.some((n) => app.locals.realContact(site).address.toLowerCase().includes(n.toLowerCase())) ? app.locals.realContact(site).address : '';
+  res.render('recruitment-city', {
+    title: `Recruitment Agency in ${city.name}: Staffing & Hiring Services`, page: 'employers', city, local: local.slice(0, 6), localCount: local.length, roles,
+    areas: geo.areasOf(city.name).slice(0, 18), office, services: catalog.PRIORITY_SERVICES, industries: EMPLOYER_INDUSTRIES,
+    otherCities: recruitCities().filter((c) => c.slug !== city.slug), enquiryFrom: `city:${city.slug}`, enquiryCity: city.name,
+    metaDescription: `Recruitment and staffing for businesses in ${city.name}: permanent hiring, contract staffing and bulk recruitment by ${site.name}. ${local.length ? `${local.length} open job${local.length === 1 ? '' : 's'} in ${city.name} now. ` : ''}Request a callback.`,
+    jsonLd: { '@context': 'https://schema.org', '@type': 'Service', serviceType: 'Recruitment and staffing', name: `Recruitment in ${city.name}`, url: `${BASE_URL}/recruitment-agency/${city.slug}`, areaServed: { '@type': 'City', name: city.name }, provider: { '@type': 'Organization', name: site.name, url: BASE_URL } },
+  });
+});
+
 // The job seekers' landing page: search, how it works, safety and the resume form.
 app.get('/job-seekers', (req, res) => {
   res.render('job-seekers', {
@@ -1866,14 +1889,15 @@ function employerInquiry(req, body, file) {
   const from = String(body.from || '');
   const service = /^service:/.test(from) && catalog.serviceBySlug(from.slice(8));
   const desk = /^desk:/.test(from) && catalog.industryBySlug(from.slice(5));
-  const page = service ? `service page: ${service.name}` : desk ? `industry page: ${desk.name}` : from === 'home' ? 'homepage' : from === 'employers' ? 'Employers page' : from === 'contact' ? 'Contact page' : '';
+  const cityPage = /^city:/.test(from) && recruitCities().find((c) => c.slug === from.slice(5));
+  const page = cityPage ? `City page: ${cityPage.name}` : service ? `service page: ${service.name}` : desk ? `industry page: ${desk.name}` : from === 'home' ? 'homepage' : from === 'employers' ? 'Employers page' : from === 'contact' ? 'Contact page' : '';
   const entry = saveSubmission('hire-requests', { ...data, ...(page ? { fromPage: page } : {}), ...(body.consent === '1' ? { consentAt: new Date().toISOString() } : {}), ...(file ? { jd: file.filename, jdName: path.basename(file.originalname).slice(0, 120) } : {}), followUp: 'New' });
   mailer.hireRequestReceived(entry);
   mailer.hireRequestAcknowledged(entry);
   events.staffingRequest(entry);
   const via = data.source ? `, via ${reportsModule.sourceName(data.source)}${data.campaign ? ` (${data.campaign})` : ''}` : '';
   leadCapture.capture('Website inquiry', data, { sourceRef: entry.id, sourceDetail: `Hire with us form${page ? `, ${page}` : ''}${via}` });
-  siteAnalytics.track('employer-inquiry', service ? service.name : desk ? desk.name : from === 'home' ? 'Homepage' : from === 'employers' ? 'Employers page' : from === 'contact' ? 'Contact page' : data.hiringType || 'Hire page', req);
+  siteAnalytics.track('employer-inquiry', cityPage ? `City: ${cityPage.name}` : service ? service.name : desk ? desk.name : from === 'home' ? 'Homepage' : from === 'employers' ? 'Employers page' : from === 'contact' ? 'Contact page' : data.hiringType || 'Hire page', req);
   return [];
 }
 app.post('/api/hire', limit('hire', 5), (req, res) => {

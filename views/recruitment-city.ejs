@@ -1,0 +1,98 @@
+<%- include('partials/head') %>
+<% const real = realContact(site); %>
+
+<section class="page-hero employers-hero">
+  <span class="deco deco-spark" aria-hidden="true"></span>
+  <div class="container split">
+    <div>
+      <span class="eyebrow">For employers in <%= city.name %></span>
+      <h1>Recruitment agency in <span class="grad"><%= city.name %></span></h1>
+      <p class="lead">Permanent hiring, contract staffing and bulk recruitment for businesses in <%= city.name %>. We find, screen and shortlist candidates; you interview and choose.</p>
+      <p class="brand-line"><%= brandLine(site) %></p>
+    </div>
+    <div class="callback-card">
+      <h2>Hiring in <%= city.name %>?</h2>
+      <p>Tell us the roles and numbers. A recruiter calls you within one working day.</p>
+      <a class="btn btn-accent btn-lg btn-block" href="#enquiry">Request a Callback</a>
+      <% if (real.whatsapp) { %><a class="btn btn-whatsapp btn-block" href="https://wa.me/<%= real.whatsapp %>?text=<%= encodeURIComponent('Hi ' + site.name + ', I would like to hire employees in ' + city.name + '.') %>" rel="noopener">Enquire on WhatsApp</a><% } %>
+      <a class="btn btn-outline btn-block" href="/company-profile">Our company profile (PDF)</a>
+    </div>
+  </div>
+</section>
+
+<section class="section" aria-labelledby="now-h">
+  <div class="container">
+    <div class="section-head">
+      <h2 id="now-h">Hiring in <%= city.name %> right now</h2>
+      <% if (localCount) { %>
+        <p><%= localCount %> open job<%= localCount === 1 ? '' : 's' %> in <%= city.name %> on <%= site.name %><% if (roles.length) { %>, most in <%= roles.slice(0, 3).map(function (r) { return r[0]; }).join(', ') %><% } %>.</p>
+      <% } else { %>
+        <p>No vacancies are listed in <%= city.name %> yet. Employers here can post a job or send us a requirement, and job seekers can <a href="/job-seekers#resume">send their resume</a>.</p>
+      <% } %>
+    </div>
+    <% if (localCount) { %>
+      <ul class="city-jobs">
+        <% local.forEach(function (j) { %>
+          <li><a href="<%= jobPath(j) %>"><b><%= j.title %></b></a><span class="muted small"><%= j.company %> · <%= j.location %> · posted <%= formatDate(j.posted) %></span></li>
+        <% }) %>
+      </ul>
+      <p><a href="/jobs/in/<%= city.slug %>">All jobs in <%= city.name %></a></p>
+    <% } %>
+  </div>
+</section>
+
+<section class="section section-tint" aria-labelledby="svc-h">
+  <div class="container">
+    <div class="section-head center"><h2 id="svc-h">Recruitment services in <%= city.name %></h2></div>
+    <div class="services-grid services-grid-4">
+      <% services.forEach(function (s) { %>
+        <a class="service-card service-link" href="/services/<%= s.slug %>">
+          <span class="service-icon"><svg class="i"><use href="#<%= s.icon %>"/></svg></span>
+          <h3><%= s.name %></h3>
+          <p><%= s.card %></p>
+          <span class="card-link">How it works and pricing <svg class="i"><use href="#i-arrow"/></svg></span>
+        </a>
+      <% }) %>
+    </div>
+  </div>
+</section>
+
+<% if (areas.length || office) { %>
+<section class="section" aria-labelledby="areas-h">
+  <div class="container">
+    <h2 id="areas-h" class="h3">Across <%= city.name %></h2>
+    <% if (office) { %><p><b>Our office:</b> <%= office %><% if (site.hours) { %> · <%= site.hours %><% } %></p><% } %>
+    <% if (areas.length) { %>
+      <p>We source candidates who live near your workplace, so fewer drop out. Localities include:</p>
+      <ul class="pill-row"><% areas.forEach(function (a) { %><li><a href="/jobs/in/<%= city.slug %>/<%= a.slug %>"><%= a.name %></a></li><% }) %></ul>
+    <% } %>
+  </div>
+</section>
+<% } %>
+
+<section class="section section-tint" aria-labelledby="how-h">
+  <div class="container">
+    <div class="section-head center"><h2 id="how-h">How it works</h2></div>
+    <ol class="how-steps">
+      <li><span class="how-num" aria-hidden="true">1</span><svg class="i" aria-hidden="true"><use href="#i-mail"/></svg><b>Share your hiring requirements.</b></li>
+      <li><span class="how-num" aria-hidden="true">2</span><svg class="i" aria-hidden="true"><use href="#i-users"/></svg><b>We shortlist suitable candidates in <%= city.name %>.</b></li>
+      <li><span class="how-num" aria-hidden="true">3</span><svg class="i" aria-hidden="true"><use href="#i-check"/></svg><b>You interview and select candidates.</b></li>
+      <li><span class="how-num" aria-hidden="true">4</span><svg class="i" aria-hidden="true"><use href="#i-briefcase"/></svg><b>We support the recruitment process.</b></li>
+    </ol>
+    <p class="center small">Fees, replacement policy and payment terms: <a href="/employers#price-h">pricing</a> and <a href="/service-terms">service terms</a>.</p>
+  </div>
+</section>
+
+<section class="section" id="enquiry" aria-labelledby="enquiry-h">
+  <div class="container split enquiry-split">
+    <div>
+      <span class="eyebrow">Employer enquiry</span>
+      <h2 id="enquiry-h">Hire in <%= city.name %></h2>
+      <p>Tell us what you need. You get a confirmation email straight away, and a recruiter calls you within one working day.</p>
+      <% if (otherCities.length) { %><p class="small">We also recruit in <% otherCities.forEach(function (c, i) { %><%= i ? ', ' : '' %><a href="/recruitment-agency/<%= c.slug %>"><%= c.name %></a><% }) %>.</p><% } %>
+    </div>
+    <%- include('partials/employer-enquiry-form') %>
+  </div>
+</section>
+
+<%- include('partials/foot') %>

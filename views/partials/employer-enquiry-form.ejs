@@ -1,0 +1,31 @@
+<%# The employer enquiry form: Employers page and the city recruitment pages. %>
+<div class="form-card">
+  <form class="form js-form" action="/api/hire" method="post">
+    <input type="hidden" name="from" value="<%= typeof enquiryFrom !== 'undefined' ? enquiryFrom : 'employers' %>">
+    <input type="hidden" name="source" value="" data-source>
+    <input type="hidden" name="consentAsked" value="1">
+    <%- include('honeypot') %>
+    <div class="form-grid">
+      <label>Company name*<input name="company" required maxlength="160" autocomplete="organization"></label>
+      <label>Contact person*<input name="name" required maxlength="120" autocomplete="name"></label>
+      <label>Business email*<input type="email" name="email" required autocomplete="email"></label>
+      <label>Mobile number*<input type="tel" name="phone" required inputmode="tel" autocomplete="tel"></label>
+      <label>Industry
+        <select name="industry"><% industries.forEach(function (i) { %><option><%= i %></option><% }) %></select>
+      </label>
+      <label>Recruitment service required
+        <select name="hiringType">
+          <% [['Permanent', 'Permanent Staffing'], ['Contract', 'Contract Staffing'], ['Bulk / RPO', 'Bulk Hiring'], ['Executive search', 'Executive Search'], ['Not sure yet', 'Not sure yet']].forEach(function (o) { %><option value="<%= o[0] %>"><%= o[1] %></option><% }) %>
+        </select>
+      </label>
+      <label>Number of employees required
+        <select name="headcount"><% ['1-5', '6-20', '21-50', '51-100', '100+'].forEach(function (h) { %><option><%= h %></option><% }) %></select>
+      </label>
+      <label>Hiring location<input name="location" maxlength="120" placeholder="City, or Remote" value="<%= typeof enquiryCity !== 'undefined' ? enquiryCity : '' %>"></label>
+      <label class="span-2">Hiring requirements*<textarea name="roles" required rows="4" maxlength="1500" placeholder="Roles, skills, experience, salary range and when you need them"></textarea></label>
+      <label class="span-2 check-row"><input type="checkbox" name="consent" value="1" required> <span>I agree that <%= site.name %> may contact me by phone, email or WhatsApp about this enquiry, as described in the <a href="/privacy">Privacy Policy</a>.</span></label>
+    </div>
+    <button class="btn btn-primary btn-block" type="submit">Request a Callback</button>
+    <p class="muted small form-note">Want to attach a job description or give more details? Use the <a href="/hire#requirement">full hiring form</a>.</p>
+  </form>
+</div>
