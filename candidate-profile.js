@@ -175,7 +175,9 @@ const applyPatch = (profile, patch) => ({ ...emptyProfile(), ...profile, ...patc
 
 // How complete the profile is, and what to add next (with where to add it).
 const SECTIONS = [
-  { key: 'basics', label: 'Your name, mobile and city', weight: 15, done: (p) => Boolean(p.name && p.phone && p.city), href: '/account/profile#basics' },
+  { key: 'basics', label: 'Your name, mobile and city', weight: 15, done: (p) => Boolean(p.name && p.phone && p.city), href: '/account/profile#basics',
+    // Only what is still missing: someone who registered with a name and mobile is asked just for the city.
+    missingLabel: (p) => `Your ${[!p.name && 'name', !p.phone && 'mobile number', !p.city && 'city'].filter(Boolean).join(', ').replace(/, ([^,]*)$/, ' and $1')}` },
   { key: 'skills', label: 'At least 3 key skills', weight: 15, done: (p) => p.skills.length >= 3, href: '/account/profile#skills' },
   { key: 'experience', label: 'Your work experience (or that you are a fresher)', weight: 15, done: (p) => p.experiences.length > 0 || p.experienceLevel === 'Fresher', href: '/account/profile#experience' },
   { key: 'resume', label: 'A resume', weight: 15, done: (p, x) => x.hasResume, href: '/account/profile#resume' },
@@ -191,7 +193,7 @@ function completion(profile, { hasResume = false } = {}) {
   const missing = [];
   for (const s of SECTIONS) {
     if (s.done(p, { hasResume })) percent += s.weight;
-    else missing.push({ key: s.key, label: s.label, href: s.href });
+    else missing.push({ key: s.key, label: s.missingLabel ? s.missingLabel(p) : s.label, href: s.href });
   }
   return { percent, missing };
 }

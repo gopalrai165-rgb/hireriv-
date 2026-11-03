@@ -2347,3 +2347,23 @@ p, li, dd { text-wrap: pretty; }
   .employer-card:has(.employer-photo) p { grid-column: 2; margin: 0 14px 14px 0; font-size: .86rem; }
   .employer-grid-4 { gap: 10px; }
 }
+/* Comfortable tap targets for link lists (at least 32px tall on phones) */
+.toc a, .dev-toc a, .salary-table th a, .company-facts dd a { display: inline-block; padding-block: 7px; }
+/* Admin on phones: the top bar wraps neatly, card titles stay card-sized, figures two per row, contact links easy to tap */
+.dash-card > h2 { font-size: 1.15rem; margin: 0 0 10px; }
+.pipeline-sort a, .admin td a[href^="mailto:"], .admin td a[href^="tel:"], .admin td a[href^="https://wa.me/"] { display: inline-block; padding-block: 6px; }
+@media (max-width: 600px) {
+  .admin-userbar { flex-wrap: wrap; justify-content: flex-start; gap: 4px 14px; }
+  .admin-userbar > span:first-child { flex-basis: 100%; }
+  .admin-userbar a, .admin-userbar .link-btn { display: inline-block; padding-block: 6px; }
+  .kpis, .enquiry-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .kpi { padding: 14px; }
+}
+/* Small figure rows: two per row on phones, with space before what follows */
+.mini-stats { margin-bottom: 16px; }
+@media (max-width: 460px) {
+  .mini-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .mini-stats div { padding: 12px; font-size: .88rem; }
+  .mini-stats div:last-child:nth-child(odd) { grid-column: 1 / -1; }
+}
+td > a:only-child { display: inline-block; padding-block: 6px; min-width: 24px; }

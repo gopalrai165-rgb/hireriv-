@@ -17,14 +17,14 @@ Status: **Done** (in the code), **Step N** (built in that step of this plan),
 | Real phone, @hireriv.in email, office address | Owner | Admin → Settings; the admin to-do list asks until done |
 | WhatsApp enquiry button | Done | Floating button, Employers page, service pages; appear once a real number is set |
 | Working contact form, email delivery tested | Done / Owner | Forms, confirmation and team emails are tested; set SMTP and send one real test (PRE-LAUNCH-CHECKS.md) |
-| "Brand operated by Raigozen Private Limited" | Step 133 | Footer, About, Contact, Privacy, Terms |
+| "Brand operated by Raigozen Private Limited" | Done (Step 133) | Footer, About, Contact, Privacy, Terms |
 | Made-up figures (1,200+, 98% …) and sample testimonials | Done | Removed (Step 115); figures and testimonials only from Settings, only real ones |
 | About page story | Done | From Settings → About the company (Step 120); mission and vision added in Step 133 |
 | Pricing / commercial explanation | Done | Employers page and service pages; prices from Settings (Step 124) |
-| SLA, replacement policy, payment terms | Step 134 | New Service terms page, numbers from Settings |
-| Refund and cancellation policy | Step 134 | Same page; needed because employer plans can be paid online |
-| Downloadable company profile | Step 135 | /company-profile and /company-profile.pdf |
-| Employer onboarding guide | Step 134 | "How an engagement starts" on the Service terms page |
+| SLA, replacement policy, payment terms | Done (Step 134) | New Service terms page, numbers from Settings |
+| Refund and cancellation policy | Done (Step 134) | Same page; needed because employer plans can be paid online |
+| Downloadable company profile | Done (Step 135) | /company-profile and /company-profile.pdf |
+| Employer onboarding guide | Done (Step 134) | "How an engagement starts" on the Service terms page |
 | Example recruitment assignment | Owner | Only once a real assignment can be described with the client's permission |
 | 72-hour shortlist, 1:3 ratio claims | Done | Removed (Step 115); the replacement period comes from Settings |
 | Privacy policy, consent, deletion, retention | Done | Privacy policy, consent records, download and delete, optional retention |
@@ -38,7 +38,7 @@ Status: **Done** (in the code), **Step N** (built in that step of this plan),
 | City job pages | Done | /jobs/in/<city> and /jobs/in/<city>/<area>, listed only when they have jobs |
 | Fresher jobs page | Done | /jobs/freshers |
 | Remote jobs page | Done | /jobs/work-from-home; /jobs/remote leads there (Step 136) |
-| "Recruitment agency in <city>" pages for employers | Step 136 | /recruitment-agency/<city>, only for cities ticked in Settings → City recruitment pages, with the city's open jobs, localities and the enquiry form |
+| "Recruitment agency in <city>" pages for employers | Done (Step 136) | /recruitment-agency/<city>, only for cities ticked in Settings → City recruitment pages, with the city's open jobs, localities and the enquiry form |
 | Separate employer and job seeker journeys | Done | /employers (Step 123) and /job-seekers (Step 128) |
 | Prominent WhatsApp, mobile navigation, empty and error states | Done | Floating WhatsApp, bottom navigation on phones, empty states on lists |
 | Professional photography | Owner | Replace the stock images in public/img when real photos exist |
@@ -49,8 +49,8 @@ Status: **Done** (in the code), **Step N** (built in that step of this plan),
 | Phase | Status |
 |---|---|
 | 0. Audit | Done: this document, docs/AUDIT.md, docs/PRE-LAUNCH-CHECKS.md |
-| 1. Brand and business foundation | Steps 133–135; logo files and business documents are Owner |
-| 2. UI/UX | Done (Steps 116–128); keep checking each new page on a phone |
+| 1. Brand and business foundation | Done (Steps 133–135); logo files and business documents are Owner |
+| 2. UI/UX | Done (Steps 116–128, 137–139: header, cards and photos, phone checks on every page type); keep checking each new page on a phone |
 | 3. Recruitment platform | Done: candidate and employer accounts, jobs with draft, pending, open, paused, closed; applications with status history; admin, CRM, notifications |
 | 4. Security and compliance | Done in code (docs/SECURITY.md); lawyer review is Owner |
 | 5. SEO and marketing | Done in code; Search Console, GA4 IDs and social pages are Owner |

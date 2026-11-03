@@ -134,3 +134,12 @@ test('service cards lead with a photo, the enquiry says what happens next, and t
   assert.match(css, /\.why-grid \{ align-items: stretch; \}/);
   assert.match(css, /\.page-home \.cat-grid \{ grid-template-columns: repeat\(10, 1fr\); \}/);
 });
+
+test('phone layout: link lists and contact links are easy to tap, admin bars wrap, figures sit two per row', async () => {
+  const css = await page('/css/style.css');
+  assert.match(css, /\.toc a, \.dev-toc a, \.salary-table th a, \.company-facts dd a \{ display: inline-block; padding-block: 7px; \}/);
+  assert.match(css, /td > a:only-child \{ display: inline-block; padding-block: 6px; min-width: 24px; \}/);
+  assert.match(css, /\.admin-userbar \{ flex-wrap: wrap; justify-content: flex-start;/);
+  assert.match(css, /\.mini-stats \{ grid-template-columns: repeat\(2, minmax\(0, 1fr\)\);/);
+  assert.match(css, /\.dash-card > h2 \{ font-size: 1\.15rem;/);
+});

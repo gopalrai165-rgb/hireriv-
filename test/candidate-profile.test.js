@@ -51,6 +51,10 @@ test('profile changes are checked, and identity details have no place to go', ()
   assert.deepEqual(patch.skills, ['Tally', 'GST', 'Excel']);
   assert.equal(cp.completion(cp.emptyProfile()).percent, 0);
   assert.equal(cp.completion({ ...cp.emptyProfile(), name: 'A', phone: '9', city: 'Pune' }, { hasResume: true }).percent, 30);
+  const basics = (p) => cp.completion({ ...cp.emptyProfile(), ...p }).missing.find((m) => m.key === 'basics').label;
+  assert.equal(basics({ name: 'A', phone: '9' }), 'Your city', 'only what is missing is asked for');
+  assert.equal(basics({ name: 'A' }), 'Your mobile number and city');
+  assert.equal(basics({}), 'Your name, mobile number and city');
 });
 
 let kavya;
