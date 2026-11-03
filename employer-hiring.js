@@ -195,7 +195,7 @@ function register(app, deps) {
     const all = visibleJobs(req.member).sort((a, b) => String(b.updatedAt || b.posted).localeCompare(String(a.updatedAt || a.posted)));
     const rows = all.filter((j) => !status || j.status === status).map((j) => ({ ...j, applicants: apps.filter((a) => a.jobId === j.id).length, fresh: apps.filter((a) => a.jobId === j.id && (a.status || 'New') === 'New').length }));
     const counts = Object.fromEntries(Object.keys(STATUS_LABELS).map((s) => [s, all.filter((j) => j.status === s).length]));
-    page(res, 'employer-jobs', { title: 'Jobs', tab: 'jobs', rows, counts, status, labels: STATUS_LABELS, msg: String(req.query.msg || '') });
+    page(res, 'employer-jobs', { title: 'Jobs', tab: 'jobs', rows, counts, status, labels: STATUS_LABELS, msg: String(req.query.msg || ''), today: todayIst() });
   });
 
 // "Post a similar job": a new job form filled in from one of the company's
@@ -286,6 +286,22 @@ function register(app, deps) {
     req.job = job;
     next();
   };
+
+  // Keep a job open 30 more days: only the closing date moves (from today or
+  // the current closing date, whichever is later), so it stays live and is
+  // not checked again. Live and paused jobs with a closing date only.
+  const EXTEND_DAYS = 30;
+  app.post('/employer/jobs/:id/extend', requireEmployer, withJob('job.edit'), limit('employer-jobs', 30), sameOrigin, (req, res) => {
+    const job = req.job;
+    if (!['open', 'paused'].includes(job.status) || !job.closesOn) return toJobs(res, `"${job.title}" has no closing date to move.`);
+    const from = job.closesOn > todayIst() ? job.closesOn : todayIst();
+    const next = new Date(Date.parse(from) + EXTEND_DAYS * 86400000).toISOString().slice(0, 10);
+    const was = job.closesOn;
+    Object.assign(job, { closesOn: next, updatedAt: now() });
+    saveJobs();
+    team.audit(req.employer.id, req.employerUser, 'job-extended', `${job.title} (${job.id}): closing date ${was} → ${next}`);
+    toJobs(res, `"${job.title}" now takes applications until ${next}.`);
+  });
 
   app.post('/employer/jobs/:id', requireEmployer, withJob('job.edit'), limit('employer-jobs', 30), sameOrigin, (req, res) => {
     const job = req.job;

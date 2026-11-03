@@ -25,7 +25,7 @@
               <tr>
                 <td><b><%= j.title %></b><br><span class="muted small"><%= j.location %> · <%= j.type %><%= j.openings ? ' · ' + j.openings + ' opening' + (j.openings === 1 ? '' : 's') : '' %><%= own ? '' : ' · run by ' + site.name %></span>
                   <% if (j.status === 'rejected' && j.rejectedReason) { %><br><span class="small">To change: <%= j.rejectedReason %></span><% } %></td>
-                <td data-label="Status"><span class="pill <%= PILL[j.status] || '' %>"><%= labels[j.status] || j.status %></span></td>
+                <td data-label="Status"><span class="pill <%= PILL[j.status] || '' %>"><%= labels[j.status] || j.status %></span><% if (j.closesOn && ['open', 'paused'].includes(j.status)) { const d = Math.round((Date.parse(j.closesOn) - Date.parse(today)) / 86400000); if (d <= 7) { %><br><span class="small closing-soon"><%= d <= 0 ? 'Last day today' : d === 1 ? 'Closes tomorrow' : 'Closes in ' + d + ' days' %></span><% } } %></td>
                 <td data-label="Applicants"><% if (own && can('applicants.view', j)) { %><a href="/employer/applicants?job=<%= j.id %>"><b><%= j.applicants %></b><%= j.fresh ? ' (' + j.fresh + ' new)' : '' %></a><% } else { %><%= j.applicants %><% } %></td>
                 <td class="muted small" data-label="Updated"><%= formatDate(j.updatedAt || j.posted) %></td>
                 <td class="row-actions">
@@ -36,6 +36,8 @@
                     <% translationStatus(j).forEach(function (tr) { %><a class="btn btn-outline btn-sm" href="/employer/jobs/<%= j.id %>/translations/<%= tr.code %>" title="<%= TR_LABEL[tr.state] %>"><span lang="<%= tr.code %>"><%= tr.native %></span><span class="sr-only"> translation: <%= TR_LABEL[tr.state] %></span><% if (tr.state !== 'approved') { %> <span class="muted small" aria-hidden="true">(<%= TR_SHORT[tr.state] %>)</span><% } %></a><% }) %>
                     <% if (['draft', 'rejected', 'closed'].includes(j.status)) { %><form method="post" action="/employer/jobs/<%= j.id %>/publish"><button class="btn btn-primary btn-sm"><%= j.status === 'closed' ? 'Reopen' : 'Send for review' %></button></form><% } %>
                     <% if (can('jobs.create')) { %><a class="btn btn-outline btn-sm" href="/employer/jobs/new?from=<%= encodeURIComponent(j.id) %>" title="A new job filled in from this one">Post similar</a><% } %>
+                    <% const left = j.closesOn && ['open', 'paused'].includes(j.status) ? Math.round((Date.parse(j.closesOn) - Date.parse(today)) / 86400000) : null; %>
+                    <% if (left !== null && left <= 7) { %><form method="post" action="/employer/jobs/<%= j.id %>/extend"><button class="btn btn-primary btn-sm" title="Closes <%= j.closesOn %>">Keep open 30 more days</button></form><% } %>
                     <% if (j.status === 'open') { %><form method="post" action="/employer/jobs/<%= j.id %>/pause"><button class="btn btn-outline btn-sm">Pause</button></form><% } %>
                     <% if (j.status === 'paused') { %><form method="post" action="/employer/jobs/<%= j.id %>/resume"><button class="btn btn-primary btn-sm">Resume</button></form><% } %>
                     <% if (['open', 'paused', 'pending'].includes(j.status)) { %><form method="post" action="/employer/jobs/<%= j.id %>/close"><button class="btn btn-outline btn-sm">Close</button></form><% } %>

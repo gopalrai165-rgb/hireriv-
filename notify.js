@@ -63,6 +63,7 @@ const TYPES = {
   'interview-upcoming': { category: 'interviews', optional: true, label: 'Upcoming interview' },
   'job-decision': { category: 'jobs', label: 'Job review decision' },
   'job-expired': { category: 'jobs', optional: true, label: 'Job closed' },
+  'job-closing-soon': { category: 'jobs', optional: true, label: 'Job closing soon' },
   'job-review': { category: 'jobs', optional: true, label: 'Job waiting for review' },
   'staffing-request': { category: 'jobs', optional: true, label: 'Staffing request' },
   'requisition-assigned': { category: 'jobs', optional: true, label: 'Requisition assigned to you' },

@@ -2455,3 +2455,6 @@ td > a:only-child { display: inline-block; padding-block: 6px; min-width: 24px; 
 .follow-box p { margin: 0; max-width: 46ch; }
 .followers-note { display: flex; gap: 8px; align-items: center; margin: 0 0 10px; }
 .followers-note .i { color: var(--primary); flex: none; }
+
+/* Closing soon (Step 152) */
+.closing-soon { color: #b54708; font-weight: 600; }

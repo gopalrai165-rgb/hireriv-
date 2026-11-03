@@ -213,6 +213,12 @@ function create(deps) {
       if (!who || o.approval.status !== 'pending' || o.createdByUserId === to.userId) return null;
       return { who, subject: `An offer for ${job.title} needs your approval`, heading: 'An offer is waiting for approval', intro: `${o.createdBy || 'A colleague'} made an offer to ${first(a.name)} for ${job.title}. It goes to the candidate once someone approves it.`, rows: [['Joining date', o.joiningDate || 'To be agreed']], link: applicantLink(who, a), label: 'Review the offer', why: 'offers waiting for approval' };
     },
+    'job-closing-soon'(refs, to) {
+      const job = jobById(refs.jobId);
+      const who = job && person(to, job, 'job.view');
+      if (!who || job.status !== 'open' || job.closesOn !== refs.closesOn) return null;
+      return { who, subject: `Closing soon: ${job.title}`, heading: 'A job is about to close', intro: `${job.title} takes applications until ${job.closesOn}, then closes by itself. Still hiring? Keep it open for 30 more days from your jobs, in one click.`, rows: [], link: `${baseUrl}/employer/jobs?status=open`, label: 'Keep it open', why: 'your jobs closing' };
+    },
     'job-expired'(refs, to) {
       const job = jobById(refs.jobId);
       const who = job && person(to, job, 'job.view');
@@ -403,6 +409,24 @@ function create(deps) {
     const to = ids.filter((id) => store.membership(id, emp.id)).map((id) => ({ kind: 'employer', userId: id, employerId: emp.id }));
     emit({ key: `job-decision:${job.id}:${approved ? `approved:${job.approvedAt}` : `sent-back:${job.rejectedAt}`}`, type: 'job-decision', to, inApp: { title: approved ? `Your job is live: ${job.title}` : `Changes needed: ${job.title}`, body: approved ? 'It is on the site and taking applications.' : `The team's note: ${reason}`, link: approved ? `/employer/jobs` : `/employer/jobs/${job.id}/edit`, jobId: job.id, perm: 'job.view' }, email: { template: 'job-decision', refs: { jobId: job.id, approved, reason } } });
   }
+  // Three days before a job's last day to apply: one reminder to the people
+  // who may edit it (again only if the closing date changes).
+  const CLOSING_SOON_DAYS = 3;
+  function jobClosingSoonScan(today) {
+    let n = 0;
+    for (const job of getJobs()) {
+      if (job.status !== 'open' || !job.closesOn || !selfManaged(job) || job.closesOn < today) continue;
+      const left = Math.round((Date.parse(job.closesOn) - Date.parse(today)) / 86400000);
+      if (left > CLOSING_SOON_DAYS) continue;
+      const r = emit({
+        key: `job-closing:${job.id}:${job.closesOn}`, type: 'job-closing-soon', to: jobPeople(job, 'job.edit'),
+        inApp: { title: `Closing ${left === 0 ? 'today' : left === 1 ? 'tomorrow' : `in ${left} days`}: ${job.title}`, body: `Last day to apply: ${job.closesOn}. Keep it open for 30 more days if you're still hiring.`, link: '/employer/jobs?status=open', jobId: job.id, perm: 'job.view' },
+        email: { template: 'notice', refs: { kind: 'job-closing-soon', jobId: job.id, closesOn: job.closesOn } },
+      });
+      n += r.notifications + r.deliveries ? 1 : 0;
+    }
+    return n;
+  }
   // A job reached its closing date.
   function jobExpired(job) {
     if (!selfManaged(job)) return;
@@ -561,7 +585,7 @@ function create(deps) {
 
   return {
     applicationSubmitted, newApplication, stageMoved, statusEmail, interviewBooked, interviewRescheduled, interviewCancelled, interviewReminder, interviewAnswered,
-    feedbackDueScan, offerCreated, offerApproved, offerAnswered, offerDeadlineScan, assigned, jobDecision, jobExpired, jobSubmitted, jobAlerts, jobDigest, jobInvite, contactUnlocked, applicationViewed, staffingRequest, hireRequestAssigned, hireOverdueScan, leadSummaryScan, leadSummaryNow, agencyAssigned,
+    feedbackDueScan, offerCreated, offerApproved, offerAnswered, offerDeadlineScan, assigned, jobDecision, jobExpired, jobClosingSoonScan, jobSubmitted, jobAlerts, jobDigest, jobInvite, contactUnlocked, applicationViewed, staffingRequest, hireRequestAssigned, hireOverdueScan, leadSummaryScan, leadSummaryNow, agencyAssigned,
     accountSecurity, scan, JOB_ALERTS_PER_DAY,
   };
 }
