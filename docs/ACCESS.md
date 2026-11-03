@@ -845,6 +845,7 @@ Total: 727 routes.
 | POST | `/admin/settings` | admin |  |
 | POST | `/admin/blog/:slug/delete` | admin |  |
 | POST | `/admin/hire-requests/:id/follow-up` | team | Any team member can set a hiring request's follow-up status; in the activity log |
+| POST | `/admin/hire-requests/summary` | team | Same origin, 5 an hour; emails the signed-in member this week's enquiry summary |
 | GET | `/admin/hire-requests/jd/:file` | team | Job descriptions sent with hiring requests; signed link, valid 15 minutes |
 | POST | `/admin/:type/:id/delete` | admin | Inbox entries: applications, hire requests, contacts, newsletter, job alerts |
 | GET | `/admin/backup` | admin | Admins; password again within 10 minutes; in the security log |

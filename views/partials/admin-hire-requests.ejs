@@ -1,29 +1,64 @@
-<%# Hiring requests from the website, with their follow-up status. The CRM keeps the lead for each one. %>
-<p class="muted small">Call every new enquiry within one working day. Status: New → Contacted → Requirement received → Candidates shared → Closed.</p>
-<% const since = Date.now() - 90 * 864e5, bySource = {};
-   rows.filter(function (r) { return Date.parse(r.createdAt) >= since; }).forEach(function (r) { const k = r.source ? sourceName(r.source) + (r.campaign ? ' (' + r.campaign + ')' : '') : 'Not tracked'; bySource[k] = (bySource[k] || 0) + 1; });
-   const sourceRows = Object.entries(bySource).sort(function (a, b) { return b[1] - a[1]; }); %>
-<% if (sourceRows.length) { %>
+<%# Employer enquiries: the numbers, filters and the list with status and owner. Figures from enquiry-stats.js. %>
+<% const qs = function (extra) { const o = Object.assign({ tab: 'hire-requests', period: f.period }, extra); return '/admin?' + Object.keys(o).filter(function (k) { return o[k]; }).map(function (k) { return k + '=' + encodeURIComponent(o[k]); }).join('&'); }; %>
+<div class="enquiry-head">
+  <p class="muted small">Call every new enquiry within one working day. Status: New → Contacted → Requirement received → Candidates shared → Closed.</p>
+  <form method="post" action="/admin/hire-requests/summary"><button class="btn btn-outline btn-sm"><svg class="i" aria-hidden="true"><use href="#i-mail"/></svg> Email me this week's summary</button></form>
+</div>
+
+<div class="kpis enquiry-kpis">
+  <a class="kpi" href="<%= qs({ status: 'New' }) %>"><span class="kpi-label">New</span><span class="kpi-value"><%= stats.newCount %></span><span class="kpi-note">not yet contacted</span></a>
+  <a class="kpi<%= stats.waiting ? ' kpi-alert' : '' %>" href="<%= qs({ waiting: '1' }) %>"><span class="kpi-label">Waiting for a call</span><span class="kpi-value"><%= stats.waiting %></span><span class="kpi-note">over a working day</span></a>
+  <div class="kpi"><span class="kpi-label">Received</span><span class="kpi-value"><%= stats.received %></span><span class="kpi-note"><%= stats.periodLabel.toLowerCase() %></span></div>
+  <div class="kpi"><span class="kpi-label">Median time to first call</span><span class="kpi-value"><%= stats.medianHours === null ? '–' : formatHours(stats.medianHours) %></span><span class="kpi-note"><%= stats.withinDay === null ? 'recorded when a status first moves on from New' : stats.withinDay + '% within 24 hours' %></span></div>
+</div>
+
+<nav class="pipeline" aria-label="Enquiries by status">
+  <% stats.byStatus.forEach(function (x) { %>
+    <a class="pipeline-step<%= f.status === x[0] ? ' is-on' : '' %><%= x[1] ? '' : ' is-zero' %>" href="<%= f.status === x[0] ? qs({}) : qs({ status: x[0] }) %>"<%- f.status === x[0] ? ' aria-current="true"' : '' %>><b><%= x[1] %></b><span><%= x[0] %></span></a>
+  <% }) %>
+</nav>
+
+<form class="form enquiry-filters" method="get" action="/admin" role="search">
+  <input type="hidden" name="tab" value="hire-requests">
+  <label class="span-2">Search<input name="q" value="<%= f.q %>" placeholder="Company, contact, email, phone, role or city"></label>
+  <label>Status<select name="status"><option value="">Any status</option><% hireFollowUps.forEach(function (s) { %><option<%= f.status === s ? ' selected' : '' %>><%= s %></option><% }) %></select></label>
+  <label>Owner<select name="owner"><option value="">Anyone</option><option value="me"<%= f.owner === 'me' ? ' selected' : '' %>>Mine</option><option value="none"<%= f.owner === 'none' ? ' selected' : '' %>>No owner yet</option><% members.filter(function (m) { return m.active !== false; }).forEach(function (m) { %><option value="<%= m.id %>"<%= f.owner === m.id ? ' selected' : '' %>><%= m.name %></option><% }) %></select></label>
+  <label>Received<select name="period"><% Object.keys(periods).forEach(function (k) { %><option value="<%= k %>"<%= f.period === k ? ' selected' : '' %>><%= periods[k] %></option><% }) %></select></label>
+  <label class="check-row"><input type="checkbox" name="waiting" value="1"<%= f.waiting ? ' checked' : '' %>> <span>Only those waiting for a call</span></label>
+  <div class="filter-actions"><button class="btn btn-primary btn-sm">Show</button><% if (filtered || f.period !== 'all') { %> <a class="btn btn-outline btn-sm" href="/admin?tab=hire-requests">Clear</a><% } %></div>
+</form>
+
+<% if (stats.sources.length || stats.pages.length) { %>
   <details class="enquiry-sources">
-    <summary>Where enquiries came from in the last 90 days</summary>
-    <ul class="plain-list"><% sourceRows.forEach(function (s) { %><li><b><%= s[1] %></b> · <%= s[0] %></li><% }) %></ul>
+    <summary>Where enquiries came from (<%= stats.periodLabel.toLowerCase() %>)</summary>
+    <div class="split-lists">
+      <div><h3 class="h4">Source</h3><ul class="plain-list"><% stats.sources.forEach(function (s) { %><li><b><%= s[1] %></b> · <%= s[0] %></li><% }) %></ul></div>
+      <div><h3 class="h4">Page</h3><ul class="plain-list"><% stats.pages.forEach(function (s) { %><li><b><%= s[1] %></b> · <%= s[0] %></li><% }) %></ul></div>
+    </div>
     <p class="muted small">Add <code>?utm_source=linkedin&amp;utm_campaign=launch</code> to links you share so enquiries from them are named here.</p>
   </details>
 <% } %>
-<% if (!rows.length) { %>
+
+<% if (!totalRequests) { %>
   <div class="empty"><p>No hiring requests yet. They arrive from the Employers page, the Hire a Team form, the homepage, the service pages and the Contact page.</p></div>
+<% } else if (!rows.length) { %>
+  <div class="empty"><p>No enquiries match these filters. <a href="/admin?tab=hire-requests">Show all</a></p></div>
 <% } else { %>
+<p class="muted small" aria-live="polite"><%= matching %> enquir<%= matching === 1 ? 'y' : 'ies' %><%= filtered ? ' match' : '' %> · <%= stats.periodLabel.toLowerCase() %></p>
 <div class="table-wrap">
-  <table class="hire-requests">
+  <table class="hire-requests cards-on-phone">
     <thead><tr><th>Received</th><th>Company</th><th>Requirement</th><th>Status and owner</th><th></th></tr></thead>
     <tbody>
       <% rows.forEach(function (r) { %>
         <tr>
           <td><%= new Date(r.createdAt).toLocaleString('en-IN') %><% if (r.fromPage) { %><br><span class="muted small">From the <%= r.fromPage %></span><% } %><% if (r.source) { %><br><span class="muted small">Came via <%= sourceName(r.source) %><%= r.campaign ? ' (' + r.campaign + ')' : '' %></span><% } %>
-            <% if (hireOverdue(r)) { %><br><span class="pill st-rejected">Not contacted for over a working day</span><% } %></td>
+            <% if (hireOverdue(r)) { %><br><span class="pill st-rejected">Not contacted for over a working day</span><% } %>
+            <% if (r.contactedAt) { %><br><span class="muted small">First contact after <%= formatHours((Date.parse(r.contactedAt) - Date.parse(r.createdAt)) / 36e5) %></span><% } %></td>
           <td>
             <b><%= r.company %></b><% if (r.website) { %><br><a class="small" href="<%= r.website %>" target="_blank" rel="noopener nofollow"><%= r.website.replace(/^https?:\/\//, '') %></a><% } %>
             <br><%= r.name %><br><a href="mailto:<%= r.email %>"><%= r.email %></a><br><a href="tel:<%= String(r.phone || '').replace(/[^\d+]/g, '') %>"><%= r.phone %></a>
+            <% const waNum = String(r.phone || '').replace(/\D/g, '').replace(/^0+/, ''); if (waNum.length >= 10) { %> · <a href="https://wa.me/<%= waNum.length === 10 ? '91' + waNum : waNum %>" target="_blank" rel="noopener">WhatsApp</a><% } %>
+            <% if (r.ownerId && ownerName(r.ownerId)) { %><br><span class="muted small">Owner: <%= ownerName(r.ownerId) %></span><% } %>
           </td>
           <td>
             <b><%= r.roles %></b>

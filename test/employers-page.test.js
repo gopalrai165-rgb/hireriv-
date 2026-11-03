@@ -123,6 +123,6 @@ test('enquiries remember where the employer came from, for the team email, the C
 
   const admin2 = await page('/admin?tab=hire-requests', { cookie: admin });
   assert.match(admin2, /Came via LinkedIn \(launch\)/);
-  assert.match(admin2, /Where enquiries came from in the last 90 days/);
+  assert.match(admin2, /Where enquiries came from \(all time\)/);
   assert.match(admin2, /<li><b>1<\/b> · LinkedIn \(launch\)<\/li>/);
 });

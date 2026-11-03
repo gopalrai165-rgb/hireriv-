@@ -85,7 +85,7 @@
     <% } else if (tab === 'reports') { %>
       <%- include('partials/admin-reports') %>
 
-    <% } else if (!rows.length && tab !== 'talent' && tab !== 'settings') { %>
+    <% } else if (!rows.length && tab !== 'talent' && tab !== 'settings' && tab !== 'hire-requests') { %>
       <div class="empty"><p>No <%= status ? status.toLowerCase() + ' ' : '' %><%= tab.replace('-', ' ') %> yet.</p></div>
 
     <% } else if (tab === 'settings') { %>

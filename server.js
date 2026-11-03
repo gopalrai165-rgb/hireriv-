@@ -716,7 +716,8 @@ app.locals.searchConsoleToken = /^[\w-]{10,100}$/.test(process.env.GOOGLE_SITE_V
 // The company behind the site (Admin → Settings → About the company).
 app.locals.companyOf = (s) => ({ operator: 'Raigozen Private Limited', cin: '', founded: '', story: '', capabilities: [], team: [], ...(s.company || {}) });
 // Where an employer enquiry is: New → Contacted → Requirement received → Candidates shared → Closed.
-const HIRE_FOLLOW_UPS = ['New', 'Contacted', 'Requirement received', 'Candidates shared', 'Closed'];
+const enquiryStats = require('./enquiry-stats');
+const HIRE_FOLLOW_UPS = enquiryStats.STATUSES;
 app.locals.hireFollowUps = HIRE_FOLLOW_UPS;
 app.locals.formatIst = interviews.formatIst;
 // The pill colour for a hiring stage ("On hold" → st-on-hold).
@@ -2595,6 +2596,16 @@ app.get('/admin', adminAuth, (req, res) => {
     return res.render('admin', { ...locals, rows, pager, view, sum: billing.summary(all), statuses: billing.STATUSES, inr: billing.inr, formatYmd: placements.formatYmd, unrecorded: hired, clientById: Object.fromEntries(clients.read().map((c) => [c.id, c])), nameById: Object.fromEntries(all.map((p) => [p.id, p.candidateName])), monthLabel: billing.monthLabel });
   }
   if (tab === 'settings') return res.render('admin', { ...locals, rows: [], form: { ...site, jobCategories: jobCategories(), jobLocations: site.jobLocations || DEFAULT_JOB_LOCATIONS }, errors: [], social: SOCIAL, billingForm: placements.billingOf(site), retentionPreview: retentionPreviews(), backups: { status: backups.status(), drill: backups.drillStatus(), list: backups.list(), dir: backups.dir, keep: backups.keep } });
+  if (tab === 'hire-requests') {
+    const members = team.members();
+    const f = enquiryStats.parseFilters(req.query, members.map((m) => m.id));
+    const all = readSubmissions('hire-requests');
+    const shown = enquiryStats.filter(all, f, { isOverdue: hireOverdue, me: req.admin.id });
+    const { rows, pager } = pageOf(shown);
+    const stats = enquiryStats.summarise(all, { isOverdue: hireOverdue, period: f.period });
+    const filtered = Boolean(f.q || f.status || f.owner || f.waiting);
+    return res.render('admin', { ...locals, rows, pager, f, stats, filtered, matching: shown.length, totalRequests: all.length, periods: enquiryStats.PERIODS, formatHours: enquiryStats.formatHours, ownerName: (id) => (members.find((m) => m.id === id) || {}).name || '' });
+  }
   if (tab === 'talent') {
     const EXPERIENCE = ['Fresher', '0-1 years', '1-3 years', '3-5 years', '5-10 years', '10+ years'];
     const NOTICE = ['Immediate', '15 days', '30 days', '60 days', '90 days'];
@@ -2933,6 +2944,8 @@ app.post('/admin/hire-requests/:id/follow-up', adminAuth, sameOrigin, (req, res,
   if (!entry) return next();
   const done = [];
   if (entry.followUp !== status) {
+    // The first move out of "New" is the first contact: used for response times.
+    if ((entry.followUp || 'New') === 'New' && status !== 'New' && !entry.contactedAt) entry.contactedAt = new Date().toISOString();
     entry.followUp = status;
     entry.followUpAt = new Date().toISOString();
     entry.followUpBy = req.admin.name || req.admin.email || '';
@@ -2949,6 +2962,11 @@ app.post('/admin/hire-requests/:id/follow-up', adminAuth, sameOrigin, (req, res,
     team.log(req.admin, `Hiring request from ${entry.company}: ${done.join(', ')}`);
   }
   res.redirect(adminUrl('hire-requests', `${entry.company}: ${done.join(', ') || 'no change'}`));
+});
+// Email the signed-in team member this week's enquiry summary now.
+app.post('/admin/hire-requests/summary', adminAuth, sameOrigin, limit('lead-summary', 5, 60 * 60 * 1000), (req, res) => {
+  const sent = events.leadSummaryNow(req.admin.id, hireOverdue);
+  res.redirect(adminUrl('hire-requests', sent ? `The summary is on its way to ${req.admin.email}` : 'Add an email address to your team account to receive the summary'));
 });
 app.get('/admin/hire-requests/jd/:file', adminAuth, (req, res) => {
   if (!downloadLinks.valid(req)) return linkExpired(res, '/admin?tab=hire-requests');

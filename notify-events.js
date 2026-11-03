@@ -230,33 +230,21 @@ function create(deps) {
       rows: [['Requirement', h.roles], ['Number of employees', h.headcount || ''], ['Location', h.location || '']], link: `${baseUrl}/admin?tab=hire-requests`, label: 'Open hire requests', why: 'employer enquiries waiting for a call',
     };
   };
-  // The week's employer enquiries in numbers, worked out when the email is sent.
+  // The week's employer enquiries in numbers (enquiry-stats.js), worked out when the email is sent.
   const IST = 5.5 * 3600000;
-  function leadSummary(isOverdue, endMs) {
-    const all = readSubmissions('hire-requests');
-    const week = all.filter((h) => { const t = Date.parse(h.createdAt); return t <= endMs && t > endMs - 7 * DAY; });
-    const open = all.filter((h) => (h.followUp || 'New') !== 'Closed');
-    const count = (list, key) => Object.entries(list.reduce((m, h) => { const k = key(h); m[k] = (m[k] || 0) + 1; return m; }, {})).sort((a, b) => b[1] - a[1]);
-    const { sourceName } = require('./reports');
-    return {
-      week: week.length,
-      overdue: all.filter(isOverdue).length,
-      open: open.length,
-      sources: count(week, (h) => (h.source ? sourceName(h.source) : 'Not tracked')).slice(0, 5),
-      pages: count(week, (h) => h.fromPage || 'Hire a Team form').slice(0, 5),
-      statuses: count(open, (h) => h.followUp || 'New'),
-      closed: all.filter((h) => h.followUp === 'Closed' && Date.parse(h.followUpAt || 0) > endMs - 7 * DAY).length,
-    };
-  }
+  const enquiryStats = require('./enquiry-stats');
+  const leadSummary = (isOverdue, endMs) => enquiryStats.summarise(readSubmissions('hire-requests'), { isOverdue, period: '7', now: endMs });
   NOTICES['lead-summary'] = (refs, to) => {
     const who = person(to);
     if (!who) return null;
-    const s = { ...leadSummary(() => false, refs.endMs), overdue: refs.overdue || 0 };
+    const s = { ...leadSummary(() => false, refs.endMs), waiting: refs.overdue || 0 };
     const list = (pairs) => pairs.map(([k, n]) => `${k}: ${n}`).join(', ') || 'None';
+    const openByStatus = s.byStatus.filter(([k, n]) => k !== 'Closed' && n);
     return {
-      who, subject: `Employer enquiries this week: ${s.week} new${s.overdue ? `, ${s.overdue} waiting for a call` : ''}`, heading: 'Your weekly enquiry summary',
-      intro: `${s.week} new employer enquir${s.week === 1 ? 'y' : 'ies'} in the last 7 days, ${s.open} still open${s.overdue ? ` and ${s.overdue} not yet contacted after a working day` : ''}.`,
-      rows: [['Where they came from', list(s.sources)], ['Which page', list(s.pages)], ['Open by status', list(s.statuses)], ['Closed this week', String(s.closed)]],
+      who, subject: `Employer enquiries this week: ${s.received} new${s.waiting ? `, ${s.waiting} waiting for a call` : ''}`, heading: 'Your weekly enquiry summary',
+      intro: `${s.received} new employer enquir${s.received === 1 ? 'y' : 'ies'} in the last 7 days, ${s.open} still open${s.waiting ? ` and ${s.waiting} not yet contacted after a working day` : ''}.`,
+      rows: [['Where they came from', list(s.sources)], ['Which page', list(s.pages)], ['Open by status', list(openByStatus)], ['Closed this week', String(s.closed)],
+        ['Median time to first call', s.medianHours === null ? '' : enquiryStats.formatHours(s.medianHours)]],
       link: `${baseUrl}/admin?tab=hire-requests`, label: 'Open hire requests', why: 'the weekly summary of employer enquiries',
     };
   };
@@ -537,15 +525,23 @@ function create(deps) {
     const ist = new Date(nowMs + IST);
     if (ist.getUTCDay() !== 1 || ist.getUTCHours() < 9) return 0;
     const s = leadSummary(isOverdue, nowMs);
-    if (!s.week && !s.open) return 0;
+    if (!s.received && !s.open) return 0;
     const admins = team.members().filter((u) => u.active !== false && u.role === 'Admin');
     const to = admins.length ? admins.map((u) => ({ kind: 'team', userId: u.id })) : [{ kind: 'inbox' }];
     const r = emit({
       key: `lead-summary:${ist.toISOString().slice(0, 10)}`, type: 'lead-summary', to,
-      inApp: admins.length ? { title: `This week: ${s.week} new employer enquir${s.week === 1 ? 'y' : 'ies'}`, body: `${s.open} open${s.overdue ? `, ${s.overdue} waiting for a call` : ''}. The full summary is in your email.`, link: '/admin?tab=hire-requests' } : undefined,
-      email: { template: 'notice', refs: { kind: 'lead-summary', endMs: nowMs, overdue: s.overdue } },
+      inApp: admins.length ? { title: `This week: ${s.received} new employer enquir${s.received === 1 ? 'y' : 'ies'}`, body: `${s.open} open${s.waiting ? `, ${s.waiting} waiting for a call` : ''}. The full summary is in your email.`, link: '/admin?tab=hire-requests' } : undefined,
+      email: { template: 'notice', refs: { kind: 'lead-summary', endMs: nowMs, overdue: s.waiting } },
     });
     return r.notifications + r.deliveries ? 1 : 0;
+  }
+  // The same summary, now, to one team member who asked for it in admin.
+  function leadSummaryNow(userId, isOverdue, nowMs = Date.now()) {
+    const u = team.byId(userId);
+    if (!u || !EMAIL_RE.test(u.email || '')) return 0;
+    const s = leadSummary(isOverdue, nowMs);
+    const r = emit({ key: `lead-summary-now:${userId}:${nowMs}`, type: 'lead-summary', to: [{ kind: 'team', userId, inApp: false }], email: { template: 'notice', refs: { kind: 'lead-summary', endMs: nowMs, overdue: s.waiting } } });
+    return r.deliveries;
   }
 
   // ---------- account ----------
@@ -565,7 +561,7 @@ function create(deps) {
 
   return {
     applicationSubmitted, newApplication, stageMoved, statusEmail, interviewBooked, interviewRescheduled, interviewCancelled, interviewReminder, interviewAnswered,
-    feedbackDueScan, offerCreated, offerApproved, offerAnswered, offerDeadlineScan, assigned, jobDecision, jobExpired, jobSubmitted, jobAlerts, jobDigest, jobInvite, contactUnlocked, applicationViewed, staffingRequest, hireRequestAssigned, hireOverdueScan, leadSummaryScan, agencyAssigned,
+    feedbackDueScan, offerCreated, offerApproved, offerAnswered, offerDeadlineScan, assigned, jobDecision, jobExpired, jobSubmitted, jobAlerts, jobDigest, jobInvite, contactUnlocked, applicationViewed, staffingRequest, hireRequestAssigned, hireOverdueScan, leadSummaryScan, leadSummaryNow, agencyAssigned,
     accountSecurity, scan, JOB_ALERTS_PER_DAY,
   };
 }

@@ -2223,3 +2223,21 @@ p, li, dd { text-wrap: pretty; }
 .seeker-search .btn { flex: 1 1 100%; }
 @media (min-width: 720px) { .seeker-search .btn { flex: 0 0 auto; } }
 .safety-card .checks li { margin-bottom: 6px; }
+
+/* Admin, Hire requests: numbers, status steps and filters */
+.enquiry-head { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+.enquiry-head p { margin: 0; }
+.enquiry-kpis .kpi.kpi-alert { border-color: var(--err); }
+.enquiry-kpis .kpi.kpi-alert .kpi-label, .enquiry-kpis .kpi.kpi-alert .kpi-note { color: var(--text); font-weight: 400; }
+.pipeline-step { flex: 1 1 120px; display: flex; flex-direction: column; gap: 2px; padding: 10px 14px; border: 1px solid var(--line); border-radius: 10px; background: #fff; color: var(--text); text-decoration: none; }
+.pipeline-step b { font-size: 1.25rem; }
+.pipeline-step span { font-size: .85rem; color: var(--muted); }
+.pipeline-step.is-on { border-color: var(--primary); box-shadow: 0 0 0 2px rgba(18, 59, 112, .12); }
+.pipeline-step.is-zero b { color: var(--muted); }
+.enquiry-filters { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(170px, 100%), 1fr)); gap: 10px 14px; align-items: end; margin-bottom: 16px; }
+.enquiry-filters .span-2 { grid-column: span 2; }
+.enquiry-filters .filter-actions { display: flex; gap: 8px; }
+@media (max-width: 560px) { .enquiry-filters .span-2 { grid-column: auto; } }
+.split-lists { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr)); gap: 12px; }
+.enquiry-kpis { grid-template-columns: repeat(auto-fit, minmax(min(180px, 100%), 1fr)); }
+.enquiry-kpis .kpi-value { font-size: 1.6rem; line-height: 1.2; }
