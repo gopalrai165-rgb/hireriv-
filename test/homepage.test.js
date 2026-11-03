@@ -32,7 +32,7 @@ test('header: Find Jobs, For Employers, Services, Career Resources, About, Conta
   assert.match(home, /placeholder="Job title, skill or company"/);
   assert.match(home, /Are you an employer\?[\s\S]*Request Staffing \/ Hire Talent/);
   // The sections below the banner, in order.
-  const order = ['Search jobs by role or city', 'Popular job categories', 'Latest verified jobs', 'Recruitment and staffing services', 'Why choose Hireriv', 'How Hireriv works', 'Need staff? Tell us in a minute', 'Looking for a job? Register free', 'Questions, answered'];
+  const order = ['Latest verified jobs', 'Search jobs by role or city', 'Popular job categories', 'Recruitment and staffing services', 'Why choose Hireriv', 'How Hireriv works', 'Need staff? Tell us in a minute', 'Looking for a job? Register free', 'Questions, answered'];
   const at = order.map((h) => home.indexOf(h));
   assert.ok(at.every((i, n) => i > 0 && (n === 0 || i > at[n - 1])), JSON.stringify(at));
   for (const svc of ['IT Recruitment', 'Non-IT Recruitment', 'Bulk Hiring', 'Contract Staffing']) assert.match(home, new RegExp(`<h3>${svc}</h3>`));
@@ -142,4 +142,11 @@ test('phone layout: link lists and contact links are easy to tap, admin bars wra
   assert.match(css, /\.admin-userbar \{ flex-wrap: wrap; justify-content: flex-start;/);
   assert.match(css, /\.mini-stats \{ grid-template-columns: repeat\(2, minmax\(0, 1fr\)\);/);
   assert.match(css, /\.dash-card > h2 \{ font-size: 1\.15rem;/);
+});
+
+test('latest jobs come first, before the search by role or city', async () => {
+  const home = await page('/');
+  const jobsAt = home.indexOf('id="latest-jobs"');
+  assert.ok(jobsAt > 0 && jobsAt < home.indexOf('id="roles-title"'), 'jobs before role/city search');
+  assert.ok(home.indexOf('class="hero') < jobsAt, 'still after the hero');
 });

@@ -53,10 +53,33 @@
   </div>
 </section>
 
+<!-- 1. LATEST VERIFIED JOBS (first, straight after the search) -->
+<section class="section" id="latest-jobs">
+  <div class="container">
+    <div class="section-head row">
+      <div>
+        <span class="eyebrow"><%= t('home.featuredEyebrow') %></span>
+        <h2><%= t('home.featuredTitle') %></h2>
+      </div>
+      <a href="/jobs" class="btn btn-outline"><%= t('home.viewAll') %> <svg class="i" aria-hidden="true"><use href="#i-arrow"/></svg></a>
+    </div>
+    <% if (jobs.length) { %>
+    <div class="jobs-grid">
+      <% jobs.forEach(function (job) { %><%- include('partials/job-card', { job: job }) %><% }) %>
+    </div>
+    <% } else { %>
+    <div class="empty">
+      <p><b><%= t('home.noJobsTitle') %></b> <%= t('home.noJobsText') %></p>
+      <p><a class="btn btn-primary" href="/account/register"><%= t('home.createProfile') %></a> <a class="btn btn-outline" href="/jobs#alerts"><%= t('home.jobAlerts') %></a></p>
+    </div>
+    <% } %>
+  </div>
+</section>
+
 <!-- FIGURES: real ones from Settings, or what we offer -->
 <%- include('partials/figures', { enOnly: enOnly }) %>
 
-<!-- 1. JOB SEARCH: by role and by city -->
+<!-- 2. JOB SEARCH: by role and by city -->
 <section class="section section-tight" aria-labelledby="roles-title">
   <div class="container">
     <div class="section-head row">
@@ -92,7 +115,7 @@
   </div>
 </section>
 
-<!-- 2. POPULAR JOB CATEGORIES -->
+<!-- 3. POPULAR JOB CATEGORIES -->
 <section class="section section-tint" id="categories">
   <div class="container">
     <div class="section-head row">
@@ -113,29 +136,6 @@
       <% }) %>
     </div>
     <%- include('partials/job-landing-links') %>
-  </div>
-</section>
-
-<!-- 3. LATEST VERIFIED JOBS -->
-<section class="section" id="latest-jobs">
-  <div class="container">
-    <div class="section-head row">
-      <div>
-        <span class="eyebrow"><%= t('home.featuredEyebrow') %></span>
-        <h2><%= t('home.featuredTitle') %></h2>
-      </div>
-      <a href="/jobs" class="btn btn-outline"><%= t('home.viewAll') %> <svg class="i" aria-hidden="true"><use href="#i-arrow"/></svg></a>
-    </div>
-    <% if (jobs.length) { %>
-    <div class="jobs-grid">
-      <% jobs.forEach(function (job) { %><%- include('partials/job-card', { job: job }) %><% }) %>
-    </div>
-    <% } else { %>
-    <div class="empty">
-      <p><b><%= t('home.noJobsTitle') %></b> <%= t('home.noJobsText') %></p>
-      <p><a class="btn btn-primary" href="/account/register"><%= t('home.createProfile') %></a> <a class="btn btn-outline" href="/jobs#alerts"><%= t('home.jobAlerts') %></a></p>
-    </div>
-    <% } %>
   </div>
 </section>
 
