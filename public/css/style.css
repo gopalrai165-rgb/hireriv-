@@ -2480,3 +2480,7 @@ td > a:only-child { display: inline-block; padding-block: 6px; min-width: 24px; 
 .bulk-bar select { border: 1px solid var(--line); border-radius: 12px; padding: 0 12px; background: #f8fafc; font: inherit; color: var(--text); min-width: 200px; }
 .bulk-count { min-width: 6.5em; }
 .btn-pair form { margin: 0; display: inline-flex; }
+/* A name link followed by tags in a table cell (applicants, admin jobs): a full-size tap target too. */
+td > a:first-child:not(.btn) { display: inline-block; padding-block: 6px; min-width: 24px; }
+@media (max-width: 700px) { td > a:first-child:not(.btn) { min-height: 32px; padding-block: 8px; } }
+.kanban-card > a:first-child { display: inline-block; padding-block: 8px; }
