@@ -43,7 +43,7 @@ test('field jobs: name and phone are enough, and the recruiter will call', async
   const html = await (await srv.request('/jobs/hr-114')).text();
   assert.match(html, /No resume or email needed/);
   assert.doesNotMatch(html, /name="resume"[^>]*required/);
-  assert.doesNotMatch(html, /Or apply on WhatsApp/); // WhatsApp number is still the placeholder
+  assert.match(html, /Or apply on WhatsApp/, 'the office WhatsApp number is set');
 
   const r = await apply({ jobId: 'hr-114', name: 'Ravi Kumar', phone: '+91 98765 43210' });
   assert.equal(r.status, 200);

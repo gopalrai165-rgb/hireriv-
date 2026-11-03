@@ -26,7 +26,8 @@ test('a new site says who runs it and makes no claims about history or experienc
   assert.match(html, /<dt>Operated by<\/dt><dd>Raigozen Private Limited<\/dd>/);
   assert.match(html, /<dt>Email<\/dt>/);
   for (const claim of ['years of experience hiring for global firms', 'tired of CV-forwarding', 'We started as a technology staffing specialist', 'Our team', 'Client feedback']) assert.ok(!html.includes(claim), claim);
-  assert.doesNotMatch(html, /<dt>Office<\/dt>|<dt>Phone<\/dt>/, 'placeholder office and phone are left out');
+  assert.match(html, /<dt>Office<\/dt><dd>4th Floor, 14\/g, H\. No\. 2, Pranava Business Square/, 'the office address');
+  assert.match(html, /<dt>Phone<\/dt>[\s\S]{0,120}\+91 90308 87742/, 'the office phone');
   assert.match(await page('/'), /Hireriv is a recruitment and staffing brand operated by Raigozen Private Limited, India\./, 'the footer names the company');
   for (const p of ['/about', '/contact', '/privacy', '/terms']) assert.match(await page(p), /recruitment and staffing brand operated by Raigozen Private Limited, India/, p);
   assert.doesNotMatch(await page('/about'), /Our mission|Our vision/, 'no empty mission or vision');

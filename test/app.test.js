@@ -129,8 +129,7 @@ describe('admin panel', () => {
 
   test('signed-in areas leave out the public newsletter and WhatsApp button', async () => {
     const pub = await (await app.request('/jobs')).text();
-    assert.match(pub, /class="whatsapp-float" href="\/contact"/,'the WhatsApp button opens the Contact page until a real number is set');
-    assert.doesNotMatch(pub, /wa\.me\/910000000000/,'the placeholder number is never linked');
+    assert.match(pub, /class="whatsapp-float" href="https:\/\/wa\.me\/919030887742/, 'the WhatsApp button opens a chat with the office number');
     assert.ok(pub.includes('action="/api/newsletter"'));
     for (const [p, cookie] of [['/admin', admin], ['/account/login'], ['/employer/login']]) {
       const html = await (await app.request(p, { cookie })).text();
@@ -149,7 +148,7 @@ describe('admin panel', () => {
   test('dashboard lists the setup still to do', async () => {
     const html = await (await app.request('/admin', { cookie: admin })).text();
     assert.match(html, /Needs your attention/);
-    assert.match(html, /Add your real phone and WhatsApp numbers/);
+    assert.doesNotMatch(html, /Add your real phone and WhatsApp numbers/, 'the office numbers are set');
   });
 
   test('a closed job stops taking applications and leaves the sitemap', async () => {

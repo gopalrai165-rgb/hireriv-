@@ -101,7 +101,7 @@ function homePage(site, baseUrl) {
   return {
     '@context': 'https://schema.org',
     '@graph': [
-      { ...organization(site, baseUrl), '@type': ['Organization', 'EmploymentAgency'], email: site.email, ...(site.phone && !/0{5}/.test(site.phone) ? { telephone: site.phone } : {}) },
+      { ...organization(site, baseUrl), '@type': ['Organization', 'EmploymentAgency'], email: site.email, ...(site.phone && !/0{5}/.test(site.phone) ? { telephone: site.phone } : {}), ...(site.address && !/your office address/i.test(site.address) ? { address: { '@type': 'PostalAddress', streetAddress: site.address, ...(/hyderabad/i.test(site.address) ? { addressLocality: 'Hyderabad' } : {}), ...((site.address.match(/[0-9]{6}/) || [])[0] ? { postalCode: site.address.match(/[0-9]{6}/)[0] } : {}), addressCountry: 'IN' } } : {}) },
       {
         '@type': 'WebSite',
         name: site.name,

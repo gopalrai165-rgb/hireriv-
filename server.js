@@ -184,6 +184,16 @@ if (!db.metaGet('upgraded:no-made-up-figures')) {
   db.metaSet('upgraded:no-made-up-figures', new Date().toISOString());
 }
 
+// One-time: the office phone, WhatsApp number and address (November 2026).
+// Only placeholders are replaced, so details already changed in Settings stay.
+if (!db.metaGet('upgraded:contact-details-2026-11')) {
+  if (!site.phone || /0{5}/.test(site.phone)) site.phone = '+91 90308 87742';
+  if (!site.whatsapp || /0{6}/.test(site.whatsapp)) site.whatsapp = '919030887742';
+  if (!site.address || /your office address/i.test(site.address)) site.address = '4th Floor, 14/g, H. No. 2, Pranava Business Square, Gachibowli Miyapur Road, Opp. Sharath City Mall, Hyderabad, Dist- Rangareddy, Telangana- 500084';
+  saveSite();
+  db.metaSet('upgraded:contact-details-2026-11', new Date().toISOString());
+}
+
 // One-time: sites that saved their own category list in Settings get the new
 // skilled, industrial and service categories added once. Removing them again
 // in Settings sticks, because this never runs twice.
