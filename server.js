@@ -194,6 +194,14 @@ if (!db.metaGet('upgraded:contact-details-2026-11')) {
   db.metaSet('upgraded:contact-details-2026-11', new Date().toISOString());
 }
 
+// One-time: the office email (November 2026), only where the starter address
+// was still in place.
+if (!db.metaGet('upgraded:contact-email-2026-11')) {
+  if (!site.email || site.email === 'hello@hireriv.com') site.email = 'hireriv26@gmail.com';
+  saveSite();
+  db.metaSet('upgraded:contact-email-2026-11', new Date().toISOString());
+}
+
 // One-time: sites that saved their own category list in Settings get the new
 // skilled, industrial and service categories added once. Removing them again
 // in Settings sticks, because this never runs twice.
