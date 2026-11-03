@@ -46,10 +46,8 @@
       </div>
       <% if (near && near.error) { %><p class="notice notice-err small" role="alert"><%= t('near.' + near.error, { pin: near.pin || '' }) %></p><% } %>
       <p class="near-status small" role="status" data-near-status></p>
-      <% const moreCount = filters.categories.length + ['experience', 'minPay', 'type', 'mode', 'shift', 'english', 'walkin', 'joining', 'replies', 'education', 'area', 'company'].filter(function (k) { return filters[k]; }).length + ((filters.skills || []).length ? 1 : 0) + (filters.perks || []).length + (filters.without || []).length; %>
-      <details class="more-filters" open data-more-filters="<%= moreCount %>">
-      <summary><%= t('jobs.filtersSummary') %><% if (moreCount) { %> <span class="count"><%= moreCount %></span><% } %></summary>
-      <div class="filter-row">
+      <%# The main filters stay in view; the rest fold under "More filters", which opens by itself when one of them is in use. %>
+      <div class="filter-row filter-main">
         <details class="filter-cats"<%- filters.categories.length ? ' open' : '' %>>
           <summary><%= t('jobs.categories') %><% if (filters.categories.length) { %> <span class="count"><%= filters.categories.length %></span><% } %></summary>
           <div class="filter-cats-panel">
@@ -76,49 +74,6 @@
           <option value=""><%= t('jobs.anyJobType') %></option>
           <% jobTypes.forEach(function (jt) { %><option value="<%= jt %>" <%= filters.type === jt ? 'selected' : '' %>><%= tv('type', jt) %> (<%= typeCounts[jt] || 0 %>)</option><% }) %>
         </select>
-        <label class="sr-only" for="f-mode"><%= t('jobs.arrangement') %></label>
-        <select id="f-mode" name="mode">
-          <option value=""><%= t('jobs.anyArrangement') %></option>
-          <% modes.forEach(function (m) { %><option value="<%= m %>" <%= filters.mode === m ? 'selected' : '' %>><%= tv('mode', m) %> (<%= modeCounts[m] || 0 %>)</option><% }) %>
-        </select>
-        <label class="sr-only" for="f-shift"><%= t('jobs.shift') %></label>
-        <select id="f-shift" name="shift">
-          <option value=""><%= t('jobs.anyShift') %></option>
-          <% shifts.forEach(function (sh) { %><option value="<%= sh %>" <%= filters.shift === sh ? 'selected' : '' %>><%= t('jobs.shiftOption', { shift: tv('shift', sh) }) %></option><% }) %>
-        </select>
-        <label class="sr-only" for="f-english"><%= t('jobs.english') %></label>
-        <select id="f-english" name="english">
-          <option value=""><%= t('jobs.anyEnglish') %></option>
-          <% englishLevels.forEach(function (l) { %><option value="<%= l.toLowerCase() %>" <%= filters.english === l.toLowerCase() ? 'selected' : '' %>><%= t('jobs.englishOption', { level: t('needs.english' + l) }) %></option><% }) %>
-        </select>
-        <% if (areaOptions.length) { %>
-        <label class="sr-only" for="f-area"><%= t('jobs.area') %></label>
-        <select id="f-area" name="area">
-          <option value=""><%= t('jobs.anyArea', { city: filters.location }) %></option>
-          <% areaOptions.forEach(function (a) { %><option value="<%= a.slug %>" <%= filters.area === a.slug ? 'selected' : '' %>><%= a.name %></option><% }) %>
-        </select>
-        <% } %>
-        <label class="sr-only" for="f-education"><%= t('jobs.education') %></label>
-        <select id="f-education" name="education">
-          <option value=""><%= t('jobs.anyEducation') %></option>
-          <% educationLevels.forEach(function (k) { %><option value="<%= k %>" <%= filters.education === k ? 'selected' : '' %>><%= t('jobs.educationOption', { level: t('needs.edu_' + k) }) %></option><% }) %>
-        </select>
-        <label class="check-row filter-check"><input type="checkbox" name="walkin" value="1"<%= filters.walkin ? ' checked' : '' %>> <span><%= t('jobs.walkInOnly') %></span></label>
-        <label class="check-row filter-check"><input type="checkbox" name="joining" value="immediate"<%= filters.joining ? ' checked' : '' %>> <span><%= t('needs.immediateFilter') %></span></label>
-        <label class="check-row filter-check"><input type="checkbox" name="replies" value="fast"<%= filters.replies ? ' checked' : '' %>> <span><%= t('jobs.repliesFastOnly') %></span></label>
-        <fieldset class="filter-perks"><legend><%= t('jobs.perks') %> <span class="muted small">(<%= t('jobs.perksHint') %>)</span></legend>
-          <% perkKeys.forEach(function (p) { %><label class="check-row filter-check"><input type="checkbox" name="perk" value="<%= p %>"<%= (filters.perks || []).includes(p) ? ' checked' : '' %>> <span><%= t('needs.perk_' + p) %></span></label><% }) %>
-        </fieldset>
-        <fieldset class="filter-perks"><legend><%= t('jobs.without') %> <span class="muted small">(<%= t('jobs.withoutHint') %>)</span></legend>
-          <% itemKeys.forEach(function (k) { %><label class="check-row filter-check"><input type="checkbox" name="without" value="<%= k %>"<%= (filters.without || []).includes(k) ? ' checked' : '' %>> <span><%= t('needs.item_' + k) %></span></label><% }) %>
-        </fieldset>
-        <label class="sr-only" for="f-company"><%= t('jobs.company') %></label>
-        <select id="f-company" name="company">
-          <option value=""><%= t('jobs.anyCompany') %></option>
-          <% companies.forEach(function (c) { %><option <%= filters.company && filters.company.toLowerCase() === c.toLowerCase() ? 'selected' : '' %>><%= c %></option><% }) %>
-        </select>
-        <label class="filter-skills"><span class="sr-only"><%= t('jobs.skills') %></span><input id="f-skills" name="skills" value="<%= (filters.skills || []).join(', ') %>" placeholder="<%= t('jobs.skillsPlaceholder') %>" maxlength="200" aria-describedby="f-skills-hint"></label>
-        <span id="f-skills-hint" class="sr-only"><%= t('jobs.skillsHint') %></span>
         <label class="sr-only" for="f-sort"><%= t('jobs.sortBy') %></label>
         <select id="f-sort" name="sort">
           <option value="relevance" <%= sort === 'relevance' ? 'selected' : '' %>><%= t('jobs.sortRelevance') %></option>
@@ -126,7 +81,63 @@
           <option value="salary" <%= sort === 'salary' ? 'selected' : '' %>><%= t('jobs.sortPay') %></option>
           <% if (near && !near.error) { %><option value="distance" <%= sort === 'distance' ? 'selected' : '' %>><%= t('near.sortNearest') %></option><% } %>
         </select>
-        <button class="btn btn-primary more-filters-apply" type="submit"><%= t('jobs.showJobs') %></button>
+      </div>
+      <% const moreCount = ['mode', 'shift', 'english', 'walkin', 'joining', 'replies', 'education', 'area', 'company'].filter(function (k) { return filters[k]; }).length + ((filters.skills || []).length ? 1 : 0) + (filters.perks || []).length + (filters.without || []).length; %>
+      <% const anyFilter = moreCount + filters.categories.length + ['q', 'location', 'near', 'experience', 'minPay', 'type'].filter(function (k) { return filters[k]; }).length; %>
+      <details class="more-filters"<%- moreCount ? ' open' : '' %> data-more-filters="<%= moreCount %>">
+      <summary><svg class="i" aria-hidden="true"><use href="#i-gear"/></svg> <%= t('jobs.moreFilters') %><% if (moreCount) { %> <span class="count"><%= moreCount %></span><% } %></summary>
+      <div class="more-filters-panel">
+        <div class="filter-grid">
+          <label class="sr-only" for="f-mode"><%= t('jobs.arrangement') %></label>
+          <select id="f-mode" name="mode">
+            <option value=""><%= t('jobs.anyArrangement') %></option>
+            <% modes.forEach(function (m) { %><option value="<%= m %>" <%= filters.mode === m ? 'selected' : '' %>><%= tv('mode', m) %> (<%= modeCounts[m] || 0 %>)</option><% }) %>
+          </select>
+          <label class="sr-only" for="f-shift"><%= t('jobs.shift') %></label>
+          <select id="f-shift" name="shift">
+            <option value=""><%= t('jobs.anyShift') %></option>
+            <% shifts.forEach(function (sh) { %><option value="<%= sh %>" <%= filters.shift === sh ? 'selected' : '' %>><%= t('jobs.shiftOption', { shift: tv('shift', sh) }) %></option><% }) %>
+          </select>
+          <label class="sr-only" for="f-english"><%= t('jobs.english') %></label>
+          <select id="f-english" name="english">
+            <option value=""><%= t('jobs.anyEnglish') %></option>
+            <% englishLevels.forEach(function (l) { %><option value="<%= l.toLowerCase() %>" <%= filters.english === l.toLowerCase() ? 'selected' : '' %>><%= t('jobs.englishOption', { level: t('needs.english' + l) }) %></option><% }) %>
+          </select>
+          <label class="sr-only" for="f-education"><%= t('jobs.education') %></label>
+          <select id="f-education" name="education">
+            <option value=""><%= t('jobs.anyEducation') %></option>
+            <% educationLevels.forEach(function (k) { %><option value="<%= k %>" <%= filters.education === k ? 'selected' : '' %>><%= t('jobs.educationOption', { level: t('needs.edu_' + k) }) %></option><% }) %>
+          </select>
+          <% if (areaOptions.length) { %>
+          <label class="sr-only" for="f-area"><%= t('jobs.area') %></label>
+          <select id="f-area" name="area">
+            <option value=""><%= t('jobs.anyArea', { city: filters.location }) %></option>
+            <% areaOptions.forEach(function (a) { %><option value="<%= a.slug %>" <%= filters.area === a.slug ? 'selected' : '' %>><%= a.name %></option><% }) %>
+          </select>
+          <% } %>
+          <label class="sr-only" for="f-company"><%= t('jobs.company') %></label>
+          <select id="f-company" name="company">
+            <option value=""><%= t('jobs.anyCompany') %></option>
+            <% companies.forEach(function (c) { %><option <%= filters.company && filters.company.toLowerCase() === c.toLowerCase() ? 'selected' : '' %>><%= c %></option><% }) %>
+          </select>
+          <label class="filter-skills"><span class="sr-only"><%= t('jobs.skills') %></span><input id="f-skills" name="skills" value="<%= (filters.skills || []).join(', ') %>" placeholder="<%= t('jobs.skillsPlaceholder') %>" maxlength="200" aria-describedby="f-skills-hint"></label>
+          <span id="f-skills-hint" class="sr-only"><%= t('jobs.skillsHint') %></span>
+        </div>
+        <fieldset class="filter-pills"><legend><%= t('jobs.quickPicks') %></legend>
+          <label class="pill-check"><input type="checkbox" name="walkin" value="1"<%= filters.walkin ? ' checked' : '' %>> <span><%= t('jobs.walkInOnly') %></span></label>
+          <label class="pill-check"><input type="checkbox" name="joining" value="immediate"<%= filters.joining ? ' checked' : '' %>> <span><%= t('needs.immediateFilter') %></span></label>
+          <label class="pill-check"><input type="checkbox" name="replies" value="fast"<%= filters.replies ? ' checked' : '' %>> <span><%= t('jobs.repliesFastOnly') %></span></label>
+        </fieldset>
+        <fieldset class="filter-pills"><legend><%= t('jobs.perks') %> <span class="muted small">(<%= t('jobs.perksHint') %>)</span></legend>
+          <% perkKeys.forEach(function (p) { %><label class="pill-check"><input type="checkbox" name="perk" value="<%= p %>"<%= (filters.perks || []).includes(p) ? ' checked' : '' %>> <span><%= t('needs.perk_' + p) %></span></label><% }) %>
+        </fieldset>
+        <fieldset class="filter-pills"><legend><%= t('jobs.without') %> <span class="muted small">(<%= t('jobs.withoutHint') %>)</span></legend>
+          <% itemKeys.forEach(function (k) { %><label class="pill-check"><input type="checkbox" name="without" value="<%= k %>"<%= (filters.without || []).includes(k) ? ' checked' : '' %>> <span><%= t('needs.item_' + k) %></span></label><% }) %>
+        </fieldset>
+        <div class="more-filters-actions">
+          <button class="btn btn-primary" type="submit"><%= t('jobs.showJobs') %></button>
+          <% if (anyFilter) { %><a class="btn btn-outline" href="/jobs"><%= t('jobs.clearFilters') %></a><% } %>
+        </div>
       </div>
       </details>
       <% if (filters.work) { %><input type="hidden" name="work" value="<%= filters.work %>"><% } %>

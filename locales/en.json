@@ -174,7 +174,6 @@
     "states": "States",
     "cities": "Cities",
     "search": "Search",
-    "filtersSummary": "Filters: pay, job type, experience, shift",
     "categories": "Categories",
     "experience": "Experience",
     "anyExperience": "Any experience",
@@ -249,7 +248,10 @@
     "anyArea": "All of {city}",
     "needsChip": "Needs: {item}",
     "repliesFastOnly": "Hiring team replies fast",
-    "recentLink": "Jobs you looked at recently"
+    "recentLink": "Jobs you looked at recently",
+    "moreFilters": "More filters",
+    "quickPicks": "Quick picks",
+    "clearFilters": "Clear all"
   },
   "card": {
     "sample": "Sample listing",

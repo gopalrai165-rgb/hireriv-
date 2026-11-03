@@ -424,10 +424,10 @@ test('Find Jobs on a phone: kinds of work, folding filters, big tap targets, lig
   assert.match(html, /<nav class="work-tabs" aria-label="Kind of work">/);
   for (const label of ['Office &amp; professional', 'Skilled &amp; technical', 'Industrial, field &amp; service']) assert.ok(html.includes(label), label);
   assert.doesNotMatch(html, /collar/i);
-  assert.match(html, /<details class="more-filters" open data-more-filters="0">/);
+  assert.match(html, /<details class="more-filters" data-more-filters="0">/);
   for (const id of ['f-q', 'f-loc', 'f-exp', 'f-pay', 'f-type', 'f-mode', 'f-shift']) assert.match(html, new RegExp(`<label class="sr-only" for="${id}">`), id);
-  const filtered = await (await get('/jobs?work=field&type=Full-time')).text();
-  assert.match(filtered, /data-more-filters="1"/);
+  const filtered = await (await get('/jobs?work=field&type=Full-time&walkin=1')).text();
+  assert.match(filtered, /<details class="more-filters" open data-more-filters="1">/);
   assert.match(filtered, /href="[^"]*work=field[^"]*" title="[^"]*" aria-current="page">Industrial, field &amp; service/);
 
   // A job page shows pay, place, type and shift up front.
