@@ -218,12 +218,27 @@ function register(app, deps) {
     const found = publicCompany(String(req.params.id).slice(0, 80));
     if (!found) return next();
     const { emp, jobs } = found;
+    const follow = deps.follows ? deps.follows.stateFor(req, emp) : null;
+    if (follow && follow.signedIn) res.set('Cache-Control', 'private, no-store');
     res.render('company', {
+      follow, followMsg: { followed: 'You follow this company. We email you as soon as it posts a new job.', unfollowed: 'You no longer follow this company.' }[req.query.msg] || '',
       title: `${emp.company} · Jobs and company details`, page: 'jobs', metaDescription: `${emp.company}${emp.industry ? ` (${emp.industry})` : ''}: ${jobs.length} open job${jobs.length === 1 ? '' : 's'} on ${site.name}, hiring in ${hiringIn(jobs).join(', ')}. See the jobs and what we checked about the company.`.slice(0, 300),
       canonical: `${baseUrl}${companyPath(emp)}`,
       company: { id: emp.id, name: emp.company, industry: emp.industry || '', size: emp.size || '', city: emp.city || '', state: emp.state || '', website: /^https:\/\//i.test(emp.website || '') ? emp.website : '', about: emp.about || '' },
       badge: companyBadge(emp), jobs, places: hiringIn(jobs), categories: [...new Set(jobs.map((j) => j.category).filter(Boolean))].slice(0, 6), reportReasons: Object.keys(trust.REASON_CATEGORY), help: trust.CYBERCRIME_HELP,
     });
+  });
+
+  // Follow or stop following a company's new jobs (signed-in job seekers).
+  app.post('/companies/:id/follow', limit('company-follow', 30), sameOrigin, (req, res, next) => {
+    const found = publicCompany(String(req.params.id).slice(0, 80));
+    if (!found || !deps.follows) return next();
+    const back = companyPath(found.emp);
+    if (!deps.follows.currentEmail(req)) return res.redirect(303, `/account/login?next=${encodeURIComponent(back)}`);
+    const stop = req.body && req.body.action === 'unfollow';
+    const r = stop ? deps.follows.unfollow(req, found.emp) : deps.follows.follow(req, found.emp);
+    if (!r.ok) return res.redirect(303, `${back}?msg=limit#follow`);
+    res.redirect(303, `${back}?msg=${stop ? 'unfollowed' : 'followed'}#follow`);
   });
 
   // ---------- retention ----------

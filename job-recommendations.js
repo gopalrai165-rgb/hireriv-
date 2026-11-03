@@ -392,7 +392,7 @@ function register(app, deps) {
     });
   });
 
-  return { recommend, matchFor, dispatch, digestScan, subsOf, view, filtersOf, matchesSub, FREQUENCIES, FREQUENCY_TEXT };
+  return { recommend, matchFor, dispatch, digestScan, subsOf, view, filtersOf, matchesSub, createSearch, deleteSearch, FREQUENCIES, FREQUENCY_TEXT };
 }
 
 module.exports = { register, FREQUENCIES, FREQUENCY_TEXT, MAX_SAVED_SEARCHES, DIGEST_JOBS, compact };

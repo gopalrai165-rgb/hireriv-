@@ -2448,3 +2448,10 @@ td > a:only-child { display: inline-block; padding-block: 6px; min-width: 24px; 
 .take-home { margin-left: 6px; white-space: nowrap; }
 .calc-wrap { border: 0; box-shadow: none; margin: 16px 0; }
 .calc-wrap .calc-table { margin: 0; }
+
+/* Follow a company (Step 151) */
+.follow-box { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; margin-top: 14px; }
+.follow-box form { margin: 0; }
+.follow-box p { margin: 0; max-width: 46ch; }
+.followers-note { display: flex; gap: 8px; align-items: center; margin: 0 0 10px; }
+.followers-note .i { color: var(--primary); flex: none; }

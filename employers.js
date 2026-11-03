@@ -856,7 +856,7 @@ function register(app, deps) {
     page(res, 'employer-dashboard', {
       title: `${emp.company} · Employer dashboard`, tab: 'dashboard', approved: isApproved(emp), verification: verificationOf(emp), myJobs, requirements, stages: appStatuses,
       counts: { open: count('open'), draft: count('draft'), pending: count('pending'), paused: count('paused'), closed: count('closed'), rejected: count('rejected') },
-      newApplicants: myJobs.filter((j) => j.createdBy === 'employer').reduce((n, j) => n + j.fresh, 0), interviews, contacted,
+      newApplicants: myJobs.filter((j) => j.createdBy === 'employer').reduce((n, j) => n + j.fresh, 0), interviews, contacted, followers: req.app.locals.followersOf(emp),
       shortlist: shortlistFor(emp), placements: can(req.member, 'billing.view') ? placementsFor(emp) : [], timesheets: can(req.member, 'timesheets.review') ? timesheetsFor(emp) : [],
       decisions: DECISIONS, welcome: req.query.welcome === '1', msg: String(req.query.msg || ''), mobileVerified: Boolean(req.employerUser.phoneVerifiedAt),
     });

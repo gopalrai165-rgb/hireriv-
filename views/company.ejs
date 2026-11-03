@@ -8,6 +8,19 @@
       <%= [company.industry, [company.city, company.state].filter(Boolean).join(', ')].filter(Boolean).join(' · ') %>
       <% if (badge && badge.level === 'business') { %> <span class="verified"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg><%= badge.label %></span><% } %>
     </p>
+    <% if (follow) { %>
+      <div class="follow-box" id="follow">
+        <form method="post" action="/companies/<%= encodeURIComponent(company.id) %>/follow">
+          <% if (follow.following) { %>
+            <input type="hidden" name="action" value="unfollow">
+            <button class="btn btn-outline" type="submit" aria-pressed="true"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg> Following</button>
+          <% } else { %>
+            <button class="btn btn-primary" type="submit" aria-pressed="false"><svg class="i" aria-hidden="true"><use href="#i-bell"/></svg> Follow <%= company.name %></button>
+          <% } %>
+        </form>
+        <p class="small muted"><%= followMsg || (follow.following ? 'We email you as soon as this company posts a new job. Stop any time here or in your saved searches.' : follow.signedIn ? 'Get an email as soon as this company posts a new job.' : 'Sign in to get an email as soon as this company posts a new job. Free.') %></p>
+      </div>
+    <% } %>
   </div>
 </section>
 

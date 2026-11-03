@@ -17,6 +17,7 @@
     <div class="dash-grid">
       <section class="dash-card dash-wide" id="jobs">
         <div class="dash-head"><h2>Your jobs</h2><span class="row-actions"><a class="btn btn-outline btn-sm" href="/employer/jobs">All jobs</a><% if (can('jobs.create')) { %><a class="btn btn-primary btn-sm" href="/employer/jobs/new">+ Post a job</a><% } %></span></div>
+        <% if (followers) { %><p class="small followers-note"><svg class="i" aria-hidden="true"><use href="#i-bell"/></svg> <b><%= followers %> job seeker<%= followers === 1 ? '' : 's' %></b> follow<%= followers === 1 ? 's' : '' %> your company and get an email as soon as a new job of yours goes live.</p><% } %>
         <% if (!myJobs.length) { %>
           <p class="muted dash-empty">No jobs yet. <% if (can('jobs.create')) { %>Post one yourself, or send a requirement below and your account manager will set it up.<% } else { %>Jobs you're assigned to appear here.<% } %></p>
         <% } else { %>

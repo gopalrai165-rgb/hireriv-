@@ -2523,11 +2523,41 @@ const trustDesk = trust.register(app, {
   candidateEmail: (req) => candidateAccounts.currentEmail(req), ops, backups,
 });
 trustHooks.reportJob = trustDesk.reportJob;
+// Following a company: a saved search for that company's jobs only, sent as
+// soon as a new job goes live (job-recommendations.js does the matching and
+// the emails, with the usual unsubscribe link). Job seekers manage it with
+// their other saved searches; employers see how many follow them.
+function companyFollows() {
+  const isFollow = (s, name) => s.filters && Object.keys(s.filters).length === 1 && String(s.filters.company || '').toLowerCase() === String(name).toLowerCase();
+  const followOf = (email, emp) => (email ? recommendations.subsOf(email).find((s) => isFollow(s, emp.company)) : null) || null;
+  return {
+    stateFor: (req, emp) => ({ signedIn: Boolean(candidateAccounts.currentEmail(req)), following: Boolean(followOf(candidateAccounts.currentEmail(req), emp)) }),
+    follow(req, emp) {
+      const email = candidateAccounts.currentEmail(req);
+      if (followOf(email, emp)) return { ok: true };
+      const r = recommendations.createSearch(email, { name: `Jobs at ${emp.company}`, filters: { company: emp.company }, frequency: 'instant', alertEnabled: true });
+      if (r.errors) return { ok: false, error: r.errors[0] };
+      siteAnalytics.track('company-follow', 'Follow', req);
+      return { ok: true };
+    },
+    unfollow(req, emp) {
+      const email = candidateAccounts.currentEmail(req);
+      const s = followOf(email, emp);
+      if (s) recommendations.deleteSearch(email, s.id);
+      return { ok: true };
+    },
+    count: (emp) => new Set(readSubmissions('job-alerts').filter((s) => s.confirmed && s.alertEnabled !== false && isFollow(s, emp.company)).map((s) => s.email)).size,
+    currentEmail: (req) => candidateAccounts.currentEmail(req),
+  };
+}
+app.locals.followersOf = (emp) => (emp ? companyFollows().count(emp) : 0);
+
 // Company verification with the representative and documents, public
 // company pages and the labels candidates see (company-trust.js).
 const companyTrust = require('./company-trust').register(app, {
   db, clients, getJobs: () => jobs, jobPath, readSubmissions, writeSubmissions, saveSubmission, sameOrigin, limit, isBot, mailer, site, baseUrl: BASE_URL,
   uploadsDir: UPLOADS_DIR, vetDocument: resumeCheck.vetDocument, trust: trustDesk, isLive,
+  follows: companyFollows(),
 });
 trustHooks.labelsFor = companyTrust.labelsFor;
 trustHooks.hrContactFor = companyTrust.hrContactFor;
