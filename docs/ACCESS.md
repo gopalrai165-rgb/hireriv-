@@ -86,7 +86,7 @@ Total: 727 routes.
 | GET | `/admin/integrations` | team | integrations.view (Admins, Operations Admins, Trust & Safety Managers); keys masked, never secrets; no-store |
 | POST | `/admin/integrations/clients/:id/revoke` | team | integrations.manage (Admins, Trust & Safety Managers); reason required and shown to the company; in the hash-chained audit history; owners emailed |
 | GET | `/api/v1/openapi.json` | public | Anyone; the OpenAPI 3.1 description |
-| GET | `/developers` | public | Anyone; the developer portal |
+| GET | `/developers` | employer | Company owners (integrations.manage); the developer portal, not public or indexed |
 | GET | `/api/v1/public/jobs` | public | Anyone; the same live listings as /api/public/jobs |
 | GET | `/api/v1/public/jobs/:slug` | public | Anyone; one live listing (404 or 410 otherwise) |
 

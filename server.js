@@ -823,6 +823,7 @@ Disallow: /worker
 Disallow: /job-alerts/
 Disallow: /appeal/
 Disallow: /healthz
+Disallow: /developers
 Allow: /employers
 
 Sitemap: ${BASE_URL}/sitemap.xml
@@ -2589,7 +2590,7 @@ trustHooks.companyPaths = companyTrust.companyPaths;
 
 // The public API (/api/v1) for companies' own systems: credentials, tokens,
 // scopes, signed webhooks, the sandbox and the developer portal (integrations.js).
-require('./openapi').register(app, { baseUrl: BASE_URL, site, limit });
+require('./openapi').register(app, { baseUrl: BASE_URL, site, limit, clients });
 const integrationsDesk = require('./integrations').create({
   db, app, clients, hiring, getJobs: () => jobs, readSubmissions, limit, sameOrigin, adminAuth, mailer, site, baseUrl: BASE_URL, record: trustDesk.record, roles: agencyRoles,
   adminNav: (req) => ({ roleLabel: (agencyRoles.ROLE_INFO[req.admin.role] || {}).label || req.admin.role, can: (a) => agencyRoles.can(req.admin, a), strong: team.has2fa(req.admin.id) }),

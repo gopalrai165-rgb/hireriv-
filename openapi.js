@@ -137,9 +137,11 @@ function groups(s) {
   return [...out.entries()].map(([tag, ops]) => ({ tag, ops }));
 }
 
-function register(app, { baseUrl, site, limit }) {
+function register(app, { baseUrl, site, limit, clients }) {
   app.get('/api/v1/openapi.json', limit('public-api', 120, 60 * 1000), (req, res) => res.set('Cache-Control', 'public, max-age=300').json(spec(baseUrl)));
-  app.get('/developers', (req, res) => {
+  // Only for company owners who set up integrations (integrations.manage), not the public.
+  app.get('/developers', clients.requireEmployer, clients.allow('integrations.manage'), (req, res) => {
+    res.set('X-Robots-Tag', 'noindex');
     const s = spec(baseUrl);
     res.render('developers', { title: `${site.name} API for developers`, page: 'developers', metaDescription: 'Connect your applicant tracking system or HR tools to Hireriv: jobs, applications and signed webhooks.', groups: groups(s), SCOPES, EVENTS, API_VERSION, apiBase: `${baseUrl}/api/v1` });
   });

@@ -116,8 +116,12 @@ test('only owners manage integrations; the secret is shown once and stored as a 
   // The owners are told, and it is in the company's activity log.
   await srv.waitForEmail((m) => m.includes('To: ann@aco.in') && decodeEmail(m).includes('created the integration "Our ATS"'));
   assert.ok(rec('employer-audit', (e) => e.employerId === 'emp-a' && e.event === 'integration-created'));
-  // The developer portal and the API description.
-  const dev = await (await srv.request('/developers')).text();
+  // The developer portal is for company owners only, and the API description.
+  assert.equal((await srv.request('/developers')).headers.get('location'), '/employer/login');
+  assert.equal((await get('/developers', p.vic)).status, 403);
+  const devRes = await get('/developers', p.ann);
+  assert.equal(devRes.headers.get('x-robots-tag'), 'noindex');
+  const dev = await devRes.text();
   for (const s of ['Hireriv-Signature', 'At least once', '/api/v1/oauth/token', 'no certified third-party integrations']) assert.ok(dev.includes(s), s);
   const spec = await api('/api/v1/openapi.json');
   assert.equal(spec.openapi, '3.1.0');

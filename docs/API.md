@@ -2,7 +2,7 @@
 
 Step 65. Code: `integrations.js` (credentials, tokens, the v1 API, webhooks, the sandbox, the Integrations pages), `safe-fetch.js` (outbound requests to addresses companies give us) and `openapi.js` (the OpenAPI 3.1 description and the `/developers` page).
 
-The public reference for developers is `/developers`. The machine-readable description is `/api/v1/openapi.json`. This file explains how it works inside and what is still to do.
+The reference for developers is `/developers`, shown only to signed-in company owners (linked from Integrations). The machine-readable description is `/api/v1/openapi.json`. This file explains how it works inside and what is still to do.
 
 ## 1. Who can use it
 
