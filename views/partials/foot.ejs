@@ -72,7 +72,8 @@
   </div>
 </footer>
 
-<% if (!ws && realContact(site).whatsapp) { %><a class="whatsapp-float" href="https://wa.me/<%= site.whatsapp %>?text=Hi%20Hireriv%2C%20I%27d%20like%20to%20know%20more" target="_blank" rel="noopener" aria-label="<%= t('common.whatsappChat') %>">
+<%# Always on public pages: chats on WhatsApp once a real number is in Settings, opens the Contact page until then. %>
+<% if (!ws) { const floatWa = realContact(site).whatsapp; %><% if (floatWa) { %><a class="whatsapp-float" href="https://wa.me/<%= floatWa %>?text=Hi%20Hireriv%2C%20I%27d%20like%20to%20know%20more" target="_blank" rel="noopener" aria-label="<%= t('common.whatsappChat') %>"><% } else { %><a class="whatsapp-float" href="/contact" aria-label="<%= t('common.whatsappChat') %>"><% } %>
   <svg class="i" aria-hidden="true"><use href="#i-whatsapp"/></svg>
 </a><% } %>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>

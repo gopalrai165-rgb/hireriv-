@@ -129,7 +129,8 @@ describe('admin panel', () => {
 
   test('signed-in areas leave out the public newsletter and WhatsApp button', async () => {
     const pub = await (await app.request('/jobs')).text();
-    assert.doesNotMatch(pub, /class="whatsapp-float"/, 'no WhatsApp button for the placeholder number');
+    assert.match(pub, /class="whatsapp-float" href="\/contact"/,'the WhatsApp button opens the Contact page until a real number is set');
+    assert.doesNotMatch(pub, /wa\.me\/910000000000/,'the placeholder number is never linked');
     assert.ok(pub.includes('action="/api/newsletter"'));
     for (const [p, cookie] of [['/admin', admin], ['/account/login'], ['/employer/login']]) {
       const html = await (await app.request(p, { cookie })).text();
