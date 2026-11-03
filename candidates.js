@@ -1407,12 +1407,19 @@ function register(app, deps) {
   // but they're left out of talent-pool searches for other roles.
   const hiddenFromSearch = () => new Set(readSubmissions('candidates').filter((c) => c.privacy && c.privacy.visibleToRecruiters === false).map((c) => c.email));
 
-  // When data retention removes every application of a person, their account,
-  // resumes and activity go with it.
-  function pruneAccounts() {
+  // Only with data retention turned on (months > 0): an account with no
+  // applications left and no change for the whole retention period goes, with
+  // its resumes and activity. Without retention nothing is deleted: someone who
+  // registered and is still waiting for the right job keeps their account.
+  function pruneAccounts(months = 0) {
+    if (!(months > 0)) return 0;
     const emails = new Set(readSubmissions('applications').map((a) => String(a.email).toLowerCase()));
-    const cutoff = new Date(Date.now() - 30 * 86400000).toISOString();
-    for (const c of readSubmissions('candidates')) if (!emails.has(c.email) && c.createdAt < cutoff) deleteEverything(c.email);
+    const cutoff = new Date(Date.now() - months * 30.44 * 86400000).toISOString();
+    let removed = 0;
+    for (const c of readSubmissions('candidates')) {
+      if (!emails.has(c.email) && (c.updatedAt || c.createdAt) < cutoff) { deleteEverything(c.email); removed += 1; }
+    }
+    return removed;
   }
 
   // What the recommendations and saved searches (job-recommendations.js) build on.

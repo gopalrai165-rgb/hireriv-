@@ -2621,8 +2621,8 @@ const searchableApplications = (list) => {
   const hidden = candidateAccounts.hiddenFromSearch();
   return hidden.size ? list.filter((a) => !hidden.has(String(a.email).toLowerCase())) : list;
 };
-// Accounts whose applications were all removed (e.g. by data retention) go too.
-const pruneAccounts = ops.track('candidate-account-prune', () => candidateAccounts.pruneAccounts(), 24 * 60 * 60 * 1000);
+// With data retention on, accounts left with no applications and unused for the retention period go too.
+const pruneAccounts = ops.track('candidate-account-prune', () => candidateAccounts.pruneAccounts(site.retentionMonths || 0), 24 * 60 * 60 * 1000);
 pruneAccounts();
 setInterval(pruneAccounts, 24 * 60 * 60 * 1000).unref();
 const timesheets = timesheetsModule.register(app, {
