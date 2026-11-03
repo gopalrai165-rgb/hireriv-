@@ -816,7 +816,7 @@ function register(app, deps) {
     const show = Boolean(store.settings().publicPlans);
     const b = billingOf(site);
     res.render('pricing', {
-      title: 'Pricing for employers: plans and recruitment fees', page: 'employers', showPlans: show,
+      title: 'Pricing for employers: plans and recruitment fees', page: 'pricing', showPlans: show,
       plans: show ? active.filter((p) => p.kind === 'subscription').map(store.publicPlan) : [],
       creditPacks: show ? active.filter((p) => p.kind === 'package' && p.credits > 0).map(store.publicPlan) : [],
       terms: { gstPercent: b.gstPercent, guaranteeDays: b.guaranteeDays, paymentDays: b.paymentDays },

@@ -44,7 +44,7 @@ const TXN_STATUSES = ['created', 'pending', 'paid', 'failed', 'review', 'expired
 const REFUND_REASONS = ['Duplicate payment', 'Charged in error', 'Service not delivered', 'Cancelled within the agreed period', 'Goodwill', 'Other'];
 const OFFLINE_MODES = ['Bank transfer', 'UPI', 'Cheque', 'Other'];
 const SETTINGS_KEY = 'billing:subscription-settings';
-const SETTINGS_DEFAULTS = { graceDays: 7, reminderDays: [7, 3, 1] };
+const SETTINGS_DEFAULTS = { graceDays: 7, reminderDays: [7, 3, 1], publicPlans: true };
 const SEED_KEY = 'billing:plans-seeded';
 // Version of the first plans written by seedPlans (see docs/BILLING.md).
 // 2 added the contact credit packs (Step 85).

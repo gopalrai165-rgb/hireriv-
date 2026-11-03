@@ -24,7 +24,7 @@
         <% plans.forEach(function (p) { %>
           <article class="plan-card">
             <h3><%= p.name %></h3>
-            <p class="plan-price"><%= p.custom ? 'Custom quote' : p.price.amountPaise === 0 ? 'Free' : p.price.display %><% if (!p.custom && p.price.amountPaise > 0) { %><span class="muted small"> / <%= p.interval === 'year' ? 'year' : 'month' %> + GST</span><% } %></p>
+            <p class="plan-price"><%= p.custom ? 'Custom quote' : p.price.amountPaise === 0 ? 'Free' : p.price.display.replace(/\.00$/, '') %><% if (!p.custom && p.price.amountPaise > 0) { %><span class="muted small"> / <%= p.interval === 'year' ? 'year' : 'month' %> + GST</span><% } %></p>
             <p class="muted small"><%= p.summary %></p>
             <ul class="small"><% p.features.forEach(function (f) { %><li><%= f %></li><% }) %></ul>
             <% if (p.custom) { %><a class="btn btn-outline btn-sm" href="/employers#enquiry">Ask for a quote</a>
@@ -37,7 +37,7 @@
         <h3 class="sub-head">Contact credits</h3>
         <p class="muted small">After your plan's free contacts each month, seeing a job seeker's mobile number uses one credit. Only job seekers who agreed to be contacted can be unlocked. Credits never expire.</p>
         <div class="plan-grid">
-          <% creditPacks.forEach(function (p) { %><article class="plan-card"><h3><%= p.name %></h3><p class="plan-price"><%= p.price.display %> <span class="muted small">+ GST, one time</span></p><p class="muted small"><%= p.summary %></p></article><% }) %>
+          <% creditPacks.forEach(function (p) { %><article class="plan-card"><h3><%= p.name %></h3><p class="plan-price"><%= p.price.display.replace(/\.00$/, '') %> <span class="muted small">+ GST, one time</span></p><p class="muted small"><%= p.summary %></p></article><% }) %>
         </div>
       <% } %>
       <p class="small muted">Prices exclude GST<%= terms.gstPercent ? ' (' + terms.gstPercent + '%)' : '' %>. Plans are paid online from your employer account; a paid plan renews each period from a reminder, never charged automatically.</p>
