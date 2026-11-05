@@ -13,6 +13,7 @@
         <h1><%= t('account.checkEmail') %></h1>
         <p class="notice" role="status"><%= t('account.linkSent') %></p>
         <p class="small auth-links"><%= t('account.noLink') %> <a href="/account/login"><%= t('account.tryAgain') %></a>.</p>
+        <% if (locals.devOutbox) { %><p class="notice small">Local development: email isn’t sent from this computer. <a href="/dev/outbox">Open the local outbox</a> to use your sign-in link.</p><% } %>
       <% } else { %>
         <h1><%= codeSent ? t('account.enterCode') : t('account.signInTitle') %></h1>
         <% const nextQs = next ? '&next=' + encodeURIComponent(next) : ''; %>

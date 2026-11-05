@@ -28,6 +28,7 @@ const { totals: appTotals } = require('./app-totals');
 const responseTime = require('./response-time');
 const employers = require('./employers');
 const candidates = require('./candidates');
+const devOutbox = require('./dev-outbox');
 const { SHIFTS, INDIAN_STATES } = require('./candidate-profile');
 // How much English a job needs, and walk-in interview days (job-needs.js).
 const jobNeeds = require('./job-needs');
@@ -3331,6 +3332,11 @@ app.get('/admin/resume/:file', adminAuth, (req, res) => {
   vault.send(res, path.join(UPLOADS_DIR, file), file, 'Resume');
 });
 
+// Development only: /dev/outbox shows the emails and texts saved to the outbox
+// folder (sign-in links and codes), on this computer only (dev-outbox.js).
+const devOutboxOn = devOutbox.register(app, { outboxDir: process.env.OUTBOX_DIR ? path.resolve(process.env.OUTBOX_DIR) : path.join(__dirname, 'data', 'outbox') });
+app.locals.devOutbox = devOutboxOn && !process.env.SMTP_HOST;
+
 // ---------- 404 / errors ----------
 app.use((req, res) => res.status(404).render('404', { title: 'Page not found', page: '', noindex: true }));
 app.use((err, req, res, next) => {
@@ -3366,4 +3372,4 @@ if (process.env.HEARTBEAT_URL) {
   setInterval(tick, HEARTBEAT_MS).unref();
 }
 
-app.listen(PORT, () => (process.env.LOG_FORMAT === 'json' ? ops.log('info', 'started', { port: Number(PORT), email: mailer.mode }) : console.log(`Hireriv running at http://localhost:${PORT} · email: ${mailer.mode}`)));
+app.listen(PORT, () => (process.env.LOG_FORMAT === 'json' ? ops.log('info', 'started', { port: Number(PORT), email: mailer.mode }) : console.log(`Hireriv running at http://localhost:${PORT} · email: ${mailer.mode}${devOutboxOn ? ` · sign-in links: http://localhost:${PORT}/dev/outbox` : ''}`)));

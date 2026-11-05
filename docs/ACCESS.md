@@ -372,6 +372,7 @@ Total: 727 routes.
 | GET | `/sw.js` | public | Service worker: keeps public files only (CSS, script, images, the offline page); never pages, API answers or resumes. Always revalidated |
 | GET | `/offline` | public | Shown by the service worker without a connection; the same for everyone, never shows who is signed in |
 | GET | `/healthz` | public | Uptime check |
+| GET | `/dev/outbox` | public | Development only: not registered when NODE_ENV=production or SITE_ENV=staging, and 404 unless the request comes from this computer (127.0.0.1 / ::1); shows the saved outbox emails and texts with their sign-in links and codes |
 | GET | `/speculation-rules.json` | public | Prefetch rules for public job pages (no personal data) |
 | GET | `/staging-sign-in` | public | Staging only (`SITE_ENV=staging`): the staging password page |
 | POST | `/staging-sign-in` | public | Staging only: checks `STAGING_PASSWORD` (10 tries per 10 minutes) and sets the staging cookie |
