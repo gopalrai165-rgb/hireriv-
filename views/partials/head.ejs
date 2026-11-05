@@ -49,7 +49,14 @@
     <% const seekerIn = typeof candidateSignedIn !== 'undefined' && candidateSignedIn; %>
     <% const employerIn = typeof employerSignedIn !== 'undefined' && employerSignedIn; %>
     <% const employerLinks = employerIn || !seekerIn; %>
+    <%# Signed-in team members and employers get their own work links (navMenu, only what they may open) instead of the public menu. %>
+    <% const menu = typeof navMenu !== 'undefined' && navMenu ? navMenu : null; %>
     <nav class="main-nav" id="main-nav" aria-label="<%= t('nav.main') %>">
+      <% if (menu) { %>
+      <% menu.links.forEach(function (l) { %><a href="<%= l.href %>" class="<%= l.current ? 'active' : '' %>"<%- l.current ? ' aria-current="page"' : '' %>><%= t('nav.' + l.label) %></a><% }) %>
+      <%- include('notification-bell', { as: menu.as, bellQuery: '?as=' + menu.as }) %>
+      <% if (menu.post) { %><a href="<%= menu.post %>" class="btn btn-primary btn-sm nav-cta"><%= t('nav.postJob') %></a><% } %>
+      <% } else { %>
       <a href="/jobs" class="<%= ['jobs', 'categories', 'job-seekers'].includes(page) ? 'active' : '' %>"><%= t('nav.findJobs') %></a>
       <% if (employerLinks) { %><% if (!employerIn) { %><a href="/employers" class="<%= page === 'employers' || page === 'hire' ? 'active' : '' %>"><%= t('nav.forEmployers') %></a><% } %>
       <a href="/services" class="<%= page === 'services' || page === 'industries' ? 'active' : '' %>"><%= t('nav.staffing') %></a><% } %>
@@ -71,6 +78,7 @@
       <% if (employerIn) { %><%- include('notification-bell', { as: 'employer', bellQuery: '?as=employer' }) %><a href="/employer" class="nav-register"><%= t('nav.employerDashboard') %></a><% } %>
       <% if (seekerIn) { %><%- include('notification-bell', { as: 'candidate', bellQuery: '?as=candidate' }) %><a href="/account" class="nav-register <%= page === 'account' ? 'active' : '' %>"><%= t('nav.myAccount') %></a><% } else if (!employerIn) { %><a href="/account/register" class="nav-register <%= page === 'account' ? 'active' : '' %>"><%= t('nav.register') %></a><% } %>
       <% if (employerLinks) { %><a href="/post-a-job" class="btn btn-primary btn-sm nav-cta"><%= t('nav.postJob') %></a><% } %>
+      <% } %>
       <% if (languages.length > 1) { %>
       <%# The language selector: a form, so it works without JavaScript. Each language is named in itself. %>
       <form class="lang-switch" method="post" action="/language" role="group" aria-labelledby="lang-label">
@@ -80,7 +88,7 @@
       </form>
       <% } %>
     </nav>
-    <a href="/saved" class="mobile-saved" aria-label="<%= t('common.savedJobs') %>"><svg class="i" aria-hidden="true"><use href="#i-bookmark"/></svg><span class="saved-count" hidden></span></a>
+    <% if (!menu) { %><a href="/saved" class="mobile-saved" aria-label="<%= t('common.savedJobs') %>"><svg class="i" aria-hidden="true"><use href="#i-bookmark"/></svg><span class="saved-count" hidden></span></a><% } %>
     <button class="nav-toggle" type="button" aria-label="<%= t('common.menuOpen') %>" aria-expanded="false" aria-controls="main-nav">
       <svg class="i" aria-hidden="true"><use href="#i-menu"/></svg>
     </button>

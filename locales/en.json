@@ -53,7 +53,18 @@
     "me": "Me",
     "forEmployers": "For Employers",
     "about": "About",
-    "contact": "Contact"
+    "contact": "Contact",
+    "applications": "Applications",
+    "applicants": "Applicants",
+    "interviews": "Interviews",
+    "hireRequests": "Hire requests",
+    "requestsShort": "Requests",
+    "billing": "Plans & billing",
+    "postShort": "Post a job",
+    "billingShort": "Billing",
+    "workforce": "Workforce",
+    "invoices": "Staffing invoices",
+    "settings": "Settings"
   },
   "footer": {
     "parentCompany": "A Raigozen company",

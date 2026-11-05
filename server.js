@@ -518,8 +518,62 @@ app.use((req, res, next) => {
   res.locals.candidateSignedIn = /(?:^|;\s*)hr_cand=/.test(req.headers.cookie || '') && Boolean(candidateAccounts.currentEmail(req));
   // And the employer's header (Dashboard and their bell in place of Login).
   res.locals.employerSignedIn = /(?:^|;\s*)hr_emp=/.test(req.headers.cookie || '') && Boolean(clients.currentEmployer(req));
+  // And the team's (admin links in place of the visitor menu).
+  const teamUser = /(?:^|;\s*)hr_admin=/.test(req.headers.cookie || '') ? team.currentUser(req) : null;
+  res.locals.teamSignedIn = Boolean(teamUser);
+  res.locals.navRole = navRoleOf(req.path, res.locals);
+  res.locals.navMenu = res.locals.navRole === 'team' ? teamMenu(req, teamUser) : res.locals.navRole === 'employer' ? employerMenu(req) : null;
   next();
 });
+// Whose menu the header and the phone bar show: the team on /admin pages,
+// an employer on theirs, then an employer, the team, a job seeker, a visitor.
+function navRoleOf(p, { teamSignedIn, employerSignedIn, candidateSignedIn }) {
+  if (teamSignedIn && /^\/admin(\/|$)/.test(p)) return 'team';
+  if (employerSignedIn && /^\/employer(\/|$)/.test(p)) return 'employer';
+  if (employerSignedIn) return 'employer';
+  if (teamSignedIn && !candidateSignedIn) return 'team';
+  return candidateSignedIn ? 'seeker' : 'visitor';
+}
+// The work links in the header and phone bar: only the sections this person
+// may open (the same rules as the admin tabs and the employer portal tabs).
+// Each link: [key, href, label key, short label key, icon].
+function teamMenu(req, user) {
+  const tabs = tabsFor(user);
+  const now = req.path === '/admin' ? String(req.query.tab || 'dashboard') : req.path.startsWith('/admin/jobs') ? 'jobs' : '';
+  const links = [
+    ['dashboard', '/admin', 'employerDashboard', 'employerDashboard', 'chart'],
+    ['applications', '/admin?tab=applications', 'applications', 'applications', 'users'],
+    ['jobs', '/admin?tab=jobs', 'jobs', 'jobs', 'briefcase'],
+    ['hire-requests', '/admin?tab=hire-requests', 'hireRequests', 'requestsShort', 'mail'],
+  ].filter(([k]) => tabs.includes(k)).map(([key, href, label, short, icon]) => ({ key, href, label, short, icon, current: now === key }));
+  return { as: 'team', links, post: tabs.includes('jobs') ? '/admin/jobs/new' : null, posting: req.path === '/admin/jobs/new' };
+}
+function employerMenu(req) {
+  const c = clients.context(req);
+  if (!c) return null;
+  const m = c.member;
+  const all = [
+    ['dashboard', '/employer', 'employerDashboard', 'employerDashboard', 'chart'],
+    ['jobs', '/employer/jobs', 'jobs', 'jobs', 'briefcase'],
+    ['applicants', '/employer/applicants', 'applicants', 'applicants', 'users'],
+    ['interviews', '/employer/interviews', 'interviews', 'interviews', 'clock'],
+    ['billing', '/employer/billing', 'billing', 'billingShort', 'wallet'],
+    ['workforce', '/employer/workforce', 'workforce', 'workforce', 'users'],
+    ['invoices', '/employer/invoices', 'invoices', 'invoices', 'finance'],
+    ['settings', '/employer/settings', 'settings', 'settings', 'gear'],
+  ];
+  // Site supervisors only work with their workers; billing administrators only on billing.
+  const keys = m.role === 'supervisor' ? ['workforce', 'settings']
+    : m.role === 'billing' ? ['billing', 'invoices', 'settings']
+      : ['dashboard', 'jobs', 'applicants', 'interviews', ...(employerCan(m, 'billing.view') ? ['billing'] : [])];
+  const p = req.path;
+  const under = (href) => p === href || p.startsWith(`${href}/`);
+  const links = all.filter(([k]) => keys.includes(k)).map(([key, href, label, short, icon]) => ({
+    key, href, label, short, icon,
+    current: key === 'dashboard' ? p === '/employer' : key === 'applicants' ? under(href) || under('/employer/ats') : key === 'jobs' ? under(href) && p !== '/employer/jobs/new' : under(href),
+  }));
+  return { as: 'employer', links, post: keys.includes('jobs') && employerCan(m, 'jobs.create') ? '/employer/jobs/new' : null, posting: p === '/employer/jobs/new' };
+}
 // Behind a reverse proxy (Nginx, Render, etc.) set TRUST_PROXY=1 so req.ip is the visitor, not the proxy.
 if (process.env.TRUST_PROXY) app.set('trust proxy', Number(process.env.TRUST_PROXY) || process.env.TRUST_PROXY);
 app.set('view engine', 'ejs');

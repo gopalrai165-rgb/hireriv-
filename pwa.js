@@ -143,6 +143,9 @@ function register(app, { site, assetVersion, sameOrigin, push }) {
     res.set('Cache-Control', 'public, max-age=3600');
     res.locals.candidateSignedIn = false;
     res.locals.employerSignedIn = false;
+    res.locals.teamSignedIn = false;
+    res.locals.navRole = 'visitor';
+    res.locals.navMenu = null;
     res.locals.unread = {};
     res.render('offline', { title: 'You are offline', page: 'offline', noindex: true });
   });

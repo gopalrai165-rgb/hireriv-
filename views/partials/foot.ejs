@@ -83,6 +83,14 @@
 <% if (!ws) { %>
 <%# Phones: the job seeker's main places one thumb away (hidden on wide screens). %>
 <% const signedIn = typeof candidateSignedIn !== 'undefined' && candidateSignedIn; %>
+<% const barMenu = typeof navMenu !== 'undefined' && navMenu ? navMenu : null; %>
+<% if (barMenu) { %>
+<% const barItems = barMenu.links.slice(0, barMenu.post ? 4 : 5); %>
+<nav class="bottom-nav" aria-label="<%= t('nav.quick') %>" style="grid-template-columns: repeat(<%= barItems.length + (barMenu.post ? 1 : 0) %>, 1fr)">
+  <% barItems.forEach(function (l) { %><a href="<%= l.href %>"<%- l.current ? ' aria-current="page"' : '' %>><svg class="i" aria-hidden="true"><use href="#i-<%= l.icon %>"/></svg><span><%= t('nav.' + l.short) %></span></a><% }) %>
+  <% if (barMenu.post) { %><a href="<%= barMenu.post %>"<%- barMenu.posting ? ' aria-current="page"' : '' %>><svg class="i" aria-hidden="true"><use href="#i-plus"/></svg><span><%= t('nav.postShort') %></span></a><% } %>
+</nav>
+<% } else { %>
 <nav class="bottom-nav" aria-label="<%= t('nav.quick') %>">
   <a href="/"<%- page === 'home' ? ' aria-current="page"' : '' %>><svg class="i" aria-hidden="true"><use href="#i-home"/></svg><span><%= t('nav.home') %></span></a>
   <a href="/jobs"<%- page === 'jobs' ? ' aria-current="page"' : '' %>><svg class="i" aria-hidden="true"><use href="#i-search"/></svg><span><%= t('nav.jobs') %></span></a>
@@ -90,6 +98,7 @@
   <a href="/saved"<%- page === 'saved' ? ' aria-current="page"' : '' %>><svg class="i" aria-hidden="true"><use href="#i-bookmark"/></svg><span><%= t('nav.saved') %></span></a>
   <a href="<%= signedIn ? '/account' : '/account/login?with=phone' %>"<%- page === 'account' ? ' aria-current="page"' : '' %>><svg class="i" aria-hidden="true"><use href="#i-user"/></svg><span><%= signedIn ? t('nav.me') : t('nav.login') %></span></a>
 </nav>
+<% } %>
 <% } %>
 <div class="app-bar" id="app-update" role="status" hidden>
   <span><%= t('footer.updateReady', { site: site.name }) %></span>

@@ -141,7 +141,9 @@ describe('admin panel', () => {
     const html = await (await app.request('/admin', { cookie: admin })).text();
     const labels = [...html.matchAll(/admin-nav-label">([^<]+)</g)].map((m) => m[1]);
     assert.deepEqual(labels, ['Overview', 'Recruiting', 'Clients &amp; billing', 'Inbox', 'Content', 'Admin']);
-    const tabs = [...html.matchAll(/href="\/admin\?tab=([a-z-]+)"/g)].map((m) => m[1]);
+    // The tab panel, not the header's quick links.
+    const panel = html.slice(html.indexOf('admin-nav-label'));
+    const tabs = [...panel.matchAll(/href="\/admin\?tab=([a-z-]+)"/g)].map((m) => m[1]);
     assert.deepEqual(tabs.slice(0, 4), ['dashboard', 'reports', 'applications', 'jobs']);
   });
 

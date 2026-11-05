@@ -93,14 +93,15 @@ test('signing up again with the same email gives the same reply and a heads-up e
   await srv.waitForEmail((m) => m.includes('To: meera@acmefoods.in') && m.includes('already have a'));
 });
 
-test('a signed-in employer gets the employer header: Dashboard and their bell, no Login, Register or Saved jobs', async () => {
+test('a signed-in employer gets the employer header: their work links and bell, no Login, Register, Saved jobs or job-seeker links', async () => {
   const home = await (await srv.request('/', { cookie: meera })).text();
   const header = home.slice(home.indexOf('<header'), home.indexOf('</header>'));
-  assert.match(header, /<a href="\/employer" class="nav-register">Dashboard<\/a>/);
+  assert.match(header, /<a href="\/employer" class="">Dashboard<\/a><a href="\/employer\/jobs" class="">Jobs<\/a><a href="\/employer\/applicants" class="">Applicants<\/a><a href="\/employer\/interviews" class="">Interviews<\/a>/);
   assert.match(header, /href="\/notifications\?as=employer"/);
-  assert.match(header, /href="\/post-a-job"/);
-  assert.match(header, /href="\/pricing"/);
-  assert.doesNotMatch(header, /class="nav-login"|href="\/account\/register"|href="\/employers"|class="nav-saved/);
+  assert.match(header, /<a href="\/employer\/jobs\/new" class="btn btn-primary btn-sm nav-cta">Post a Job<\/a>/);
+  assert.doesNotMatch(header, /class="nav-login"|href="\/account\/register"|href="\/employers"|class="nav-saved|class="mobile-saved|href="\/jobs"|href="\/blog"|href="\/about"/);
+  const dash = await (await srv.request('/employer', { cookie: meera })).text();
+  assert.match(dash.slice(dash.indexOf('<header'), dash.indexOf('</header>')), /<a href="\/employer" class="active" aria-current="page">Dashboard<\/a>/);
   const visitor = await (await srv.request('/')).text();
   assert.match(visitor.slice(visitor.indexOf('<header'), visitor.indexOf('</header>')), /class="nav-login"[\s\S]*href="\/account\/register"/);
 });
