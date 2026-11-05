@@ -17,6 +17,7 @@ const { SHIFTS } = require('./candidate-profile');
 const { workOf } = require('./content');
 const multer = require('multer');
 const jobImport = require('./job-import');
+const jobParse = require('./job-parse');
 
 // A company can have this many jobs live, paused or waiting for review.
 const MAX_ACTIVE_JOBS = 50;
@@ -614,6 +615,15 @@ function register(app, deps) {
     res.json({ ok: true, job: employerJobView(req.job) });
   };
   app.post('/api/employers/jobs', requireEmployerApi, limit('employer-jobs', 30), sameOrigin, createJson);
+  // Fill the job form from a pasted job post (job-parse.js). Nothing is saved.
+  app.post('/api/employers/jobs/parse', requireEmployerApi, limit('job-parse', 60), sameOrigin, (req, res) => {
+    if (!can(req.member, 'jobs.create') && !can(req.member, 'job.edit')) return fail(res, 403, 'your role in this company does not allow that');
+    const text = String((req.body || {}).text || '');
+    if (!text.trim()) return fail(res, 400, 'paste the job post first');
+    if (text.length > jobParse.MAX_TEXT) return fail(res, 400, `the job post is too long: paste up to ${jobParse.MAX_TEXT.toLocaleString('en-IN')} characters`);
+    const l = importLists();
+    res.json({ ok: true, ...jobParse.parseJobPost(text, { cities: l.locations, categories: l.categories }) });
+  });
   app.get('/api/employers/jobs', requireEmployerApi, (req, res) => {
     const apps = readSubmissions('applications').filter((a) => !a.duplicateOf && !a.withdrawnAt);
     res.json({ ok: true, jobs: visibleJobs(req.member).map((j) => ({ ...employerJobView(j), managedBy: selfManaged(j) ? 'employer' : 'hireriv', applicants: apps.filter((a) => a.jobId === j.id).length })) });

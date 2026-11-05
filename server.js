@@ -29,6 +29,7 @@ const responseTime = require('./response-time');
 const employers = require('./employers');
 const candidates = require('./candidates');
 const devOutbox = require('./dev-outbox');
+const jobParse = require('./job-parse');
 const { SHIFTS, INDIAN_STATES } = require('./candidate-profile');
 // How much English a job needs, and walk-in interview days (job-needs.js).
 const jobNeeds = require('./job-needs');
@@ -3026,6 +3027,14 @@ function nextJobId() {
 
 const jobFormLocals = (job, errors) => ({
   title: job.id ? 'Edit job' : 'Post a job', page: 'admin', job, errors, modes, jobTypes: JOB_TYPES, jobCategories: jobCategories(), categoryGroups: groupCategories(jobCategories()), workKinds: WORK_KINDS, jobLocations: jobLocations(), clientOptions: clients.read(), members: team.members(),
+});
+
+// Fill the job form from a pasted job post (job-parse.js). Nothing is saved.
+app.post('/admin/jobs/parse', adminAuth, limit('job-parse', 60), sameOrigin, (req, res) => {
+  const text = String((req.body || {}).text || '');
+  if (!text.trim()) return res.status(400).json({ ok: false, errors: ['paste the job post first'] });
+  if (text.length > jobParse.MAX_TEXT) return res.status(400).json({ ok: false, errors: [`the job post is too long: paste up to ${jobParse.MAX_TEXT.toLocaleString('en-IN')} characters`] });
+  res.json({ ok: true, ...jobParse.parseJobPost(text, { cities: jobLocations(), categories: jobCategories() }) });
 });
 
 app.get('/admin/jobs/new', adminAuth, (req, res) =>

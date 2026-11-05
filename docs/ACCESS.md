@@ -659,6 +659,7 @@ Total: 727 routes.
 | POST | `/employer/applicants/:id/interview` | employer | Owners, or managers and recruiters on the job; emails the candidate |
 | GET | `/employer/interviews` | employer | Interviews for jobs this member may see |
 | GET | `/api/employers/jobs` | employer | 401 when signed out; jobs this member may see |
+| POST | `/api/employers/jobs/parse` | employer | 401 when signed out; 403 without jobs.create or job.edit; reads a pasted job post into form values (job-parse.js), saves nothing; same-origin, 60 per 10 minutes |
 | POST | `/api/employers/jobs/:id/close` | employer | Same |
 | GET | `/api/employers/jobs/:id/applications` | employer | 401 when signed out; 404 unless this member may see the job's applicants |
 | PATCH | `/api/employers/applications/:id/status` | employer | 401 when signed out; owners, or managers and recruiters on the job |
@@ -837,6 +838,7 @@ Total: 727 routes.
 | GET | `/admin/applications/new` | team | Add someone who applied by WhatsApp, phone, walk-in or referral |
 | POST | `/admin/applications/new` | team | Add someone who applied by WhatsApp, phone, walk-in or referral |
 | GET | `/admin` | team | Recruiters never get the Settings, Team or Activity tabs, and see Reports without money |
+| POST | `/admin/jobs/parse` | team | Reads a pasted job post into form values (job-parse.js), saves nothing; same-origin, 60 per 10 minutes |
 | GET | `/admin/jobs/new` | team |  |
 | GET | `/admin/jobs/:id/edit` | team |  |
 | POST | `/admin/jobs` | team |  |

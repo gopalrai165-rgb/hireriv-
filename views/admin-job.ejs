@@ -5,6 +5,7 @@
     <a href="/admin?tab=jobs" class="back-link">← All jobs</a>
     <h1><%= title %></h1>
     <% if (errors.length) { %><p class="notice notice-err" role="alert">Please fix: <%= errors.join(', ') %></p><% } %>
+    <% if (!job.id) { %><%- include('partials/job-paste', { endpoint: '/admin/jobs/parse' }) %><% } %>
     <form class="form form-card" method="post" action="/admin/jobs<%= job.id ? '/' + job.id : '' %>">
       <div class="form-grid">
         <label class="span-2">Job title*<input name="title" required value="<%= job.title || '' %>" placeholder="e.g. Senior Java Developer"></label>
@@ -114,5 +115,7 @@
     </form>
   </div>
 </section>
+
+<% if (!job.id) { %><script src="/js/job-paste.js?v=<%= assetVersion %>" defer></script><% } %>
 
 <%- include('partials/foot') %>

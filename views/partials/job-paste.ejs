@@ -1,0 +1,9 @@
+<%# Fill the job form from a pasted job post (job-parse.js, public/js/job-paste.js). Pass `endpoint`. %>
+<details class="form-card job-paste" data-job-paste data-endpoint="<%= endpoint %>">
+  <summary><b>Fill from a job post</b> <span class="muted small">(optional: paste a WhatsApp message, email or job description)</span></summary>
+  <p class="small muted">Paste the post and we fill the empty fields below: title, city, pay, experience, openings, job type, shift, English, education, perks and the text. Phone numbers, emails and links are left out. Nothing is saved until you check the form and save it.</p>
+  <label for="job-paste-text" class="sr-only">Job post</label>
+  <textarea id="job-paste-text" name="jobPost" rows="6" maxlength="8000" placeholder="Need 5 telecallers in Pune. Salary 15k–20k + incentives. Freshers can apply. 12th pass. Day shift, 9:30 AM – 6:30 PM."></textarea>
+  <div class="row-actions"><button class="btn btn-outline btn-sm" type="button" data-job-paste-go>Fill the form</button></div>
+  <div class="small" data-job-paste-status role="status" aria-live="polite"></div>
+</details>

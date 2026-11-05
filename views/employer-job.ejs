@@ -11,6 +11,7 @@
     <% if (['open', 'paused'].includes(job.status)) { %><p class="notice">This job is <%= job.status === 'open' ? 'live' : 'paused' %>. Saving changes sends it for a quick check, and it's hidden until they're approved.</p><% } %>
     <% if (errors.length) { %><div class="notice notice-err" role="alert"><% errors.forEach(function (e) { %><p><%= e %></p><% }) %></div><% } %>
 
+    <% if (can('jobs.create') && !job.id) { %><%- include('partials/job-paste', { endpoint: '/api/employers/jobs/parse' }) %><% } %>
     <% if (can('jobs.create')) { %>
       <details class="form-card ai-panel" data-ai-draft>
         <summary><b>Draft the description with AI</b> <span class="muted small">(optional)</span></summary>
@@ -100,5 +101,6 @@
   </div>
 </section>
 <script src="/js/ai.js?v=<%= assetVersion %>" defer></script>
+<% if (!job.id) { %><script src="/js/job-paste.js?v=<%= assetVersion %>" defer></script><% } %>
 
 <%- include('partials/foot') %>

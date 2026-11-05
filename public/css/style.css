@@ -1704,6 +1704,13 @@ form.inline { display: inline; }
 
 /* The AI assistant (Step 66). */
 .ai-panel summary { cursor: pointer; }
+.job-paste { margin-bottom: 16px; }
+.job-paste summary { cursor: pointer; }
+.job-paste textarea { width: 100%; min-height: 9rem; margin-top: 10px; }
+.job-paste .row-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.job-paste [data-job-paste-status] > * { margin: 10px 0 0; }
+.notice-ok { background: #dcfce7; color: #166534; }
+.is-filled { outline: 2px solid var(--primary); outline-offset: 2px; transition: outline-color 1s; }
 .ai-panel [data-ai-result] { margin-top: 12px; padding: 12px 14px; border-left: 4px solid var(--primary-600, #1d5fd6); background: var(--primary-50, #eef4ff); border-radius: 8px; }
 .ai-panel [data-ai-result] h3 { margin: 12px 0 4px; font-size: 1rem; }
 .ai-feedback { margin-top: 10px; align-items: center; }
