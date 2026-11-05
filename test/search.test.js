@@ -216,9 +216,13 @@ test('saved jobs and applications in the account, for the signed-in candidate on
   assert.match(home, /data-account="1"/);
   assert.match(home, />My account<\/a>/);
   assert.doesNotMatch(home, /class="nav-login"/, 'signed-in job seekers get no Login menu');
+  const header = home.slice(home.indexOf('<header'), home.indexOf('</header>'));
+  for (const href of ['/employers', '/services', '/pricing', '/post-a-job']) assert.doesNotMatch(header, new RegExp(`href="${href}"`), `no ${href} in a job seeker's header`);
+  assert.match(header, /href="\/jobs"/);
   const visitorHome = await (await srv.request('/')).text();
   assert.doesNotMatch(visitorHome, /data-account/);
   assert.match(visitorHome, /class="nav-login"/);
+  for (const href of ['/employers', '/services', '/pricing', '/post-a-job']) assert.match(visitorHome, new RegExp(`href="${href}"`));
 
   assert.equal((await srv.request('/api/candidate/saved-jobs/hr-101', { method: 'PUT', cookie })).status, 200);
   await srv.request('/api/candidate/saved-jobs/hr-101', { method: 'PUT', cookie });

@@ -45,17 +45,18 @@
       <img src="/img/logo.svg" alt="" width="36" height="36">
       <span class="logo-text"><span>Hire<b>riv</b></span><small>by Raigozen</small></span>
     </a>
+    <%# Signed-in job seekers see only their own links; the employer ones (For Employers, Services, Pricing, Post a Job, Login) stay in the footer. %>
+    <% const seekerIn = typeof candidateSignedIn !== 'undefined' && candidateSignedIn; %>
     <nav class="main-nav" id="main-nav" aria-label="<%= t('nav.main') %>">
       <a href="/jobs" class="<%= ['jobs', 'categories', 'job-seekers'].includes(page) ? 'active' : '' %>"><%= t('nav.findJobs') %></a>
-      <a href="/employers" class="<%= page === 'employers' || page === 'hire' ? 'active' : '' %>"><%= t('nav.forEmployers') %></a>
-      <a href="/services" class="<%= page === 'services' || page === 'industries' ? 'active' : '' %>"><%= t('nav.staffing') %></a>
+      <% if (!seekerIn) { %><a href="/employers" class="<%= page === 'employers' || page === 'hire' ? 'active' : '' %>"><%= t('nav.forEmployers') %></a>
+      <a href="/services" class="<%= page === 'services' || page === 'industries' ? 'active' : '' %>"><%= t('nav.staffing') %></a><% } %>
       <a href="/blog" class="<%= page === 'blog' ? 'active' : '' %>"><%= t('nav.resources') %></a>
-      <a href="/pricing" class="<%= page === 'pricing' ? 'active' : '' %>"><%= t('nav.pricing') %></a>
+      <% if (!seekerIn) { %><a href="/pricing" class="<%= page === 'pricing' ? 'active' : '' %>"><%= t('nav.pricing') %></a><% } %>
       <a href="/about" class="<%= page === 'about' ? 'active' : '' %>"><%= t('nav.about') %></a>
       <a href="/contact" class="<%= page === 'contact' ? 'active' : '' %>"><%= t('nav.contact') %></a>
       <a href="/saved" class="nav-saved <%= page === 'saved' ? 'active' : '' %>" title="<%= t('common.savedJobs') %>"><svg class="i" aria-hidden="true"><use href="#i-bookmark"/></svg><span class="nav-saved-label"><%= t('nav.saved') %></span><span class="saved-count" hidden></span></a>
-      <%# Signed-in job seekers don't need the Login menu; "My account" and the bell take its place. %>
-      <% if (!(typeof candidateSignedIn !== 'undefined' && candidateSignedIn)) { %>
+      <% if (!seekerIn) { %>
       <details class="nav-login">
         <summary><%= t('nav.login') %></summary>
         <div class="nav-login-menu">
@@ -65,8 +66,8 @@
         </div>
       </details>
       <% } %>
-      <% if (typeof candidateSignedIn !== 'undefined' && candidateSignedIn) { %><%- include('notification-bell', { as: 'candidate', bellQuery: '?as=candidate' }) %><a href="/account" class="nav-register <%= page === 'account' ? 'active' : '' %>"><%= t('nav.myAccount') %></a><% } else { %><a href="/account/register" class="nav-register <%= page === 'account' ? 'active' : '' %>"><%= t('nav.register') %></a><% } %>
-      <a href="/post-a-job" class="btn btn-primary btn-sm nav-cta"><%= t('nav.postJob') %></a>
+      <% if (seekerIn) { %><%- include('notification-bell', { as: 'candidate', bellQuery: '?as=candidate' }) %><a href="/account" class="nav-register <%= page === 'account' ? 'active' : '' %>"><%= t('nav.myAccount') %></a><% } else { %><a href="/account/register" class="nav-register <%= page === 'account' ? 'active' : '' %>"><%= t('nav.register') %></a><% } %>
+      <% if (!seekerIn) { %><a href="/post-a-job" class="btn btn-primary btn-sm nav-cta"><%= t('nav.postJob') %></a><% } %>
       <% if (languages.length > 1) { %>
       <%# The language selector: a form, so it works without JavaScript. Each language is named in itself. %>
       <form class="lang-switch" method="post" action="/language" role="group" aria-labelledby="lang-label">
