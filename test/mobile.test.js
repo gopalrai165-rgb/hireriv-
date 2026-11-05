@@ -434,7 +434,7 @@ test('Find Jobs on a phone: kinds of work, folding filters, big tap targets, lig
   const job = await (await get('/jobs/hr-114')).text();
   for (const dt of ['Pay', 'Workplace', 'Employment type', 'Work arrangement']) assert.match(job, new RegExp(`<dt>${dt}</dt>`), dt);
 
-  const css = fs.readFileSync(path.join(ROOT, 'public/css/style.css'), 'utf8');
+  const css = fs.readFileSync(path.join(ROOT, 'public/css/style.css'), 'utf8').replace(/\r\n/g, '\n'); // Windows checkouts may have CRLF
   assert.match(css, /@media \(max-width: 700px\) \{\n  \/\* Easy to tap: at least 44px high\. \*\/\n  [^}]*min-height: 44px;/);
   // Every table sits in a box that scrolls on its own, so pages never scroll sideways.
   for (const f of fs.readdirSync(path.join(ROOT, 'views')).filter((x) => x.endsWith('.ejs'))) {
