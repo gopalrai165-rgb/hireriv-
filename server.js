@@ -620,7 +620,7 @@ app.use((req, res, next) => {
   next();
 });
 // The CSS and JS, compressed once at the best level (compress.js).
-if (!/^(off|0|false|no)$/i.test(process.env.COMPRESSION || '')) app.use(compress.assets(path.join(__dirname, 'public')));
+if (!/^(off|0|false|no)$/i.test(process.env.COMPRESSION || '')) app.use(compress.assets(path.join(__dirname, 'public'), undefined, { live: process.env.NODE_ENV !== 'production' }));
 app.use(express.static(path.join(__dirname, 'public'), {
   maxAge: '1h',
   // App icons change rarely; a new version gets a new file name. Files asked
@@ -751,12 +751,21 @@ app.locals.stageClass = (s) => `st-${String(s || 'New').toLowerCase().replace(/\
 app.locals.stageLabel = require('./ats').label;
 app.locals.feedbackSummary = interviews.feedbackSummary;
 // Fingerprint the CSS/JS so browsers fetch fresh copies after every change,
-// despite the 1-hour static cache.
-app.locals.assetVersion = crypto
-  .createHash('sha1')
-  .update(['public/css/style.css', 'public/js/main.js'].map((f) => fs.readFileSync(path.join(__dirname, f))).join(''))
-  .digest('hex')
-  .slice(0, 10);
+// despite the 1-hour static cache. Outside production the fingerprint follows
+// edits to the files, so a stylesheet change shows on the next refresh
+// without restarting the server.
+const ASSET_FILES = ['public/css/style.css', 'public/js/main.js'].map((f) => path.join(__dirname, f));
+const assetFingerprint = { stamp: '', value: '' };
+function currentAssetVersion() {
+  const stamp = ASSET_FILES.map((f) => fs.statSync(f).mtimeMs).join(':');
+  if (stamp !== assetFingerprint.stamp) {
+    assetFingerprint.stamp = stamp;
+    assetFingerprint.value = crypto.createHash('sha1').update(ASSET_FILES.map((f) => fs.readFileSync(f)).join('')).digest('hex').slice(0, 10);
+  }
+  return assetFingerprint.value;
+}
+if (process.env.NODE_ENV === 'production') app.locals.assetVersion = currentAssetVersion();
+else Object.defineProperty(app.locals, 'assetVersion', { enumerable: true, get: currentAssetVersion });
 app.locals.formatDate = (d) =>
   new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
 // "Closes in 3 days" on job cards during a job's last week.

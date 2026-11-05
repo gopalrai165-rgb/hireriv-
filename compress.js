@@ -69,8 +69,9 @@ function pages({ disabled = false } = {}) {
 
 // The site's CSS and JS, compressed once per encoding and kept in memory.
 // Anything else (and browsers accepting no encoding) goes on to
-// express.static.
-function assets(publicDir, dirs = ['css', 'js']) {
+// express.static. With { live: true } (local work) a file edited on disk is
+// read and compressed again on its next request instead of staying stale.
+function assets(publicDir, dirs = ['css', 'js'], { live = false } = {}) {
   const files = new Map();
   for (const d of dirs) {
     const full = path.join(publicDir, d);
@@ -81,13 +82,18 @@ function assets(publicDir, dirs = ['css', 'js']) {
       const file = path.join(full, name);
       const raw = fs.readFileSync(file);
       if (raw.length < MIN_BYTES) continue;
-      files.set(`/${d}/${name}`, { raw, type: ext === '.css' ? 'text/css; charset=utf-8' : 'text/javascript; charset=utf-8', modified: fs.statSync(file).mtime.toUTCString(), encoded: {} });
+      const stat = fs.statSync(file);
+      files.set(`/${d}/${name}`, { file, raw, type: ext === '.css' ? 'text/css; charset=utf-8' : 'text/javascript; charset=utf-8', mtimeMs: stat.mtimeMs, modified: stat.mtime.toUTCString(), encoded: {} });
     }
   }
   return (req, res, next) => {
     if (req.method !== 'GET' && req.method !== 'HEAD') return next();
     const f = files.get(req.path);
     if (!f) return next();
+    if (live) {
+      const stat = fs.statSync(f.file, { throwIfNoEntry: false });
+      if (stat && stat.mtimeMs !== f.mtimeMs) Object.assign(f, { raw: fs.readFileSync(f.file), mtimeMs: stat.mtimeMs, modified: stat.mtime.toUTCString(), encoded: {} });
+    }
     res.vary('Accept-Encoding');
     const enc = pick(req.get('Accept-Encoding'), FILE_ORDER);
     if (!enc) return next();

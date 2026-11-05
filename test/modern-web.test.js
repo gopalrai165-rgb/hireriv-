@@ -86,3 +86,29 @@ test('103 Early Hints point the browser at the stylesheet', async () => {
   assert.match(String(hint.headers.link), /<\/css\/style\.css\?v=\w+>; rel=preload; as=style/);
   assert.equal((await get(srv, '/api/jobs', { accept: 'text/html' })).hints.length, 0, 'not for the API');
 });
+
+test('with live on (local work) an edited stylesheet is compressed again; without it the first copy stays', () => {
+  const fs = require('fs');
+  const os = require('os');
+  const path = require('path');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'hr-assets-'));
+  fs.mkdirSync(path.join(dir, 'css'));
+  const file = path.join(dir, 'css', 'a.css');
+  fs.writeFileSync(file, `/* first */\n${'.x { color: red; }\n'.repeat(100)}`);
+  const serve = (mw) => {
+    let body = null;
+    const res = { vary() {}, set() { return this; }, send(b) { body = b; return this; } };
+    mw({ method: 'GET', path: '/css/a.css', query: {}, get: () => 'gzip' }, res, () => {});
+    return zlib.gunzipSync(body).toString();
+  };
+  const live = compress.assets(dir, ['css'], { live: true });
+  const fixed = compress.assets(dir, ['css']);
+  assert.match(serve(live), /first/);
+  assert.match(serve(fixed), /first/);
+  fs.writeFileSync(file, `/* second */\n${'.x { color: blue; }\n'.repeat(100)}`);
+  const later = new Date(Date.now() + 5000);
+  fs.utimesSync(file, later, later);
+  assert.match(serve(live), /second/);
+  assert.match(serve(fixed), /first/, 'production keeps the copy made at startup');
+  fs.rmSync(dir, { recursive: true, force: true });
+});
