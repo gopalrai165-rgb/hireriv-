@@ -215,7 +215,10 @@ test('saved jobs and applications in the account, for the signed-in candidate on
   const home = await (await srv.request('/', { cookie })).text();
   assert.match(home, /data-account="1"/);
   assert.match(home, />My account<\/a>/);
-  assert.doesNotMatch(await (await srv.request('/')).text(), /data-account/);
+  assert.doesNotMatch(home, /class="nav-login"/, 'signed-in job seekers get no Login menu');
+  const visitorHome = await (await srv.request('/')).text();
+  assert.doesNotMatch(visitorHome, /data-account/);
+  assert.match(visitorHome, /class="nav-login"/);
 
   assert.equal((await srv.request('/api/candidate/saved-jobs/hr-101', { method: 'PUT', cookie })).status, 200);
   await srv.request('/api/candidate/saved-jobs/hr-101', { method: 'PUT', cookie });
