@@ -48,7 +48,8 @@
       <p class="near-status small" role="status" data-near-status></p>
       <%# The main filters stay in view; the rest fold under "More filters", which opens by itself when one of them is in use. %>
       <div class="filter-row filter-main">
-        <details class="filter-cats"<%- filters.categories.length ? ' open' : '' %>>
+        <%# Starts closed even with categories ticked: the count on the button shows them, and the open panel would cover the results. %>
+        <details class="filter-cats">
           <summary><%= t('jobs.categories') %><% if (filters.categories.length) { %> <span class="count"><%= filters.categories.length %></span><% } %></summary>
           <div class="filter-cats-panel">
             <% categoryGroups.forEach(function (g) { %>

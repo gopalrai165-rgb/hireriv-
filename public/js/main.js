@@ -968,6 +968,15 @@ document.querySelectorAll('details[data-more-filters]').forEach((d) => {
   if (d.dataset.moreFilters === '0' && window.matchMedia('(max-width: 700px)').matches) d.open = false;
 });
 
+// Find Jobs: the Categories panel works like a drop-down, closing on a click
+// outside it or on Escape (focus goes back to its button).
+document.querySelectorAll('details.filter-cats').forEach((d) => {
+  document.addEventListener('click', (e) => { if (d.open && !d.contains(e.target)) d.open = false; });
+  d.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && d.open) { d.open = false; d.querySelector('summary').focus(); }
+  });
+});
+
 // Read-aloud and speaking instead of typing (voice.js) load only on pages that
 // offer them, and only in browsers that support them. Typing always works.
 if (document.querySelector('[data-voice-for], [data-read-aloud]') && ('speechSynthesis' in window || 'SpeechRecognition' in window || 'webkitSpeechRecognition' in window)) {

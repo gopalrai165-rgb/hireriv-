@@ -128,6 +128,7 @@ test('Find Jobs page: state, several categories, experience, pay and sort, and h
   // Pager links keep every chosen category.
   const paged = await (await srv.request('/jobs?category=Technology&category=Skilled%20Trades&sort=newest')).text();
   assert.match(paged, /name="category" value="Skilled Trades" checked/);
+  assert.match(paged, /<details class="filter-cats">\s*<summary>Categories <span class="count">2<\/span>/, 'after a search the Categories panel starts closed and shows how many are ticked');
 
   const none = await (await srv.request('/jobs?q=zzzz&location=Pune')).text();
   assert.match(none, /No jobs match all of these filters/);
