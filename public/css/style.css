@@ -2581,3 +2581,57 @@ td > a:first-child:not(.btn) { display: inline-block; padding-block: 6px; min-wi
 .job-filters .filter-main select, .job-filters .filter-main .filter-cats summary { height: 44px; padding-top: 0; padding-bottom: 0; display: flex; align-items: center; }
 .job-filters .filter-main .filter-cats summary { justify-content: space-between; }
 .job-filters .filter-main .filter-cats summary::after { float: none; margin: -4px 0 0 auto; }
+
+/* ---------- Homepage polish ----------
+   One cool palette below the hero (the gold accent stays in the hero), city
+   tiles with a pin and the city name on one line, a short jobs row that ends
+   in a "hear about new jobs" card, calmer link lists under the services and
+   tighter spacing between sections. */
+.page-home { --home-paper: #f4f7fb; --home-border: #e3e8f0; }
+.page-home .section { padding: clamp(60px, 6.5vw, 84px) 0; }
+.page-home .section-tight { padding-top: clamp(32px, 4vw, 48px); padding-bottom: clamp(32px, 4vw, 48px); }
+.page-home .section-flush { padding-top: 0; }
+.page-home .role-icon,
+.page-home .city-initial { background: var(--primary-50); color: var(--primary); }
+.page-home .role-grid-home .role-count { color: var(--primary); }
+.page-home .role-grid-home .role-tile:hover .role-go { color: var(--primary); }
+.page-home .role-tile:hover,
+.page-home .city-tile:hover,
+.page-home .job-card:hover { border-color: var(--primary); }
+
+.city-tile > span:last-of-type { display: flex; flex-direction: column; min-width: 0; }
+.page-home .city-grid { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+.page-home .city-tile { padding: 14px 16px; }
+.page-home .city-tile b { font-size: 1rem; color: var(--home-ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.page-home .city-initial .i { width: 20px; height: 20px; }
+.city-go { margin-left: auto; width: 16px; height: 16px; flex-shrink: 0; color: var(--muted); transition: transform .2s, color .2s; }
+.city-tile:hover .city-go { color: var(--primary); transform: translateX(3px); }
+
+.job-card-more { display: flex; flex-direction: column; justify-content: center; gap: 10px; border-style: dashed; background: linear-gradient(160deg, var(--primary-50), #fff 72%); }
+.job-card-more-icon { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 12px; background: #fff; color: var(--primary); box-shadow: 0 4px 14px rgba(19, 37, 63, .08); }
+.job-card-more p { margin: 0; color: var(--home-muted, var(--muted)); }
+.job-card-more b { display: block; margin-bottom: 4px; color: var(--home-ink, var(--ink)); font-size: 1.05rem; }
+.job-card-more-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px !important; }
+
+.page-home .employer-links { position: relative; z-index: 1; display: grid; gap: 4px; margin-top: 28px; padding-top: 20px; border-top: 1px solid var(--home-border); }
+.page-home .employer-links .employer-desks { margin: 0; line-height: 1.9; }
+.page-home .employer-links .employer-desks a { color: var(--home-ink); font-weight: 500; }
+.page-home .employer-links .employer-desks a:hover { color: var(--primary); text-decoration: underline; }
+
+.page-home .hero-search-seek .hs-field:first-of-type { flex-grow: 1.8; }
+.page-home #enquiry .btn-whatsapp { margin-top: 18px; }
+
+@media (max-width: 600px) {
+  .city-tile > span:last-of-type { flex-direction: row; gap: 6px; align-items: baseline; }
+  .page-home .city-grid { display: flex; }
+  .page-home .city-tile { padding: 8px 12px; }
+  .page-home .city-tile b { font-size: .86rem; }
+  .city-go { display: none; }
+}
+.job-card-more-actions .btn { flex: 0 0 auto; width: auto; }
+/* With a single job on wide screens the card fills the rest of the row. */
+@media (min-width: 961px) {
+  .jobs-grid > .job-card-more:nth-child(2) { grid-column: span 2; display: grid; grid-template-columns: auto 1fr; align-items: center; align-content: center; column-gap: 24px; row-gap: 16px; padding: 32px 40px; }
+  .jobs-grid > .job-card-more:nth-child(2) .job-card-more-icon { grid-row: span 2; width: 56px; height: 56px; border-radius: 16px; }
+  .jobs-grid > .job-card-more:nth-child(2) .job-card-more-icon .i { width: 26px; height: 26px; }
+}

@@ -66,6 +66,14 @@
     <% if (jobs.length) { %>
     <div class="jobs-grid">
       <% jobs.forEach(function (job) { %><%- include('partials/job-card', { job: job }) %><% }) %>
+      <% if (jobs.length < 3) { %>
+      <%# A short row (one or two jobs) ends with a way to hear about the next ones, instead of empty space. %>
+      <div class="job-card job-card-more">
+        <span class="job-card-more-icon" aria-hidden="true"><svg class="i"><use href="#i-bell"/></svg></span>
+        <p><b><%= t('home.noJobsTitle') %></b> <%= t('home.noJobsText') %></p>
+        <p class="job-card-more-actions"><a class="btn btn-primary btn-sm" href="/jobs#alerts"><%= t('home.jobAlerts') %></a> <a class="btn btn-outline btn-sm" href="/account/register"><%= t('home.createProfile') %></a></p>
+      </div>
+      <% } %>
     </div>
     <% } else { %>
     <div class="empty">
@@ -110,9 +118,11 @@
     <h3 id="cities-title" class="sub-head"><%= t('home.citiesTitle') %></h3>
     <ul class="city-grid">
       <% topCities.forEach(function (c) { %>
-        <li><a class="city-tile" href="<%= c.href %>">
-          <span class="city-initial" aria-hidden="true"><%= c.name.charAt(0) %></span>
-          <span><b><%= t('home.jobsIn', { city: c.name }) %></b><span class="muted small"><%= c.count ? t('home.jobCount', { count: c.count }) : t('home.seeJobs') %></span></span>
+        <% const cityCount = c.count ? t('home.jobCount', { count: c.count }) : t('home.seeJobs'); %>
+        <li><a class="city-tile" href="<%= c.href %>" aria-label="<%= t('home.jobsIn', { city: c.name }) %>, <%= cityCount %>">
+          <span class="city-initial" aria-hidden="true"><svg class="i"><use href="#i-pin"/></svg></span>
+          <span><b><%= c.name %></b><span class="muted small"><%= cityCount %></span></span>
+          <svg class="i city-go" aria-hidden="true"><use href="#i-arrow"/></svg>
         </a></li>
       <% }) %>
     </ul>
@@ -162,8 +172,10 @@
       <% }) %>
     </div>
     <p class="employer-more"><a href="/services" class="btn btn-primary">All staffing services <svg class="i"><use href="#i-arrow"/></svg></a> <a href="/employer/login">Already a client? Log in</a></p>
+    <div class="employer-links">
     <p class="small employer-desks">Also: <% catalog.SERVICES.forEach(function (s, i) { %><a href="/services/<%= s.slug %>"><%= s.name %></a><%= i < catalog.SERVICES.length - 1 ? ' · ' : '' %><% }) %>.</p>
     <p class="small employer-desks">Specialist recruiters for: <% catalog.INDUSTRIES.forEach(function (ind, i) { %><a href="/industries/<%= ind.slug %>"><%= ind.name %></a><%= i < catalog.INDUSTRIES.length - 1 ? ' · ' : '' %><% }) %>.</p>
+    </div>
   </div>
 </section>
 
