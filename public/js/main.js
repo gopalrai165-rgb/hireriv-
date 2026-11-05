@@ -981,7 +981,7 @@ document.querySelectorAll('details.filter-cats').forEach((d) => {
 document.querySelectorAll('details.admin-tools').forEach((d) => {
   if (window.matchMedia('(max-width: 1080px)').matches) d.open = false;
 });
-const adminTab = document.querySelector('.admin-console .admin-nav .tab.active');
+const adminTab = document.querySelector(':is(.admin-console, .portal) .admin-nav .tab.active');
 if (adminTab && window.matchMedia('(max-width: 700px)').matches) adminTab.scrollIntoView({ block: 'nearest', inline: 'center' });
 
 // Read-aloud and speaking instead of typing (voice.js) load only on pages that
