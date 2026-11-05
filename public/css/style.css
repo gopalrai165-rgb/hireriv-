@@ -2635,3 +2635,97 @@ td > a:first-child:not(.btn) { display: inline-block; padding-block: 6px; min-wi
   .jobs-grid > .job-card-more:nth-child(2) .job-card-more-icon { grid-row: span 2; width: 56px; height: 56px; border-radius: 16px; }
   .jobs-grid > .job-card-more:nth-child(2) .job-card-more-icon .i { width: 26px; height: 26px; }
 }
+
+/* ---------- Admin console ----------
+   A sidebar with the person, the sections (icon, name, count) and the tools;
+   beside it the open section with its title, actions and content in white
+   cards. On narrower screens the sidebar becomes a scrolling row on top. */
+.section.admin-console { padding-top: 32px; background: linear-gradient(180deg, #eef3fa 0, #f6f8fc 320px, #fff 900px); }
+.admin-shell { display: grid; grid-template-columns: 264px minmax(0, 1fr); gap: 28px; align-items: start; max-width: 1360px; }
+.admin-side {
+  position: sticky; top: 104px; max-height: calc(100vh - 124px); overflow-y: auto; overscroll-behavior: contain;
+  display: flex; flex-direction: column; gap: 14px; padding: 14px;
+  background: #fff; border: 1px solid #e3e8f0; border-radius: 20px; box-shadow: 0 18px 40px -28px rgba(16, 42, 76, .45);
+  scrollbar-width: thin;
+}
+.admin-me { display: flex; align-items: center; gap: 12px; padding: 10px; border-radius: 14px; background: linear-gradient(135deg, #123B70, #1F6BC2); color: #fff; }
+.admin-avatar { display: grid; place-items: center; flex-shrink: 0; width: 40px; height: 40px; border-radius: 12px; background: rgba(255, 255, 255, .16); font-weight: 800; font-size: 1.05rem; }
+.admin-me-text { display: flex; flex-direction: column; min-width: 0; line-height: 1.25; }
+.admin-me-text b { font-size: .95rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.admin-me-text span { font-size: .75rem; opacity: .8; }
+.admin-me .admin-me-bell { margin-left: auto; display: inline-grid; place-items: center; width: 34px; height: 34px; border-radius: 10px; background: rgba(255, 255, 255, .14); color: #fff; }
+.admin-me .admin-me-bell:hover { background: rgba(255, 255, 255, .24); color: #fff; }
+.admin-me .nav-bell-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+.admin-me .bell-count { position: absolute; top: -5px; right: -5px; }
+
+.admin-console .admin-nav { display: flex; flex-direction: column; gap: 14px; margin: 0; padding: 0; border: 0; border-radius: 0; background: none; }
+.admin-console .admin-nav-group { gap: 4px; }
+.admin-console .admin-nav-label { padding: 0 10px 2px; font-size: .68rem; letter-spacing: .1em; color: #8592a6; }
+.admin-tools-label { padding: 0 10px 2px; font-size: .68rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: #8592a6; }
+.admin-console .admin-nav-tabs { flex-direction: column; flex-wrap: nowrap; gap: 2px; }
+.admin-console .admin-nav .tab {
+  display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 0; border-radius: 10px;
+  background: none; color: #33445e; font-size: .9rem; font-weight: 600; text-decoration: none; transition: background .15s, color .15s;
+}
+.admin-console .admin-nav .tab .i { width: 18px; height: 18px; flex-shrink: 0; color: #8592a6; transition: color .15s; }
+.admin-console .admin-nav .tab .count { margin-left: auto; min-width: 24px; padding: 1px 8px; border-radius: 999px; background: #eef2f8; color: #5e6d85; font-size: .75rem; font-weight: 700; text-align: center; }
+.admin-console .admin-nav .tab:hover { background: #f1f5fb; color: var(--ink); }
+.admin-console .admin-nav .tab:hover .i { color: var(--primary); }
+.admin-console .admin-nav .tab.active { background: #eaf2fc; color: #123B70; box-shadow: inset 3px 0 0 var(--primary); }
+.admin-console .admin-nav .tab.active .i { color: var(--primary); }
+.admin-console .admin-nav .tab.active .count { background: var(--primary); color: #fff; }
+
+.admin-tools { border-top: 1px solid #edf0f5; padding-top: 12px; }
+.admin-tools > summary { list-style: none; cursor: pointer; display: flex; align-items: center; justify-content: space-between; }
+.admin-tools > summary::-webkit-details-marker { display: none; }
+.admin-tools > summary::after { content: ""; width: 6px; height: 6px; margin-right: 4px; border: solid #8592a6; border-width: 0 2px 2px 0; transform: rotate(45deg); transition: transform .2s; }
+.admin-tools[open] > summary::after { transform: rotate(-135deg); }
+.admin-console .admin-userbar { display: flex; flex-direction: column; align-items: stretch; justify-content: flex-start; gap: 1px; margin: 6px 0 0; font-size: .86rem; }
+.admin-console .admin-userbar a, .admin-console .admin-userbar .link-btn { display: block; width: 100%; padding: 7px 10px; border-radius: 9px; color: #33445e; font-weight: 500; text-align: left; text-decoration: none; }
+.admin-console .admin-userbar a:hover, .admin-console .admin-userbar .link-btn:hover { background: #f1f5fb; color: var(--primary); }
+.admin-console .admin-userbar form { display: block; margin-top: 4px; padding-top: 4px; border-top: 1px solid #edf0f5; }
+.admin-console .admin-userbar .link-btn { color: #b42318; }
+
+.admin-main { min-width: 0; }
+.admin-console .admin-head { align-items: flex-end; margin-bottom: 22px; padding-bottom: 18px; border-bottom: 1px solid #e3e8f0; }
+.admin-title { display: flex; flex-direction: column; gap: 4px; }
+.admin-crumb { font-size: .72rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--primary); }
+.admin-console .admin-head h1 { font-size: clamp(1.7rem, 2.6vw, 2.2rem); letter-spacing: -.03em; line-height: 1.1; }
+.admin-console .admin-actions { flex-wrap: wrap; }
+
+.admin-console .table-wrap { border-color: #e3e8f0; border-radius: 16px; box-shadow: 0 14px 34px -26px rgba(16, 42, 76, .4); }
+.admin-console table { font-size: .9rem; }
+.admin-console th { background: #f7f9fc; color: #5e6d85; font-size: .72rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; padding-top: 12px; padding-bottom: 12px; }
+.admin-console td { padding-top: 14px; padding-bottom: 14px; border-bottom-color: #eef1f6; }
+.admin-console tbody tr { transition: background .15s; }
+.admin-console tbody tr:hover { background: #fafcff; }
+.admin-console tbody tr:last-child td { border-bottom: 0; }
+.admin-console .pipeline { align-items: center; gap: 6px; padding: 6px; border: 1px solid #e3e8f0; border-radius: 14px; background: #fff; width: fit-content; max-width: 100%; }
+.admin-console .pipeline > .muted { padding: 0 6px 0 8px; }
+.admin-console .pipeline .pill { padding: .45em 1em; border: 0; background: none; color: #33445e; font-weight: 600; }
+.admin-console .pipeline .pill:hover { background: #f1f5fb; }
+.admin-console .pipeline .pill.active { background: #123B70; color: #fff; }
+.admin-console .pipeline .pipeline-sort { padding-right: 10px; }
+
+@media (max-width: 1080px) {
+  .admin-shell { grid-template-columns: minmax(0, 1fr); gap: 18px; }
+  .admin-side, .admin-main { min-width: 0; }
+  .admin-console .admin-nav-group { width: auto; }
+  .admin-side { position: static; max-height: none; overflow: visible; padding: 10px; border-radius: 16px; }
+  .admin-console .admin-nav { flex-direction: row; gap: 4px; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
+  .admin-console .admin-nav::-webkit-scrollbar { display: none; }
+  .admin-console .admin-nav-group { flex: none; }
+  .admin-console .admin-nav-label { display: none; }
+  .admin-console .admin-nav-tabs { flex-direction: row; }
+  .admin-console .admin-nav .tab { white-space: nowrap; }
+  .admin-console .admin-nav .tab.active { box-shadow: inset 0 -2px 0 var(--primary); }
+  .admin-tools:not([open]) .admin-userbar { display: none; }
+  .admin-console .admin-userbar { flex-direction: row; flex-wrap: wrap; }
+  .admin-console .admin-userbar a, .admin-console .admin-userbar .link-btn { width: auto; }
+  .admin-console .admin-userbar form { border-top: 0; margin: 0; padding: 0; }
+}
+@media (max-width: 700px) {
+  /* Phones: every section in one row you swipe, the open one scrolled into view. */
+  .admin-console .admin-nav { flex-wrap: nowrap; -webkit-mask-image: linear-gradient(90deg, #000 88%, transparent); mask-image: linear-gradient(90deg, #000 88%, transparent); }
+  .admin-console .admin-nav-tabs { flex-wrap: nowrap; }
+}

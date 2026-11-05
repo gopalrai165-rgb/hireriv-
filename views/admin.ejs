@@ -1,21 +1,52 @@
 <%- include('partials/head') %>
 
-<section class="section admin">
-  <div class="container">
-    <div class="admin-userbar">
-      <span>Signed in as <b><%= admin.name %></b> · <%= roleLabel %></span>
-      <% if (agencyCan('requisitions.view')) { %><a class="small" href="/admin/workspace">Agency &amp; staffing</a><% } else if (agencyCan('invoices.draft')) { %><a class="small" href="/admin/invoice-drafts">Invoice drafts</a><% } %>
-      <%- include('partials/notification-bell', { as: 'team', bellQuery: '?as=team', bellClass: 'small' }) %>
-      <% if (isAdmin) { %><a class="small" href="/admin/notifications">Email delivery</a><% } %>
-      <% if (agencyCan('analytics.view')) { %><a class="small" href="/admin/analytics">Analytics</a><% } %>
-      <% if (agencyCan('subscriptions.view')) { %><a class="small" href="/admin/billing">Plans &amp; payments</a><% } %>
-      <% if (agencyCan('security.view')) { %><a class="small" href="/admin/security-events">Security &amp; privacy</a><% } else if (agencyCan('privacy.requests')) { %><a class="small" href="/admin/data-requests">Data requests</a><% } %>
-      <% if (agencyCan('trust.overview')) { %><a class="small" href="/admin/overview">Trust &amp; safety</a><% } %>
-      <a class="small" href="/admin/security">Sign-in security</a>
-      <form method="post" action="/admin/logout"><button class="link-btn small" type="submit">Sign out</button></form>
-    </div>
+<% const groups = typeof tabGroups !== 'undefined' ? tabGroups : [['', tabs]]; const labels = typeof tabLabels !== 'undefined' ? tabLabels : {}; %>
+<% const tabName = function (t) { return labels[t] || t.charAt(0).toUpperCase() + t.slice(1); }; %>
+<%# One icon per section, from the shared icon set. %>
+<% const tabIcons = { dashboard: 'i-home', reports: 'i-chart', applications: 'i-users', jobs: 'i-briefcase', talent: 'i-target', interviews: 'i-clock', clients: 'i-bank', placements: 'i-check', 'hire-requests': 'i-mail', contacts: 'i-phone', 'job-reports': 'i-shield', 'job-alerts': 'i-bell', newsletter: 'i-megaphone', blog: 'i-quote', templates: 'i-link', settings: 'i-gear', team: 'i-users', activity: 'i-spark' }; %>
+<section class="section admin admin-console">
+  <div class="container admin-shell">
+    <%# The console: sections and tools in a sidebar (a scrolling row on phones), the open section beside it. %>
+    <aside class="admin-side" aria-label="Admin menu">
+      <div class="admin-me">
+        <span class="admin-avatar" aria-hidden="true"><%= String(admin.name || '?').trim().charAt(0).toUpperCase() %></span>
+        <span class="admin-me-text"><b><%= admin.name %></b><span><%= roleLabel %></span></span>
+        <%- include('partials/notification-bell', { as: 'team', bellQuery: '?as=team', bellClass: 'admin-me-bell' }) %>
+      </div>
+      <nav class="admin-nav" aria-label="Admin sections">
+        <% groups.forEach(function (g) { %>
+          <div class="admin-nav-group">
+            <% if (g[0]) { %><span class="admin-nav-label"><%= g[0] %></span><% } %>
+            <div class="admin-nav-tabs">
+              <% g[1].forEach(function (t) { %>
+                <a class="tab<%= t === tab ? ' active' : '' %>" href="/admin?tab=<%= t %>"<%- t === tab ? ' aria-current="page"' : '' %>><svg class="i" aria-hidden="true"><use href="#<%= tabIcons[t] || 'i-arrow' %>"/></svg><span class="tab-name"><%= tabName(t) %></span><% if (counts[t] !== '' && counts[t] !== undefined) { %> <span class="count"><%= counts[t] %></span><% } %></a>
+              <% }) %>
+            </div>
+          </div>
+        <% }) %>
+      </nav>
+      <details class="admin-tools" open>
+        <summary class="admin-tools-label">Tools</summary>
+        <div class="admin-userbar">
+          <span class="sr-only">Signed in as <b><%= admin.name %></b> · <%= roleLabel %></span>
+          <% if (agencyCan('requisitions.view')) { %><a class="small" href="/admin/workspace">Agency &amp; staffing</a><% } else if (agencyCan('invoices.draft')) { %><a class="small" href="/admin/invoice-drafts">Invoice drafts</a><% } %>
+          <% if (isAdmin) { %><a class="small" href="/admin/notifications">Email delivery</a><% } %>
+          <% if (agencyCan('analytics.view')) { %><a class="small" href="/admin/analytics">Analytics</a><% } %>
+          <% if (agencyCan('subscriptions.view')) { %><a class="small" href="/admin/billing">Plans &amp; payments</a><% } %>
+          <% if (agencyCan('security.view')) { %><a class="small" href="/admin/security-events">Security &amp; privacy</a><% } else if (agencyCan('privacy.requests')) { %><a class="small" href="/admin/data-requests">Data requests</a><% } %>
+          <% if (agencyCan('trust.overview')) { %><a class="small" href="/admin/overview">Trust &amp; safety</a><% } %>
+          <a class="small" href="/admin/security">Sign-in security</a>
+          <form method="post" action="/admin/logout"><button class="link-btn small" type="submit">Sign out</button></form>
+        </div>
+      </details>
+    </aside>
+
+    <div class="admin-main">
     <div class="admin-head">
-      <h1>Admin</h1>
+      <div class="admin-title">
+        <span class="admin-crumb">Admin<% if (groups.length > 1) { const g = groups.find(function (x) { return x[1].includes(tab); }); if (g && g[0]) { %> · <%= g[0] %><% } } %></span>
+        <h1><%= tabName(tab) %></h1>
+      </div>
       <div class="admin-actions">
         <% if (tab === 'jobs') { %><a class="btn btn-primary btn-sm" href="/admin/jobs/new">+ Post a job</a><% } %>
         <% if (tab === 'applications') { %><a class="btn btn-primary btn-sm" href="/admin/applications/new">+ Add candidate</a><% } %>
@@ -24,19 +55,6 @@
       </div>
     </div>
     <% if (msg) { %><p class="notice" role="status"><%= msg %></p><% } %>
-    <% const groups = typeof tabGroups !== 'undefined' ? tabGroups : [['', tabs]]; const labels = typeof tabLabels !== 'undefined' ? tabLabels : {}; %>
-    <nav class="admin-nav" aria-label="Admin sections">
-      <% groups.forEach(function (g) { %>
-        <div class="admin-nav-group">
-          <% if (g[0]) { %><span class="admin-nav-label"><%= g[0] %></span><% } %>
-          <div class="admin-nav-tabs">
-            <% g[1].forEach(function (t) { %>
-              <a class="tab<%= t === tab ? ' active' : '' %>" href="/admin?tab=<%= t %>"<%- t === tab ? ' aria-current="page"' : '' %>><%= labels[t] || t.charAt(0).toUpperCase() + t.slice(1) %><% if (counts[t] !== '' && counts[t] !== undefined) { %> <span class="count"><%= counts[t] %></span><% } %></a>
-            <% }) %>
-          </div>
-        </div>
-      <% }) %>
-    </nav>
 
     <% const ownerQs = typeof owner !== 'undefined' && owner ? '&owner=' + owner : ''; %>
     <% if (tab === 'jobs' || tab === 'applications') { %>
@@ -256,6 +274,7 @@
       </div>
     <% } %>
     <%- include('partials/pager', { pager: typeof pager !== 'undefined' ? pager : null, pagerLabel: 'Table pages' }) %>
+    </div>
   </div>
 </section>
 

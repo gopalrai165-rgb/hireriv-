@@ -977,6 +977,13 @@ document.querySelectorAll('details.filter-cats').forEach((d) => {
   });
 });
 
+// Admin console: the Tools list in the sidebar starts folded on narrow screens.
+document.querySelectorAll('details.admin-tools').forEach((d) => {
+  if (window.matchMedia('(max-width: 1080px)').matches) d.open = false;
+});
+const adminTab = document.querySelector('.admin-console .admin-nav .tab.active');
+if (adminTab && window.matchMedia('(max-width: 700px)').matches) adminTab.scrollIntoView({ block: 'nearest', inline: 'center' });
+
 // Read-aloud and speaking instead of typing (voice.js) load only on pages that
 // offer them, and only in browsers that support them. Typing always works.
 if (document.querySelector('[data-voice-for], [data-read-aloud]') && ('speechSynthesis' in window || 'SpeechRecognition' in window || 'webkitSpeechRecognition' in window)) {
