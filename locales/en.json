@@ -55,6 +55,7 @@
     "contact": "Contact"
   },
   "footer": {
+    "parentCompany": "A Raigozen company",
     "newsTitle": "Get new roles & hiring insights",
     "newsText": "One short email a fortnight. No spam, unsubscribe anytime.",
     "newsEmail": "Email address",
