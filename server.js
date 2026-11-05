@@ -516,6 +516,8 @@ app.use((req, res, next) => center.locals(req, res, next));
 // Lets the header show "My account" and the page script keep saved jobs in the account.
 app.use((req, res, next) => {
   res.locals.candidateSignedIn = /(?:^|;\s*)hr_cand=/.test(req.headers.cookie || '') && Boolean(candidateAccounts.currentEmail(req));
+  // And the employer's header (Dashboard and their bell in place of Login).
+  res.locals.employerSignedIn = /(?:^|;\s*)hr_emp=/.test(req.headers.cookie || '') && Boolean(clients.currentEmployer(req));
   next();
 });
 // Behind a reverse proxy (Nginx, Render, etc.) set TRUST_PROXY=1 so req.ip is the visitor, not the proxy.

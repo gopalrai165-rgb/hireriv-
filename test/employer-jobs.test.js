@@ -93,6 +93,18 @@ test('signing up again with the same email gives the same reply and a heads-up e
   await srv.waitForEmail((m) => m.includes('To: meera@acmefoods.in') && m.includes('already have a'));
 });
 
+test('a signed-in employer gets the employer header: Dashboard and their bell, no Login, Register or Saved jobs', async () => {
+  const home = await (await srv.request('/', { cookie: meera })).text();
+  const header = home.slice(home.indexOf('<header'), home.indexOf('</header>'));
+  assert.match(header, /<a href="\/employer" class="nav-register">Dashboard<\/a>/);
+  assert.match(header, /href="\/notifications\?as=employer"/);
+  assert.match(header, /href="\/post-a-job"/);
+  assert.match(header, /href="\/pricing"/);
+  assert.doesNotMatch(header, /class="nav-login"|href="\/account\/register"|href="\/employers"|class="nav-saved/);
+  const visitor = await (await srv.request('/')).text();
+  assert.match(visitor.slice(visitor.indexOf('<header'), visitor.indexOf('</header>')), /class="nav-login"[\s\S]*href="\/account\/register"/);
+});
+
 test('jobs from an employer stay hidden until the company and the job are approved', async () => {
   assert.equal((await srv.request('/post-a-job', { cookie: meera })).headers.get('location'), '/employer/jobs/new');
   // A company that signed up itself needs a verified mobile before sending jobs for review.
