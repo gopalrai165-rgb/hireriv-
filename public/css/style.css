@@ -565,6 +565,10 @@ img { max-width: 100%; display: block; }
   .filter-search { grid-column: 1 / -1; border-bottom: 1px solid var(--line); }
   .job-filters select { border: 1px solid var(--line); border-radius: var(--radius-sm); }
 }
+/* Find Jobs: the Categories and More filters panels open over the "All work" pills
+   and the results instead of being cut off at the bottom of the search area. */
+.page-hero.page-hero-search { overflow-x: clip; overflow-y: visible; z-index: 2; }
+.page-hero-search .job-filters { z-index: 3; }
 /* Phones: the job search sits near the top and the first jobs show on the first screen. */
 @media (max-width: 640px) {
   .page-hero.page-hero-search { padding: 18px 0 22px; }
