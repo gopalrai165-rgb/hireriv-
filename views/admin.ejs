@@ -31,7 +31,7 @@
           <% if (g[0]) { %><span class="admin-nav-label"><%= g[0] %></span><% } %>
           <div class="admin-nav-tabs">
             <% g[1].forEach(function (t) { %>
-              <a class="tab<%= t === tab ? ' active' : '' %>" href="/admin?tab=<%= t %>"<%= t === tab ? ' aria-current="page"' : '' %>><%= labels[t] || t.charAt(0).toUpperCase() + t.slice(1) %><% if (counts[t] !== '' && counts[t] !== undefined) { %> <span class="count"><%= counts[t] %></span><% } %></a>
+              <a class="tab<%= t === tab ? ' active' : '' %>" href="/admin?tab=<%= t %>"<%- t === tab ? ' aria-current="page"' : '' %>><%= labels[t] || t.charAt(0).toUpperCase() + t.slice(1) %><% if (counts[t] !== '' && counts[t] !== undefined) { %> <span class="count"><%= counts[t] %></span><% } %></a>
             <% }) %>
           </div>
         </div>
