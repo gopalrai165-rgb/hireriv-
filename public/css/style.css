@@ -139,7 +139,7 @@ img { max-width: 100%; display: block; }
 /* Eyebrows: colourful pills with a dot. */
 .eyebrow {
   display: inline-flex; align-items: center; gap: .5em; width: fit-content; font-size: .76rem; font-weight: 800; letter-spacing: .1em;
-  text-transform: uppercase; color: var(--violet); background: var(--violet-50);
+  text-transform: uppercase; color: var(--primary-600); background: var(--violet-50);
   padding: .45em 1em; border-radius: 999px; margin-bottom: 18px;
 }
 .eyebrow::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; box-shadow: 0 0 0 3px color-mix(in srgb, currentColor 20%, transparent); }
@@ -238,8 +238,9 @@ img { max-width: 100%; display: block; }
   border-radius: 999px; padding: 7px 7px 7px 22px; box-shadow: var(--shadow-lg); max-width: 680px;
 }
 .hero-search .i { color: var(--muted); }
-.hero-search input { flex: 1; min-width: 0; border: 0; outline: 0; font: inherit; padding: .6em 0; background: transparent; color: var(--ink); }
-.hero-search select { flex: 0 1 140px; min-width: 0; border: 0; border-left: 1px solid var(--line); outline: 0; font: inherit; padding: .6em .4em .6em .8em; background: transparent; color: var(--ink); cursor: pointer; }
+.hero-search input:focus-visible, .hero-search select:focus-visible, .newsletter-form input:focus-visible { outline: 3px solid var(--action); outline-offset: 2px; border-radius: 6px; }
+.hero-search input { flex: 1; min-width: 0; border: 0; font: inherit; padding: .6em 0; background: transparent; color: var(--ink); }
+.hero-search select { flex: 0 1 140px; min-width: 0; border: 0; border-left: 1px solid var(--line); font: inherit; padding: .6em .4em .6em .8em; background: transparent; color: var(--ink); cursor: pointer; }
 .hero-popular { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 16px; color: var(--muted); }
 .hero-popular a { color: var(--ink); font-weight: 600; padding: .25em .85em; border-radius: 999px; background: rgba(255, 255, 255, .8); border: 1px solid var(--line); transition: border-color .2s, color .2s, transform .2s; }
 .hero-popular a:hover { color: var(--primary); border-color: var(--primary); transform: translateY(-2px); }
@@ -312,9 +313,9 @@ img { max-width: 100%; display: block; }
 .stat:nth-child(3) { background: var(--coral-50); }
 .stat:nth-child(4) { background: var(--sun-50); }
 .stat b { display: block; font-family: var(--font-display); font-size: clamp(2rem, 4vw, 2.9rem); font-weight: 800; letter-spacing: -0.03em; line-height: 1.1; color: var(--primary-600); }
-.stat:nth-child(2) b { color: var(--violet); }
+.stat:nth-child(2) b { color: var(--primary); }
 .stat:nth-child(3) b { color: var(--accent-600); }
-.stat:nth-child(4) b { color: #c47a00; }
+.stat:nth-child(4) b { color: #9a5f00; }
 .stat > span { color: var(--text); font-size: .92rem; font-weight: 600; }
 @media (max-width: 720px) { .stats-grid { grid-template-columns: repeat(2, 1fr); padding: 12px; gap: 10px; } }
 .section + .stats { margin-top: -40px; }
@@ -389,7 +390,7 @@ img { max-width: 100%; display: block; }
 }
 .service-card:hover .service-icon { background: var(--c); color: #fff; transform: rotate(-8deg) scale(1.06); }
 .service-icon .i { width: 25px; height: 25px; }
-.service-link .card-link { color: var(--c); }
+.service-link .card-link { color: var(--primary); }
 /* Cards with a photo across the top. */
 .card-photo { height: 180px; margin: -30px -30px 0; overflow: hidden; }
 .card-photo img { width: 100%; height: 100%; object-fit: cover; transition: transform 1s ease; }
@@ -429,7 +430,7 @@ img { max-width: 100%; display: block; }
 .chips-lg .chip { font-size: .92rem; padding: .5em 1.05em; background: #fff; box-shadow: 0 4px 10px -8px rgba(16, 42, 76, .4); }
 .tag { display: inline-block; padding: .28em .8em; border-radius: 999px; font-size: .78rem; font-weight: 700; }
 .tag-remote { background: #e7efff; color: #2352c7; }
-.tag-hybrid { background: #fff1e6; color: #b85410; }
+.tag-hybrid { background: #fff1e6; color: #a34808; }
 .tag-on-site { background: var(--primary-50); color: var(--primary-600); }
 .tag-field-work { background: #dcfce7; color: #15803d; }
 .tag-client-site { background: #f3e8ff; color: #7e22ce; }
@@ -740,7 +741,7 @@ a.contact-card:hover .service-icon { background: var(--c); color: #fff; }
 .newsletter h2 { font-size: 1.7rem; margin-bottom: 4px; }
 .newsletter p { margin: 0; }
 .newsletter-form { display: flex; gap: 8px; background: #fff; padding: 6px; border-radius: 999px; border: 1px solid var(--line); flex: 0 1 470px; box-shadow: var(--shadow); }
-.newsletter-form input { flex: 1; min-width: 0; border: 0; outline: 0; font: inherit; padding: 0 18px; background: transparent; }
+.newsletter-form input { flex: 1; min-width: 0; border: 0; font: inherit; padding: 0 18px; background: transparent; }
 @media (max-width: 520px) {
   .newsletter-form { flex-direction: column; border-radius: var(--radius); flex-basis: 100%; }
   .newsletter-form input { padding: 12px 14px; }
@@ -820,7 +821,7 @@ a.contact-card:hover .service-icon { background: var(--c); color: #fff; }
 .pipeline .pill.active { border-color: currentColor; }
 .pill b { opacity: .7; margin-left: 4px; }
 .st-new { background: #e7efff; color: #2352c7; }
-.st-screening { background: #fff1e6; color: #b85410; }
+.st-screening { background: #fff1e6; color: #a34808; }
 .st-interview { background: #f3e8ff; color: #7e22ce; }
 .st-offered { background: var(--primary-50); color: var(--primary-600); }
 .st-hired { background: #dcfce7; color: #15803d; }
@@ -1916,7 +1917,7 @@ input[type="checkbox"], input[type="radio"] { min-width: 20px; min-height: 20px;
 .hr-contact p:last-child { margin: 8px 0 0; }
 .hr-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .hr-actions .btn { flex: 1 1 140px; justify-content: center; }
-.btn-whatsapp { background: #1f8f4e; color: #fff; }
+.btn-whatsapp { background: #1a7f45; color: #fff; }
 .btn-whatsapp:hover { color: #fff; background: #17783f; }
 
 /* Sign in: email or mobile, and codes. */
@@ -2728,8 +2729,8 @@ td > a:first-child:not(.btn) { display: inline-block; padding-block: 6px; min-wi
 
 :is(.admin-console, .portal) .admin-nav { display: flex; flex-direction: column; gap: 14px; margin: 0; padding: 0; border: 0; border-radius: 0; background: none; }
 :is(.admin-console, .portal) .admin-nav-group { gap: 4px; }
-:is(.admin-console, .portal) .admin-nav-label { padding: 0 10px 2px; font-size: .68rem; letter-spacing: .1em; color: #8592a6; }
-.admin-tools-label { padding: 0 10px 2px; font-size: .68rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: #8592a6; }
+:is(.admin-console, .portal) .admin-nav-label { padding: 0 10px 2px; font-size: .68rem; letter-spacing: .1em; color: var(--muted); }
+.admin-tools-label { padding: 0 10px 2px; font-size: .68rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
 :is(.admin-console, .portal) .admin-nav-tabs { flex-direction: column; flex-wrap: nowrap; gap: 2px; }
 :is(.admin-console, .portal) .admin-nav .tab {
   display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 0; border-radius: 10px;

@@ -58,18 +58,31 @@ This page lists what is in place, what the automated tests check, and the manual
 
 These catch only what a machine can see. They are not a conformance test.
 
-## 3. Manual checks still to do (not done yet)
+## 3. Measured in a browser (Step 193, 6 November 2026)
+
+Measured with headless Chrome on 39 pages across public, job seeker, employer and team (the script is not part of the app). A person still needs to try the site with real assistive technology: these numbers don't replace that.
+
+| Check | Result |
+| --- | --- |
+| Contrast of all visible text, including status pills (4.5:1, large text 3:1) | 9 failures found and fixed: section labels, service card links, WhatsApp buttons, the Paused pill, sidebar labels. 0 now |
+| Reflow at 320px wide (the same as 400% zoom at 1280px) | No sideways scrolling on any page |
+| Keyboard: Tab through the page, is the focus visible and not covered | Search boxes on the home page had no ring and now do. 0 problems now (the first 18 stops of each page) |
+| Keyboard traps | None found |
+| JavaScript errors | None |
+
+`test/accessibility-portals.test.js` keeps employer and team pages to the same automated rules as public pages, and keeps the fixed colours readable.
+
+## 3a. Manual checks still to do (a person, not done yet)
 
 Record the date, the person, the browser and the assistive technology for each.
 
 - [ ] Keyboard only: find a job, filter, save it, apply (with and without a resume), sign in, sign out. Check that focus is never lost or hidden.
 - [ ] NVDA with Firefox on Windows, and TalkBack with Chrome on Android, Check that errors are announced.
 - [ ] VoiceOver on iPhone (Safari): the apply form, the check step and the error summary.
-- [ ] 200% browser zoom and 400% reflow at 1280px. Check that nothing is cut off and nothing scrolls sideways except tables.
+- [ ] 200% browser zoom on a real screen. (400% reflow was measured: see section 3.)
 - [ ] Windows high contrast mode on the home page, jobs, the job page and the apply form.
-- [ ] Contrast of every status pill and chip, measured with a contrast checker.
 - [ ] Speech input with Chrome on Android, and read-aloud on the job page.
-- [ ] Employer workspace and Admin pages: these were not reviewed in this step and are English only.
+- [ ] Employer workspace and Admin pages with a screen reader. (Automated rules and browser measurements cover them now.)
 
 ## 4. Known gaps
 

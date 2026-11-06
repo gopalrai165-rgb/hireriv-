@@ -808,3 +808,9 @@ Suggested order: 2 → 1 → 3 → 4, which makes Hireriv usable for skilled and
 - **Built.** Daily counts per integration (`integration-usage`), shown on the owner's Integrations page with the existing column chart and its table view, and as 30-day figures on the team's page. See docs/API.md section 5b.
 - **Tests.** `test/integration-usage.test.js`.
 
+## Step 193: Accessibility measured on every role
+
+- **Audit first.** The automated rules covered public and candidate pages only, and contrast, reflow and keyboard focus were on the manual list. A browser can measure those, so they were measured on 39 pages. Results and what still needs a person are in docs/ACCESSIBILITY.md sections 3 and 3a.
+- **Fixed.** 9 contrast failures and the missing focus ring on the home search and newsletter boxes.
+- **Tests.** `test/a11y-rules.js` (shared rules), `test/accessibility-portals.test.js`.
+

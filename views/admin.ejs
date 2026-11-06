@@ -208,7 +208,7 @@
                     <details class="share-client"><summary class="small"><%= r.shared ? 'Edit shared note' : '+ Share with client' %></summary>
                       <form class="form" method="post" action="/admin/applications/<%= r.id %>/share">
                         <select name="employerId" aria-label="Client"><% clientOptions.forEach(function (c) { %><option value="<%= c.id %>"<%= c.id === (r.shared ? r.shared.employerId : jobClient[r.jobId]) ? ' selected' : '' %>><%= c.company %></option><% }) %></select>
-                        <textarea name="summary" rows="2" maxlength="1000" placeholder="Why this candidate fits (the client sees this)"><%= r.shared ? r.shared.summary : '' %></textarea>
+                        <textarea name="summary" aria-label="Why this candidate fits" rows="2" maxlength="1000" placeholder="Why this candidate fits (the client sees this)"><%= r.shared ? r.shared.summary : '' %></textarea>
                         <button class="btn btn-outline btn-sm"><%= r.shared ? 'Save' : 'Share' %></button>
                       </form>
                     </details>
