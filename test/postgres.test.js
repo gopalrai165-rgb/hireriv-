@@ -109,7 +109,9 @@ describe('with a Postgres database', { skip: DB_URL ? false : 'set TEST_DATABASE
     db.on('connect', (c) => c.query(`SET search_path TO "${schema}"`));
     [srv, plain] = await Promise.all([startServer({ DATABASE_URL: DB_URL, PG_SCHEMA: schema }, seed), startServer({}, seed)]);
     admin = await srv.adminLogin();
-    await until(async () => (await db.query("SELECT to_regclass('jobs') AS t")).rows[0].t && (await q('SELECT count(*)::int AS n FROM jobs'))[0].n === seedJobs.length);
+    // The server deletes sample jobs when it starts (Step 115), so they never reach Postgres.
+    const kept = seedJobs.filter((j) => !j.sample).length;
+    await until(async () => (await db.query("SELECT to_regclass('jobs') AS t")).rows[0].t && (await q('SELECT count(*)::int AS n FROM jobs'))[0].n === kept);
   });
   after(async () => {
     await Promise.all([srv && srv.stop(), plain && plain.stop()]);

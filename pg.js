@@ -256,10 +256,12 @@ function create(opts) {
   const { Pool } = require('pg');
   const log = opts.log || (() => {});
   const pool = opts.pool || new Pool({ connectionString: opts.url, max: Number(process.env.PG_POOL_MAX) || 5, connectionTimeoutMillis: 5000 });
-  if (opts.schema) {
-    const ident = `"${String(opts.schema).replace(/"/g, '""')}"`;
-    pool.on('connect', (client) => client.query(`CREATE SCHEMA IF NOT EXISTS ${ident}; SET search_path TO ${ident}`).catch(() => {}));
-  }
+  // Each new connection only switches to the schema. Creating it here raced:
+  // connections opening together collided on CREATE SCHEMA, the error was
+  // swallowed and that connection stayed on "public" without the tables.
+  // The schema is created once, in start(), before the migrations.
+  const ident = opts.schema ? `"${String(opts.schema).replace(/"/g, '""')}"` : null;
+  if (ident) pool.on('connect', (client) => client.query(`SET search_path TO ${ident}`).catch(() => {}));
   // Errors on idle clients (e.g. the database restarting) must not crash the app.
   pool.on('error', (err) => log(`Postgres connection error: ${err.message}`));
 
@@ -448,6 +450,7 @@ function create(opts) {
   return {
     pool,
     async start() {
+      if (ident) await pool.query(`CREATE SCHEMA IF NOT EXISTS ${ident}`);
       await migrate(pool, { log });
       await sync();
       return ready;
