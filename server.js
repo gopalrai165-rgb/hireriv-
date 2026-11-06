@@ -3316,6 +3316,28 @@ app.get('/admin/applications/:id', adminAuth, (req, res, next) => {
     canMessage: agencyRoles.can(req.admin, 'candidates.message'), msg: String(req.query.msg || ''),
   });
 });
+// Answers to the job's questions for someone who didn't fill in the form: they
+// applied on WhatsApp or were added by hand. Marked as recorded by the team, and
+// never over what a candidate answered themselves.
+app.post('/admin/applications/:id/answers', adminAuth, limit('team-messages', 60), sameOrigin, (req, res, next) => {
+  const t = teamApplication(req);
+  if (!t) return next();
+  const { a, job } = t;
+  if (!agencyRoles.can(req.admin, 'candidates.message')) return res.status(403).render('thanks', { title: 'Not part of your role', page: '', ok: false, message: 'Your role does not include this.' });
+  const back = (m) => res.redirect(303, `/admin/applications/${a.id}?msg=${encodeURIComponent(m)}`);
+  if (t.employerRuns) return back('Not saved: this company runs its own hiring for this job.');
+  if (a.withdrawnAt) return back('Not saved: the candidate withdrew this application.');
+  if (!screening.hasQuestions(job)) return back('Not saved: this job has no questions.');
+  if (screening.answersOf(a).length && !a.screeningRecordedBy) return back('Not saved: the candidate answered these themselves.');
+  const asked = screening.answersFrom(job, req.body);
+  if (asked.errors.length) return back(`Not saved: ${asked.errors[0]}.`);
+  a.screening = asked.answers;
+  a.screeningRecordedBy = { by: req.admin.name, userId: req.admin.id, at: new Date().toISOString() };
+  writeSubmissions('applications', t.list);
+  team.log(req.admin, "Recorded answers to a job's questions", `${a.name} (${a.jobTitle})`);
+  back('Answers saved.');
+});
+
 app.post('/admin/applications/:id/messages', adminAuth, limit('team-messages', 60), sameOrigin, (req, res, next) => {
   const t = teamApplication(req);
   if (!t) return next();

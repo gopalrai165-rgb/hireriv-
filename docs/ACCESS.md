@@ -449,6 +449,7 @@ Total: 727 routes.
 | POST | `/admin/message-templates` | team | Same roles; same-origin, rate-limited; same rules as the company list |
 | POST | `/admin/message-templates/:id` | team | Same; only the team's replies |
 | POST | `/admin/message-templates/:id/delete` | team | Same; only the team's replies |
+| POST | `/admin/applications/:id/answers` | team | Team roles that write to candidates (candidates.message); same-origin, rate-limited; jobs the team runs; never over a candidate's own answers; marked with who recorded them; the log leaves the answers out |
 | POST | `/employer/applicants/bulk` | employer | Same-origin, rate-limited; up to 100 ticked applicants moved to one stage; each checked as a single move (this company's job, applicants.manage, an allowed move), the rest skipped |
 | POST | `/employer/applicants/:id/interview-options/cancel` | employer | Company members who may manage interviews for that job (interviews.manage); withdraws the times offered |
 | GET | `/salary-calculator` | public | Take-home pay from a salary (GET form, nothing stored; results not indexed) |

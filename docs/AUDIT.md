@@ -899,3 +899,11 @@ Suggested order: 2 → 1 → 3 → 4, which makes Hireriv usable for skilled and
 - **Rules.** Replies asking for money, codes or passwords can't be saved, and what is sent is checked again. For the team, {company} is always Hireriv, because a client's name may be confidential. No company sees another's list or the team's. Viewers and roles that don't write to candidates can't use the pages. Adding, changing and deleting are recorded.
 - **Tests.** `test/saved-replies.test.js`.
 
+## Step 205: Recording answers for people who didn't fill in the form
+
+- **The gap.** Someone who applies on WhatsApp answers a job's questions in the chat (Step 200), and people added by hand are asked on the phone. The team had nowhere to put those answers, so these candidates never counted in the needed-answers filter or the reports.
+- **Built.** On the team's application page, a "Record their answers" form with the job's questions when nobody has answered them. They then count like any others. `/admin/applications/:id/answers`, `views/partials/record-answers.ejs`.
+- **Rules.** The page says who recorded them and when. What a candidate answered themselves can't be changed. Answers the team recorded can be corrected. All the questions are needed, because a part-filled set could wrongly read as having the needed answers. Only roles that write to candidates, and only on jobs the team runs. The answers stay on the application, so they are in the candidate's data download, and the activity log leaves the answers out.
+- **Considered and left out.** Messages in API v1. Conversations stay on the site, where they can be reported and the checks for money, codes and passwords apply. API v1 already gives screening answers.
+- **Tests.** `test/recorded-answers.test.js`.
+
