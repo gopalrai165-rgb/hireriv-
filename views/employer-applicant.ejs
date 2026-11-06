@@ -90,6 +90,31 @@
         </ul>
       </section>
 
+      <% if (v.otherJobs && (v.otherJobs.jobs.length || v.otherJobs.invited.length)) { const ox = v.otherJobs; %>
+        <section class="dash-card dash-wide" id="other-jobs" aria-labelledby="other-jobs-h">
+          <div class="dash-head"><h2 id="other-jobs-h">Another job for them?</h2></div>
+          <% if (ox.jobs.length && !ox.reachable) { %>
+            <p class="small muted">There is no email address for them, so they can't be invited here. Call or WhatsApp them a job link instead:</p>
+            <ul class="small"><% ox.jobs.forEach(function (j) { %><li><a href="<%= j.path %>"><%= j.title %></a> · <%= j.location %></li><% }) %></ul>
+          <% } else if (ox.jobs.length && !ox.left) { %>
+            <p class="small muted">Your company has sent today's invitations. You can send more tomorrow.</p>
+          <% } else if (ox.jobs.length) { %>
+            <p class="small muted">Invite <%= String(v.name).split(' ')[0] %> to apply for another of your open jobs. They decide.</p>
+            <form class="form inline-form" method="post" action="/employer/applicants/<%= v.id %>/invite">
+              <label>Job
+                <select name="jobId" required><% ox.jobs.forEach(function (j) { %><option value="<%= j.id %>"><%= j.title %> · <%= j.location %></option><% }) %></select>
+              </label>
+              <button class="btn btn-outline btn-sm" type="submit">Invite to apply</button>
+            </form>
+            <p class="small muted">They get an email and a notice in their account with the job. Their application for <%= v.jobTitle %> stays as it is, and nothing is applied for them.</p>
+          <% } %>
+          <% if (ox.invited.length) { %>
+            <h3 class="dash-sub">Invited</h3>
+            <ul class="activity"><% ox.invited.forEach(function (i) { %><li><span class="activity-row"><span class="pill <%= i.applied ? 'st-new' : '' %>"><%= i.applied ? 'Applied' : 'Invited' %></span><span class="activity-text"><%= i.title %></span><span class="muted small"><%= formatDate(i.at) %></span></span></li><% }) %></ul>
+          <% } %>
+        </section>
+      <% } %>
+
       <section class="dash-card dash-wide" id="interviews">
         <div class="dash-head"><h2>Interviews</h2><% if (can('interviews.manage', job) && !v.withdrawn && !['Hired', 'Rejected'].includes(v.status)) { %><a class="btn btn-outline btn-sm" href="/employer/applicants/<%= v.id %>/interview">Schedule an interview</a><% } %></div>
         <% if (!v.interviews.length) { %><p class="muted dash-empty">None yet.</p><% } %>

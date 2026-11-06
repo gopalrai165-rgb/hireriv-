@@ -253,6 +253,19 @@ function create(deps) {
       rows: [], link: `${baseUrl}/account`, label: 'See your application', why: 'your job applications',
     };
   };
+  // An employer invites someone who applied for one job to apply for another.
+  NOTICES['applicant-job-invite'] = (refs) => {
+    const a = appById(refs.applicationId);
+    const job = jobById(refs.jobId);
+    if (!a || a.withdrawnAt || !candidate(a) || !job || job.status !== 'open') return null;
+    const mail = String(a.email).toLowerCase();
+    if (readSubmissions('applications').some((x) => x.jobId === job.id && String(x.email || '').toLowerCase() === mail)) return null;
+    return {
+      who: { name: a.name, email: a.email, kind: 'candidate' }, subject: `Invitation to apply: ${job.title} at ${job.company}`, heading: `${job.company} would like you to apply`,
+      intro: `after your application for ${a.jobTitle}, ${job.company} thinks you may suit another of their jobs and invites you to apply. You don't have to: your application for ${a.jobTitle} stays as it is either way. Applying is free: never pay anyone for a job.`,
+      rows: [['Job', job.title], ['Location', `${job.location} (${job.mode})`], ['Type', job.type], ['Salary', job.salary || '']], link: `${baseUrl}${jobPath(job)}?utm_source=invite`, label: 'View the job', why: 'invitations to apply',
+    };
+  };
   NOTICES['message-to-candidate'] = (refs) => {
     const a = appById(refs.applicationId);
     if (!a || a.withdrawnAt || !candidate(a)) return null;
@@ -659,6 +672,14 @@ function create(deps) {
       email: { template: 'notice', refs: { kind: 'added-by-employer', applicationId: a.id } },
     });
   }
+  function applicantInvite(a, job) {
+    if (!a || a.withdrawnAt || !candidate(a) || !job) return null;
+    return emit({
+      key: `applicant-invite:${job.id}:${a.id}`, type: 'job-invite', to: [candidate(a)],
+      inApp: { title: `${job.company} invites you to apply: ${job.title}`, body: `After your application for ${a.jobTitle}. Apply only if you'd like to; it's free.`, link: jobPath(job) },
+      email: { template: 'notice', refs: { kind: 'applicant-job-invite', applicationId: a.id, jobId: job.id } },
+    });
+  }
   function messageToCandidate(a, job, m) {
     if (!a || a.withdrawnAt) return null;
     return emit({
@@ -783,7 +804,7 @@ function create(deps) {
   return {
     applicationSubmitted, newApplication, stageMoved, statusEmail, interviewBooked, interviewOptionsOffered, interviewRescheduled, interviewCancelled, interviewReminder, interviewAnswered,
     feedbackDueScan, offerCreated, offerApproved, offerAnswered, offerAnsweredByCandidate, offerDeadlineScan, assigned, jobDecision, jobExpired, jobClosingSoonScan, jobSubmitted, jobAlerts, jobDigest, jobInvite, contactUnlocked, applicationViewed, staffingRequest, hireRequestAssigned, hireOverdueScan, leadSummaryScan, leadSummaryNow, analyticsWeeklyScan, analyticsWeeklyNow, exportRequested, exportDecided, agencyAssigned,
-    accountSecurity, scan, JOB_ALERTS_PER_DAY, messageToCandidate, messageToHiring, addedByEmployer,
+    accountSecurity, scan, JOB_ALERTS_PER_DAY, messageToCandidate, messageToHiring, addedByEmployer, applicantInvite,
   };
 }
 

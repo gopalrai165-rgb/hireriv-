@@ -1236,10 +1236,10 @@ function register(app, deps) {
       jobAlerts: subs('job-alerts').map((s) => (s.filters
         ? { savedSearch: s.name, filters: s.filters, alerts: s.alertEnabled !== false ? s.frequency || 'instant' : 'off', since: s.createdAt }
         : { category: s.category || 'Any', location: s.location || 'Any', confirmed: Boolean(s.confirmed), since: s.createdAt })),
-      invitationsFromEmployers: c ? readSubmissions('candidate-invites').filter((i) => i.candidateId === c.id).map((i) => {
+      invitationsFromEmployers: readSubmissions('candidate-invites').filter((i) => (c && i.candidateId === c.id) || (i.email && i.email === String(email).toLowerCase())).map((i) => {
         const job = getJobs().find((j) => j.id === i.jobId);
         return { at: i.createdAt, job: job ? job.title : 'A job that was removed', company: job ? job.company : '' };
-      }) : [],
+      }),
       employersWhoSavedYourProfile: c ? readSubmissions('candidate-saves').filter((s) => s.candidateId === c.id).map((s) => ({ at: s.createdAt, company: (readSubmissions('employers').find((e) => e.id === s.employerId) || {}).company || '' })) : [],
       employersWhoSawYourNumber: c ? readSubmissions('contact-unlocks').filter((u) => u.candidateId === c.id).map((u) => ({ at: u.createdAt, company: u.company || '' })) : [],
       newsletter: subs('newsletter').map((s) => ({ since: s.createdAt })),
@@ -1353,10 +1353,11 @@ function register(app, deps) {
     writeSubmissions('applications', keep);
     const c = candidateOf(email);
     if (c) for (const r of c.resumes) fs.unlink(path.join(uploadsDir, path.basename(r.file)), () => {});
+    // Invitations to the account, and those sent after one of their applications.
+    const invites = readSubmissions('candidate-invites');
+    const rest = invites.filter((i) => !(c && i.candidateId === c.id) && i.email !== email);
+    if (rest.length !== invites.length) writeSubmissions('candidate-invites', rest);
     if (c) {
-      const invites = readSubmissions('candidate-invites');
-      const rest = invites.filter((i) => i.candidateId !== c.id);
-      if (rest.length !== invites.length) writeSubmissions('candidate-invites', rest);
       const saves = readSubmissions('candidate-saves');
       if (saves.some((s) => s.candidateId === c.id)) writeSubmissions('candidate-saves', saves.filter((s) => s.candidateId !== c.id));
       // Unlocks stay counted against the company's month, without saying whose.

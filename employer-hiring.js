@@ -23,6 +23,7 @@ const { workOf } = require('./content');
 const multer = require('multer');
 const jobImport = require('./job-import');
 const jobParse = require('./job-parse');
+const { INVITES_PER_DAY } = require('./employer-discovery');
 
 // A company can have this many jobs live, paused or waiting for review.
 const MAX_ACTIVE_JOBS = 50;
@@ -37,7 +38,7 @@ const lockedByModeration = (job) => Boolean(job && job.moderation && job.moderat
 const LOCKED_MESSAGE = 'this listing was restricted by our moderators; use the link in our email to appeal';
 
 function register(app, deps) {
-  const { site, mailer, baseUrl, limit, sameOrigin, adminAuth, adminUrl, clients, readSubmissions, writeSubmissions, uploadsDir, downloadLinks, linkExpired, sendCsv, addApplicant } = deps;
+  const { site, mailer, baseUrl, limit, sameOrigin, adminAuth, adminUrl, clients, readSubmissions, writeSubmissions, saveSubmission, uploadsDir, downloadLinks, linkExpired, sendCsv, addApplicant } = deps;
   const { getJobs, saveJobs, parseJob, nextJobId, todayIst, publicJob, jobPath, sendJobAlerts, alertedNote, appStatuses, moveStage, interviewDesk, parseInterview, interviewModes, interviewDurations, formatIst, skillMatch, jobFormLocals } = deps;
   const { requireEmployer, requireEmployerApi, team, addressed } = clients;
   const { events } = deps;
@@ -394,6 +395,31 @@ function register(app, deps) {
     return v;
   }
 
+  // ---------- another job for an applicant ----------
+  // Someone who isn't right for one job may suit another of the company's open
+  // jobs. They're invited and decide for themselves: nothing is applied for
+  // them. One invitation per person and job, and invitations from the
+  // candidate search count toward the same INVITES_PER_DAY.
+  const lower = (s) => String(s || '').trim().toLowerCase();
+  const digits10 = (p) => String(p || '').replace(/\D/g, '').slice(-10);
+  const sameApplicant = (a) => (x) => (a.email && lower(x.email) === lower(a.email)) || (digits10(a.phone).length === 10 && digits10(x.phone) === digits10(a.phone));
+  const companyInvites = (employerId) => readSubmissions('candidate-invites').filter((i) => i.employerId === employerId);
+  const invitesLeft = (employerId) => Math.max(0, INVITES_PER_DAY - companyInvites(employerId).filter((i) => i.createdAt >= new Date(Date.now() - 864e5).toISOString()).length);
+  function inviteState(req, a, job) {
+    if (a.withdrawnAt || !can(req.member, 'applicants.contact', job)) return null;
+    const same = sameApplicant(a);
+    const applied = new Set(readSubmissions('applications').filter(same).map((x) => x.jobId));
+    const invited = companyInvites(req.employer.id).filter((i) => i.applicationId === a.id || (a.email && lower(i.email) === lower(a.email)));
+    const invitedIds = new Set(invited.map((i) => i.jobId));
+    const jobs = visibleJobs(req.member).filter((j) => j.id !== job.id && selfManaged(j) && j.status === 'open' && can(req.member, 'applicants.contact', j));
+    return {
+      jobs: jobs.filter((j) => !applied.has(j.id) && !invitedIds.has(j.id)).map((j) => ({ id: j.id, title: j.title, location: j.location, path: jobPath(j) })),
+      invited: invited.map((i) => { const j = getJobs().find((x) => x.id === i.jobId); return { jobId: i.jobId, title: j ? j.title : 'A job that was removed', at: i.createdAt, applied: applied.has(i.jobId) }; }),
+      reachable: Boolean(a.email),
+      left: invitesLeft(req.employer.id),
+    };
+  }
+
   // The list and its download follow the same filters.
   function filteredApplicants(req) {
     const { jobs, apps } = applicationsFor(req);
@@ -526,6 +552,7 @@ function register(app, deps) {
     // Replies are read once someone who may contact the applicant opens the page.
     if (can(req.member, 'applicants.contact', req.job) && messages.markRead(req.application, 'hiring')) writeSubmissions('applications', req.applications);
     const v = applicantView(req, req.application, req.job);
+    v.otherJobs = inviteState(req, req.application, req.job);
     // Opening someone's details is recorded.
     team.audit(req.employer.id, req.employerUser, 'applicant-viewed', `${req.application.name} for ${req.job.title}`);
     // The first time, the job seeker sees "Seen by the hiring team" and is told once.
@@ -569,6 +596,26 @@ function register(app, deps) {
     writeSubmissions('applications', req.applications);
     team.audit(req.employer.id, req.employerUser, 'answers-recorded', req.job.title);
     back('Answers saved.');
+  });
+
+  // Invite the applicant to apply for another of the company's open jobs.
+  app.post('/employer/applicants/:id/invite', requireEmployer, withApplicant('applicants.contact'), limit('candidate-invite', 60), sameOrigin, (req, res) => {
+    const a = req.application;
+    const back = (m) => res.redirect(303, `/employer/applicants/${a.id}?msg=${encodeURIComponent(m)}#other-jobs`);
+    const state = inviteState(req, a, req.job);
+    if (!state) return back('Not sent: the candidate withdrew this application.');
+    if (!state.reachable) return back('Not sent: there is no email address for them. Call or WhatsApp them the job link instead.');
+    const target = state.jobs.find((j) => j.id === String(req.body.jobId || ''));
+    if (!target) {
+      const was = state.invited.find((i) => i.jobId === req.body.jobId);
+      return back(was ? `You already invited them to apply for ${was.title}.` : 'Not sent: pick one of your open jobs they haven\'t applied for.');
+    }
+    if (!state.left) return back(`Not sent: your company can send up to ${INVITES_PER_DAY} invitations a day.`);
+    const job = getJobs().find((j) => j.id === target.id);
+    saveSubmission('candidate-invites', { applicationId: a.id, email: lower(a.email), employerId: req.employer.id, jobId: job.id, fromJobId: req.job.id, invitedBy: req.employerUser.id });
+    team.audit(req.employer.id, req.employerUser, 'applicant-invited', `${req.job.title} to ${job.title}`);
+    if (events && events.applicantInvite) events.applicantInvite(a, job);
+    back(`Invitation sent for ${job.title}. ${String(a.name).split(' ')[0]} decides whether to apply.`);
   });
 
   app.get('/employer/applicants/:id/resume', requireEmployer, withApplicant('applicants.contact'), (req, res, next) => {

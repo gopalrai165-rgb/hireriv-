@@ -914,3 +914,10 @@ Suggested order: 2 → 1 → 3 → 4, which makes Hireriv usable for skilled and
 - **Rules.** Only open jobs the person manages. They must tick that the person agreed to be added. With an email address, the person is told who added them, how to follow or withdraw it, and that applying is free. Someone who already applied for the job is never changed, so their own details stay. The applicant page says who added them and how. Answers are all or none, never over the candidate's own. The activity log records the job and channel, not the name. The resume goes through the same checks as on the apply form.
 - **Tests.** `test/employer-add-applicant.test.js`.
 
+## Step 207: Inviting an applicant to another job
+
+- **The gap.** Someone not right for one job often suits another of the same company's jobs. Invitations to apply only worked from the candidate search, for people who let employers find their profile, so a company couldn't point its own applicants to its other jobs.
+- **Built.** "Another job for them?" on an employer's applicant page lists the company's other open jobs the applicant hasn't applied for. "Invite to apply" sends an email and a notice in their account with the job. `/employer/applicants/:id/invite`.
+- **Rules.** They decide: nothing is applied for them, and the email says their first application stays as it is and that applying is free. Only people who may contact applicants on both jobs. Once per applicant and job; invitations from the candidate search and from here share the company's daily limit (30). Not after they withdrew. Someone who turned off "Invitation to apply" in their notification settings gets neither. Without an email address the page offers the job links to send by phone or WhatsApp. Invitations are in their data download and erased with their account. The activity log records the two jobs, not the name.
+- **Tests.** `test/applicant-invite.test.js`.
+
