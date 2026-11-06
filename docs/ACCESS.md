@@ -440,6 +440,7 @@ Total: 727 routes.
 | POST | `/companies/:id/follow` | public | Same-origin, rate-limited; signed-out visitors go to sign-in; a signed-in job seeker follows (or with action=unfollow stops following) a company with a public page: a saved search for its new jobs |
 | POST | `/account/offers/:appId/:offerId/:answer` | candidate | Same-origin, rate-limited; accept or decline an approved offer on the candidate's own application; the company is told |
 | POST | `/account/interviews/:appId/choose` | candidate | The signed-in job seeker's own application only; same-origin, rate-limited; books one of the times the employer offered, if still open, ahead and free |
+| GET | `/employer/applicants/compare` | employer | 2 to 4 applicants on jobs this person may see applicants for (applicants.view); answers and resumes follow the same role limits as each applicant's page; no contact details; each view is recorded |
 | GET | `/employer/applicants.csv` | employer | Signed link lasting a few minutes, rate-limited; only jobs and details this member may see on the Applicants page; contact details need applicants.contact on the job and are left out for people who withdrew; no notes, messages, offers or resume text; each download is in the company's activity log, without names |
 | GET | `/employer/message-templates` | employer | Owners, hiring managers and recruiters (templates.manage); this company's saved replies only |
 | POST | `/employer/message-templates` | employer | Same people; same-origin, rate-limited; refuses asking for money, codes or passwords; at most 30 |

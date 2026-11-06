@@ -121,7 +121,7 @@ const answerWords = (x) => (x.type === 'yesno' ? (x.answer === 'yes' ? 'Yes' : '
 function view(a, { showTyped = true } = {}) {
   return answersOf(a).map((x) => {
     const hidden = x.type !== 'yesno' && !showTyped;
-    return { text: x.text, type: x.type, answer: hidden ? null : answerWords(x), hidden, mustBe: x.mustBe || null, met: x.mustBe ? x.answer === x.mustBe : null };
+    return { id: x.id, text: x.text, type: x.type, answer: hidden ? null : answerWords(x), hidden, mustBe: x.mustBe || null, met: x.mustBe ? x.answer === x.mustBe : null };
   });
 }
 // One line for spreadsheets.

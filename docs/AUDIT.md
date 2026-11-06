@@ -950,3 +950,11 @@ Suggested order: 2 → 1 → 3 → 4, which makes Hireriv usable for skilled and
 - **Rules.** Only jobs the company runs itself, and only what this person's role lets them act on. Someone else approves an offer a person made, unless they own the company, so it's listed the same way. Feedback follows the same 14-day window as the reminder. Withdrawn applications don't count. The list only points: nobody is moved, rejected or messaged from it. Viewers don't see it.
 - **Tests.** `test/employer-todo.test.js`.
 
+## Step 212: Comparing applicants side by side
+
+- **The gap.** Choosing between people meant flipping between their pages and remembering the details.
+- **Built.** Tick 2 to 4 people on the Applicants list and press Compare: job, stage, date, skill match, experience, location, start date, skills, the answers to the job's questions (when they all applied for one job), interview scores and resumes in one table. `/employer/applicants/compare`, `views/employer-applicants-compare.ejs`.
+- **Rules.** It never ranks them or picks one, and says the person decides. It shows only what each applicant's own page would show this role, and leaves out phone and email. Each person counts as viewed: the activity log records it and the candidate sees "Seen by the hiring team", as with opening their page. On phones the table scrolls sideways with the labels kept in view.
+- **Left out.** Only people who can still be moved have a tick box, because it shares the bar for moving people.
+- **Tests.** `test/compare-applicants.test.js`.
+

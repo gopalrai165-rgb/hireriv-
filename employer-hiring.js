@@ -531,6 +531,39 @@ function register(app, deps) {
   }
 
   // The applicant from the URL, if this member may see them.
+  // Opening someone's details is recorded. The first time, the job seeker sees
+  // "Seen by the hiring team" and is told once.
+  function markSeen(req, a, job, list) {
+    team.audit(req.employer.id, req.employerUser, 'applicant-viewed', `${a.name} for ${job.title}`);
+    if (a.viewedAt) return;
+    a.viewedAt = now();
+    writeSubmissions('applications', list);
+    if (events && events.applicationViewed) events.applicationViewed(a, job);
+  }
+
+  // Two to four applicants side by side, for someone choosing between them. The
+  // page never ranks them or picks one. Contact details stay on each one's page.
+  app.get('/employer/applicants/compare', requireEmployer, (req, res) => {
+    const asked = [...new Set([].concat(req.query.ids || []).map(String))];
+    const back = (m) => res.redirect(303, `/employer/applicants?msg=${encodeURIComponent(m)}`);
+    if (asked.length < 2 || asked.length > 4) return back('Tick 2 to 4 applicants to compare them.');
+    const { jobs, apps } = applicationsFor(req);
+    const found = asked.map((id) => apps.find((a) => a.id === id)).filter(Boolean);
+    if (found.length !== asked.length) return back('Some of those applicants are not on your jobs.');
+    const list = readSubmissions('applications');
+    const people = found.map((a) => {
+      const job = jobs.get(a.jobId);
+      const v = applicantView(req, a, job);
+      const scores = (v.interviews || []).flatMap((iv) => iv.feedback || []).map((f) => Number(f.rating)).filter(Boolean);
+      markSeen(req, list.find((x) => x.id === a.id), job, list);
+      return { ...v, interviewScore: can(req.member, 'feedback.view', job) ? { count: scores.length, average: scores.length ? Math.round((scores.reduce((n, s) => n + s, 0) / scores.length) * 10) / 10 : null } : null };
+    });
+    // The same questions only line up when everyone applied for the same job.
+    const oneJob = new Set(found.map((a) => a.jobId)).size === 1 ? jobs.get(found[0].jobId) : null;
+    const questions = oneJob ? screening.questionsOf(oneJob) : [];
+    page(res, 'employer-applicants-compare', { title: 'Compare applicants', tab: 'applicants', people, questions, oneJob });
+  });
+
   const withApplicant = (action, { api = false } = {}) => (req, res, next) => {
     const list = readSubmissions('applications');
     const a = list.find((x) => x.id === req.params.id && !x.duplicateOf);
@@ -546,14 +579,7 @@ function register(app, deps) {
     if (can(req.member, 'applicants.contact', req.job) && messages.markRead(req.application, 'hiring')) writeSubmissions('applications', req.applications);
     const v = applicantView(req, req.application, req.job);
     v.otherJobs = inviteState(req, req.application, req.job);
-    // Opening someone's details is recorded.
-    team.audit(req.employer.id, req.employerUser, 'applicant-viewed', `${req.application.name} for ${req.job.title}`);
-    // The first time, the job seeker sees "Seen by the hiring team" and is told once.
-    if (!req.application.viewedAt) {
-      req.application.viewedAt = now();
-      writeSubmissions('applications', req.applications);
-      if (events && events.applicationViewed) events.applicationViewed(req.application, req.job);
-    }
+    markSeen(req, req.application, req.job, req.applications);
     const workers = team.membersOf(req.employer.id).filter((m) => can(m, 'applicants.manage', req.job)).map((m) => ({ userId: m.userId, name: (team.userById(m.userId) || {}).name || 'Unknown' }));
     page(res, 'employer-applicant', {
       title: `${v.name} · Applicant`, tab: 'applicants', v, job: req.job, ...savedRepliesFor(req, v), stages: ats.STAGES, label: ats.label, rejectReasons: rejectReasons.REASONS, workers, recommendations: RECOMMENDATIONS,

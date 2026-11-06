@@ -42,6 +42,7 @@
           <label class="bulk-stage"><span class="sr-only">Move to</span><select name="status" required data-reject-stage><option value="">Move selected to…</option><% statuses.forEach(function (s) { %><option value="<%= s %>"><%= s %></option><% }) %></select></label>
           <%- include('partials/reject-reason-field', { reasons: rejectReasons, compact: true }) %>
           <button class="btn btn-primary btn-sm" type="submit">Move</button>
+          <button class="btn btn-outline btn-sm" type="submit" formaction="/employer/applicants/compare" formmethod="get" formnovalidate data-no-confirm>Compare</button>
         </div>
       <% } %>
       <div class="table-wrap dash-card">

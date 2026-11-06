@@ -1,0 +1,37 @@
+<%- include('partials/head') %>
+
+<section class="section admin portal">
+  <div class="container">
+    <%- include('partials/employer-nav', { heading: 'Compare applicants', tab: 'applicants' }) %>
+    <p class="small"><a href="/employer/applicants">Back to applicants</a></p>
+    <p class="muted small">What they told you, side by side. A skill match is a guide for reading, never a reason to turn anyone away, and you decide who moves on.</p>
+
+    <div class="table-wrap dash-card compare-wrap">
+      <table class="compare-table">
+        <thead>
+          <tr><th scope="col"><span class="sr-only">Detail</span></th><% people.forEach(function (p) { %><th scope="col"><a href="/employer/applicants/<%= p.id %>"><%= p.name %></a></th><% }) %></tr>
+        </thead>
+        <tbody>
+          <tr><th scope="row">Job</th><% people.forEach(function (p) { %><td><%= p.jobTitle %></td><% }) %></tr>
+          <tr><th scope="row">Stage</th><% people.forEach(function (p) { %><td><span class="pill <%= stageClass(p.status) %>"><%= p.stageLabel %></span></td><% }) %></tr>
+          <tr><th scope="row">Applied</th><% people.forEach(function (p) { %><td><%= formatDate(p.appliedAt) %></td><% }) %></tr>
+          <tr><th scope="row">Skill match</th><% people.forEach(function (p) { %><td><% if (p.match && p.match.score !== null && p.match.score !== undefined) { %><%= p.match.score %>%<% } else { %><span class="muted">Not enough to say</span><% } %></td><% }) %></tr>
+          <tr><th scope="row">Experience</th><% people.forEach(function (p) { %><td><%= p.experience || '–' %></td><% }) %></tr>
+          <tr><th scope="row">Location</th><% people.forEach(function (p) { %><td><%= p.location || '–' %></td><% }) %></tr>
+          <tr><th scope="row">Can start</th><% people.forEach(function (p) { %><td><%= p.noticePeriod || '–' %></td><% }) %></tr>
+          <tr><th scope="row">Skills</th><% people.forEach(function (p) { %><td><%= p.skills || '–' %></td><% }) %></tr>
+          <% questions.forEach(function (q) { %>
+            <tr><th scope="row"><%= q.text %></th><% people.forEach(function (p) { const x = p.screening.find(function (s) { return s.id === q.id; }); %><td><% if (!x) { %><span class="muted">Not answered</span><% } else if (x.hidden) { %><span class="muted">Shown to the people working on this job</span><% } else { %><%= x.answer %><% } %></td><% }) %></tr>
+          <% }) %>
+          <% if (!oneJob) { %>
+            <tr><th scope="row">Needed answers</th><% people.forEach(function (p) { %><td><%= p.screeningLabel || '–' %></td><% }) %></tr>
+          <% } %>
+          <tr><th scope="row">Interview scores</th><% people.forEach(function (p) { %><td><% if (!p.interviewScore) { %><span class="muted">Not part of your role</span><% } else if (p.interviewScore.count) { %><%= p.interviewScore.average %>/5 (<%= p.interviewScore.count %> <%= p.interviewScore.count === 1 ? 'scorecard' : 'scorecards' %>)<% } else { %>–<% } %></td><% }) %></tr>
+          <tr><th scope="row">Resume</th><% people.forEach(function (p) { %><td><% if (p.hasResume) { %><a href="<%= signedLink('/employer/applicants/' + p.id + '/resume') %>">Download</a><% } else { %>–<% } %></td><% }) %></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<%- include('partials/foot') %>

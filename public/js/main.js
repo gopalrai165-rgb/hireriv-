@@ -353,6 +353,7 @@ document.querySelectorAll('select[data-reject-stage]').forEach((stage) => {
 // Admin: ask before destructive actions.
 document.querySelectorAll('form[data-confirm]').forEach((form) => {
   form.addEventListener('submit', (e) => {
+    if (e.submitter && e.submitter.hasAttribute('data-no-confirm')) return;
     if (!confirm(form.dataset.confirm)) e.preventDefault();
   });
 });
