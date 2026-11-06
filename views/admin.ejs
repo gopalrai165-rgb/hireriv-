@@ -171,6 +171,7 @@
                 <td><%= r.jobTitle %><% if (r.match) { %><br><%- include('partials/match-chip', { match: r.match }) %><% } %><% if (r.skills) { %><br><span class="muted small">Skills: <%= r.skills %></span><% } %><% const extra = (r.resumeSkills || []).filter(function (s) { return String(r.skills || '').toLowerCase().indexOf(s.toLowerCase()) === -1; }); %><% if (extra.length) { %><br><span class="muted small" title="Found in the resume but not typed on the form">Also in resume: <%= extra.join(', ') %></span><% } %></td>
                 <td><%= r.experience %><br><span class="muted"><%= r.location || '—' %> · notice <%= r.noticePeriod %></span>
                   <% if (r.message) { %><details><summary>Message</summary><%= r.message %></details><% } %>
+                  <% if (screening.answersOf(r).length) { %><details><summary>Answers<% if (screening.outcome(r)) { %>: <%= screening.outcomeLabel(r).toLowerCase() %><% } %></summary><%- include('partials/screening-answers', { items: screening.view(r) }) %></details><% } %>
                 </td>
                 <td><%= new Date(r.createdAt).toLocaleString('en-IN') %></td>
                 <td>

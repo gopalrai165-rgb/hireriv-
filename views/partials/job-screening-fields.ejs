@@ -1,0 +1,20 @@
+<%# Screening questions on the employer and team job forms (screening.js). %>
+<% const sq = job.screeningQuestions || []; %>
+<details class="span-2 more-details"<%= sq.length ? ' open' : '' %>>
+  <summary>Questions for applicants <span class="muted small">(optional, up to 5)</span></summary>
+  <p class="small muted">People answer these when they apply, so ask only what the work needs, such as "Do you have a two-wheeler licence?" or "Can you work night shifts?". You can name the answer the job needs: people applying don't see it, it only marks their application for you to read, and it never rejects anyone. Don't ask about age, family, religion, caste, gender or health, and never ask for money.</p>
+  <div class="screening-rows">
+    <% for (let i = 0; i < 5; i++) { const q = sq[i] || {}; %>
+      <fieldset class="pay-fields screening-row">
+        <legend>Question <%= i + 1 %></legend>
+        <label class="span-all">The question<input name="qText<%= i %>" maxlength="200" value="<%= q.text || '' %>"></label>
+        <label>Answer as
+          <select name="qType<%= i %>"><option value="yesno"<%= q.type !== 'text' ? ' selected' : '' %>>Yes or No</option><option value="text"<%= q.type === 'text' ? ' selected' : '' %>>A short answer</option></select>
+        </label>
+        <label>Answer the job needs
+          <select name="qMustBe<%= i %>"><option value="">Any answer</option><option value="yes"<%= q.mustBe === 'yes' ? ' selected' : '' %>>Yes</option><option value="no"<%= q.mustBe === 'no' ? ' selected' : '' %>>No</option></select>
+        </label>
+      </fieldset>
+    <% } %>
+  </div>
+</details>

@@ -1732,6 +1732,17 @@ form.inline { display: inline; }
 .list-row { border-top: 1px solid var(--line, #e5e7eb); padding: 12px 0; }
 .list-row:first-of-type { border-top: 0; }
 .list-row .row-actions { display: flex; flex-wrap: wrap; gap: 8px; white-space: normal; }
+.screening-set { display: grid; gap: 10px; margin: 16px 0; padding-top: 14px; border-top: 1px solid var(--line); }
+.screening-set h3, .screening-set > p { margin: 0; }
+.screening-q { margin: 0; }
+label.screening-q { display: flex; flex-direction: column; gap: 6px; }
+.screening-q legend, label.screening-q { font-size: .88rem; font-weight: 600; color: var(--ink); padding: 0; overflow-wrap: anywhere; }
+.screening-yn { display: flex; gap: 20px; flex-wrap: wrap; }
+.screening-rows { display: grid; gap: 12px; }
+@media (max-width: 560px) { .screening-row { grid-template-columns: minmax(0, 1fr); } }
+.screening-answers { display: grid; gap: 10px; margin: 0 0 8px; }
+.screening-answers dt { color: var(--muted); font-size: .92rem; overflow-wrap: anywhere; }
+.screening-answers dd { margin: 2px 0 0; font-weight: 600; overflow-wrap: anywhere; }
 .gov-note { margin: 16px 0; }
 .gov-note p { margin: 0 0 6px; }
 .gov-list { display: grid; gap: 12px; margin: 16px 0 0; padding: 0; list-style: none; }

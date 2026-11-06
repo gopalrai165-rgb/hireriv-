@@ -11,6 +11,7 @@
 // Jobs sent through the API are reviewed by Hireriv like any other.
 // Webhook payloads carry ids and states, not candidates' personal details.
 // Delivery is at least once: receivers dedupe on the event id.
+const screening = require('./screening');
 const crypto = require('crypto');
 const { safeRequest, checkUrl, resolveSafe } = require('./safe-fetch');
 const ats = require('./ats');
@@ -336,6 +337,9 @@ function create(deps) {
       history: (a.history || []).map((h) => ({ at: h.at, from: h.from, to: h.to })), allowedMoves: ats.allowedMoves(a), updatedAt: a.updatedAt || a.createdAt,
     };
     if (scopes.includes('applications:contact')) Object.assign(v, { email: a.email || '', phone: a.phone || '' });
+    // A typed answer can hold contact details, so it needs the same permission.
+    v.screening = screening.view(a, { showTyped: scopes.includes('applications:contact') }).map(({ text, type, answer, hidden, mustBe, met }) => ({ question: text, type, answer, hidden, mustBe, met }));
+    v.screeningOutcome = screening.outcome(a);
     return v;
   }
   const companyJobs = (req) => getJobs().filter((j) => j.employerId === req.employer.id && !j.sample);

@@ -837,3 +837,13 @@ Suggested order: 2 → 1 → 3 → 4, which makes Hireriv usable for skilled and
 - **Libraries.** `@anthropic-ai/sdk` to the latest; `npm audit` finds nothing.
 - **Tests** that read files now read them the same on a fresh Windows checkout.
 
+## Step 197: Screening questions
+
+- **Built.** Employers and the team can add up to 5 questions to a job, answered Yes or No or in a few words. They can name the answer the job needs. `screening.js`.
+- **Every way to apply.** The job page form and the signed-in one-click form both ask the questions, and the server checks them. One-tap on job cards is hidden for these jobs, and a one-tap sent anyway goes to the job page instead of applying without answers. Applying again replaces the answers.
+- **People decide.** A needed answer only marks the application ("Has the needed answers", "1 answer to check") and adds a filter on Applicants. Nothing is rejected, hidden or ranked by it, and the person applying never sees which answer is needed: not on the page, in the public API or in job data.
+- **Kept with the application.** Each answer keeps a copy of the question, so editing a job doesn't change what someone was asked. Answers are in the team's spreadsheet, the job seeker's data download and API v1, and they go when the application is deleted. A typed answer could hold contact details, so it follows the same permission as contact details.
+- **What can't be asked.** Questions about age, family, religion, caste, gender or health, about paying money, for codes or passwords, with links or contact details, or asking someone to type an ID or bank detail are refused when the job is saved. The list catches obvious wording, not everything: the question text also goes through the listing checks and shows on the moderation page.
+- **Not done here.** Applying through WhatsApp stays a conversation with a recruiter, so those questions are asked there. Candidates added by hand by the team have no answers.
+- **Tests.** `test/screening.test.js`.
+

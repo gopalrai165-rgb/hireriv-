@@ -8,6 +8,7 @@
 // pool like any CV. Pages live under /account; /candidate/* addresses lead there.
 const failureLog = require('./failure-log');
 const crypto = require('crypto');
+const screening = require('./screening');
 const fs = require('fs');
 const vault = require('./vault');
 const path = require('path');
@@ -972,8 +973,12 @@ function register(app, deps) {
     const account = accountForJob(req, job);
     if (account.applied) return toJob("You've already applied for this job.");
     if (account.missing.length) return toJob(`Add ${account.missing.join(' and ')} to your profile first.`);
+    // Questions can't be answered from a job card, so they go to the job page.
+    const asked = screening.answersFrom(job, req.body);
+    if (asked.errors.length) return toJob('This job has a few questions. Answer them below to apply.');
     const profile = profileFor(req.candidateEmail);
     const data = { jobId: job.id, email: req.candidateEmail, source: 'account' };
+    if (asked.answers.length) data.screening = asked.answers;
     for (const k of PROFILE_FIELDS) if (profile[k]) data[k] = profile[k];
     // Each application keeps its own copy of the resume, so withdrawing or
     // replacing one never removes another's file.
@@ -1174,6 +1179,7 @@ function register(app, deps) {
         details: Object.fromEntries(['name', 'phone', 'skills', 'experience', 'location', 'noticePeriod', 'linkedin', 'message', 'source'].filter((k) => a[k]).map((k) => [k, a[k]])),
         resumeFile: a.resume ? `Uploaded resume (${path.extname(a.resume).slice(1).toUpperCase()})` : null,
         skillsFoundInResume: a.resumeSkills || [],
+        answersToJobQuestions: screening.answersOf(a).map((x) => ({ question: x.text, answer: screening.answerWords(x) })),
         reappliedAt: a.reapplied || [],
         stageChanges: (a.history || []).map((h) => ({ at: h.at, from: CANDIDATE_STAGE[h.from] || h.from, to: CANDIDATE_STAGE[h.to] || h.to })).filter((h) => h.from !== h.to),
         interviews: (a.interviews || []).map((iv) => ({ at: iv.at, durationMinutes: iv.duration, format: iv.mode, status: iv.status })),

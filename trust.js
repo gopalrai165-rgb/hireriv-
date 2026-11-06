@@ -137,7 +137,7 @@ const RULES = [
 ];
 const TEXT_FIELDS = ['title', 'company', 'description', 'payNote', 'address', 'physical'];
 const LIST_FIELDS = ['responsibilities', 'qualifications', 'benefits', 'eligibility', 'mustHave'];
-const textOf = (job) => [...TEXT_FIELDS.map((k) => job[k] || ''), ...LIST_FIELDS.flatMap((k) => (Array.isArray(job[k]) ? job[k] : [job[k] || '']))].join('\n');
+const textOf = (job) => [...TEXT_FIELDS.map((k) => job[k] || ''), ...LIST_FIELDS.flatMap((k) => (Array.isArray(job[k]) ? job[k] : [job[k] || ''])), ...(job.screeningQuestions || []).map((q) => q.text)].join('\n');
 const normal = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
 const fingerprint = (job) => sha256(`${normal(job.title)}|${normal(job.description).slice(0, 600)}`);
 

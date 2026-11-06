@@ -1,0 +1,9 @@
+<%# Answers to a job's screening questions, for the hiring team (screening.js view()). %>
+<dl class="screening-answers">
+  <% items.forEach(function (x) { %>
+    <div>
+      <dt><%= x.text %></dt>
+      <dd><% if (x.hidden) { %><span class="muted small">Shown to the people working on this job.</span><% } else { %><%= x.answer %><% } %><% if (x.met === true) { %> <span class="pill st-hired">What the job needs</span><% } else if (x.met === false) { %> <span class="pill">Job needs: <%= x.mustBe === 'yes' ? 'Yes' : 'No' %></span><% } %></dd>
+    </div>
+  <% }) %>
+</dl>

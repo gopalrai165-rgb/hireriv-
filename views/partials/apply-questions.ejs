@@ -1,0 +1,21 @@
+<%# Screening questions on the apply forms (screening.js). Never shows the answer the job needs. %>
+<% const asked = typeof questions !== 'undefined' && questions ? questions : []; %>
+<% if (asked.length) { %>
+  <div class="screening-set">
+    <h3 class="h4">Questions about this job</h3>
+    <p class="small muted">The hiring team reads your answers. Answer honestly: a person decides, not a computer.</p>
+    <% asked.forEach(function (q) { %>
+      <% if (q.type === 'yesno') { %>
+        <fieldset class="check-set screening-q">
+          <legend><%= q.text %>*</legend>
+          <div class="screening-yn">
+            <label class="check-row"><input type="radio" name="answer_<%= q.id %>" value="yes" required> <span>Yes</span></label>
+            <label class="check-row"><input type="radio" name="answer_<%= q.id %>" value="no" required> <span>No</span></label>
+          </div>
+        </fieldset>
+      <% } else { %>
+        <label class="screening-q"><%= q.text %>*<input name="answer_<%= q.id %>" maxlength="300" required></label>
+      <% } %>
+    <% }) %>
+  </div>
+<% } %>

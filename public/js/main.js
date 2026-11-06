@@ -233,6 +233,16 @@ function showReview(form) {
   form.querySelectorAll('input, select, textarea').forEach((el) => {
     if (el.type === 'hidden' || el.name === 'website' || !el.name || seen.has(el.name) || el.closest('.hp')) return;
     seen.add(el.name);
+    // A Yes or No question: the question is the fieldset's legend, the answer the ticked choice.
+    if (el.type === 'radio') {
+      const picked = form.querySelector(`input[name="${el.name}"]:checked`);
+      const dtq = document.createElement('dt');
+      dtq.textContent = el.closest('fieldset').querySelector('legend').textContent.replace(/\*/g, '').trim();
+      const ddq = document.createElement('dd');
+      ddq.textContent = picked ? picked.closest('label').textContent.trim() : say('notGiven', 'Not given');
+      list.append(dtq, ddq);
+      return;
+    }
     const label = el.closest('label') || form.querySelector(`label[for="${el.id}"]`);
     const name = label ? [...label.childNodes].filter((n) => n.nodeType === 3).map((n) => n.textContent).join(' ').replace(/\*/g, '').trim() : el.name;
     let value = el.type === 'file' ? (el.files[0] ? el.files[0].name : say('noFile', 'No resume attached')) : el.tagName === 'SELECT' ? (el.selectedOptions[0] || {}).textContent || '' : el.value.trim();
@@ -305,7 +315,7 @@ function restoreDraft(form) {
     timer = setTimeout(() => {
       const out = {};
       form.querySelectorAll('input, select, textarea').forEach((el) => {
-        if (el.name && el.type !== 'file' && el.type !== 'hidden' && el.name !== 'website' && el.type !== 'password') out[el.name] = el.value.slice(0, 2000);
+        if (el.name && el.type !== 'file' && el.type !== 'hidden' && el.name !== 'website' && el.type !== 'password' && (el.type !== 'radio' || el.checked)) out[el.name] = el.value.slice(0, 2000);
       });
       try { sessionStorage.setItem(key, JSON.stringify(out)); } catch { /* storage full or blocked */ }
     }, 400);

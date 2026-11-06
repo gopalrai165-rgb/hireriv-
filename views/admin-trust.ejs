@@ -175,6 +175,7 @@
           <p class="prewrap"><%= job.description %></p>
           <% ['responsibilities', 'qualifications', 'benefits', 'eligibility', 'mustHave'].forEach(function (k) { if (Array.isArray(job[k]) && job[k].length) { %><h3><%= { responsibilities: 'Responsibilities', qualifications: 'Qualifications', benefits: 'Benefits', eligibility: 'Eligibility', mustHave: 'Must have' }[k] %></h3><ul><% job[k].forEach(function (x) { %><li><%= x %></li><% }) %></ul><% } }) %>
           <% if (job.payNote) { %><h3>Pay note</h3><p><%= job.payNote %></p><% } %>
+          <% if ((job.screeningQuestions || []).length) { %><h3>Questions for applicants</h3><ul><% job.screeningQuestions.forEach(function (q) { %><li><%= q.text %><% if (q.mustBe) { %> <span class="muted small">(needs: <%= q.mustBe %>)</span><% } %></li><% }) %></ul><% } %>
         </section>
         <section class="dash-card">
           <h2>Automated checks</h2>

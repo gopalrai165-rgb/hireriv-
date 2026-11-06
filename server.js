@@ -33,6 +33,7 @@ const jobParse = require('./job-parse');
 const { SHIFTS, INDIAN_STATES } = require('./candidate-profile');
 // How much English a job needs, and walk-in interview days (job-needs.js).
 const jobNeeds = require('./job-needs');
+const screening = require('./screening');
 // What roles pay, from the pay on real listings (salaries.js).
 const salaries = require('./salaries');
 // Interview tips for job seekers, in general and by role (interview-tips.js).
@@ -795,6 +796,7 @@ app.locals.areaLabel = geo.areaLabel;
 // Suggestions for the job forms' area box and Find Jobs' "Near" box.
 app.locals.areaNames = [...new Set(geo.ALL_AREAS.map((a) => a.name))].sort();
 app.locals.nearPlaces = [...geo.ALL_AREAS.map((a) => a.cityLabel), ...Object.keys(geo.CITIES)].sort();
+app.locals.screening = screening;
 app.locals.jobExtras = { EDUCATION: jobNeeds.EDUCATION, PERKS: jobNeeds.PERKS, ITEMS: jobNeeds.ITEMS };
 app.locals.educationOf = jobNeeds.educationOf;
 // Mobile-only job seekers (identity.js): no email to show or write to.
@@ -2008,6 +2010,7 @@ async function saveApplication(data, file, job, extra = {}, { announce = false }
   const prev = list.find((a) => !a.withdrawnAt && !a.duplicateOf && sameJob(a) && samePerson(a));
   if (prev) {
     for (const k of APPLICATION_FIELDS) if (data[k]) prev[k] = data[k];
+    if (data.screening) prev.screening = data.screening;
     if (file) {
       if (prev.resume) fs.unlink(path.join(UPLOADS_DIR, path.basename(prev.resume)), () => {});
       Object.assign(prev, { resume: file.filename, resumeText, resumeSkills: found.skills });
@@ -2053,6 +2056,9 @@ app.post('/api/apply', limit('apply', 6), (req, res) => {
     const quick = !resumeNeeded(job);
     const errors = validate(data, quick ? ['name', 'phone'] : ['name', 'email', 'phone']);
     if (!req.file && !quick) errors.push('resume is required');
+    const asked = screening.answersFrom(job, req.body);
+    errors.push(...asked.errors);
+    if (asked.answers.length) data.screening = asked.answers;
     if (job && !isLive(job)) errors.push('this job is no longer accepting applications');
     else if (job && isSample(job)) errors.push('this is a sample listing, not a real vacancy. Send us your details with a general application instead');
     if (errors.length) {
@@ -2257,6 +2263,7 @@ const publicJob = (j) => ({
   postedAt: j.posted,
   closesOn: j.closesOn || null,
   quickApply: !resumeNeeded(j),
+  screeningQuestions: screening.publicQuestions(j),
   url: `${BASE_URL}${jobPath(j)}`,
 });
 
@@ -3069,6 +3076,8 @@ function parseJob(body) {
   errors.push(...needs.errors);
   const extras = jobNeeds.parseExtras(body);
   errors.push(...extras.errors);
+  const questions = screening.parse(body);
+  errors.push(...questions.errors);
   const job = {
     title: data.title,
     company: data.company,
@@ -3106,6 +3115,8 @@ function parseJob(body) {
     minEducation: extras.minEducation,
     perks: extras.perks,
     bring: extras.bring,
+    // Asked when someone applies (screening.js).
+    screeningQuestions: questions.questions,
     eligibility: lines(data.eligibility),
     // Must-haves shown apart from the match score: licences or certificates
     // the work legally or practically needs, starting straight away, and
@@ -3416,9 +3427,10 @@ app.get('/admin/export/:type.csv', adminAuth, (req, res, next) => {
 // Nested details (history, interviews, emails, client sharing) as readable text.
 const csvDate = (d) => (d ? new Date(d).toLocaleString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'Asia/Kolkata' }) : '');
 function applicationCsvRow(a) {
-  const { history: h = [], interviews: ivs = [], emails = [], shared, resumeText, resumeSkills = [], ...rest } = a;
+  const { history: h = [], interviews: ivs = [], emails = [], shared, resumeText, resumeSkills = [], screening: asked, ...rest } = a;
   return {
     ...rest,
+    screeningAnswers: screening.csvText(a),
     stageHistory: h.map((x) => `${csvDate(x.at)}: ${x.from} → ${x.to} (${x.by})`).join(' | '),
     interviews: ivs.map((iv) => `${csvDate(iv.at)} ${iv.mode} (${iv.status})`).join(' | '),
     emails: emails.map((m) => `${csvDate(m.at)}: ${m.subject} (${m.by})`).join(' | '),

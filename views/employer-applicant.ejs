@@ -23,6 +23,11 @@
         </ul>
         <% if (v.match) { %><p><%- include('partials/match-chip', { match: v.match }) %> <span class="muted small">A guide only; it never rejects anyone.</span></p><% } %>
         <% if (v.skills) { %><div class="chips"><% v.skills.split(',').map(function (s) { return s.trim(); }).filter(Boolean).slice(0, 12).forEach(function (s) { %><span class="chip"><%= s %></span><% }) %></div><% } %>
+        <% if (v.screening.length) { %>
+          <h3 class="dash-sub">Answers to your questions</h3>
+          <%- include('partials/screening-answers', { items: v.screening }) %>
+          <p class="muted small">A guide only; it never rejects anyone.</p>
+        <% } %>
         <% if (v.email !== undefined) { %>
           <h3 class="dash-sub">Contact</h3>
           <% if (v.phone) { %><p class="row-actions contact-actions"><a class="btn btn-primary btn-sm" href="tel:<%= v.phone.replace(/[^\d+]/g, '') %>"><svg class="i" aria-hidden="true"><use href="#i-phone"/></svg> Call</a><% const wa = waLink(v.phone); if (wa) { %><a class="btn btn-whatsapp btn-sm" href="<%= wa %>" target="_blank" rel="noopener"><svg class="i" aria-hidden="true"><use href="#i-whatsapp"/></svg> WhatsApp</a><% } %></p><% } %>

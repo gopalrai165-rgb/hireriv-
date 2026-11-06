@@ -57,6 +57,7 @@
       <div class="span-2 with-voice"><textarea id="<%= fid %>-msg" name="message" rows="3"></textarea><% if (voiceInput) { %><button type="button" class="voice-btn" data-voice-for="<%= fid %>-msg" hidden aria-label="<%= t('apply.dictate') %>" title="<%= t('apply.dictate') %>"><svg class="i" aria-hidden="true"><use href="#i-mic"/></svg></button><% } %></div>
     </div>
   <% } %>
+  <%- include('apply-questions', { questions: typeof questions !== 'undefined' ? questions : [] }) %>
   <%# Filled by main.js: everything entered, shown before it is sent. %>
   <div class="apply-review" data-apply-review hidden tabindex="-1" role="region" aria-labelledby="<%= fid %>-review-h">
     <h3 id="<%= fid %>-review-h" class="h4"><%= t('apply.reviewTitle') %></h3>

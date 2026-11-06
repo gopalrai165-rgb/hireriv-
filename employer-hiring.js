@@ -7,6 +7,7 @@
 //
 // Jobs the Hireriv team runs for a client stay with the team: the client sees
 // counts and the candidates the team shortlists, not every applicant.
+const screening = require('./screening');
 const path = require('path');
 const crypto = require('crypto');
 const vault = require('./vault');
@@ -54,7 +55,7 @@ function register(app, deps) {
     mustHave: (j.mustHave || []).join('\n'), physical: j.physical || '', immediate: j.immediate ? '1' : '',
     skills: (j.skills || []).join(', '), description: j.description, responsibilities: (j.responsibilities || []).join('\n'),
     qualifications: (j.qualifications || []).join('\n'), benefits: (j.benefits || []).join('\n'), closesOn: j.closesOn || '', resume: j.resume || '',
-    overtime: j.overtime || '', workerCosts: j.workerCosts || '', minEducation: j.minEducation || '', perks: (j.perks || []).join(','), bring: (j.bring || []).join(','), area: j.area || '',
+    overtime: j.overtime || '', workerCosts: j.workerCosts || '', minEducation: j.minEducation || '', perks: (j.perks || []).join(','), bring: (j.bring || []).join(','), area: j.area || '', screeningQuestions: j.screeningQuestions || [],
   });
   // The employer's input (a form, or JSON where lists may be arrays and pay an
   // object) on top of the job as it is, with the company and owner fixed.
@@ -71,6 +72,9 @@ function register(app, deps) {
       body[k] = Array.isArray(src[k]) ? src[k].join(k === 'skills' || k === 'perks' || k === 'bring' ? ', ' : '\n') : String(src[k]);
       if (['salaryMin', 'salaryMax'].includes(k)) body.salary = '';
     }
+    // The form's rows, or the API's list; neither sent keeps the questions as they are.
+    if (src.screeningQuestions !== undefined) body.screeningQuestions = src.screeningQuestions;
+    for (const k of Object.keys(src)) if (screening.FORM_KEY.test(k)) body[k] = src[k];
     const out = parseJob({ ...body, company: emp.company, employerId: emp.id, ownerId: existing ? existing.ownerId : '', status: 'open' });
     // Whether people who applied may call or WhatsApp the person who created
     // the job (their confirmed mobile; company-trust.js hrContactFor). The form
@@ -79,7 +83,7 @@ function register(app, deps) {
     out.job.hrCall = src.hrCall !== undefined || src.hrCallShown ? tick(src.hrCall) : Boolean(existing && existing.hrCall);
     return out;
   }
-  const employerJobView = (j) => ({ ...publicJob(j), status: j.status, statusLabel: STATUS_LABELS[j.status] || j.status, submittedAt: j.submittedAt || null, rejectedReason: j.status === 'rejected' ? j.rejectedReason || '' : null });
+  const employerJobView = (j) => ({ ...publicJob(j), screeningQuestions: screening.employerQuestions(j), status: j.status, statusLabel: STATUS_LABELS[j.status] || j.status, submittedAt: j.submittedAt || null, rejectedReason: j.status === 'rejected' ? j.rejectedReason || '' : null });
   // A job of this company that this member may see (404 for anything else).
   const companyJob = (req, id) => getJobs().find((j) => j.id === id && j.employerId === req.employer.id && can(req.member, 'job.view', j)) || null;
   const visibleJobs = (m) => getJobs().filter((j) => j.employerId === m.employerId && can(m, 'job.view', j));
@@ -203,7 +207,7 @@ function register(app, deps) {
 // "Post a similar job": a new job form filled in from one of the company's
   // own jobs (?from=<id>). Dates are left out (closing date, walk-in days),
   // nothing is saved until the employer saves it, and it is checked like any new job.
-  const COPIED_FIELDS = ['title', 'location', 'mode', 'type', 'category', 'work', 'experience', 'pay', 'payNote', 'salary', 'education', 'schedule', 'shift', 'hours', 'openings', 'address', 'area', 'walkIn', 'walkInTime', 'walkInContact', 'english', 'eligibility', 'mustHave', 'physical', 'immediate', 'skills', 'description', 'responsibilities', 'qualifications', 'benefits', 'resume', 'overtime', 'workerCosts', 'minEducation', 'perks', 'bring', 'hrCall'];
+  const COPIED_FIELDS = ['title', 'location', 'mode', 'type', 'category', 'work', 'experience', 'pay', 'payNote', 'salary', 'education', 'schedule', 'shift', 'hours', 'openings', 'address', 'area', 'walkIn', 'walkInTime', 'walkInContact', 'english', 'eligibility', 'mustHave', 'physical', 'immediate', 'skills', 'description', 'responsibilities', 'qualifications', 'benefits', 'resume', 'overtime', 'workerCosts', 'minEducation', 'perks', 'bring', 'hrCall', 'screeningQuestions'];
   const copyOf = (j) => ({ ...Object.fromEntries(COPIED_FIELDS.filter((k) => j[k] !== undefined).map((k) => [k, Array.isArray(j[k]) ? [...j[k]] : j[k] && typeof j[k] === 'object' ? { ...j[k] } : j[k]])), status: 'draft', copiedFrom: j.title });
   app.get('/employer/jobs/new', requireEmployer, clients.allow('jobs.create'), (req, res) => {
     const source = req.query.from ? companyJob(req, String(req.query.from).slice(0, 60)) : null;
@@ -357,6 +361,9 @@ function register(app, deps) {
       id: a.id, jobId: a.jobId, jobTitle: job.title, appliedAt: a.createdAt, viewedAt: a.viewedAt || null, status: ats.stageOf(a), stageLabel: ats.label(ats.stageOf(a)), withdrawn: Boolean(a.withdrawnAt),
       name: a.name, experience: a.experience || '', location: a.location || '', noticePeriod: a.noticePeriod || '', skills: a.skills || '',
       match: skillMatch(a, job),
+      screening: screening.view(a, { showTyped: may('applicants.contact') }),
+      screeningOutcome: screening.outcome(a),
+      screeningLabel: screening.outcomeLabel(a),
       assignedTo: assignee ? { userId: assignee.id, name: assignee.name } : null,
       history: (a.history || []).map((h) => ({ at: h.at, from: h.from, to: h.to, by: h.by, ...(h.correction ? { correction: true, reason: h.reason } : {}) })),
       interviews: (a.interviews || []).map((iv) => ({
@@ -382,12 +389,14 @@ function register(app, deps) {
     // Newest first, or (for one job) the best skill match first. Sorting only:
     // everyone stays in the list for a person to review.
     const sort = req.query.sort === 'match' && jobId ? 'match' : 'newest';
+    // Needed answers narrow what's on screen only. Nobody is rejected or moved by them.
+    const answers = ['meets', 'misses'].includes(req.query.answers) ? req.query.answers : '';
     const newest = (x, y) => String(y.appliedAt).localeCompare(String(x.appliedAt));
     const rows = apps.filter((a) => (!jobId || a.jobId === jobId))
       .map((a) => applicantView(req, a, jobs.get(a.jobId)))
-      .filter((v) => !status || v.status === status)
+      .filter((v) => (!status || v.status === status) && (!answers || v.screeningOutcome === answers))
       .sort(sort === 'match' ? (x, y) => ((y.match && y.match.score) || 0) - ((x.match && x.match.score) || 0) || newest(x, y) : newest);
-    page(res, 'employer-applicants', { title: 'Applicants', tab: 'applicants', rows, jobs: [...jobs.values()], jobId, status, sort, statuses: appStatuses, msg: String(req.query.msg || '') });
+    page(res, 'employer-applicants', { title: 'Applicants', tab: 'applicants', rows, jobs: [...jobs.values()], jobId, status, sort, answers, anyQuestions: [...jobs.values()].some((j) => screening.hasQuestions(j)), statuses: appStatuses, msg: String(req.query.msg || '') });
   });
 
   // The applicant from the URL, if this member may see them.
@@ -454,7 +463,7 @@ function register(app, deps) {
   app.post('/employer/applicants/bulk', requireEmployer, limit('employer-status', 120), sameOrigin, (req, res) => {
     const ids = [...new Set([].concat(req.body.ids || []).map(String))].slice(0, MAX_BULK);
     const to = String(req.body.status || '');
-    const keep = new URLSearchParams(Object.fromEntries(['job', 'status', 'sort'].map((k) => [k, String(req.body[`back_${k}`] || '')]).filter(([, v]) => v))).toString();
+    const keep = new URLSearchParams(Object.fromEntries(['job', 'status', 'sort', 'answers'].map((k) => [k, String(req.body[`back_${k}`] || '')]).filter(([, v]) => v))).toString();
     const back = (msg) => res.redirect(303, `/employer/applicants?${keep ? `${keep}&` : ''}msg=${encodeURIComponent(msg)}`);
     if (!ids.length) return back('Tick the applicants to move first.');
     if (!ats.STAGES.includes(to)) return back('Choose the stage to move them to.');

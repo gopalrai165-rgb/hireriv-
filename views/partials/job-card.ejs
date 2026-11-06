@@ -35,7 +35,7 @@
     <% if (job.status === 'open') { %><button type="button" class="link-btn small hide-btn" data-hide-job="<%= job.id %>"><%= t('card.notInterested') %><span class="sr-only">: <%= jt.text %></span></button><% } %>
     <a class="card-link" href="<%= jobPath(job) %>"><%= isSample(job) ? t('card.viewExample') : t('card.viewApply') %><span class="sr-only">: <%= jt.text %></span> <svg class="i" aria-hidden="true"><use href="#i-arrow"/></svg></a>
     <% if (tap && tap.applied.includes(job.id)) { %><span class="pill st-hired"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg> <%= t('card.applied') %></span>
-    <% } else if (tap && tap.ready && (tap.hasResume || !resumeNeeded(job))) { %>
+    <% } else if (tap && tap.ready && (tap.hasResume || !resumeNeeded(job)) && !screening.hasQuestions(job)) { %>
       <form method="post" action="/account/apply/<%= job.id %>" class="one-tap"><input type="hidden" name="from" value="card"><button class="btn btn-primary btn-sm" type="submit"><%= t('card.oneTap') %><span class="sr-only">: <%= jt.text %></span></button></form>
     <% } %>
   </div>
