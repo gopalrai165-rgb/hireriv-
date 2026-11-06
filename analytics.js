@@ -242,7 +242,7 @@ function create(deps) {
     // The recruiter on a placement: recorded on it, else who owns the application or the job.
     const placementOwner = (p) => (scope.as === 'employer' ? (appById.get(p.appId) || {}).assignedTo || ''
       : p.recruiterId || (appById.has(p.appId) ? ownerOf(appById.get(p.appId)) : (jobById.get(p.jobId) || {}).ownerId || ''));
-    const placements = placementsAll.filter((p) => {
+    const placementsInScope = placementsAll.filter((p) => {
       const job = jobById.get(p.jobId);
       if (scope.as === 'employer' && job && !employerTeam.can(scope.member, 'job.view', job)) return false;
       if (scope.as === 'employer' && !job && !['owner', 'viewer'].includes(scope.member.role)) return false;
@@ -250,11 +250,15 @@ function create(deps) {
       if (f.employer && p.employerId !== f.employer) return false;
       if (f.hiringType && PLACEMENT_TYPE_KIND[p.type] !== f.hiringType) return false;
       if (f.placementStatus && p.status !== f.placementStatus) return false;
-      if (who && placementOwner(p) !== who) return false;
       return true;
     });
+    const placements = placementsInScope.filter((p) => !who || placementOwner(p) === who);
+    // Money roles (Finance and Account Managers) see the business's revenue, not
+    // only placements they recorded themselves; a recruiter filter still narrows it.
+    const moneyWho = scope.as === 'team' && scope.money ? f.recruiter : who;
+    const moneyPlacements = placementsInScope.filter((p) => !moneyWho || placementOwner(p) === moneyWho);
     const vacancies = jobs.filter((j) => !who || scope.as === 'employer' || j.ownerId === who);
-    return { today, inRange, jobs, vacancies, jobById, apps: appsFiltered, allApps: apps, placements, placementsAll, placedIds, ownerOf, placementOwner, who, statusOfJob };
+    return { today, inRange, jobs, vacancies, jobById, apps: appsFiltered, allApps: apps, placements, moneyPlacements, placementsAll, placedIds, ownerOf, placementOwner, who, statusOfJob };
   }
 
   const hireDateOf = (a, d) => {
@@ -360,7 +364,7 @@ function create(deps) {
   }
 
   function revenue(d, f) {
-    const invoices = d.placements.flatMap((p) => billing.invoicesOf(p).map((inv) => ({ p, inv }))).filter(({ inv }) => inv.status !== 'Cancelled');
+    const invoices = d.moneyPlacements.flatMap((p) => billing.invoicesOf(p).map((inv) => ({ p, inv }))).filter(({ inv }) => inv.status !== 'Cancelled');
     const overdue = (inv) => OPEN_INVOICE.includes(inv.status) && inv.dueDate && inv.dueDate < d.today;
     const match = ({ inv }) => !f.revenueStatus
       || (f.revenueStatus === 'invoiced')
@@ -403,7 +407,7 @@ function create(deps) {
   const PLAN_KIND = { subscription: 'Plan', package: 'Credit pack' };
   function planRevenue(scope, d, f) {
     if (!plans || scope.as !== 'team' || !scope.money) return null;
-    if (f.work || f.hiringType || f.location || f.industry || f.jobStatus || f.applicationStatus || f.placementStatus || d.who) {
+    if (f.work || f.hiringType || f.location || f.industry || f.jobStatus || f.applicationStatus || f.placementStatus || f.recruiter) {
       return { available: false, note: 'Plans and credit packs are counted for the whole business or one employer. Clear the job, recruiter and placement filters to see them.' };
     }
     const open = (inv) => ['Unpaid', 'Part paid'].includes(inv.status);

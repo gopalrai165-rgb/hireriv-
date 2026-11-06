@@ -787,3 +787,10 @@ Suggested order: 2 → 1 → 3 → 4, which makes Hireriv usable for skilled and
   - paying placement invoices online
   - every billing desk tab and the billing pages rendering without secrets, and an agreed Enterprise plan with its own limits
   - renewals: reminders, the grace period, cancelled plans ending, and overdue renewals
+
+## Step 189: Revenue for Finance and Account Managers
+
+- **Found by the first tests of Step 188.** Finance and Account Managers have `money.view` but not `workload.view`, so analytics narrowed their numbers to their own work. Their placement revenue counted only placements they recorded themselves (usually none), and plans and credit packs said "clear the filters" with nothing to clear.
+- **Now.** Revenue and plans and credit packs show the whole business for money roles, as the billing desk already does. Their recruitment numbers stay their own, and another recruiter's numbers are still refused.
+- **Phones.** Both invoice tables are one card per row, so the status and total no longer sit off screen.
+- **Tests.** `test/analytics-plan-revenue.test.js`: the totals, cancelled invoices, one employer, filters, who may see it, the CSV, the page, and the cache (a write shows on the next read; answers are not shared between people).
