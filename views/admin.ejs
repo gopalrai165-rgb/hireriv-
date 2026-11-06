@@ -32,6 +32,7 @@
       </div>
     <% } %>
 
+    <% if (tab === 'applications' && typeof todoLabel !== 'undefined' && todoLabel) { %><p class="small">Showing: <b><%= todoLabel %></b> · <a href="/admin?tab=applications">Show everyone</a></p><% } %>
     <% if (tab === 'applications') { %>
       <div class="pipeline">
         <a class="pill<%= !status ? ' active' : '' %>" href="/admin?tab=applications<%= ownerQs %>">All <b><%= counts.applications %></b></a>

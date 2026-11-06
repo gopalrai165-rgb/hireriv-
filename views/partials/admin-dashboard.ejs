@@ -8,6 +8,8 @@
   </section>
 <% } %>
 
+<%- include('todo-list', { todo: todo }) %>
+
 <div class="kpis">
   <% dash.kpis.forEach(function (k) { %>
     <a class="kpi" href="/admin?tab=<%= k.tab %>">

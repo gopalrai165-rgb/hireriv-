@@ -1,0 +1,15 @@
+<%# "What needs you" on the employer and team dashboards (employer-todo.js, team-todo.js). %>
+<% if (todo.show) { %>
+  <section class="dash-card todo-card" id="todo" aria-labelledby="todo-h">
+    <h2 id="todo-h">What needs you</h2>
+    <% if (todo.items.length) { %>
+      <ul class="todo-list">
+        <% todo.items.forEach(function (t) { %>
+          <li><a href="<%= t.href %>"><span class="todo-count"><%= t.count %></span><span class="todo-text"><%= t.text %></span><svg class="i" aria-hidden="true"><use href="#i-arrow"/></svg></a></li>
+        <% }) %>
+      </ul>
+    <% } else { %>
+      <p class="muted small">Nothing right now. You're up to date.</p>
+    <% } %>
+  </section>
+<% } %>

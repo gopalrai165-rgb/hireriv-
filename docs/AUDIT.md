@@ -970,3 +970,10 @@ Suggested order: 2 → 1 → 3 → 4, which makes Hireriv usable for skilled and
 - **Built.** Every applicant on the list has a tick box, and people who can't move anyone see only Compare. Anyone ticked who can't make the move is left alone and listed as not moved, as before. API v1 gives `withdrawReason`, both spreadsheets have the reason, and the team's Recruitment reports show why candidates weren't selected and why they withdrew, on the jobs the team runs only.
 - **Tests.** `test/withdraw-reasons.test.js`, `test/compare-applicants.test.js`.
 
+## Step 215: What needs you, for the team
+
+- **The gap.** Companies got this list in Step 211. The team's dashboard had counts and an Admin-only setup list, but nothing saying what a recruiter should do today.
+- **Built.** "What needs you" at the top of the team dashboard: candidates waiting for a reply, finished interviews with no feedback, candidates who waited over 7 days at New or Screening, and company enquiries nobody has called. Links go to the person when there is one, or to a filtered Applications tab (`?tab=applications&todo=unread|waiting`). `team-todo.js`, `views/partials/todo-list.ejs`, shared with the employer dashboard.
+- **Rules.** Only jobs the team runs. Admins and Recruitment Managers see everything; everyone else sees their own work and work nobody owns yet. Roles that don't write to candidates don't get the candidate lines. General resumes don't count as waiting, because they aren't for a job yet. The list only points. The candidate lists behind the links show exactly the people counted; the Interviews and enquiries tabs have no such filter, so they can also show other people's items.
+- **Tests.** `test/team-todo.test.js`.
+

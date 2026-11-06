@@ -66,4 +66,4 @@ function build({ member, jobs, apps, now = Date.now() }) {
   return { show: acts, items };
 }
 
-module.exports = { build, matches, LABELS, WAITING_DAYS };
+module.exports = { build, matches, lastMove, LABELS, WAITING_DAYS };

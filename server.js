@@ -50,6 +50,7 @@ const teamModule = require('./team');
 const twofactor = require('./twofactor');
 const agencyRoles = require('./agency-roles');
 const applicantInvites = require('./applicant-invites');
+const teamTodo = require('./team-todo');
 const bulk = require('./bulk');
 const reportsModule = require('./reports');
 const timesheetsModule = require('./timesheets');
@@ -2910,7 +2911,7 @@ app.get('/admin', adminAuth, (req, res) => {
   // Long tables are shown 50 rows at a time; CSV exports still include everything.
   const pageOf = (list) => paginate(list, { page: req.query.page, size: ADMIN_PAGE_SIZE, query: req.query, path: '/admin' });
 
-  if (tab === 'dashboard') return res.render('admin', { ...locals, rows: [], dash: buildDashboard(applications, req.admin, totals), setupTodo: req.admin.role === 'Admin' ? setupTodo() : [] });
+  if (tab === 'dashboard') return res.render('admin', { ...locals, rows: [], dash: buildDashboard(applications, req.admin, totals), setupTodo: req.admin.role === 'Admin' ? setupTodo() : [], todo: teamTodo.build({ user: req.admin, apps: applications, jobs, ownerOf: appOwner, tabs, enquiries: readSubmissions('hire-requests').filter(hireOverdue) }) });
   if (tab === 'team') return res.render('admin', { ...locals, rows: team.list(), roles: team.ROLES, roleInfo: agencyRoles.ROLE_INFO, requires2fa: team.requires2fa(), my2fa: team.has2fa(req.admin.id) });
   if (tab === 'templates') return res.render('admin', { ...locals, rows: templates.read(), placeholders: bulk.PLACEHOLDERS });
   if (tab === 'reports') return res.render('admin', { ...locals, rows: [], report: reports.build({ period: String(req.query.period || ''), isAdmin: agencyRoles.can(req.admin, 'money.view') }), inr: billing.inr });
@@ -2937,13 +2938,17 @@ app.get('/admin', adminAuth, (req, res) => {
     // applications, matching them all on every page view took seconds.
     const jobById = new Map(jobs.map((j) => [j.id, j]));
     const matchOf = (a) => skillMatch(a, jobById.get(a.jobId));
+    // From the dashboard's list of what needs attention.
+    const todo = teamTodo.LABELS[req.query.todo] && agencyRoles.can(req.admin, 'candidates.message') ? req.query.todo : '';
+    const inTodoScope = todo ? teamTodo.scopeFor(req.admin, jobs, appOwner) : null;
     let all = (status ? applications.filter((a) => statusOf(a) === status) : applications)
-      .filter((a) => !owner || matchesOwner(appOwner(a), owner, req.admin));
+      .filter((a) => !owner || matchesOwner(appOwner(a), owner, req.admin))
+      .filter((a) => !todo || teamTodo.matches(todo, a, inTodoScope));
     if (sort) all = all.map((a) => ({ ...a, match: matchOf(a) })).sort((a, b) => (b.match?.score ?? -1) - (a.match?.score ?? -1));
     const { rows: page, pager } = pageOf(all);
     const rows = page.map((a) => ({ ...a, owner: appOwner(a), match: sort ? a.match : matchOf(a) }));
     for (const a of rows) a.timeline = history.timeline(a); // only for the rows on screen
-    return res.render('admin', { ...locals, rows, pager, owner, statuses: APP_STATUSES, statusCounts, status, sort, clientOptions: clients.read().filter((c) => c.active), placedApps, templates: templates.read(), backUrl: req.originalUrl.replace(/&msg=[^&]*/, ''), jobClient: Object.fromEntries(jobs.map((j) => [j.id, j.employerId || ''])) });
+    return res.render('admin', { ...locals, rows, pager, owner, todoLabel: teamTodo.LABELS[todo] || '', statuses: APP_STATUSES, statusCounts, status, sort, clientOptions: clients.read().filter((c) => c.active), placedApps, templates: templates.read(), backUrl: req.originalUrl.replace(/&msg=[^&]*/, ''), jobClient: Object.fromEntries(jobs.map((j) => [j.id, j.employerId || ''])) });
   }
   if (tab === 'blog') return res.render('admin', { ...locals, rows: posts });
   if (tab === 'clients') {
