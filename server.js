@@ -42,6 +42,7 @@ const i18n = require('./i18n');
 const employerAts = require('./employer-ats');
 const placements = require('./placements');
 const teamModule = require('./team');
+const twofactor = require('./twofactor');
 const agencyRoles = require('./agency-roles');
 const bulk = require('./bulk');
 const reportsModule = require('./reports');
@@ -166,7 +167,24 @@ const downloadLinks = uploadSafety.links(() => db.metaGet('secret:links'));
     vault.configure([db.metaGet('secret:files'), ...old]);
   }
 }
-const sealUploads = ops.track('encrypt-uploads', () => vault.sweep(UPLOADS_DIR), 24 * 60 * 60 * 1000);
+// Authenticator keys (team, owner, employer people) are encrypted with the same
+// key (twofactor.js seal): keys saved before Step 187 are sealed at start, and
+// the daily sweep moves them to a new key after a rotation.
+function sealTwoStepKeys() {
+  let n = 0;
+  for (const c of ['team', 'employer-users']) {
+    const list = db.all(c);
+    const changed = twofactor.sealRecords(list);
+    if (changed) { db.replaceAll(c, list); n += changed; }
+  }
+  try {
+    const owner = JSON.parse(db.metaGet(teamModule.OWNER_SECURITY) || 'null');
+    if (owner && twofactor.sealRecords([owner])) { db.metaSet(teamModule.OWNER_SECURITY, JSON.stringify(owner)); n++; }
+  } catch (e) { console.error('Sealing the owner sign-in key failed:', e.message); }
+  return n;
+}
+try { sealTwoStepKeys(); } catch (e) { console.error('Sealing sign-in keys failed:', e.message); }
+const sealUploads = ops.track('encrypt-uploads', () => { sealTwoStepKeys(); return vault.sweep(UPLOADS_DIR); }, 24 * 60 * 60 * 1000);
 setTimeout(sealUploads, Number(process.env.UPLOAD_SEAL_DELAY_MS) || 5000).unref();
 setInterval(sealUploads, 24 * 60 * 60 * 1000).unref();
 db.importOnce('posts', path.join(DATA_DIR, 'posts.json'));

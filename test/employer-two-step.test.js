@@ -6,11 +6,17 @@ const assert = require('node:assert/strict');
 const { startServer, decodeEmail } = require('./helpers');
 const { hashPassword } = require('../employers');
 const tf = require('../twofactor');
+const vault = require('../vault');
+
+// Keys are stored encrypted with the file key (Step 187); the test holds the
+// same key so it can make codes from the stored record.
+const KEY = vault.newKey();
+vault.configure([KEY]);
 
 const EMP = { id: 'emp-old', company: 'Old Co', name: 'Olga Rao', email: 'olga@oldco.in', passwordHash: hashPassword('olga long password'), passwordSetAt: '2026-01-01T00:00:00.000Z', active: true, createdAt: '2026-01-01T00:00:00.000Z' };
 const TWO = { ...EMP, id: 'emp-two', company: 'Two Co', name: 'Tara Sen', email: 'tara@two.in', require2fa: true };
 let srv; let cookie; let secret; let recovery;
-before(async () => { srv = await startServer({}, { employers: [EMP, TWO] }); });
+before(async () => { srv = await startServer({ FILE_ENCRYPTION_KEY: KEY }, { employers: [EMP, TWO] }); });
 after(() => srv && srv.stop());
 const user = (email = 'olga@oldco.in') => srv.records('employer-users').find((u) => u.email === email);
 const login = (email = 'olga@oldco.in', password = 'olga long password') => srv.request('/employer/login', { method: 'POST', form: { email, password } });
@@ -27,7 +33,11 @@ test('setting it up: QR code, a wrong code is refused, the right one turns it on
   assert.match(await page('/employer/settings'), /Set up two-step sign-in/);
   await post('/employer/settings/two-step/start');
   secret = user().twoFactorPending.secret;
+  assert.ok(tf.isSealedSecret(secret), 'the key is stored encrypted');
+  assert.match(tf.unseal(secret), /^[A-Z2-7]{32}$/);
   const setup = await page('/employer/settings');
+  assert.ok(setup.includes(tf.groupSecret(secret)), 'the page shows the key itself, to type into the app');
+  assert.ok(!setup.includes('enc:'));
   assert.match(setup, /<svg/, 'QR code shown');
   assert.match(setup, /action="\/employer\/settings\/two-step\/confirm"/);
   assert.match(decodeURIComponent((await post('/employer/settings/two-step/confirm', { code: '000000' === tf.codeFor(secret, tf.stepAt()) ? '111111' : '000000' })).headers.get('location')), /didn't match/);

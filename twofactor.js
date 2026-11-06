@@ -2,6 +2,7 @@
 // (TOTP, RFC 6238, the same scheme Google Authenticator, Microsoft
 // Authenticator and Authy use) plus single-use recovery codes for a lost phone.
 const crypto = require('crypto');
+const vault = require('./vault');
 const qrcode = require('qrcode-generator');
 
 const STEP_SECONDS = 30;
@@ -44,12 +45,46 @@ function base32Decode(str) {
 }
 
 const newSecret = () => base32Encode(crypto.randomBytes(20));
+
+// ---------- keys at rest ----------
+// Authenticator keys are stored encrypted with the file key (vault.js,
+// FILE_ENCRYPTION_KEY), so a copy of the database or a backup alone is not
+// enough to make sign-in codes. Stored as "enc:" + base64; a key saved before
+// Step 187 (plain base32) still works and is sealed by sealRecords.
+const SEALED = 'enc:';
+const isSealedSecret = (s) => typeof s === 'string' && s.startsWith(SEALED);
+function seal(secret) {
+  if (!secret || isSealedSecret(secret) || !vault.configured()) return secret;
+  return SEALED + vault.encrypt(Buffer.from(String(secret))).toString('base64');
+}
+function unseal(stored) {
+  if (!isSealedSecret(stored)) return stored;
+  return vault.open(Buffer.from(stored.slice(SEALED.length), 'base64')).toString();
+}
+// Seals plain keys, and keys sealed with a key being retired, in a list of
+// records (team members, employer people) or one owner record. Returns how
+// many changed.
+function sealRecords(list) {
+  if (!vault.configured()) return 0;
+  let n = 0;
+  for (const r of list) {
+    for (const f of ['twoFactor', 'twoFactorPending']) {
+      const t = r && r[f];
+      if (!t || !t.secret) continue;
+      let next = t.secret;
+      if (!isSealedSecret(next)) next = seal(next);
+      else if (!vault.sealedWithCurrent(Buffer.from(next.slice(SEALED.length), 'base64'))) next = seal(unseal(next));
+      if (next !== t.secret) { t.secret = next; n++; }
+    }
+  }
+  return n;
+}
 const stepAt = (now = Date.now()) => Math.floor(now / 1000 / STEP_SECONDS);
 
 function codeFor(secret, step) {
   const counter = Buffer.alloc(8);
   counter.writeBigUInt64BE(BigInt(step));
-  const mac = crypto.createHmac('sha1', base32Decode(secret)).update(counter).digest();
+  const mac = crypto.createHmac('sha1', base32Decode(unseal(secret))).update(counter).digest();
   const offset = mac[mac.length - 1] & 15;
   const n = (mac.readUInt32BE(offset) & 0x7fffffff) % 10 ** DIGITS;
   return String(n).padStart(DIGITS, '0');
@@ -89,7 +124,7 @@ function findRecovery(hashes, code) {
 // ---------- setup ----------
 function otpauthUrl({ issuer, account, secret }) {
   const label = encodeURIComponent(`${issuer}:${account}`);
-  return `otpauth://totp/${label}?secret=${secret}&issuer=${encodeURIComponent(issuer)}&algorithm=SHA1&digits=${DIGITS}&period=${STEP_SECONDS}`;
+  return `otpauth://totp/${label}?secret=${unseal(secret)}&issuer=${encodeURIComponent(issuer)}&algorithm=SHA1&digits=${DIGITS}&period=${STEP_SECONDS}`;
 }
 
 // An inline SVG QR code (always dark on white, which every phone camera reads).
@@ -101,6 +136,6 @@ function qrSvg(text) {
 }
 
 // "JBSW Y3DP ..." is easier to type into an app than one long run of letters.
-const groupSecret = (secret) => secret.replace(/(.{4})/g, '$1 ').trim();
+const groupSecret = (secret) => unseal(secret).replace(/(.{4})/g, '$1 ').trim();
 
-module.exports = { base32Encode, base32Decode, newSecret, stepAt, codeFor, verifyCode, newRecoveryCodes, findRecovery, otpauthUrl, qrSvg, groupSecret, RECOVERY_COUNT };
+module.exports = { base32Encode, base32Decode, newSecret, seal, unseal, sealRecords, isSealedSecret, stepAt, codeFor, verifyCode, newRecoveryCodes, findRecovery, otpauthUrl, qrSvg, groupSecret, RECOVERY_COUNT };

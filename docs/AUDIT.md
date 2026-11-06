@@ -81,7 +81,7 @@ Checks found nothing wrong: every team route requires a team sign-in, every Admi
 
 **Other risks:**
 - Rate limits are counted in memory. That's fine on one server, but the counts reset on restart and aren't shared if the site ever runs on several. Since Step 186 the sign-in lock-outs (team, employer and job-seeker passwords, team codes) and the security alert counts are kept across restarts (`failure-log.js`, `security.js` warm-up); they are still per server.
-- Two-step sign-in keys are stored unencrypted in the database, so backups need to be kept as private as the database.
+- ~~Two-step sign-in keys are stored unencrypted in the database.~~ Since Step 187 they are sealed with `FILE_ENCRYPTION_KEY` (`twofactor.js` `seal`); older keys are sealed at start. Without that key set, the fallback key lives in the database, so backups still need to be kept as private as the database.
 - Saved jobs live in the visitor's browser only.
 
 ## 6. Prioritised backlog

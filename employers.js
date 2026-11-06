@@ -906,7 +906,7 @@ function register(app, deps) {
   app.post('/employer/settings/two-step/start', requireEmployer, limit('employer-2fa', 20), sameOrigin, (req, res) => {
     const u = team.userById(req.employerUser.id);
     if (u.twoFactor) return toTwoStep(res, 'Two-step sign-in is already on.');
-    u.twoFactorPending = { secret: tf.newSecret(), exp: Date.now() + SETUP_MINUTES * 60000 };
+    u.twoFactorPending = { secret: tf.seal(tf.newSecret()), exp: Date.now() + SETUP_MINUTES * 60000 };
     team.saveUser(u);
     toTwoStep(res, 'Scan the QR code with your authenticator app.');
   });

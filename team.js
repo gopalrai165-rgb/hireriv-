@@ -345,7 +345,7 @@ function create({ db, mailer, baseUrl, ownerUser, ownerPass, site = {}, resetOwn
 
     app.post('/admin/security/start', adminAuth, sameOrigin, (req, res) => {
       if (has2fa(req.admin.id)) return res.redirect(secUrl());
-      saveSecurity(req.admin.id, { twoFactorPending: { secret: tf.newSecret(), exp: Date.now() + SETUP_MINUTES * 60000 } });
+      saveSecurity(req.admin.id, { twoFactorPending: { secret: tf.seal(tf.newSecret()), exp: Date.now() + SETUP_MINUTES * 60000 } });
       res.redirect(secUrl('Started setting up two-step sign-in'));
     });
 
@@ -509,4 +509,4 @@ function create({ db, mailer, baseUrl, ownerUser, ownerPass, site = {}, resetOwn
   return { adminAuth, requireAdmin, requireBilling, register, log, onLog, pruneActivity, confirmIdentity, sessionKey, list, members, activity, byId, currentUser, has2fa, requires2fa, mustUse2fa, ROLES, OWNER_ID };
 }
 
-module.exports = { create, ROLES };
+module.exports = { create, ROLES, OWNER_SECURITY };

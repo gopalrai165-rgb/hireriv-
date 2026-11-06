@@ -136,4 +136,4 @@ function sweep(dir) {
   return n;
 }
 
-module.exports = { onAccess: null, configure, configured, newKey, parseKey, currentKeyId, seal, open, read, readSync, send, sweep, isSealed };
+module.exports = { onAccess: null, configure, configured, newKey, parseKey, currentKeyId, encrypt, sealedWithCurrent, seal, open, read, readSync, send, sweep, isSealed };
