@@ -1,0 +1,17 @@
+<%- include('partials/head') %>
+
+<section class="section">
+  <div class="container narrow center status-page">
+    <% if (done) { %>
+      <span class="status-icon ok"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg></span>
+      <h1>You won't get these emails again</h1>
+      <p class="lead">You are off our news and jobs list. Emails you asked for separately, such as job alerts and updates on your applications, are not affected.</p>
+    <% } else { %>
+      <h1>Stop news and jobs emails from <%= site.name %>?</h1>
+      <p class="lead">We will take you off this list. Job alerts and updates on your applications are not affected.</p>
+      <form method="post" action="/newsletter/unsubscribe/<%= token %>"><button class="btn btn-primary" type="submit">Stop the emails</button></form>
+    <% } %>
+  </div>
+</section>
+
+<%- include('partials/foot') %>

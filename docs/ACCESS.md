@@ -52,6 +52,22 @@ Total: 727 routes.
 | GET | `/admin/ai` | team | ai.view (Admins, Operations Admins); counts and costs only, never what people wrote; no-store |
 | POST | `/admin/ai/settings` | admin | Admins; switches and limits with a reason, in the hash-chained audit history |
 
+## Email campaigns: news and job round-ups to the people who asked for them
+
+| Method | Path | Policy | Notes |
+| --- | --- | --- | --- |
+| GET | `/admin/campaigns` | admin | Admins only; the list and how many people can be emailed; no addresses shown |
+| GET | `/admin/campaigns/new` | admin | Admins only |
+| POST | `/admin/campaigns` | admin | Admins only; same-origin; saves a draft; recorded |
+| GET | `/admin/campaigns/:id` | admin | Admins only; the draft, a preview, or the counts |
+| POST | `/admin/campaigns/:id` | admin | Admins only; same-origin; drafts only; changing the wording needs a new test |
+| POST | `/admin/campaigns/:id/test` | admin | Admins only; same-origin; to their own address only; 20 an hour |
+| POST | `/admin/campaigns/:id/send` | admin | Admins only; same-origin; password confirmed again; a test of that wording first; recorded |
+| POST | `/admin/campaigns/:id/stop` | admin | Admins only; same-origin; empties the queue; recorded |
+| POST | `/admin/campaigns/:id/delete` | admin | Admins only; same-origin; drafts only; recorded |
+| GET | `/newsletter/unsubscribe/:token` | link | Signed link with no address in it; only asks, because mail scanners open links |
+| POST | `/newsletter/unsubscribe/:token` | link | Signed link; the button or the mail program's one-click request (RFC 8058, so no same-origin check) |
+
 ## Public API and integrations: companies' own systems with access tokens, the developer portal, and the Integrations pages for owners and the team
 
 | Method | Path | Policy | Notes |

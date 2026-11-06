@@ -57,6 +57,18 @@ function detailsTable(rows) {
 
 const describeAlert = (sub) => (sub.name ? `your saved search “${sub.name}”` : [sub.category || 'all', 'jobs', sub.location ? `in ${sub.location}` : ''].filter(Boolean).join(' '));
 
+// A campaign's words: the writer's text, escaped; paragraphs and https links only.
+const campaignHtml = ({ text, buttonLabel, buttonLink }) => {
+  // Links are found first and each piece escaped on its own, so "&gt;" stays whole.
+  const words = (t) => t.split(/(https:\/\/[^\s<>"']+)/).map((part, i) => {
+    if (i % 2 === 0) return esc(part);
+    const tail = part.match(/[.,;:!?)]+$/);
+    const href = esc(tail ? part.slice(0, -tail[0].length) : part);
+    return `<a href="${href}">${href}</a>${tail ? esc(tail[0]) : ''}`;
+  }).join('').replace(/\n/g, '<br>');
+  const paras = String(text || '').split(/\n\s*\n/).map((t) => t.trim()).filter(Boolean).map((t) => p(words(t))).join('');
+  return paras + (buttonLabel && buttonLink ? button(esc(buttonLink), esc(buttonLabel)) : '');
+};
 const button = (href, label) =>
   `<p style="margin:20px 0 0"><a href="${esc(href)}" style="background:#123B70;color:#fff;padding:12px 22px;border-radius:999px;text-decoration:none;font-weight:bold;display:inline-block">${esc(label)}</a></p>`;
 
@@ -630,6 +642,17 @@ function createMailer(site) {
 
     // A sales proposal to a business contact (crm.js): only once it has been
     // approved, never to anyone who unsubscribed, always with a way to stop.
+    campaign(to, mail) {
+      return send(site, {
+        to,
+        subject: mail.subject,
+        heading: mail.subject,
+        headers: { 'List-Unsubscribe': `<${mail.unsubscribe}>`, 'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click' },
+        html: campaignHtml(mail),
+        footer: `You're getting this because you asked for news and jobs from ${esc(site.name)}. <a href="${esc(mail.unsubscribe)}" style="color:#6b7690">Stop these emails</a>.${mail.postal ? `<br>${esc(mail.postal)}` : ''}`,
+      });
+    },
+    campaignPreview: (mail) => campaignHtml(mail),
     crmProposal(to, { number, title, validUntil, link, unsubscribe, owner }) {
       return send(site, {
         to: to.email,

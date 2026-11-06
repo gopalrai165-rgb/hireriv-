@@ -1,0 +1,107 @@
+<%- include('partials/head') %>
+<%
+  const when = function (d) { return d ? new Date(d).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'medium', timeStyle: 'short' }) : ''; };
+  const STATUS = { draft: ['Draft', ''], sending: ['Sending', 'st-screening'], sent: ['Sent', 'st-hired'], stopped: ['Stopped', 'st-rejected'] };
+  const pill = function (c) { const s = STATUS[c.status] || [c.status, '']; return '<span class="pill ' + s[1] + '">' + s[0] + '</span>'; };
+  const people = function (n) { return n + (n === 1 ? ' person' : ' people'); };
+  const v = values || {};
+%>
+<section class="section admin admin-console">
+  <div class="container">
+    <%- include('partials/team-side') %>
+    <div class="admin-head">
+      <div class="admin-title">
+        <span class="admin-crumb">Admin · Communication</span>
+        <h1><%= section === 'new' ? 'New email campaign' : section === 'one' ? campaign.subject : 'Email campaigns' %></h1>
+      </div>
+      <% if (section === 'list') { %><div class="admin-head-actions"><a class="btn btn-primary btn-sm" href="/admin/campaigns/new">New campaign</a></div><% } else { %><div class="admin-head-actions"><a class="btn btn-outline btn-sm" href="/admin/campaigns">All campaigns</a></div><% } %>
+    </div>
+    <% if (msg) { %><p class="notice" role="status"><%= msg %></p><% } %>
+    <% if (errors.length) { %><div class="notice notice-err" role="alert"><% errors.forEach(function (e) { %><p><%= e %></p><% }) %></div><% } %>
+
+    <% if (section === 'list') { %>
+      <p class="muted">News and job round-ups for people who asked for them. Job alerts and application updates are separate and always go out.</p>
+      <div class="kpis">
+        <div class="kpi"><span class="kpi-label">Can be emailed</span><span class="kpi-value"><%= audienceCount %></span><span class="kpi-note">asked for these emails and have not bounced</span></div>
+      </div>
+      <% if (!list.length) { %>
+        <p class="muted dash-empty">No campaigns yet.</p>
+      <% } else { %>
+        <div class="table-wrap"><table class="cards-on-phone">
+          <thead><tr><th scope="col">Subject</th><th scope="col">Status</th><th scope="col">Sent</th><th scope="col">Stopped the emails</th><th scope="col">When</th></tr></thead>
+          <tbody>
+            <% list.forEach(function (c) { %>
+              <tr>
+                <td><a href="/admin/campaigns/<%= c.id %>"><%= c.subject %></a></td>
+                <td><%- pill(c) %></td>
+                <td><%= c.status === 'draft' ? '–' : c.sent + ' of ' + c.total %></td>
+                <td><%= c.status === 'draft' ? '–' : c.unsubscribed || 0 %></td>
+                <td><%= when(c.startedAt || c.createdAt) %></td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table></div>
+      <% } %>
+    <% } %>
+
+    <% if (section === 'one' && campaign.status !== 'draft') { %>
+      <p><%- pill(campaign) %> Started <%= when(campaign.startedAt) %> by <%= campaign.startedBy %><% if (campaign.finishedAt) { %>, finished <%= when(campaign.finishedAt) %><% } %>.</p>
+      <div class="kpis">
+        <div class="kpi"><span class="kpi-label">Sent</span><span class="kpi-value"><%= campaign.sent %></span><span class="kpi-note">of <%= people(campaign.total) %></span></div>
+        <div class="kpi"><span class="kpi-label">Skipped</span><span class="kpi-value"><%= campaign.skipped %></span><span class="kpi-note">left the list or bounced before their turn</span></div>
+        <div class="kpi"><span class="kpi-label">Failed</span><span class="kpi-value"><%= campaign.failed %></span><span class="kpi-note">could not be sent</span></div>
+        <div class="kpi"><span class="kpi-label">Stopped the emails</span><span class="kpi-value"><%= campaign.unsubscribed || 0 %></span><span class="kpi-note">from this campaign's link</span></div>
+      </div>
+      <% if (campaign.status === 'sending') { %>
+        <form method="post" action="/admin/campaigns/<%= campaign.id %>/stop" data-confirm="Stop sending? Nobody else will get this campaign."><button class="btn btn-danger btn-sm" type="submit">Stop sending</button></form>
+      <% } %>
+    <% } %>
+
+    <% if (section === 'new' || (section === 'one' && campaign.status === 'draft')) { %>
+      <div class="dash-grid">
+        <section class="dash-card" aria-labelledby="c-write">
+          <h2 id="c-write">The email</h2>
+          <form class="form" method="post" action="<%= section === 'new' ? '/admin/campaigns' : '/admin/campaigns/' + campaign.id %>">
+            <label for="c-subject">Subject*</label>
+            <input id="c-subject" name="subject" maxlength="120" required value="<%= v.subject || '' %>">
+            <label for="c-text">Message*</label>
+            <textarea id="c-text" name="text" rows="10" maxlength="6000" required aria-describedby="c-text-help"><%= v.text || '' %></textarea>
+            <p class="small muted" id="c-text-help">Plain words. A blank line starts a new paragraph, and addresses starting with https:// become links.</p>
+            <label for="c-label">Button words <span class="muted small">(optional)</span></label>
+            <input id="c-label" name="buttonLabel" maxlength="40" value="<%= v.buttonLabel || '' %>" placeholder="See the new jobs">
+            <label for="c-link">Button link <span class="muted small">(optional)</span></label>
+            <input id="c-link" name="buttonLink" maxlength="500" value="<%= v.buttonLink || '' %>" placeholder="/jobs">
+            <button class="btn btn-primary" type="submit"><%= section === 'new' ? 'Save draft' : 'Save changes' %></button>
+          </form>
+        </section>
+
+        <% if (section === 'one') { %>
+          <section class="dash-card" aria-labelledby="c-send">
+            <h2 id="c-send">Send it</h2>
+            <ol class="small">
+              <li>Send yourself a test<%= campaign.testedAt ? ' (done ' + when(campaign.testedAt) + ')' : '' %>. Any change to the wording needs a new test.</li>
+              <li>Send it to <b><%= people(audienceCount) %></b>. You will be asked for your password.</li>
+            </ol>
+            <div class="row-actions-wrap">
+              <form method="post" action="/admin/campaigns/<%= campaign.id %>/test"><button class="btn btn-outline btn-sm" type="submit">Send me a test</button></form>
+              <% if (campaign.testedAt && audienceCount) { %>
+                <form method="post" action="/admin/campaigns/<%= campaign.id %>/send" data-confirm="Send this to <%= people(audienceCount) %>? This can't be undone."><button class="btn btn-primary btn-sm" type="submit">Send to <%= people(audienceCount) %></button></form>
+              <% } %>
+              <form method="post" action="/admin/campaigns/<%= campaign.id %>/delete" data-confirm="Delete this draft?"><button class="btn btn-danger btn-sm" type="submit">Delete draft</button></form>
+            </div>
+            <% if (!audienceCount) { %><p class="small muted">Nobody has asked for these emails yet, so there is no one to send to. People join from the footer form or their notification settings.</p><% } %>
+          </section>
+        <% } %>
+      </div>
+    <% } %>
+
+    <% if (section === 'one') { %>
+      <section class="dash-card" aria-labelledby="c-preview">
+        <h2 id="c-preview"><%= campaign.status === 'draft' ? 'What people will read' : 'What was sent' %></h2>
+        <p class="small muted">Subject: <b><%= campaign.subject %></b></p>
+        <div class="campaign-preview"><%- preview %></div>
+      </section>
+    <% } %>
+  </div>
+</section>
+<%- include('partials/foot') %>

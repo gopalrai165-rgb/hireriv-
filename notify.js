@@ -446,7 +446,7 @@ function create({ db, now = () => Date.now(), log = console }) {
 
   return {
     TYPES, CATEGORIES, OPTIONAL_CATEGORIES, rkOf, candidateRk, addressHash, template, emit, work, start, prefsOf, setPrefs, emailAllowed, pushAllowed, onNotification,
-    list, unreadCount, find, markRead, markAllRead, forget, forgetCompany, prune, stats, problems, recentDeliveries, suppressions, unsuppress, suppress, retry,
+    list, unreadCount, find, markRead, markAllRead, forget, forgetCompany, prune, stats, problems, recentDeliveries, suppressions, suppressed, unsuppress, suppress, retry,
     verifySignature, applyWebhook, safeLink,
   };
 }

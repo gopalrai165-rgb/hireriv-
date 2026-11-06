@@ -567,6 +567,7 @@ function teamSideOf(req, user) {
     can('crm.view') ? ['/admin/crm', 'Sales CRM'] : null,
     user.role === 'Admin' ? ['/admin/notifications', 'Email delivery'] : null,
     user.role === 'Admin' ? ['/admin/export-requests', 'Export approvals'] : null,
+    user.role === 'Admin' ? ['/admin/campaigns', 'Email campaigns'] : null,
     can('analytics.view') ? ['/admin/analytics', 'Analytics'] : null,
     can('site.analytics') ? ['/admin/site-analytics', 'Website analytics'] : null,
     can('subscriptions.view') ? ['/admin/billing', 'Plans & payments'] : null,
@@ -3350,6 +3351,7 @@ app.post('/admin/:type/:id/delete', adminAuth, requireAdmin, sameOrigin, (req, r
 
 // Full database snapshot (VACUUM INTO) for backups; safe while the site runs.
 // A second Admin approves bulk exports when the owner turns it on (export-approval.js).
+require('./campaigns').register(app, { db, team, adminAuth, requireAdmin, requireConfirmed, sameOrigin, limit, privacy, notify, mailer, site, baseUrl: BASE_URL, readSubmissions, realContact: app.locals.realContact, ops });
 const exportApproval = require('./export-approval').register(app, { db, team, adminAuth, requireAdmin, requireConfirmed, sameOrigin, limit, events: () => events, security });
 app.get('/admin/backup', adminAuth, requireAdmin, requireConfirmed, exportApproval.requireApproval('Full database'), security.bulkExport('Full database'), (req, res) => {
   team.log(req.admin, 'Downloaded the database');

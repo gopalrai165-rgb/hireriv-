@@ -426,7 +426,7 @@ Suggested order: 2 → 1 → 3 → 4, which makes Hireriv usable for skilled and
   - Devices live in `push-subscriptions` like the rest of the app's records, so no separate migration is needed.
 - **Not done here.**
   - Regional languages: the brief says "if required". Pages are English only, and translating them is a separate piece of work.
-  - Sending marketing emails: consent is recorded, but there are still no campaigns (Step 15).
+  - ~~Sending marketing emails: consent is recorded, but there are still no campaigns (Step 15).~~ Done in Step 194 (`campaigns.js`, Admin → Email campaigns).
   - Real-device testing on Android, iPhone and low-end phones, and Lighthouse runs, are still to do on the live site. iPhones need the app added to the Home Screen before notifications can be turned on, and the settings page says so.
 - **Tests.** `test/mobile.test.js` has 9 tests, covering:
   - the manifest, icons and page tags
@@ -813,4 +813,12 @@ Suggested order: 2 → 1 → 3 → 4, which makes Hireriv usable for skilled and
 - **Audit first.** The automated rules covered public and candidate pages only, and contrast, reflow and keyboard focus were on the manual list. A browser can measure those, so they were measured on 39 pages. Results and what still needs a person are in docs/ACCESSIBILITY.md sections 3 and 3a.
 - **Fixed.** 9 contrast failures and the missing focus ring on the home search and newsletter boxes.
 - **Tests.** `test/a11y-rules.js` (shared rules), `test/accessibility-portals.test.js`.
+
+## Step 194: Email campaigns
+
+- **Audit first.** Consent to marketing email was recorded and the newsletter list was kept up to date (`privacy.js` setMarketing), but nothing could write to those people.
+- **Built.** Admin → Email campaigns: write, preview, test to yourself, send with your password, follow the counts, stop. Sending goes in batches of 50 a minute from a queue in the database (`CAMPAIGN_BATCH`, `CAMPAIGN_TICK_MS`).
+- **Rules.** Only the opt-in list; consent and past bounces checked again just before each email; one-click unsubscribe whose link holds no address; addresses leave the queue as they are used, so a finished campaign keeps only its counts. Job alerts and application updates are separate.
+- **Not done here.** Opens and clicks are not tracked, on purpose (no tracking pixels). Campaigns go to the job-seeker list only; CRM contacts have their own consent and proposals. Whether promotional email needs anything more under the DPDP Rules is part of the legal review (docs/SECURITY.md section 7).
+- **Tests.** `test/campaigns.test.js`.
 
