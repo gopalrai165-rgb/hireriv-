@@ -17,14 +17,17 @@
   const exportHref = function (id) { return '/api/analytics/reports/' + id + '/export' + (exportQuery ? '?' + exportQuery : ''); };
   const isTeam = scope.as === 'team';
 %>
-<section class="section admin<%= isTeam ? '' : ' portal' %>">
+<section class="section admin<%= isTeam ? ' admin-console' : ' portal' %>">
   <div class="container">
+    <% if (isTeam) { %><%- include('partials/team-side') %><% } %>
     <% if (isTeam) { %>
+      <% if (!locals.teamSide) { %>
       <div class="admin-userbar">
         <span>Signed in as <b><%= admin.name %></b></span>
         <a class="small" href="/admin">Back to admin</a>
         <form method="post" action="/admin/logout"><button class="link-btn small" type="submit">Sign out</button></form>
       </div>
+      <% } %>
       <div class="admin-head"><div><span class="eyebrow">Analytics</span><h1><%= scope.platform ? 'Platform and recruitment analytics' : scope.allRecruiters ? 'Recruitment analytics' : scope.role === 'Finance Manager' ? 'Placements and revenue' : 'Your recruitment numbers' %></h1></div></div>
       <% if (errors.length) { %><div class="notice notice-err" role="alert"><p>These filters could not be used, so the last 30 days are shown:</p><ul><% errors.forEach(function (e) { %><li><%= e %></li><% }) %></ul></div><% } %>
     <% } else { %>

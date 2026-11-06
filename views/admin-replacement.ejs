@@ -1,7 +1,8 @@
 <%- include('partials/head') %>
 
-<section class="section admin">
+<section class="section admin admin-console">
   <div class="container narrow">
+    <%- include('partials/team-side') %>
     <a href="/admin?tab=placements" class="back-link">← Placements</a>
     <h1>Choose a replacement</h1>
     <p class="lead">For <b><%= orig.candidateName %></b> at <%= orig.company %> (<%= orig.jobTitle %>), who <%= orig.status === 'Did not join' ? "didn't join" : 'left in the guarantee period' %>.</p>

@@ -1,7 +1,8 @@
 <%- include('partials/head') %>
 
-<section class="section admin">
+<section class="section admin admin-console">
   <div class="container narrow">
+    <%- include('partials/team-side') %>
     <% if (!required || on) { %><a href="/admin" class="back-link">← Admin</a><% } %>
     <h1>Sign-in security</h1>
     <p class="muted">Signed in as <b><%= admin.name %></b> (<%= admin.email %>)</p>

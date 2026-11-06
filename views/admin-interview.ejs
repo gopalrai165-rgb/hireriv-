@@ -1,7 +1,8 @@
 <%- include('partials/head') %>
 
-<section class="section admin">
+<section class="section admin admin-console">
   <div class="container narrow">
+    <%- include('partials/team-side') %>
     <a href="/admin?tab=applications" class="back-link">← Applications</a>
     <h1>Schedule interview</h1>
     <p class="lead"><b><%= a.name %></b> for <%= a.jobTitle %> <% if (realEmail(a.email)) { %>· <a href="mailto:<%= a.email %>"><%= a.email %></a> <% } %>· <a href="tel:<%= a.phone %>"><%= a.phone %></a></p>

@@ -524,6 +524,8 @@ app.use((req, res, next) => {
   res.locals.teamSignedIn = Boolean(teamUser);
   res.locals.navRole = navRoleOf(req.path, res.locals);
   res.locals.navMenu = res.locals.navRole === 'team' ? teamMenu(req, teamUser) : res.locals.navRole === 'employer' ? employerMenu(req) : null;
+  // The team console's sidebar (partials/team-side) on /admin and the team's tool pages.
+  if (teamUser) res.locals.teamSide = teamSideOf(req, teamUser);
   next();
 });
 // Whose menu the header and the phone bar show: the team on /admin pages,
@@ -537,6 +539,31 @@ function navRoleOf(p, { teamSignedIn, employerSignedIn, candidateSignedIn }) {
 }
 // The work links in the header and phone bar: only the sections this person
 // may open (the same rules as the admin tabs and the employer portal tabs).
+// The team console's sidebar: the admin sections the person may open, in
+// groups, and the tools their role includes, the open one marked by address.
+function teamSideOf(req, user) {
+  const tabs = tabsFor(user);
+  const can = (a) => agencyRoles.can(user, a);
+  const tools = [
+    can('requisitions.view') ? ['/admin/workspace', 'Agency & staffing'] : can('invoices.draft') ? ['/admin/invoice-drafts', 'Invoice drafts'] : null,
+    can('crm.view') ? ['/admin/crm', 'Sales CRM'] : null,
+    user.role === 'Admin' ? ['/admin/notifications', 'Email delivery'] : null,
+    can('analytics.view') ? ['/admin/analytics', 'Analytics'] : null,
+    can('site.analytics') ? ['/admin/site-analytics', 'Website analytics'] : null,
+    can('subscriptions.view') ? ['/admin/billing', 'Plans & payments'] : null,
+    can('security.view') ? ['/admin/security-events', 'Security & privacy'] : can('privacy.requests') ? ['/admin/data-requests', 'Data requests'] : null,
+    can('trust.overview') ? ['/admin/overview', 'Trust & safety'] : null,
+    ['/notifications?as=team', 'Notifications'],
+    ['/admin/security', 'Sign-in security'],
+  ].filter(Boolean).map(([href, label]) => {
+    const base = href.split('?')[0];
+    return { href, label, current: req.path === base || req.path.startsWith(`${base}/`) };
+  });
+  return {
+    user, roleLabel: (agencyRoles.ROLE_INFO[user.role] || { label: user.role }).label, labels: TAB_LABELS, tools,
+    groups: TAB_GROUPS.map(([label, list]) => [label, list.filter((t) => tabs.includes(t))]).filter(([, list]) => list.length),
+  };
+}
 // Each link: [key, href, label key, short label key, icon].
 function teamMenu(req, user) {
   const tabs = tabsFor(user);

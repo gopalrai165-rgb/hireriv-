@@ -7,13 +7,16 @@
   const pillFor = function (s) { return ['paid', 'Paid', 'processed', 'active'].includes(s) ? 'st-hired' : ['failed', 'review', 'past_due', 'error', 'rejected'].includes(s) ? 'st-rejected' : 'st-screening'; };
   const rupeesOf = function (paise) { return paise == null ? '' : (paise / 100).toFixed(2).replace(/\.00$/, ''); };
 %>
-<section class="section admin">
+<section class="section admin admin-console">
   <div class="container">
+    <%- include('partials/team-side') %>
+    <% if (!locals.teamSide) { %>
     <div class="admin-userbar">
       <span>Signed in as <b><%= admin.name %></b> · <%= roleLabel %></span>
       <a class="small" href="/admin">Back</a>
       <form method="post" action="/admin/logout"><button class="link-btn small" type="submit">Sign out</button></form>
     </div>
+    <% } %>
     <div class="admin-head"><div><span class="eyebrow">Money</span><h1>Plans &amp; payments</h1></div></div>
     <nav class="account-tabs" aria-label="Billing">
       <% tabs.forEach(function (t) { %><a href="/admin/billing?view=<%= t[0] %>"<%- view === t[0] ? ' aria-current="page" class="active"' : '' %>><%= t[1] %></a><% }) %>

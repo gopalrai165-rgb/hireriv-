@@ -1,7 +1,8 @@
 <%- include('partials/head') %>
 
-<section class="section admin">
+<section class="section admin admin-console">
   <div class="container">
+    <%- include('partials/team-side') %>
     <%- include('partials/agency-nav', { heading: 'Staffing assignments', tab: 'staffing' }) %>
     <p class="muted small">Where temporary and contract workers are deployed, with their dates, shift and rates. A worker can't have two assignments on the same days. Placements billed "per staffing assignment" are invoiced from here: draft an invoice for days or hours worked and Finance issues it.</p>
 

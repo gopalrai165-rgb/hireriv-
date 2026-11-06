@@ -1,0 +1,34 @@
+<%# The team console's sidebar, on /admin and on every team tool page: the person and their bell, the admin sections in groups (with counts on /admin), and the tools, the open one marked. teamSide comes from server.js for the signed-in team member; /admin passes sideTab and counts. %>
+<% if (locals.teamSide) { const ts = teamSide; const counts = locals.sideCounts || {}; const openTab = locals.sideTab || ''; %>
+<% const tabName = function (t) { return ts.labels[t] || t.charAt(0).toUpperCase() + t.slice(1); }; %>
+<% const tabIcons = { dashboard: 'i-home', reports: 'i-chart', applications: 'i-users', jobs: 'i-briefcase', talent: 'i-target', interviews: 'i-clock', clients: 'i-bank', placements: 'i-check', 'hire-requests': 'i-mail', contacts: 'i-phone', 'job-reports': 'i-shield', 'job-alerts': 'i-bell', newsletter: 'i-megaphone', blog: 'i-quote', templates: 'i-link', settings: 'i-gear', team: 'i-users', activity: 'i-spark' }; %>
+<aside class="admin-side team-side" aria-label="Admin menu">
+  <div class="admin-me">
+    <span class="admin-avatar" aria-hidden="true"><%= String(ts.user.name || '?').trim().charAt(0).toUpperCase() %></span>
+    <span class="admin-me-text"><b><%= ts.user.name %></b><span><%= ts.roleLabel %></span></span>
+    <%- include('notification-bell', { as: 'team', bellQuery: '?as=team', bellClass: 'admin-me-bell' }) %>
+  </div>
+  <% if (ts.groups.length) { %>
+  <nav class="admin-nav" aria-label="Admin sections">
+    <% ts.groups.forEach(function (g) { %>
+      <div class="admin-nav-group">
+        <% if (g[0]) { %><span class="admin-nav-label"><%= g[0] %></span><% } %>
+        <div class="admin-nav-tabs">
+          <% g[1].forEach(function (t) { %>
+            <a class="tab<%= t === openTab ? ' active' : '' %>" href="/admin?tab=<%= t %>"<%- t === openTab ? ' aria-current="page"' : '' %>><svg class="i" aria-hidden="true"><use href="#<%= tabIcons[t] || 'i-arrow' %>"/></svg><span class="tab-name"><%= tabName(t) %></span><% if (counts[t] !== '' && counts[t] !== undefined) { %> <span class="count"><%= counts[t] %></span><% } %></a>
+          <% }) %>
+        </div>
+      </div>
+    <% }) %>
+  </nav>
+  <% } %>
+  <details class="admin-tools" open>
+    <summary class="admin-tools-label">Tools</summary>
+    <div class="admin-userbar">
+      <span class="sr-only">Signed in as <b><%= ts.user.name %></b> · <%= ts.roleLabel %></span>
+      <% ts.tools.forEach(function (x) { %><a class="small<%= x.current ? ' active' : '' %>" href="<%= x.href %>"<%- x.current ? ' aria-current="page"' : '' %>><%= x.label %></a><% }) %>
+      <form method="post" action="/admin/logout"><button class="link-btn small" type="submit">Sign out</button></form>
+    </div>
+  </details>
+</aside>
+<% } %>

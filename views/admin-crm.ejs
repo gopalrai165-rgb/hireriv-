@@ -1,7 +1,8 @@
 <%- include('partials/head') %>
 
-<section class="section admin">
+<section class="section admin admin-console">
   <div class="container">
+    <%- include('partials/team-side') %>
     <%- include('partials/crm-nav', { heading: title, tab: section }) %>
     <% const manage = can('crm.manage'); const money = function (p) { return p === null || p === undefined ? '' : inr(p); }; %>
 

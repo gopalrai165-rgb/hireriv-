@@ -3,8 +3,9 @@
   const usd = function (n) { return '$' + Number(n || 0).toFixed(2); };
   const when = function (d) { return d ? new Date(d).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'medium', timeStyle: 'short' }) : '–'; };
 %>
-<section class="section admin">
+<section class="section admin admin-console">
   <div class="container">
+    <%- include('partials/team-side') %>
     <%- include('partials/trust-nav', { heading: 'AI assistant', tab: 'ai' }) %>
     <p class="muted">Provider: <b><%= provider %></b>. Figures for the last 30 days. Only counts are kept here, never what people wrote.</p>
 

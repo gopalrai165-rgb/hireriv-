@@ -2,8 +2,9 @@
 <%
   const when = function (d) { return d ? new Date(d).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'medium', timeStyle: 'short' }) : '–'; };
 %>
-<section class="section admin">
+<section class="section admin admin-console">
   <div class="container">
+    <%- include('partials/team-side') %>
     <%- include('partials/trust-nav', { heading: 'Integrations', tab: 'integrations' }) %>
     <p class="muted">Companies' API integrations and webhook endpoints. Secrets are never shown here: only the start and last four characters of each key.</p>
 

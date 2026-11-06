@@ -2753,6 +2753,17 @@ td > a:first-child:not(.btn) { display: inline-block; padding-block: 6px; min-wi
 /* ---------- Employer portal console ----------
    The pages keep their markup: the shared menu (partials/employer-nav) sits in
    the first column and spans every row, the page content flows in the second. */
+/* Team tool pages (analytics, agency, billing, security…): the same sidebar
+   (partials/team-side) in the first column, the page in the second. */
+.admin > .container:has(> .team-side) { display: grid; grid-template-columns: 264px minmax(0, 1fr); column-gap: 28px; align-items: start; max-width: 1360px; }
+.admin > .container:has(> .team-side) > * { grid-column: 2; min-width: 0; }
+.admin > .container:has(> .team-side) > .team-side { grid-column: 1; grid-row: 1 / span 400; align-self: start; }
+.admin > .container.narrow:has(> .team-side) > :not(.team-side) { max-width: 860px; }
+.admin-userbar a.active { background: #eaf2fc; color: #123B70; font-weight: 600; }
+@media (max-width: 1080px) {
+  .admin > .container:has(> .team-side) { display: block; }
+  .admin .team-side { margin-bottom: 18px; }
+}
 .portal > .container:has(> .emp-side) { display: grid; grid-template-columns: 264px minmax(0, 1fr); column-gap: 28px; align-items: start; max-width: 1360px; }
 .portal > .container:has(> .emp-side) > * { grid-column: 2; min-width: 0; }
 .portal > .container:has(> .emp-side) > .emp-side { grid-column: 1; grid-row: 1 / span 400; align-self: start; }

@@ -1,7 +1,8 @@
 <%- include('partials/head') %>
 
-<section class="section admin">
+<section class="section admin admin-console">
   <div class="container">
+    <%- include('partials/team-side') %>
     <%- include('partials/agency-nav', { heading: c.company, tab: 'clients' }) %>
     <p class="muted"><%= c.active ? 'Active client' : 'Deactivated' %> · contact <%= c.name %> · <a href="/admin?tab=clients">All clients</a></p>
 

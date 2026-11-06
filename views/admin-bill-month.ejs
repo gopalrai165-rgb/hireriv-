@@ -1,7 +1,8 @@
 <%- include('partials/head') %>
 
-<section class="section admin">
+<section class="section admin admin-console">
   <div class="container narrow">
+    <%- include('partials/team-side') %>
     <a href="/admin?tab=placements&view=contracts" class="back-link">← Contracts</a>
     <h1>Bill a month</h1>
     <p class="lead"><b><%= p.candidateName %></b> at <%= p.company %> as <%= p.jobTitle %> · <%= inr(p.monthlyRate) %>/month<%= p.contractEnd ? ' · contract to ' + formatYmd(p.contractEnd) : '' %></p>

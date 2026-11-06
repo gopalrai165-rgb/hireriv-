@@ -1,7 +1,8 @@
 <%- include('partials/head') %>
 
-<section class="section admin">
+<section class="section admin admin-console">
   <div class="container">
+    <%- include('partials/team-side') %>
     <%- include('partials/agency-nav', { heading: c.company + ' · Contract documents', tab: 'clients' }) %>
     <p><a href="/admin/clients/<%= c.id %>">← <%= c.company %></a></p>
     <p class="muted small">Each version is written from the contract's terms plus its own clauses, reviewed by someone other than its author, then sent to the client's owners to sign. Signed versions become active on the contract's start date and expire at its end. A version can't change once it leaves draft: write a new one instead.</p>

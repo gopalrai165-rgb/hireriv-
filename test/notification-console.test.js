@@ -47,9 +47,10 @@ test('an employer sees notifications inside the employer portal menu', async () 
   }
 });
 
-test('the team page stands alone, and the header bell keeps its count on the notifications page', async () => {
+test('the team page has the team sidebar (Step 184), and the header bell keeps its count on the notifications page', async () => {
   const html = await page('/notifications', p.admin);
-  assert.doesNotMatch(html, /<aside class="admin-side/);
+  assert.match(html, /<aside class="admin-side team-side" aria-label="Admin menu">/);
+  assert.match(html, /<a class="small active" href="\/notifications\?as=team" aria-current="page">Notifications<\/a>/);
   assert.match(html, /<h1>Notifications<\/h1>/);
   assert.match(html, /Back to your dashboard/);
   // The page's own unread number no longer hides the bells' counts.

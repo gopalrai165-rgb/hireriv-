@@ -1,7 +1,8 @@
 <%- include('partials/head') %>
 
-<section class="section admin">
+<section class="section admin admin-console">
   <div class="container">
+    <%- include('partials/team-side') %>
     <%- include('partials/agency-nav', { heading: 'Requisitions', tab: 'requisitions' }) %>
     <p class="muted small">A requisition is a client's request to fill a number of openings. Link it to the client's job so its applicants form the pipeline; placements recorded for that job count towards it, and it closes as Filled when the last opening is placed.<% if (admin.role === 'Recruiter') { %> You see the requisitions assigned to you.<% } %></p>
 

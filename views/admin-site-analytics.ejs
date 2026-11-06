@@ -1,12 +1,15 @@
 <%- include('partials/head') %>
 
-<section class="section admin">
+<section class="section admin admin-console">
   <div class="container">
+    <%- include('partials/team-side') %>
+    <% if (!locals.teamSide) { %>
     <div class="admin-userbar">
       <span>Signed in as <b><%= admin.name %></b> · <%= roleLabel %></span>
       <a class="small" href="<%= ['Sales Manager', 'Business Development'].includes(admin.role) ? '/admin/crm' : '/admin' %>">Back</a>
       <form method="post" action="/admin/logout"><button class="link-btn small" type="submit">Sign out</button></form>
     </div>
+    <% } %>
     <div class="admin-head"><div><span class="eyebrow">Website</span><h1>Website analytics</h1></div></div>
     <p class="muted small">Counts per day only: no cookies, no IP addresses and nothing about who did what. Search-engine bots and browsers that ask not to be tracked (Global Privacy Control or Do Not Track) are not counted.</p>
 

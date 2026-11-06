@@ -3,6 +3,7 @@
 <%# Inside the job seeker's or employer's console (its menu prints the title and the message); the team's page stands alone. %>
 <section class="section admin portal">
   <div class="container">
+    <% if (viewer.as === 'team') { %><%- include('partials/team-side') %><% } %>
     <% if (inConsole === 'candidate') { %><%- include('partials/account-nav', { heading: 'Notifications', tab: '', email: email }) %><% } else if (inConsole === 'employer') { %><%- include('partials/employer-nav', { heading: 'Notifications', tab: '' }) %><% } %>
     <div class="<%= inConsole ? 'notif-head' : 'admin-head' %>">
       <div>

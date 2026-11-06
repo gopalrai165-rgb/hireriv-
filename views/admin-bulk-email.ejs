@@ -1,7 +1,8 @@
 <%- include('partials/head') %>
 
-<section class="section admin">
+<section class="section admin admin-console">
   <div class="container narrow">
+    <%- include('partials/team-side') %>
     <a href="<%= back %>" class="back-link">← Applications</a>
     <h1>Email <%= sendable.length %> candidate<%= sendable.length === 1 ? '' : 's' %></h1>
     <% if (errors.length) { %><p class="notice notice-err" role="alert">Please fix: <%= errors.join(', ') %></p><% } %>

@@ -5,8 +5,9 @@
   const tabOf = { security: 'security', incidents: 'incidents', incident: 'incidents', requests: 'requests', request: 'requests', retention: 'retention', confirm: '' };
   const sevPill = function (s) { return s === 'critical' || s === 'high' ? 'st-rejected' : s === 'medium' ? 'st-screening' : ''; };
 %>
-<section class="section admin">
+<section class="section admin admin-console">
   <div class="container">
+    <%- include('partials/team-side') %>
     <%- include('partials/trust-nav', { heading: title, tab: tabOf[section] }) %>
 
     <% if (section === 'confirm') { %>

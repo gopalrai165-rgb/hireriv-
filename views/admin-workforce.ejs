@@ -1,7 +1,8 @@
 <%- include('partials/head') %>
 
-<section class="section admin">
+<section class="section admin admin-console">
   <div class="container">
+    <%- include('partials/team-side') %>
     <%- include('partials/agency-nav', { heading: 'Workforce', tab: 'workforce' }) %>
     <% const manage = can('workforce.manage'); const back = '/admin/workforce' + (section === 'workers' ? '' : '/' + section); %>
     <nav class="account-tabs" aria-label="Workforce">

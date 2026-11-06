@@ -1,7 +1,8 @@
 <%- include('partials/head') %>
 
-<section class="section admin">
+<section class="section admin admin-console">
   <div class="container">
+    <%- include('partials/team-side') %>
     <%- include('partials/crm-nav', { heading: l.companyName, tab: 'leads' }) %>
     <% const manage = can('crm.manage'); const money = function (p) { return p === null || p === undefined ? '' : inr(p); }; const editable = !l.anonymizedAt; %>
     <p><a href="/admin/crm/leads">← Leads</a></p>

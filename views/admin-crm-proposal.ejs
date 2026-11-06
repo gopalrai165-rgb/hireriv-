@@ -1,7 +1,8 @@
 <%- include('partials/head') %>
 
-<section class="section admin">
+<section class="section admin admin-console">
   <div class="container">
+    <%- include('partials/team-side') %>
     <%- include('partials/crm-nav', { heading: 'Proposal ' + p.number, tab: 'proposals' }) %>
     <p><a href="/admin/crm/leads/<%= p.leadId %>">← <%= l ? l.companyName : 'Lead' %></a></p>
 

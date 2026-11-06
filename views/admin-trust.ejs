@@ -6,8 +6,9 @@
   const pill = function (p) { return p === 'high' ? 'st-rejected' : p === 'low' ? '' : 'st-screening'; };
   const STATE = { restricted: 'Unpublished', removed: 'Removed', 'account-suspended': 'Company suspended', 'account-closed': 'Company closed' };
 %>
-<section class="section admin">
+<section class="section admin admin-console">
   <div class="container">
+    <%- include('partials/team-side') %>
     <%- include('partials/trust-nav', { heading: title, tab: tabOf[section] }) %>
 
     <% if (section === 'overview') { %>

@@ -1,7 +1,8 @@
 <%- include('partials/head') %>
 
-<section class="section admin">
+<section class="section admin admin-console">
   <div class="container">
+    <%- include('partials/team-side') %>
     <%- include('partials/agency-nav', { heading: 'Recruitment reports', tab: 'reports' }) %>
     <nav class="pipeline" aria-label="Period">
       <% [['30', 'Last 30 days'], ['90', 'Last 90 days'], ['365', 'Last 12 months'], ['all', 'All time']].forEach(function (p) { %><a class="pill<%= period === p[0] ? ' active' : '' %>" href="/admin/recruitment-reports?period=<%= p[0] %>"><%= p[1] %></a><% }) %>

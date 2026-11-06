@@ -1,7 +1,8 @@
 <%- include('partials/head') %>
 
-<section class="section admin">
+<section class="section admin admin-console">
   <div class="container">
+    <%- include('partials/team-side') %>
     <%- include('partials/agency-nav', { heading: 'Invoice drafts', tab: 'drafts' }) %>
     <p class="muted small">The team asks for invoices here; an Admin or Finance Manager checks and issues them as numbered GST invoices. Asking twice for the same fee or period gives the same draft. Payments are recorded afterwards, under Placements → Payments.</p>
 

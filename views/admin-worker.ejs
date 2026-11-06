@@ -1,7 +1,8 @@
 <%- include('partials/head') %>
 
-<section class="section admin">
+<section class="section admin admin-console">
   <div class="container">
+    <%- include('partials/team-side') %>
     <%- include('partials/agency-nav', { heading: w.name, tab: 'workforce' }) %>
     <p><a href="/admin/workforce">← Workforce</a></p>
     <% const back = '/admin/workforce/workers/' + w.id; %>
