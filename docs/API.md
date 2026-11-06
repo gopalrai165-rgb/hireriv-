@@ -62,6 +62,15 @@ A call acts as the company: the integration is treated as an owner whose permiss
 - **Limits**: 10 second timeout, 4 KB of the response kept.
 - **Tests only**: `WEBHOOKS_ALLOW_PRIVATE=1` allows http and local addresses for tests. It is ignored when `NODE_ENV=production`.
 
+## 5a. Address allow-lists
+
+Each integration can be limited to the addresses of the systems that use it (Integrations, "Addresses allowed", or when creating it): single addresses and ranges, IPv4 or IPv6, up to 20 (`ip-allow.js`). An empty list means any address. Ranges wider than /8 (IPv4) or /32 (IPv6) are refused.
+
+- **Checked twice.** When a token is asked for, after the secret is proven, and on every API call, so a change applies at once and a stolen token is useless elsewhere. The answer is `403 ip_not_allowed`.
+- **Before the rate limit.** Refused requests don't use up the real system's requests.
+- **Told to the owners.** Every change is in the company's activity log and emailed. The first refusal in a day is logged and emailed too; the page and the team's Integrations page show the last refused address. Saved at most once a minute, so repeated requests can't fill the database or inboxes.
+- **Behind a proxy** the address comes from `TRUST_PROXY` (set to 1 in `docker-compose.yml`). If it were unset on a proxied host, every request would look like the proxy and a list would refuse them all; `npm run check:config` warns about it.
+
 ## 6. Sandbox
 
 An integration created as **Sandbox** gets an `hrv_test_` secret. It sees only sample jobs and applications seeded for it (`integration-sandbox`): never live jobs, real candidates or the review queue. Its changes and events stay in the sandbox, and its events go only to that integration's sandbox endpoints. Its rate limit is lower.
@@ -74,6 +83,6 @@ The version is in the path (`/api/v1`). Within v1 we only add things. A breaking
 
 - **No certified partner integrations** (job boards, HRMS, background checks). The API is ready for them, but none has been built or tested with a real partner.
 - **No signed request bodies from integrations to us**, and no mutual TLS. Bearer tokens over HTTPS only.
-- **No per-key IP allow-lists** or usage dashboards beyond the delivery counts on the admin page.
+- **No usage dashboards** beyond the delivery counts on the admin page.
 - **Single-process limits.** Rate-limit counters are kept per process, and with several processes two workers could send the same delivery. Receivers dedupe on the event id anyway, but a shared lock would avoid the waste.
 - **No penetration test.** It should be part of the external test listed in docs/SECURITY.md.

@@ -79,6 +79,7 @@ Total: 727 routes.
 | GET | `/employer/integrations` | employer | Company owners only (integrations.manage); secrets masked; no-store |
 | POST | `/employer/integrations/clients` | employer | Company owners only; the secret shown once on the answer page (no-store, never in a link); owners emailed; audited |
 | POST | `/employer/integrations/clients/:id/rotate` | employer | Company owners only, own integrations only; old secret works 24 hours or stops now; audited |
+| POST | `/employer/integrations/clients/:id/addresses` | employer | Company owners only, own integrations only; the addresses its keys and tokens work from, applied at once; owners emailed; audited |
 | POST | `/employer/integrations/clients/:id/revoke` | employer | Company owners only, own integrations only; keys, tokens and its endpoints stop at once; audited |
 | POST | `/employer/integrations/webhooks` | employer | Company owners only; public https addresses only; the signing secret shown once; audited |
 | POST | `/employer/integrations/webhooks/:id/:action` | employer | Company owners only, own endpoints only; rotate, test, turn on or off, delete; audited |

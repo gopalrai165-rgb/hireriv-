@@ -37,6 +37,19 @@
                 <li><code><%= k.masked %></code> · created <%= day(k.createdAt) %> · <%= k.lastUsedAt ? 'last used ' + day(k.lastUsedAt) : 'never used' %><% if (k.revokedAt) { %> · <b>stopped</b><% } else if (k.expiresAt) { %> · stops <%= day(k.expiresAt) %><% } %></li>
               <% }) %>
             </ul>
+            <% const ips = c.allowedIps || []; %>
+            <% if (c.refusedAt) { %><p class="small notice notice-err">Last refused: a request from <code><%= c.refusedIp %></code> on <%= day(c.refusedAt) %>. If that isn't your system, make a new secret and stop the old one now.</p><% } %>
+            <% if (c.status === 'active') { const typed = addressValues[c.id]; %>
+              <details class="int-addresses"<%= typed !== undefined ? ' open' : '' %>>
+                <summary>Addresses allowed: <%= ips.length ? ips.length + (ips.length === 1 ? ' address or range' : ' addresses or ranges') : 'any address' %></summary>
+                <form class="form" method="post" action="/employer/integrations/clients/<%= c.id %>/addresses">
+                  <label for="ips-<%= c.id %>">Where this integration can be used from</label>
+                  <textarea id="ips-<%= c.id %>" name="addresses" rows="3" maxlength="2000" spellcheck="false" aria-describedby="ips-help-<%= c.id %>" placeholder="203.0.113.7"><%= typed !== undefined ? typed : ips.join('\n') %></textarea>
+                  <p class="small muted" id="ips-help-<%= c.id %>">One per line: your server's public address, or a range such as <code>203.0.113.0/24</code>. Leave empty to allow any address. Applies at once, also to tokens already given out. Use your server's address, not this computer's (<code><%= yourAddress %></code>), unless the system runs here.</p>
+                  <button class="btn btn-outline btn-sm" type="submit">Save addresses</button>
+                </form>
+              </details>
+            <% } %>
             <% if (c.status === 'active') { %>
               <div class="row-actions">
                 <form method="post" action="/employer/integrations/clients/<%= c.id %>/rotate"><button class="btn btn-outline btn-sm" type="submit">New secret (old one works 24 hours)</button></form>
@@ -64,6 +77,9 @@
               <label class="check"><input type="checkbox" name="scopes" value="<%= s %>"<%= chosen('scopes', s) ? ' checked' : '' %>> <code><%= s %></code> <span class="muted small"><%= SCOPES[s] %></span></label>
             <% }) %>
           </fieldset>
+          <label for="int-addresses">Addresses allowed <span class="muted small">(optional)</span></label>
+          <textarea id="int-addresses" name="addresses" rows="2" maxlength="2000" spellcheck="false" aria-describedby="int-addresses-help" placeholder="203.0.113.7"><%= v.addresses || '' %></textarea>
+          <p class="small muted" id="int-addresses-help">One per line: an address or a range such as <code>203.0.113.0/24</code>. Leave empty to allow any address; you can change this later.</p>
           <p class="small muted">Give only what the system needs. Applicants' email and phone need <code>applications:contact</code>. The owners are emailed when an integration is created.</p>
           <button class="btn btn-primary" type="submit">Create and show the secret</button>
         </form>

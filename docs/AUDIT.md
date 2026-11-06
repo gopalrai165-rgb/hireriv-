@@ -794,3 +794,9 @@ Suggested order: 2 → 1 → 3 → 4, which makes Hireriv usable for skilled and
 - **Now.** Revenue and plans and credit packs show the whole business for money roles, as the billing desk already does. Their recruitment numbers stay their own, and another recruiter's numbers are still refused.
 - **Phones.** Both invoice tables are one card per row, so the status and total no longer sit off screen.
 - **Tests.** `test/analytics-plan-revenue.test.js`: the totals, cancelled invoices, one employer, filters, who may see it, the CSV, the page, and the cache (a write shows on the next read; answers are not shared between people).
+
+## Step 190: API key address allow-lists
+
+- **Audit first.** Integrations had scopes, rate limits, rotation and revocation, but a leaked key worked from anywhere.
+- **Built.** `ip-allow.js`, a list per integration, checks on tokens and on every call, the form on Integrations (also when creating), the last refused address, owners emailed, and the list on the team's page. See docs/API.md section 5a.
+- **Tests.** `test/integration-addresses.test.js`.

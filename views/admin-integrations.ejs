@@ -26,7 +26,7 @@
               <tr>
                 <td><%= c.company %></td>
                 <td><b><%= c.name %></b> <span class="pill"><%= c.environment === 'sandbox' ? 'Sandbox' : 'Live' %></span><br><span class="muted small"><%= c.id %> · created <%= when(c.createdAt) %> by <%= c.createdBy %></span></td>
-                <td class="small"><%= c.scopes.join(' ') %></td>
+                <td class="small"><%= c.scopes.join(' ') %><br><span class="muted">Addresses: <%= (c.allowedIps || []).join(', ') || 'any' %></span><% if (c.refusedAt) { %><br><span class="muted">Refused <%= c.refusedIp %>, <%= when(c.refusedAt) %></span><% } %></td>
                 <td class="small"><% c.keys.forEach(function (k) { %><code><%= k.masked %></code> <%= k.lastUsedAt ? 'used ' + when(k.lastUsedAt) : 'never used' %><br><% }) %></td>
                 <td><%= c.status === 'active' ? 'Active' : 'Revoked' %><% if (c.revokeReason) { %><br><span class="muted small"><%= c.revokeReason %></span><% } %></td>
                 <% if (canManage) { %>

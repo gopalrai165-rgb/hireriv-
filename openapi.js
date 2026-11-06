@@ -13,7 +13,7 @@ const pageParams = [
   { name: 'cursor', in: 'query', schema: { type: 'string' }, description: 'next_cursor from the previous page' },
 ];
 const idem = { name: 'Idempotency-Key', in: 'header', schema: { type: 'string', maxLength: 100 }, description: 'Repeat a POST safely: the same key and body give the same answer for 24 hours' };
-const common = { 401: err('No valid access token'), 403: err('The token lacks the permission, or the account is not active'), 429: err('Too many requests: see Retry-After') };
+const common = { 401: err('No valid access token'), 403: err('The token lacks the permission, the account is not active, or the integration does not accept requests from this address'), 429: err('Too many requests: see Retry-After') };
 const op = (summary, scope, { params = [], body, ok, extra = {}, tag }) => ({
   summary, tags: [tag], security: [{ bearer: scope ? [scope] : [] }], ...(scope ? { 'x-scope': scope } : {}),
   parameters: params, ...(body ? { requestBody: { required: true, content: { 'application/json': { schema: body } } } } : {}),

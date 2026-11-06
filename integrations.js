@@ -14,6 +14,7 @@
 const crypto = require('crypto');
 const { safeRequest, checkUrl, resolveSafe } = require('./safe-fetch');
 const ats = require('./ats');
+const ipAllow = require('./ip-allow');
 
 const DAY = 86400000;
 const TOKEN_TTL_S = 900;
@@ -81,20 +82,49 @@ function create(deps) {
     const name = clip(input.name, 80);
     const environment = input.environment === 'sandbox' ? 'sandbox' : 'live';
     const { scopes, bad } = parseScopes(input.scopes);
-    const errors = [];
+    const addresses = ipAllow.parseList(input.addresses);
+    const errors = [...addresses.errors];
     if (name.length < 2) errors.push('give the integration a name (for example "Our ATS")');
     if (bad.length) errors.push(`unknown scopes: ${bad.join(', ')}`);
     if (!scopes.length) errors.push('choose at least one permission');
     if (scopes.includes('applications:contact') && !scopes.includes('applications:read')) errors.push('applications:contact needs applications:read');
     if (clientsOf(emp.id).filter((c) => c.status === 'active').length >= 10) errors.push('a company can have up to 10 active integrations');
     if (errors.length) return { errors };
-    const client = { id: `int_${crypto.randomBytes(8).toString('hex')}`, employerId: emp.id, name, environment, scopes, status: 'active', createdAt: iso(), createdBy: by.name, createdById: by.id, revokedAt: null };
+    const client = { id: `int_${crypto.randomBytes(8).toString('hex')}`, employerId: emp.id, name, environment, scopes, allowedIps: addresses.list, status: 'active', createdAt: iso(), createdBy: by.name, createdById: by.id, revokedAt: null };
     db.prepend(C.clients, client);
     const { cred, secret } = issueCredential(client, by);
     if (environment === 'sandbox') seedSandbox(client);
-    team.audit(emp.id, by, 'integration-created', `${name} (${environment}; ${scopes.join(' ')}; key ${mask(cred.prefix, cred.last4)})`);
+    team.audit(emp.id, by, 'integration-created', `${name} (${environment}; ${scopes.join(' ')}; key ${mask(cred.prefix, cred.last4)}; addresses: ${addresses.list.join(' ') || 'any'})`);
     tellOwners(emp, { subject: `A new ${site.name} API key for ${emp.company}`, heading: 'A new API key was created', intro: `${by.name} created the integration "${name}" (${environment}) with these permissions: ${scopes.join(', ')}. If you did not expect this, revoke it under Integrations.` });
     return { client, cred, secret, errors: [] };
+  }
+  // Which addresses may use the integration's keys and tokens; applies at once,
+  // also to tokens already given out. The owners are told of every change.
+  function setAddresses(emp, by, client, input) {
+    const { list, errors } = ipAllow.parseList(input);
+    if (errors.length) return { errors };
+    if (client.status !== 'active') return { errors: ['this integration is revoked'] };
+    const before = client.allowedIps || [];
+    if (before.join(' ') === list.join(' ')) return { client, changed: false, errors: [] };
+    const saved = { ...client, allowedIps: list };
+    db.update(C.clients, saved);
+    const now = list.join(', ') || 'any address';
+    team.audit(emp.id, by, 'integration-addresses-changed', `${client.name}: ${before.join(' ') || 'any'} to ${list.join(' ') || 'any'}`);
+    tellOwners(emp, { subject: `API addresses changed for ${client.name}`, heading: 'The addresses allowed for an integration changed', intro: `${by.name} changed where "${client.name}" can be used from. Allowed now: ${now}. If you did not expect this, check it under Integrations.` });
+    return { client: saved, changed: true, errors: [] };
+  }
+  // A key or token used from an address not on the list. Saved at most once a
+  // minute, and the owners are emailed at most once a day for each integration,
+  // so someone repeating a stolen key cannot fill the database or the inboxes.
+  function refuseAddress(client, ip) {
+    const now = Date.now();
+    if (client.refusedAt && now - Date.parse(client.refusedAt) < 60000) return;
+    const alert = !client.refusalAlertAt || now - Date.parse(client.refusalAlertAt) >= DAY;
+    db.update(C.clients, { ...client, refusedAt: iso(now), refusedIp: clip(ip, 60), ...(alert ? { refusalAlertAt: iso(now) } : {}) });
+    if (!alert) return;
+    team.audit(client.employerId, { id: `integration:${client.id}`, name: `${client.name} (API)` }, 'integration-address-refused', `A valid key or token was used from ${clip(ip, 60)}`);
+    const emp = clients.read().find((e) => e.id === client.employerId);
+    if (emp) tellOwners(emp, { subject: `An API key for ${client.name} was used from a new address`, heading: 'A request from an address not on the list was refused', intro: `Someone used a valid key or token of "${client.name}" from ${clip(ip, 60)}. We refused it. If this is your system, add the address under Integrations. If not, the key may have leaked: make a new secret and stop the old one now.` });
   }
   // A new secret; the old one keeps working for a day (or stops now).
   function rotate(emp, by, clientId, { now = false } = {}) {
@@ -131,7 +161,7 @@ function create(deps) {
 
   // ---------- tokens ----------
   // client_credentials: the secret (in the body or HTTP Basic) for a 15-minute token.
-  function exchange(input, basic) {
+  function exchange(input, basic, ip) {
     const secret = clip(basic ? basic.pass : input.client_secret, 200);
     const fail = { status: 401, code: 'invalid_client', message: 'the client secret is not valid' };
     if (String(input.grant_type || '') !== 'client_credentials') return { status: 400, code: 'unsupported_grant_type', message: 'grant_type must be client_credentials' };
@@ -144,6 +174,11 @@ function create(deps) {
     if (!client || client.status !== 'active' || (askedId && askedId !== client.id)) return fail;
     const emp = clients.read().find((e) => e.id === client.employerId);
     if (!emp || !emp.active || emp.suspension || emp.terminatedAt) return { status: 403, code: 'account_inactive', message: 'this company account is not active' };
+    // Only after the secret is proven, so strangers learn nothing about the list.
+    if (!ipAllow.allowed(client.allowedIps, ip)) {
+      refuseAddress(client, ipAllow.plain(ip));
+      return { status: 403, code: 'ip_not_allowed', message: `this integration does not accept requests from ${clip(ipAllow.plain(ip), 60) || 'this address'}` };
+    }
     const asked = input.scope ? parseScopes(input.scope) : { scopes: client.scopes, bad: [] };
     if (asked.bad.length || asked.scopes.some((s) => !client.scopes.includes(s))) return { status: 400, code: 'invalid_scope', message: `this integration may ask for: ${client.scopes.join(' ')}` };
     const token = `hrv_at_${b64u(crypto.randomBytes(32))}`;
@@ -181,6 +216,11 @@ function create(deps) {
     if (!t || t.exp < Date.now() || !client || client.status !== 'active') { res.set('WWW-Authenticate', 'Bearer realm="hireriv", error="invalid_token"'); return fail(res, 401, 'invalid_token', 'the access token is not valid or has expired'); }
     const emp = clients.read().find((e) => e.id === t.employerId);
     if (!emp || !emp.active || emp.suspension || emp.terminatedAt) return fail(res, 403, 'account_inactive', 'this company account is not active');
+    // Before the rate limit: a stolen token elsewhere cannot use up the real system's requests.
+    if (!ipAllow.allowed(client.allowedIps, req.ip)) {
+      refuseAddress(client, ipAllow.plain(req.ip));
+      return fail(res, 403, 'ip_not_allowed', `this integration does not accept requests from ${clip(ipAllow.plain(req.ip), 60) || 'this address'}`);
+    }
     req.integration = { client, scopes: t.scopes, sandbox: client.environment === 'sandbox' };
     if (!rateLimit(req, res)) return;
     if (scope && !t.scopes.includes(scope)) { res.set('WWW-Authenticate', `Bearer realm="hireriv", error="insufficient_scope", scope="${scope}"`); return fail(res, 403, 'insufficient_scope', `this token needs the ${scope} permission`); }
@@ -375,7 +415,7 @@ function create(deps) {
   app.post('/api/v1/oauth/token', limit('integration-token', 30, 60000), (req, res) => {
     res.set({ 'Cache-Control': 'no-store', Pragma: 'no-cache' });
     if (req.query.client_secret) return fail(res, 400, 'token_in_url', 'send the client secret in the body or HTTP Basic, never in the address');
-    const r = exchange(req.body || {}, parseBasic(req));
+    const r = exchange(req.body || {}, parseBasic(req), req.ip);
     if (r.status !== 200) return res.status(r.status).json({ error: r.code, error_description: r.message });
     res.json(r.body);
   });
@@ -568,14 +608,14 @@ function create(deps) {
     res.set('Cache-Control', 'no-store');
     const list = clientsOf(req.employer.id).map((c) => ({ ...c, keys: credsOf(c.id).map((k) => ({ id: k.id, masked: mask(k.prefix, k.last4), createdAt: k.createdAt, createdBy: k.createdBy, lastUsedAt: k.lastUsedAt, expiresAt: k.expiresAt, revokedAt: k.revokedAt })) }));
     const endpoints = db.where(C.endpoints, 'employerId', req.employer.id).filter((e) => e.status !== 'deleted').map((e) => ({ ...endpointOut(e), deliveries: db.where(C.deliveries, 'endpointId', e.id).slice(0, 10).map(deliveryOut) }));
-    res.status(status).render('employer-integrations', { title: `${req.employer.company} · Integrations`, page: 'employer', noindex: true, tab: 'integrations', errors: [], msg: clip(req.query.msg, 300), list, endpoints, SCOPES, EVENTS, newSecret: null, values: {}, ...locals });
+    res.status(status).render('employer-integrations', { title: `${req.employer.company} · Integrations`, page: 'employer', noindex: true, tab: 'integrations', errors: [], msg: clip(req.query.msg, 300), list, endpoints, SCOPES, EVENTS, newSecret: null, values: {}, addressValues: {}, yourAddress: ipAllow.plain(req.ip), ...locals });
   };
   const by = (req) => req.employerUser;
   const back = (res, msg) => res.redirect(303, `/employer/integrations?msg=${encodeURIComponent(msg)}`);
   app.get('/employer/integrations', requireEmployer, allow('integrations.manage'), (req, res) => view(req, res));
   // A new secret is shown on the page that answers the form, never in a link.
   app.post('/employer/integrations/clients', requireEmployer, allow('integrations.manage'), limit('integrations', 20), sameOrigin, (req, res) => {
-    const r = createClient(req.employer, by(req), { name: req.body.name, environment: req.body.environment, scopes: req.body.scopes });
+    const r = createClient(req.employer, by(req), { name: req.body.name, environment: req.body.environment, scopes: req.body.scopes, addresses: req.body.addresses });
     if (r.errors.length) return view(req, res, { errors: r.errors, values: req.body }, 400);
     view(req, res, { newSecret: { kind: 'key', clientId: r.client.id, name: r.client.name, secret: r.secret } });
   });
@@ -583,6 +623,13 @@ function create(deps) {
     const r = rotate(req.employer, by(req), req.params.id, { now: req.body.now === '1' });
     if (r.errors.length) return back(res, r.errors[0]);
     view(req, res, { newSecret: { kind: 'key', clientId: r.client.id, name: r.client.name, secret: r.secret } });
+  });
+  app.post('/employer/integrations/clients/:id/addresses', requireEmployer, allow('integrations.manage'), limit('integrations', 20), sameOrigin, (req, res) => {
+    const client = one(C.clients, 'id', req.params.id);
+    if (!client || client.employerId !== req.employer.id) return back(res, 'Integration not found');
+    const r = setAddresses(req.employer, by(req), client, req.body.addresses);
+    if (r.errors.length) return view(req, res, { errors: r.errors, addressValues: { [client.id]: clip(req.body.addresses, 2000) } }, 400);
+    back(res, !r.changed ? 'No change to the addresses' : r.client.allowedIps.length ? `${client.name} now works only from the addresses listed` : `${client.name} now works from any address`);
   });
   app.post('/employer/integrations/clients/:id/revoke', requireEmployer, allow('integrations.manage'), limit('integrations', 20), sameOrigin, (req, res) => {
     const client = one(C.clients, 'id', req.params.id);
@@ -656,7 +703,7 @@ function create(deps) {
     history.onMove((a, entry) => { const job = getJobs().find((j) => j.id === a.jobId); if (ofJob(job)) emit('application.status_changed', job.employerId, { applicationId: a.id, jobId: job.id, from: entry.from, to: entry.to }); });
   }
 
-  return { tap, emit, tick, prune, exchange, createClient, rotate, revoke, createEndpoint, signingSecret, SCOPES, EVENTS, API_VERSION };
+  return { tap, emit, tick, prune, exchange, createClient, setAddresses, rotate, revoke, createEndpoint, signingSecret, SCOPES, EVENTS, API_VERSION };
 }
 
 module.exports = { create, SCOPES, EVENTS, API_VERSION };

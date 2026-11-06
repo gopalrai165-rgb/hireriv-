@@ -85,7 +85,7 @@ function verify(rawBody, header, secret) {
 }</code></pre>
 
     <h2 id="errors">Errors and limits</h2>
-    <p>Errors look like <code>{ "error": { "code": "validation_failed", "message": "…", "details": ["…"] } }</code>. Codes include <code>unauthorized</code>, <code>invalid_token</code>, <code>insufficient_scope</code>, <code>not_found</code>, <code>validation_failed</code>, <code>idempotency_key_reused</code> and <code>rate_limited</code>. Anything another company owns answers <code>404</code>.</p>
+    <p>Errors look like <code>{ "error": { "code": "validation_failed", "message": "…", "details": ["…"] } }</code>. Codes include <code>unauthorized</code>, <code>invalid_token</code>, <code>insufficient_scope</code>, <code>ip_not_allowed</code>, <code>not_found</code>, <code>validation_failed</code>, <code>idempotency_key_reused</code> and <code>rate_limited</code>. Anything another company owns answers <code>404</code>.</p>
     <ul class="small">
       <li><b>Rate limits:</b> 600 requests a minute for a live integration, 120 in the sandbox. Every answer has <code>RateLimit-Limit</code>, <code>RateLimit-Remaining</code> and <code>RateLimit-Reset</code>; a <code>429</code> has <code>Retry-After</code>.</li>
       <li><b>Idempotency:</b> send <code>Idempotency-Key</code> on <code>POST</code> requests to retry safely. The same key and body return the first answer for 24 hours; a different body is refused with <code>422</code>.</li>
@@ -105,6 +105,7 @@ function verify(rawBody, header, secret) {
     <ul class="small">
       <li>Secrets are stored only as hashes and shown once. If one leaks, rotate it with "stop the old key now", or revoke the integration.</li>
       <li>Owners are emailed when an integration is created. Every change to keys and webhooks is in the company's activity log.</li>
+      <li>You can limit an integration to your servers' addresses under Integrations (single addresses or ranges, IPv4 or IPv6). A key or token used from anywhere else gets <code>403 ip_not_allowed</code>, for token requests and API calls alike, and the owners are emailed.</li>
       <li>Webhook addresses must be public: private, local and reserved networks are refused, also after redirects and when a name resolves to one.</li>
       <li>Report a security problem to <a href="mailto:<%= site.email %>"><%= site.email %></a>.</li>
     </ul>
