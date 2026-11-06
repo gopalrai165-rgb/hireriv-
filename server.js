@@ -41,6 +41,7 @@ const salaries = require('./salaries');
 // Interview tips for job seekers, in general and by role (interview-tips.js).
 const interviewTips = require('./interview-tips');
 const employerHiring = require('./employer-hiring');
+const messageTemplates = require('./message-templates');
 const i18n = require('./i18n');
 const employerAts = require('./employer-ats');
 const placements = require('./placements');
@@ -2639,6 +2640,7 @@ const recommendations = jobRecommendations.register(app, {
 setInterval(() => { try { recommendations.digestScan(); } catch (e) { console.error('Saved search emails failed:', e.message); } }, Number(process.env.SAVED_SEARCH_SCAN_MS) || 60 * 60 * 1000).unref();
 
 // Finding candidates who agreed to be found, for verified employers.
+const messageTemplatesDesk = messageTemplates.register(app, { readSubmissions, writeSubmissions, saveSubmission, sameOrigin, limit, adminAuth, clients, teamLog: (...args) => team.log(...args) });
 employerDiscovery.register(app, {
   readSubmissions, writeSubmissions, saveSubmission, sameOrigin, limit, site, getJobs: () => jobs, isLive, isSample, jobPath, clients, events, paginate,
   stateOf: search.stateOf, jobTypes: JOB_TYPES, contacts: () => contacts,
@@ -3305,7 +3307,11 @@ app.get('/admin/applications/:id', adminAuth, (req, res, next) => {
   const t = teamApplication(req);
   if (!t) return next();
   if (!t.employerRuns && messages.markRead(t.a, 'hiring')) writeSubmissions('applications', t.list);
+  // Saved replies; the company is never the client here, whose name may be confidential.
+  const replies = messageTemplatesDesk.teamList();
+  const used = replies.find((x) => x.id === req.query.use);
   res.render('admin-application', {
+    replies, used: used ? used.id : '', prefill: used && !t.a.withdrawnAt ? messageTemplates.fill(used.text, { name: t.a.name, job: t.a.jobTitle, company: site.name }) : '',
     title: `${t.a.name} · Application`, page: 'admin', a: t.a, job: t.job, employerRuns: t.employerRuns, timeline: history.timeline(t.a),
     canMessage: agencyRoles.can(req.admin, 'candidates.message'), msg: String(req.query.msg || ''),
   });

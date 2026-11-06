@@ -10,6 +10,7 @@
 const messages = require('./messages');
 const rejectReasons = require('./reject-reasons');
 const screening = require('./screening');
+const messageTemplates = require('./message-templates');
 const path = require('path');
 const crypto = require('crypto');
 const vault = require('./vault');
@@ -438,6 +439,13 @@ function register(app, deps) {
     sendCsv(res, 'applicants', sheet.length ? sheet : [{ note: 'No applicants match these filters' }]);
   });
 
+  // Saved replies on the applicant's page; ?use= fills the message box.
+  function savedRepliesFor(req, v) {
+    const replies = readSubmissions('message-templates').filter((x) => x.owner === `employer:${req.employer.id}`).sort((a, b) => a.name.localeCompare(b.name));
+    const used = replies.find((x) => x.id === req.query.use);
+    return { replies, used: used ? used.id : '', prefill: used && !v.withdrawn ? messageTemplates.fill(used.text, { name: v.name, job: v.jobTitle, company: req.employer.company }) : '' };
+  }
+
   // The applicant from the URL, if this member may see them.
   const withApplicant = (action, { api = false } = {}) => (req, res, next) => {
     const list = readSubmissions('applications');
@@ -463,7 +471,7 @@ function register(app, deps) {
     }
     const workers = team.membersOf(req.employer.id).filter((m) => can(m, 'applicants.manage', req.job)).map((m) => ({ userId: m.userId, name: (team.userById(m.userId) || {}).name || 'Unknown' }));
     page(res, 'employer-applicant', {
-      title: `${v.name} · Applicant`, tab: 'applicants', v, job: req.job, stages: ats.STAGES, label: ats.label, rejectReasons: rejectReasons.REASONS, workers, recommendations: RECOMMENDATIONS,
+      title: `${v.name} · Applicant`, tab: 'applicants', v, job: req.job, ...savedRepliesFor(req, v), stages: ats.STAGES, label: ats.label, rejectReasons: rejectReasons.REASONS, workers, recommendations: RECOMMENDATIONS,
       today: todayIst(), nowMs: Date.now(), msg: String(req.query.msg || ''),
     });
   });

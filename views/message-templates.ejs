@@ -1,0 +1,50 @@
+<%- include('partials/head') %>
+
+<section class="section admin <%= side === 'employer' ? 'portal' : 'admin-console' %>">
+  <div class="container">
+    <% if (side === 'employer') { %>
+      <%- include('partials/employer-nav', { heading: 'Saved replies', tab: 'applicants' }) %>
+      <a href="/employer/applicants" class="back-link">← Applicants</a>
+    <% } else { %>
+      <%- include('partials/team-side') %>
+      <a href="/admin?tab=applications" class="back-link">← Applications</a>
+      <div class="admin-head"><div class="admin-title"><span class="admin-crumb">Recruiting · Messages</span><h1>Saved replies</h1></div></div>
+    <% } %>
+
+    <% if (msg) { %><p class="notice" role="status"><%= msg %></p><% } %>
+    <p class="muted small">Words you send applicants often. Pick one when writing a message, then read it and press Send. <%= side === 'employer' ? 'Everyone in your company who writes to applicants can use them.' : 'Everyone on the team who writes to candidates can use them.' %> Use {name} for their first name, {job} for the job and {company} for <%= side === 'employer' ? 'your company' : site.name %>. Never ask for money, codes or passwords.</p>
+
+    <div class="dash-grid">
+    <section class="dash-card dash-wide" aria-labelledby="new-h">
+      <div class="dash-head"><h2 id="new-h">Add a reply</h2><span class="muted small"><%= items.length %> of <%= max %></span></div>
+      <form class="form" method="post" action="<%= base %>">
+        <label for="new-name">Name</label>
+        <input id="new-name" name="name" maxlength="<%= maxName %>" required placeholder="Invite to interview">
+        <label for="new-text">Reply</label>
+        <textarea id="new-text" name="text" rows="4" maxlength="<%= maxText %>" required placeholder="Hi {name}, thanks for applying for {job}. We'd like to talk to you."></textarea>
+        <button class="btn btn-primary btn-sm" type="submit">Save reply</button>
+      </form>
+    </section>
+
+    <% if (!items.length) { %>
+      <p class="muted dash-empty">No saved replies yet.</p>
+    <% } %>
+    <% items.forEach(function (t) { %>
+      <section class="dash-card dash-wide" id="reply-<%= t.id %>" aria-label="<%= t.name %>">
+        <form class="form" method="post" action="<%= base %>/<%= t.id %>">
+          <label for="name-<%= t.id %>">Name</label>
+          <input id="name-<%= t.id %>" name="name" value="<%= t.name %>" maxlength="<%= maxName %>" required>
+          <label for="text-<%= t.id %>">Reply</label>
+          <textarea id="text-<%= t.id %>" name="text" rows="4" maxlength="<%= maxText %>" required><%= t.text %></textarea>
+          <button class="btn btn-outline btn-sm" type="submit">Save changes<span class="sr-only">: <%= t.name %></span></button>
+        </form>
+        <form method="post" action="<%= base %>/<%= t.id %>/delete" data-confirm="Delete this saved reply?">
+          <button class="btn btn-outline btn-sm" type="submit">Delete<span class="sr-only">: <%= t.name %></span></button>
+        </form>
+      </section>
+    <% }) %>
+    </div>
+  </div>
+</section>
+
+<%- include('partials/foot') %>

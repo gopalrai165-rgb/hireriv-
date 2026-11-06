@@ -181,9 +181,10 @@
           <div class="dash-head"><h2 id="msg-h">Messages</h2><span class="muted small">Between your team and <%= String(v.name).split(' ')[0] %>; they read and reply in their account</span></div>
           <%- include('partials/message-thread', { items: v.messages, mine: function (m) { return m.from !== 'candidate'; } }) %>
           <% if (v.withdrawn) { %><p class="muted small">The candidate withdrew this application, so it can't get new messages.</p><% } else { %>
+            <%- include('partials/saved-replies', { pageUrl: '/employer/applicants/' + v.id, manageUrl: '/employer/message-templates' }) %>
             <form class="form" method="post" action="/employer/applicants/<%= v.id %>/messages">
               <label for="msg-text">Write to <%= String(v.name).split(' ')[0] %></label>
-              <textarea id="msg-text" name="text" rows="3" maxlength="2000" required aria-describedby="msg-help"></textarea>
+              <textarea id="msg-text" name="text" rows="<%= prefill ? 6 : 3 %>" maxlength="2000" required aria-describedby="msg-help"><%= prefill %></textarea>
               <p class="small muted" id="msg-help">They get an email saying there's a message, then read it here on Hireriv. Never ask for money, codes or passwords.</p>
               <button class="btn btn-primary btn-sm" type="submit">Send</button>
             </form>

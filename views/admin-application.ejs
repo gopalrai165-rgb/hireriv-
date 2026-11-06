@@ -53,9 +53,10 @@
           <% } else if (!realEmail(a.email)) { %>
             <p class="muted small">No email address on this application, so they can't sign in to read messages. Call them instead.</p>
           <% } else if (canMessage) { %>
+            <%- include('partials/saved-replies', { pageUrl: '/admin/applications/' + a.id, manageUrl: '/admin/message-templates' }) %>
             <form class="form" method="post" action="/admin/applications/<%= a.id %>/messages">
               <label for="msg-text">Write to <%= String(a.name).split(' ')[0] %></label>
-              <textarea id="msg-text" name="text" rows="3" maxlength="2000" required aria-describedby="msg-help"></textarea>
+              <textarea id="msg-text" name="text" rows="<%= prefill ? 6 : 3 %>" maxlength="2000" required aria-describedby="msg-help"><%= prefill %></textarea>
               <p class="small muted" id="msg-help">They get an email saying there's a message, then read it in their account. Never ask for money, codes or passwords.</p>
               <button class="btn btn-primary btn-sm" type="submit">Send</button>
             </form>

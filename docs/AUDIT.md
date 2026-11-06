@@ -892,3 +892,10 @@ Suggested order: 2 → 1 → 3 → 4, which makes Hireriv usable for skilled and
 - **Privacy.** Each person gets only what they can see on the page: their own jobs, and email, phone and LinkedIn only where they may contact applicants on that job. Viewers get no contact details or typed answers. People who withdrew stay listed without contact details. Notes, messages, offers and resume text are never included. Links last a few minutes, and a cell that starts like a formula is made harmless. Each download is in the company's activity log with the count and job, not names.
 - **Tests.** `test/applicants-export.test.js`.
 
+## Step 204: Saved replies
+
+- **The gap.** Hiring teams now message applicants (Steps 199 and 201) but had to type the same words each time.
+- **Built.** Each company has a list of saved replies and the Hireriv team has its own. They appear above the message box on an applicant's page. Picking one fills the box with the person's first name, the job and the company, and someone still reads it and presses Send. `message-templates.js`, `/employer/message-templates`, `/admin/message-templates`.
+- **Rules.** Replies asking for money, codes or passwords can't be saved, and what is sent is checked again. For the team, {company} is always Hireriv, because a client's name may be confidential. No company sees another's list or the team's. Viewers and roles that don't write to candidates can't use the pages. Adding, changing and deleting are recorded.
+- **Tests.** `test/saved-replies.test.js`.
+

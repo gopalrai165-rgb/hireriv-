@@ -441,6 +441,14 @@ Total: 727 routes.
 | POST | `/account/offers/:appId/:offerId/:answer` | candidate | Same-origin, rate-limited; accept or decline an approved offer on the candidate's own application; the company is told |
 | POST | `/account/interviews/:appId/choose` | candidate | The signed-in job seeker's own application only; same-origin, rate-limited; books one of the times the employer offered, if still open, ahead and free |
 | GET | `/employer/applicants.csv` | employer | Signed link lasting a few minutes, rate-limited; only jobs and details this member may see on the Applicants page; contact details need applicants.contact on the job and are left out for people who withdrew; no notes, messages, offers or resume text; each download is in the company's activity log, without names |
+| GET | `/employer/message-templates` | employer | Owners, hiring managers and recruiters (templates.manage); this company's saved replies only |
+| POST | `/employer/message-templates` | employer | Same people; same-origin, rate-limited; refuses asking for money, codes or passwords; at most 30 |
+| POST | `/employer/message-templates/:id` | employer | Same; only this company's replies |
+| POST | `/employer/message-templates/:id/delete` | employer | Same; only this company's replies |
+| GET | `/admin/message-templates` | team | Team roles that write to candidates (candidates.message); the team's own list |
+| POST | `/admin/message-templates` | team | Same roles; same-origin, rate-limited; same rules as the company list |
+| POST | `/admin/message-templates/:id` | team | Same; only the team's replies |
+| POST | `/admin/message-templates/:id/delete` | team | Same; only the team's replies |
 | POST | `/employer/applicants/bulk` | employer | Same-origin, rate-limited; up to 100 ticked applicants moved to one stage; each checked as a single move (this company's job, applicants.manage, an allowed move), the rest skipped |
 | POST | `/employer/applicants/:id/interview-options/cancel` | employer | Company members who may manage interviews for that job (interviews.manage); withdraws the times offered |
 | GET | `/salary-calculator` | public | Take-home pay from a salary (GET form, nothing stored; results not indexed) |

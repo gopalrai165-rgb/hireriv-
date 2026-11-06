@@ -1,0 +1,7 @@
+<%# Saved replies above the message box. A link fills the box from the server, so it works without scripts. %>
+<% if (replies.length) { %>
+  <nav class="filter-chips" aria-label="Saved replies">
+    <% replies.forEach(function (t) { %><a class="chip<%= t.id === used ? ' is-active' : '' %>" href="<%= pageUrl %>?use=<%= t.id %>#messages"<%- t.id === used ? ' aria-current="true"' : '' %>><%= t.name %></a><% }) %>
+  </nav>
+<% } %>
+<p class="small"><a href="<%= manageUrl %>"><%= replies.length ? 'Manage saved replies' : 'Save replies you send often' %></a></p>

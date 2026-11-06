@@ -19,6 +19,13 @@ const MAX_MESSAGES = 200;
 const listOf = (a) => (a && Array.isArray(a.messages) ? a.messages : []);
 const started = (a) => listOf(a).some((m) => m.from !== 'candidate');
 
+// What the hiring side can't write. Also checked when a saved reply is kept.
+function contentProblem(t) {
+  if (MONEY_RE.test(t)) return 'messages can’t ask candidates to pay. Job seekers must never pay for a job';
+  if (SECRET_RE.test(t)) return 'messages can’t ask for a code, PIN or password';
+  return '';
+}
+
 function check(a, text, from) {
   const t = String(text ?? '').replace(/\r\n/g, '\n').trim();
   if (!t) return { error: 'write a message first' };
@@ -26,8 +33,7 @@ function check(a, text, from) {
   if (!a) return { error: 'application not found' };
   if (a.withdrawnAt) return { error: 'the candidate withdrew this application, so it can no longer get messages' };
   if (from === 'candidate' && !started(a)) return { error: 'you can reply once the hiring team writes to you' };
-  if (from !== 'candidate' && MONEY_RE.test(t)) return { error: 'messages can’t ask candidates to pay. Job seekers must never pay for a job' };
-  if (from !== 'candidate' && SECRET_RE.test(t)) return { error: 'messages can’t ask for a code, PIN or password' };
+  if (from !== 'candidate' && contentProblem(t)) return { error: contentProblem(t) };
   if (listOf(a).length >= MAX_MESSAGES) return { error: 'this conversation is full. Please call or email instead' };
   return { text: t };
 }
@@ -53,4 +59,4 @@ function markRead(a, reader) {
 const unreadFor = (a, reader) => listOf(a).filter((m) => !m.readAt && (reader === 'candidate' ? m.from !== 'candidate' : m.from === 'candidate')).length;
 const lastOf = (a) => listOf(a).at(-1) || null;
 
-module.exports = { MAX_TEXT, MAX_MESSAGES, listOf, started, check, add, markRead, unreadFor, lastOf };
+module.exports = { contentProblem, MAX_TEXT, MAX_MESSAGES, listOf, started, check, add, markRead, unreadFor, lastOf };

@@ -39,6 +39,8 @@ function can(m, action, job = null) {
     case 'shortlist.feedback': return ['manager', 'recruiter'].includes(role);
     // Finding candidates who agreed to be found, and inviting them to apply.
     case 'candidates.search': return ['manager', 'recruiter'].includes(role);
+    // The company's saved replies for messages to applicants.
+    case 'templates.manage': return ['manager', 'recruiter'].includes(role);
     // Workers placed through Hireriv: supervisors see only those they supervise (checked in workforce.js).
     case 'workforce.supervise': return ['manager', 'supervisor'].includes(role);
     case 'workforce.view': return ['manager', 'supervisor', 'viewer'].includes(role);
