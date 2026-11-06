@@ -49,7 +49,7 @@ function serviceWorker(version) {
 // Stores public files only: never pages, API answers, resumes or account data.
 const VERSION = ${JSON.stringify(version)};
 const CACHE = 'hireriv-static-' + VERSION;
-const PRECACHE = ['/offline', '/css/style.css?v=' + VERSION, '/js/main.js?v=' + VERSION, '/img/logo.svg', '/img/favicon.svg', '/img/icons/icon-192.png'];
+const PRECACHE = ['/offline', '/css/style.css?v=' + VERSION, '/js/main.js?v=' + VERSION, '/img/hireriv-logo.png', '/img/favicon.svg', '/img/icons/icon-192.png'];
 const CACHEABLE = ${CACHEABLE.toString()};
 const MAX_ENTRIES = 80;
 

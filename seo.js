@@ -31,7 +31,7 @@ function organization(site, baseUrl) {
     name: site.name,
     ...(site.company && site.company.operator ? { legalName: site.company.operator } : { legalName: 'Raigozen Private Limited' }),
     url: baseUrl,
-    logo: `${baseUrl}/img/logo.svg`,
+    logo: `${baseUrl}/img/hireriv-logo-full.png`,
     ...(sameAs.length ? { sameAs } : {}),
   };
 }

@@ -21,7 +21,7 @@
 <footer class="site-footer">
   <div class="container footer-grid">
     <div class="footer-brand">
-      <a href="/" class="logo logo-light"><img src="/img/logo.svg" alt="" width="36" height="36"><span>Hire<b>riv</b></span></a>
+      <a href="/" class="logo footer-logo" aria-label="<%= t('nav.homeLink', { site: site.name }) %>"><img src="/img/hireriv-logo-full.png" alt="" width="240" height="61" loading="lazy" decoding="async"></a>
       <p><%= site.tagline %>.</p>
       <p class="small footer-operator"><%= brandLine(site) %><%= companyOf(site).cin ? ' CIN ' + companyOf(site).cin + '.' : '' %></p>
       <% if (/raigozen/i.test(companyOf(site).operator || '')) { %>

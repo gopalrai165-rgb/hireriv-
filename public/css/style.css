@@ -180,6 +180,13 @@ img { max-width: 100%; display: block; }
 .nav-cta { margin-left: 12px; }
 .nav-toggle { display: none; background: none; border: 0; padding: 8px; color: var(--ink); cursor: pointer; }
 .site-header .logo { flex-shrink: 0; }
+.logo .logo-img { display: block; height: 48px; width: auto; }
+.logo:hover .logo-img { transform: none; }
+.footer-logo { background: #fff; padding: 12px 16px; border-radius: 14px; }
+.footer-logo img { display: block; width: 240px; max-width: 100%; height: auto; }
+.footer-logo:hover img { transform: none; }
+@media (max-width: 960px) { .logo .logo-img { height: 40px; } }
+@media (max-width: 380px) { .logo .logo-img { height: 34px; } }
 .nav-toggle .i { width: 28px; height: 28px; }
 @media (min-width: 961px) {
   .main-nav a:not(.btn), .nav-login summary { white-space: nowrap; }

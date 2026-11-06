@@ -42,8 +42,7 @@
 <header class="site-header" id="top">
   <div class="container nav-wrap">
     <a href="/" class="logo" aria-label="<%= t('nav.homeLink', { site: site.name }) %>">
-      <img src="/img/logo.svg" alt="" width="36" height="36">
-      <span class="logo-text"><span>Hire<b>riv</b></span><small>by Raigozen</small></span>
+      <img class="logo-img" src="/img/hireriv-logo.png" alt="<%= site.name %>" width="200" height="48" decoding="async" fetchpriority="high">
     </a>
     <%# Signed in, nobody sees Login or Register. Job seekers see only their own links (the employer ones stay in the footer); employers get Dashboard and their bell in place of For Employers and Saved jobs. %>
     <% const seekerIn = typeof candidateSignedIn !== 'undefined' && candidateSignedIn; %>
