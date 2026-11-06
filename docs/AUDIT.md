@@ -356,7 +356,7 @@ Suggested order: 2 → 1 → 3 → 4, which makes Hireriv usable for skilled and
 - **Not done here.**
   - No staging run, external penetration test or load test.
   - Incident escalation outside the app (who to call about credible threats or exposed data) still needs a written procedure.
-  - The in-memory request and error counts reset when the server restarts.
+  - ~~The in-memory request and error counts reset when the server restarts.~~ Done in Step 78: the counts are saved (`ops-monitor.js` `persist`, meta `ops:state`) and survive restarts and deploys.
 - **Tests.** `test/trust.test.js` has 12 tests, covering:
   - flag rules and copy detection, and cleaned monitoring data
   - roles that need two-step sign-in and see only their own pages
@@ -492,8 +492,8 @@ Suggested order: 2 → 1 → 3 → 4, which makes Hireriv usable for skilled and
   - Industry is the job's category.
   - "Hiring requests" for employers are their requisitions to Hireriv.
 - **Not done here.**
-  - Scheduled email reports.
-  - Comparison with the previous period.
+  - ~~Scheduled email reports.~~ Done in Step 182: a weekly analytics email each person can turn on from the analytics page (Mondays from 9 am IST, the last 7 days against the 7 before; `test/analytics-weekly.test.js`).
+  - ~~Comparison with the previous period.~~ Done in Step 181: every number shows its change against the period of the same length before, on the page, in the API and in the CSV (`test/analytics-compare.test.js`).
   - Caching for much larger data sets; the numbers are recalculated on each request.
 - **Tests.** `test/analytics.test.js` has 8 tests, covering:
   - filter validation
@@ -556,8 +556,8 @@ Suggested order: 2 → 1 → 3 → 4, which makes Hireriv usable for skilled and
   - No external penetration test or load test.
   - No real ClamAV, key store or provider in testing.
   - The alert counters are in memory.
-  - Employer accounts have no two-step sign-in yet: password plus verified mobile only.
-  - Bulk exports have no second-person approval; they need a fresh confirmation, a limit and logging.
+  - ~~Employer accounts have no two-step sign-in yet.~~ Done in Step 161: employer people can turn on an authenticator code, owners can require it for the whole company, and the team can reset it.
+  - Bulk exports have no second-person approval; they need a fresh confirmation, a limit and logging. Left as an owner decision: with a single Admin a required second approver would lock the owner out of their own backups.
   - Legal review of the notice and consent texts, the Rules' commencement dates and CERT-In applicability is still to be done (docs/SECURITY.md section 7).
   - The incident contacts still need filling in.
 - **Adapted from the brief.**
