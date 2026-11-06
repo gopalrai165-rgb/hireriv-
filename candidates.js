@@ -734,7 +734,7 @@ function register(app, deps) {
       .filter(({ i, job }) => job && isLive(job) && !isSample(job) && !seen.has(job.id) && seen.add(job.id))
       .map(({ i, job }) => {
         const from = i.fromJobId ? jobs.find((j) => j.id === i.fromJobId) : null;
-        return { id: i.id, at: i.createdAt, job, why: from ? `After your application for ${from.title}` : 'They saw your profile' };
+        return { id: i.id, at: i.createdAt, job, why: from ? `After your application for ${from.title}` : i.applicationId ? 'After your application' : 'They saw your profile' };
       });
   }
   // Put an invitation aside. The company isn't told; it simply goes away.

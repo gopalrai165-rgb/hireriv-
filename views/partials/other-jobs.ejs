@@ -1,0 +1,25 @@
+<%# Invite someone who applied to apply for another open job: on the employer's applicant page and the team's application page. %>
+<% if (ox && (ox.jobs.length || ox.invited.length)) { %>
+  <section class="dash-card dash-wide" id="other-jobs" aria-labelledby="other-jobs-h">
+    <div class="dash-head"><h2 id="other-jobs-h">Another job for them?</h2></div>
+    <% if (ox.jobs.length && !ox.reachable) { %>
+      <p class="small muted">There is no email address for them, so they can't be invited here. Call or WhatsApp them a job link instead:</p>
+      <ul class="small"><% ox.jobs.forEach(function (j) { %><li><a href="<%= j.path %>"><%= j.title %></a> · <%= j.location %></li><% }) %></ul>
+    <% } else if (ox.jobs.length && !ox.left) { %>
+      <p class="small muted"><%= who %> has sent today's invitations. You can send more tomorrow.</p>
+    <% } else if (ox.jobs.length) { %>
+      <p class="small muted">Invite <%= firstName %> to apply for another of <%= whose %> open jobs. They decide.</p>
+      <form class="form inline-form" method="post" action="<%= action %>">
+        <label>Job
+          <select name="jobId" required><% ox.jobs.forEach(function (j) { %><option value="<%= j.id %>"><%= j.title %> · <%= j.location %></option><% }) %></select>
+        </label>
+        <button class="btn btn-outline btn-sm" type="submit">Invite to apply</button>
+      </form>
+      <p class="small muted">They get an email and a notice in their account with the job. Their application for <%= jobTitle %> stays as it is, and nothing is applied for them.</p>
+    <% } %>
+    <% if (ox.invited.length) { %>
+      <h3 class="dash-sub">Invited</h3>
+      <ul class="activity"><% ox.invited.forEach(function (i) { %><li><span class="activity-row"><span class="pill <%= i.applied ? 'st-new' : '' %>"><%= i.applied ? 'Applied' : 'Invited' %></span><span class="activity-text"><%= i.title %></span><span class="muted small"><%= formatDate(i.at) %></span></span></li><% }) %></ul>
+    <% } %>
+  </section>
+<% } %>

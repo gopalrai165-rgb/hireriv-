@@ -449,6 +449,7 @@ Total: 727 routes.
 | POST | `/admin/message-templates` | team | Same roles; same-origin, rate-limited; same rules as the company list |
 | POST | `/admin/message-templates/:id` | team | Same; only the team's replies |
 | POST | `/admin/message-templates/:id/delete` | team | Same; only the team's replies |
+| POST | `/admin/applications/:id/invite` | team | Team roles that write to candidates (candidates.message); same-origin, rate-limited; only open jobs the team runs, never one they applied for; once per person and job, 100 a day for the team; not after they withdrew or on jobs a company runs itself |
 | POST | `/admin/applications/:id/answers` | team | Team roles that write to candidates (candidates.message); same-origin, rate-limited; jobs the team runs; never over a candidate's own answers; marked with who recorded them; the log leaves the answers out |
 | GET | `/employer/applicants/new` | employer | Members who manage applicants on at least one open job (applicants.manage) |
 | POST | `/employer/applicants/new` | employer | Same; same-origin, rate-limited; only open jobs this member manages; needs a note that the person agreed; someone who already applied is never changed; the person is emailed when there is an address; recorded without the name |

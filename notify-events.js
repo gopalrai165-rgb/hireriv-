@@ -260,6 +260,14 @@ function create(deps) {
     if (!a || a.withdrawnAt || !candidate(a) || !job || job.status !== 'open') return null;
     const mail = String(a.email).toLowerCase();
     if (readSubmissions('applications').some((x) => x.jobId === job.id && String(x.email || '').toLowerCase() === mail)) return null;
+    // From the team the jobs may be different clients', so not "another of their jobs".
+    if (refs.team) {
+      return {
+        who: { name: a.name, email: a.email, kind: 'candidate' }, subject: `Invitation to apply: ${job.title} at ${job.company}`, heading: 'A job you may suit',
+        intro: `after your application for ${a.jobTitle}, the ${site.name} team thinks you may suit this job at ${job.company} and invites you to apply. You don't have to: your application for ${a.jobTitle} stays as it is either way. Applying is free: never pay anyone for a job.`,
+        rows: [['Job', job.title], ['Location', `${job.location} (${job.mode})`], ['Type', job.type], ['Salary', job.salary || '']], link: `${baseUrl}${jobPath(job)}?utm_source=invite`, label: 'View the job', why: 'invitations to apply',
+      };
+    }
     return {
       who: { name: a.name, email: a.email, kind: 'candidate' }, subject: `Invitation to apply: ${job.title} at ${job.company}`, heading: `${job.company} would like you to apply`,
       intro: `after your application for ${a.jobTitle}, ${job.company} thinks you may suit another of their jobs and invites you to apply. You don't have to: your application for ${a.jobTitle} stays as it is either way. Applying is free: never pay anyone for a job.`,
@@ -672,12 +680,12 @@ function create(deps) {
       email: { template: 'notice', refs: { kind: 'added-by-employer', applicationId: a.id } },
     });
   }
-  function applicantInvite(a, job) {
+  function applicantInvite(a, job, { team: fromTeam = false } = {}) {
     if (!a || a.withdrawnAt || !candidate(a) || !job) return null;
     return emit({
       key: `applicant-invite:${job.id}:${a.id}`, type: 'job-invite', to: [candidate(a)],
-      inApp: { title: `${job.company} invites you to apply: ${job.title}`, body: `After your application for ${a.jobTitle}. Apply only if you'd like to; it's free.`, link: jobPath(job) },
-      email: { template: 'notice', refs: { kind: 'applicant-job-invite', applicationId: a.id, jobId: job.id } },
+      inApp: { title: `${fromTeam ? site.name : job.company} invites you to apply: ${job.title}`, body: `After your application for ${a.jobTitle}. Apply only if you'd like to; it's free.`, link: jobPath(job) },
+      email: { template: 'notice', refs: { kind: 'applicant-job-invite', applicationId: a.id, jobId: job.id, ...(fromTeam ? { team: true } : {}) } },
     });
   }
   function messageToCandidate(a, job, m) {

@@ -48,6 +48,7 @@ const placements = require('./placements');
 const teamModule = require('./team');
 const twofactor = require('./twofactor');
 const agencyRoles = require('./agency-roles');
+const applicantInvites = require('./applicant-invites');
 const bulk = require('./bulk');
 const reportsModule = require('./reports');
 const timesheetsModule = require('./timesheets');
@@ -2586,7 +2587,7 @@ app.get('/post-a-job', (req, res) => res.redirect(clients.currentEmployer(req) ?
 const hiring = employerHiring.register(app, {
   site, mailer, baseUrl: BASE_URL, limit, sameOrigin, adminAuth, adminUrl, clients, readSubmissions, writeSubmissions, saveSubmission, uploadsDir: UPLOADS_DIR, downloadLinks, linkExpired, sendCsv,
   addApplicant: { save: (...args) => saveApplication(...args), upload, vet: resumeCheck.vet, validate, sources: reportsModule.MANUAL_SOURCES },
-  getJobs: () => jobs, saveJobs, parseJob, nextJobId, todayIst, publicJob, jobPath, sendJobAlerts, alertedNote: (n) => alertedNote(n),
+  isLive, getJobs: () => jobs, saveJobs, parseJob, nextJobId, todayIst, publicJob, jobPath, sendJobAlerts, alertedNote: (n) => alertedNote(n),
   appStatuses: APP_STATUSES, moveStage: history.moveStage, interviewDesk, parseInterview: interviews.parseInterview, interviewModes: interviews.MODES, interviewDurations: interviews.DURATIONS,
   formatIst: interviews.formatIst, skillMatch, events,
   jobFormLocals: (job, errors) => ({ job, errors, modes, jobTypes: JOB_TYPES, categoryGroups: groupCategories(jobCategories()), workKinds: WORK_KINDS, jobLocations: jobLocations() }),
@@ -3297,6 +3298,14 @@ app.post('/admin/blog/:slug/delete', adminAuth, requireAdmin, sameOrigin, (req, 
 // ----- submissions -----
 // One application for the team, with its messages (messages.js). Jobs a
 // company runs itself belong to that company: the team can read, not write.
+// The jobs the team runs that it can point someone to, and what it already sent.
+const teamInviteState = (req, t) => {
+  if (t.employerRuns || t.a.withdrawnAt || !agencyRoles.can(req.admin, 'candidates.message')) return null;
+  return applicantInvites.stateOf({
+    a: t.a, applications: t.list, invites: readSubmissions('candidate-invites').filter((i) => i.byTeam), allJobs: jobs, jobPath, perDay: applicantInvites.TEAM_INVITES_PER_DAY,
+    targets: jobs.filter((j) => !hiring.selfManaged(j) && isLive(j) && !isSample(j)),
+  });
+};
 const teamApplication = (req) => {
   const list = readSubmissions('applications');
   const a = list.find((x) => x.id === req.params.id && !x.duplicateOf);
@@ -3314,9 +3323,33 @@ app.get('/admin/applications/:id', adminAuth, (req, res, next) => {
   res.render('admin-application', {
     replies, used: used ? used.id : '', prefill: used && !t.a.withdrawnAt ? messageTemplates.fill(used.text, { name: t.a.name, job: t.a.jobTitle, company: site.name }) : '',
     title: `${t.a.name} · Application`, page: 'admin', a: t.a, job: t.job, employerRuns: t.employerRuns, timeline: history.timeline(t.a),
-    canMessage: agencyRoles.can(req.admin, 'candidates.message'), msg: String(req.query.msg || ''),
+    canMessage: agencyRoles.can(req.admin, 'candidates.message'), otherJobs: teamInviteState(req, t), msg: String(req.query.msg || ''),
   });
 });
+// Invite someone who applied to apply for another job the team runs. They decide.
+app.post('/admin/applications/:id/invite', adminAuth, limit('candidate-invite', 60), sameOrigin, (req, res, next) => {
+  const t = teamApplication(req);
+  if (!t) return next();
+  const { a } = t;
+  if (!agencyRoles.can(req.admin, 'candidates.message')) return res.status(403).render('thanks', { title: 'Not part of your role', page: '', ok: false, message: 'Your role does not include writing to candidates.' });
+  const back = (m) => res.redirect(303, `/admin/applications/${a.id}?msg=${encodeURIComponent(m)}#other-jobs`);
+  if (t.employerRuns) return back('Not sent: this company runs its own hiring for this job.');
+  const state = teamInviteState(req, t);
+  if (!state) return back('Not sent: the candidate withdrew this application.');
+  if (!state.reachable) return back('Not sent: there is no email address for them. Call or WhatsApp them the job link instead.');
+  const target = state.jobs.find((j) => j.id === String(req.body.jobId || ''));
+  if (!target) {
+    const was = state.invited.find((i) => i.jobId === req.body.jobId);
+    return back(was ? `Already invited to apply for ${was.title}.` : "Not sent: pick an open job the team runs that they haven't applied for.");
+  }
+  if (!state.left) return back(`Not sent: the team can send up to ${state.perDay} invitations a day.`);
+  const job = jobs.find((j) => j.id === target.id);
+  saveSubmission('candidate-invites', { byTeam: true, applicationId: a.id, email: applicantInvites.lower(a.email), jobId: job.id, fromJobId: a.jobId, invitedBy: req.admin.id });
+  team.log(req.admin, 'Invited a candidate to apply for another job', `${a.name} (${a.jobTitle} to ${job.title})`);
+  events.applicantInvite(a, job, { team: true });
+  back(`Invitation sent for ${job.title}. ${String(a.name).split(' ')[0]} decides whether to apply.`);
+});
+
 // Answers to the job's questions for someone who didn't fill in the form: they
 // applied on WhatsApp or were added by hand. Marked as recorded by the team, and
 // never over what a candidate answered themselves.

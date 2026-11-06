@@ -935,3 +935,11 @@ Suggested order: 2 → 1 → 3 → 4, which makes Hireriv usable for skilled and
 - **Rules.** Only jobs the person may see applicants for. Someone found in the search shows as their first name and initial, as on their card, until they apply; then the name links to their application. An application counts only if it came after the invitation. Putting an invitation aside (Step 208) reads as Not yet, so the company is never told.
 - **Tests.** `test/invitations-sent.test.js`.
 
+## Step 210: The team invites applicants to other jobs
+
+- **The gap.** Companies could invite an applicant to another of their jobs (Step 207), but the team couldn't do the same on the jobs it runs, including for people who sent a general resume.
+- **Built.** "Another job for them?" on the team's application page, sharing its checks and its section with the employer page. `/admin/applications/:id/invite`, `applicant-invites.js`, `views/partials/other-jobs.ejs`.
+- **Rules.** The same as Step 207, with these differences: roles that write to candidates only, only open jobs the team runs, and 100 a day for the team, counted apart from company limits. The email comes from the team and doesn't say "another of their jobs", since the two jobs may be different clients'. Jobs a company runs itself aren't offered, and its applicants can't be invited here.
+- **Fixed from Step 207.** A job past its closing date still had status "open", so it could be offered. Only live jobs are now, on both pages.
+- **Tests.** `test/team-applicant-invite.test.js`.
+
