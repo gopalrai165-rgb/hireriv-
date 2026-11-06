@@ -855,3 +855,13 @@ Suggested order: 2 → 1 → 3 → 4, which makes Hireriv usable for skilled and
 - **Fixed list only.** No free text, so nobody writes remarks about the person. The reason is never in the candidate's email. It is in their data download, because it is information about them. It is kept on the move in the application's history, so a later correction keeps what happened.
 - **Tests.** `test/reject-reasons.test.js`.
 
+## Step 199: Messages between the hiring team and applicants
+
+- **Audit first.** A full crawl as a visitor, job seeker, employer and Admin (about 1,830 pages) found no server errors or broken links. The gap was talking to applicants: employers could only call or WhatsApp, and nothing was kept on Hireriv.
+- **Built.** A Messages card on the employer's applicant page and Messages in the job seeker's account (with the unread count on each application). `messages.js`.
+- **Rules.** The hiring side writes first, and a job seeker can only reply, so nobody can message companies out of the blue. Only people allowed to contact applicants on the job can read or write. There are no new messages once an application is withdrawn. Messages from the hiring side can't ask for money, codes or passwords, and the job seeker's page warns about paying and links to reporting the job.
+- **Emails** say only that there is a message, never what it says, so the conversation stays where it can be reported. The applicant always gets a message email; the employer's reply email can be turned off in notification settings.
+- **Kept with the application**, so messages are in the job seeker's data download and go when the application is deleted. Sending is in the company's activity log without the words.
+- **Not done here.** Jobs the Hireriv team runs for a client keep using phone and email, and messages are not in API v1.
+- **Tests.** `test/messages.test.js`.
+

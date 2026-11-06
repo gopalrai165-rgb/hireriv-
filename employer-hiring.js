@@ -7,6 +7,7 @@
 //
 // Jobs the Hireriv team runs for a client stay with the team: the client sees
 // counts and the candidates the team shortlists, not every applicant.
+const messages = require('./messages');
 const rejectReasons = require('./reject-reasons');
 const screening = require('./screening');
 const path = require('path');
@@ -368,6 +369,7 @@ function register(app, deps) {
       assignedTo: assignee ? { userId: assignee.id, name: assignee.name } : null,
       history: (a.history || []).map((h) => ({ at: h.at, from: h.from, to: h.to, by: h.by, ...(h.correction ? { correction: true, reason: h.reason } : {}), ...(h.rejectReason ? { rejectReason: h.rejectReason, rejectReasonLabel: rejectReasons.labelOf(h.rejectReason) } : {}) })),
       rejectReason: rejectReasons.reasonOf(a) || null,
+      unreadMessages: messages.unreadFor(a, 'hiring'),
       interviews: (a.interviews || []).map((iv) => ({
         id: iv.id, at: iv.at, duration: iv.duration, mode: iv.mode, status: iv.status, interviewer: iv.interviewer || '', confirmation: iv.status === 'scheduled' ? iv.confirmation || 'confirmed' : null,
         ...(may('feedback.view') ? { feedback: (iv.feedback || []).map((f) => ({ by: f.by, at: f.at, rating: f.rating, recommendation: f.recommendation, strengths: f.strengths || '', concerns: f.concerns || '' })) } : {}),
@@ -377,6 +379,7 @@ function register(app, deps) {
       referredBy: a.referredBy ? a.referredBy.name : '',
       interviewOptions: a.interviewOptions && a.interviewOptions.status === 'open' ? { slots: a.interviewOptions.slots.map((s) => s.at), createdAt: a.interviewOptions.createdAt } : null,
     };
+    if (may('applicants.contact')) v.messages = messages.listOf(a).map((m) => ({ id: m.id, at: m.at, from: m.from, by: m.by, text: m.text, readAt: m.readAt }));
     if (may('applicants.contact')) Object.assign(v, { email: require('./identity').realEmail(a.email), phone: a.phone || '', linkedin: a.linkedin || '', message: a.message || '', hasResume: Boolean(a.resume) });
     // Internal: never shown to candidates.
     if (may('applicants.notes')) v.notes = (a.atsNotes || []).map((n) => ({ id: n.id, at: n.at, by: n.by, text: n.text }));
@@ -413,6 +416,8 @@ function register(app, deps) {
   };
 
   app.get('/employer/applicants/:id', requireEmployer, withApplicant('applicants.view'), (req, res) => {
+    // Replies are read once someone who may contact the applicant opens the page.
+    if (can(req.member, 'applicants.contact', req.job) && messages.markRead(req.application, 'hiring')) writeSubmissions('applications', req.applications);
     const v = applicantView(req, req.application, req.job);
     // Opening someone's details is recorded.
     team.audit(req.employer.id, req.employerUser, 'applicant-viewed', `${req.application.name} for ${req.job.title}`);
@@ -427,6 +432,20 @@ function register(app, deps) {
       title: `${v.name} · Applicant`, tab: 'applicants', v, job: req.job, stages: ats.STAGES, label: ats.label, rejectReasons: rejectReasons.REASONS, workers, recommendations: RECOMMENDATIONS,
       today: todayIst(), nowMs: Date.now(), msg: String(req.query.msg || ''),
     });
+  });
+
+  // A message to the applicant (messages.js). Only people who may contact
+  // applicants on the job; the words are not put in the activity log.
+  app.post('/employer/applicants/:id/messages', requireEmployer, withApplicant('applicants.contact'), limit('employer-messages', 60), sameOrigin, (req, res) => {
+    const a = req.application;
+    const back = (msg) => res.redirect(303, `/employer/applicants/${a.id}?msg=${encodeURIComponent(msg)}#messages`);
+    const ok = messages.check(a, req.body.text, 'employer');
+    if (ok.error) return back(`Not sent: ${ok.error}.`);
+    const m = messages.add(a, { from: 'employer', by: `${req.employerUser.name}, ${req.employer.company}`, userId: req.employerUser.id, text: ok.text });
+    writeSubmissions('applications', req.applications);
+    team.audit(req.employer.id, req.employerUser, 'message-sent', `${a.name} (${req.job.title})`);
+    if (events && events.messageToCandidate) events.messageToCandidate(a, req.job, m);
+    back(`Message sent to ${String(a.name).split(' ')[0]}.`);
   });
 
   app.get('/employer/applicants/:id/resume', requireEmployer, withApplicant('applicants.contact'), (req, res, next) => {

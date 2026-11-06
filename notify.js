@@ -53,9 +53,11 @@ const TYPES = {
   'job-invite': { category: 'jobs', optional: true, label: 'Invitation to apply' },
   'contact-unlocked': { category: 'jobs', label: 'An employer saw your number' },
   'application-viewed': { category: 'applications', optional: true, label: 'Employer opened your application' },
+  'message-received': { category: 'applications', label: 'Message about your application' },
   'account-security': { category: 'account', label: 'Account and security' },
   // employers and the team
   'new-application': { category: 'applications', optional: true, label: 'New application' },
+  'candidate-replied': { category: 'applications', optional: true, label: 'Applicant replied to a message' },
   'candidate-assigned': { category: 'applications', optional: true, label: 'Assigned to you' },
   'stage-changed': { category: 'applications', optional: true, label: 'Stage changed' },
   'hiring-milestone': { category: 'applications', optional: true, label: 'Hiring milestone' },

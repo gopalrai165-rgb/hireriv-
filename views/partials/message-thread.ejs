@@ -1,0 +1,13 @@
+<%# One conversation (messages.js). `mine(m)` says which side is the reader's own. %>
+<% if (!items.length) { %>
+  <p class="muted dash-empty">No messages yet.</p>
+<% } else { %>
+  <ol class="msg-thread">
+    <% items.forEach(function (m) { %>
+      <li class="msg-item<%= mine(m) ? ' is-mine' : '' %>">
+        <span class="msg-meta"><%= mine(m) ? 'You' : (m.from === 'candidate' ? m.by || 'Applicant' : m.by) %><%= mine(m) && m.from !== 'candidate' && m.by ? ' (' + m.by + ')' : '' %> · <%= new Date(m.at).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit', timeZone: 'Asia/Kolkata' }) %><%= mine(m) && m.readAt ? ' · Read' : '' %></span>
+        <p><%= m.text %></p>
+      </li>
+    <% }) %>
+  </ol>
+<% } %>

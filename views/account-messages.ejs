@@ -1,0 +1,42 @@
+<%- include('partials/head') %>
+<section class="section admin portal">
+  <div class="container">
+    <%- include('partials/account-nav', { heading: thread ? thread.jobTitle : 'Messages' }) %>
+    <% if (msg) { %><p class="notice" role="status"><%= msg %></p><% } %>
+    <div class="dash-grid">
+      <section class="dash-card" aria-labelledby="threads-h">
+        <h2 id="threads-h">Conversations</h2>
+        <% if (!threads.length) { %>
+          <p class="muted dash-empty">No messages yet. When an employer writes to you about an application, it shows here and we email you.</p>
+        <% } else { %>
+          <ul class="msg-list">
+            <% threads.forEach(function (x) { %>
+              <li><a href="/account/messages/<%= x.id %>"<%- thread && thread.id === x.id ? ' aria-current="page"' : '' %>>
+                <b><%= x.company %> · <%= x.jobTitle %></b>
+                <span class="msg-preview"><%= x.last.from === 'candidate' ? 'You: ' : '' %><%= x.last.text %></span>
+                <% if (x.unread) { %><span class="pill pill-unseen"><%= x.unread %> new</span><% } %>
+              </a></li>
+            <% }) %>
+          </ul>
+        <% } %>
+      </section>
+      <% if (thread) { %>
+        <section class="dash-card" aria-labelledby="thread-h">
+          <h2 id="thread-h"><%= thread.company %></h2>
+          <p class="notice small">Real employers never ask you to pay for a job, an interview or training, or for an OTP or password. If anyone does, stop and <% if (thread.reportLink) { %><a href="<%= thread.reportLink %>">report this job</a><% } else { %>tell us<% } %>.</p>
+          <%- include('partials/message-thread', { items: thread.items, mine: function (m) { return m.from === 'candidate'; } }) %>
+          <% if (thread.withdrawn) { %>
+            <p class="muted small">You withdrew this application, so you can't reply here.</p>
+          <% } else { %>
+            <form class="form" method="post" action="/account/messages/<%= thread.id %>">
+              <label for="reply">Your reply</label>
+              <textarea id="reply" name="text" rows="3" maxlength="2000" required></textarea>
+              <button class="btn btn-primary btn-sm" type="submit">Send reply</button>
+            </form>
+          <% } %>
+        </section>
+      <% } %>
+    </div>
+  </div>
+</section>
+<%- include('partials/foot') %>

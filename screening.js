@@ -127,4 +127,4 @@ function view(a, { showTyped = true } = {}) {
 // One line for spreadsheets.
 const csvText = (a) => answersOf(a).map((x) => `${x.text}: ${answerWords(x)}`).join(' | ');
 
-module.exports = { MAX_QUESTIONS, MAX_TEXT, MAX_ANSWER, FORM_KEY, parse, questionsOf, hasQuestions, publicQuestions, employerQuestions, fieldName, answersFrom, answersOf, outcome, outcomeLabel, view, csvText, answerWords };
+module.exports = { MONEY_RE, SECRET_RE, MAX_QUESTIONS, MAX_TEXT, MAX_ANSWER, FORM_KEY, parse, questionsOf, hasQuestions, publicQuestions, employerQuestions, fieldName, answersFrom, answersOf, outcome, outcomeLabel, view, csvText, answerWords };

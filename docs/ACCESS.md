@@ -551,6 +551,9 @@ Total: 727 routes.
 | POST | `/account/alerts/:id/delete` | candidate | Only the candidate's own job alerts |
 | GET | `/account/saved` | candidate |  |
 | POST | `/account/saved/:jobId/delete` | candidate | Only the candidate's own saved jobs |
+| GET | `/account/messages` | candidate | Conversations the hiring side started on their own applications |
+| GET | `/account/messages/:appId` | candidate | Their own application only, once the hiring side wrote; 404 otherwise; marks messages read |
+| POST | `/account/messages/:appId` | candidate | Same-origin; a reply only, not after withdrawing; rate limited |
 | GET | `/account/interviews` | candidate |  |
 | POST | `/account/interviews/:appId/:ivId/confirm` | candidate | Only the candidate's own upcoming interviews |
 | POST | `/account/interviews/:appId/:ivId/reschedule` | candidate | Only the candidate's own upcoming interviews; tells whoever runs the hiring |
@@ -651,6 +654,7 @@ Total: 727 routes.
 | GET | `/employer/ats` | employer | Pipeline board and table for the company's own jobs this member may see |
 | GET | `/employer/ats/reports` | employer | Metrics for the jobs this member may see; team workload for owners and hiring managers |
 | POST | `/employer/applicants/:id/notes` | employer | Internal notes: owners, or managers and recruiters on the job; never shown to candidates |
+| POST | `/employer/applicants/:id/messages` | employer | People who may contact applicants on the job; same-origin; no money, codes or passwords; not after withdrawal; recorded without the words |
 | POST | `/employer/applicants/:id/assign` | employer | Owners, or hiring managers on the job; only to people who work on the job |
 | POST | `/employer/applicants/:id/interviews/:ivId/reschedule` | employer | People working on the job (interviews.manage); same timing and clash rules as booking; the candidate is asked to confirm the new time |
 | POST | `/employer/applicants/:id/interviews/:ivId/cancel` | employer | Owners, or managers and recruiters on the job; the candidate gets a calendar cancellation |

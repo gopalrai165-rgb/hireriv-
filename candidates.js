@@ -9,6 +9,7 @@
 const failureLog = require('./failure-log');
 const crypto = require('crypto');
 const screening = require('./screening');
+const messages = require('./messages');
 const rejectReasons = require('./reject-reasons');
 const fs = require('fs');
 const vault = require('./vault');
@@ -728,7 +729,7 @@ function register(app, deps) {
         // The latest approved offer (the company's own notes stay with them).
         const o = a.withdrawnAt ? null : (a.offers || []).filter((x) => !x.withdrawnAt && x.approval && x.approval.status === 'approved').pop();
         const offer = o ? { id: o.id, title: o.title || a.jobTitle, company: job ? job.company : '', salary: o.salary, joiningDate: o.joiningDate, respondBy: o.respondBy, status: o.response.status, answeredAt: o.response.at, byCandidate: Boolean(o.response.byCandidate) } : null;
-        return { offer, id: a.id, jobTitle: a.jobTitle, general: a.jobId === 'general', job: job && isLive(job) ? job : null, createdAt: a.createdAt, viewedAt: a.viewedAt || '', stage, stepIndex: STEPS.indexOf(stage), withdrawn: Boolean(a.withdrawnAt), closedOut: ['Hired', 'Rejected'].includes(a.status), hasResume: Boolean(a.resume), interviews };
+        return { offer, id: a.id, jobTitle: a.jobTitle, general: a.jobId === 'general', job: job && isLive(job) ? job : null, createdAt: a.createdAt, viewedAt: a.viewedAt || '', unreadMessages: messages.unreadFor(a, 'candidate'), hasMessages: messages.started(a), stage, stepIndex: STEPS.indexOf(stage), withdrawn: Boolean(a.withdrawnAt), closedOut: ['Hired', 'Rejected'].includes(a.status), hasResume: Boolean(a.resume), interviews };
       });
     const s = shell(email, 'dashboard');
     page(res, 'account', {
@@ -1056,6 +1057,48 @@ function register(app, deps) {
   });
 
   // ---------- interviews ----------
+  // ---------- messages (messages.js) ----------
+  // Conversations the hiring side started, newest first.
+  const threadsOf = (email) => {
+    const jobsById = new Map(getJobs().map((j) => [j.id, j]));
+    return mine(email).filter((a) => messages.started(a)).map((a) => ({
+      id: a.id, jobTitle: a.jobTitle, company: (jobsById.get(a.jobId) || {}).company || site.name, last: messages.lastOf(a), unread: messages.unreadFor(a, 'candidate'), withdrawn: Boolean(a.withdrawnAt),
+    })).sort((x, y) => String(y.last.at).localeCompare(String(x.last.at)));
+  };
+  app.get('/account/messages', requireCandidate, (req, res) => {
+    page(res, 'account-messages', { title: 'Messages', ...shell(req.candidateEmail, 'messages'), threads: threadsOf(req.candidateEmail), thread: null, msg: String(req.query.msg || '') });
+  });
+  const ownThread = (req) => {
+    const list = readSubmissions('applications');
+    const a = list.find((x) => x.id === req.params.appId && String(x.email).toLowerCase() === req.candidateEmail && messages.started(x));
+    return a ? { list, a } : null;
+  };
+  app.get('/account/messages/:appId', requireCandidate, (req, res, next) => {
+    const found = ownThread(req);
+    if (!found) return next();
+    const { list, a } = found;
+    if (messages.markRead(a, 'candidate')) writeSubmissions('applications', list);
+    const job = getJobs().find((j) => j.id === a.jobId);
+    page(res, 'account-messages', {
+      title: `Messages: ${a.jobTitle}`, ...shell(req.candidateEmail, 'messages'), threads: threadsOf(req.candidateEmail),
+      thread: { id: a.id, jobTitle: a.jobTitle, company: job ? job.company : site.name, reportLink: job && isLive(job) ? `${jobPath(job)}#report` : '', withdrawn: Boolean(a.withdrawnAt), items: messages.listOf(a) },
+      msg: String(req.query.msg || ''),
+    });
+  });
+  app.post('/account/messages/:appId', requireCandidate, limit('account-messages', 30), sameOrigin, (req, res, next) => {
+    const found = ownThread(req);
+    if (!found) return next();
+    const { list, a } = found;
+    const back = (m) => res.redirect(303, `/account/messages/${a.id}?msg=${encodeURIComponent(m)}`);
+    const ok = messages.check(a, req.body.text, 'candidate');
+    if (ok.error) return back(`Not sent: ${ok.error}.`);
+    const m = messages.add(a, { from: 'candidate', by: String(profileFor(req.candidateEmail).name || a.name || '').trim(), text: ok.text });
+    writeSubmissions('applications', list);
+    const job = getJobs().find((j) => j.id === a.jobId);
+    if (events && events.messageToHiring) events.messageToHiring(a, job, m);
+    back('Reply sent.');
+  });
+
   app.get('/account/interviews', requireCandidate, (req, res) => {
     const now = Date.now();
     const all = mine(req.candidateEmail).flatMap((a) => (a.interviews || []).map((iv) => ({ ...iv, appId: a.id, jobTitle: a.jobTitle })));
@@ -1180,6 +1223,7 @@ function register(app, deps) {
         details: Object.fromEntries(['name', 'phone', 'skills', 'experience', 'location', 'noticePeriod', 'linkedin', 'message', 'source'].filter((k) => a[k]).map((k) => [k, a[k]])),
         resumeFile: a.resume ? `Uploaded resume (${path.extname(a.resume).slice(1).toUpperCase()})` : null,
         skillsFoundInResume: a.resumeSkills || [],
+        messages: messages.listOf(a).map((m) => ({ at: m.at, from: m.from === 'candidate' ? 'You' : m.by, text: m.text })),
         answersToJobQuestions: screening.answersOf(a).map((x) => ({ question: x.text, answer: screening.answerWords(x) })),
         reappliedAt: a.reapplied || [],
         stageChanges: (a.history || []).map((h) => ({ at: h.at, from: CANDIDATE_STAGE[h.from] || h.from, to: CANDIDATE_STAGE[h.to] || h.to, ...(h.rejectReason ? { reasonRecorded: rejectReasons.labelOf(h.rejectReason) } : {}) })).filter((h) => h.from !== h.to),

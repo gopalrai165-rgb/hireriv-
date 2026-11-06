@@ -57,6 +57,7 @@ function create(deps) {
     if (selfManaged(job)) return a.assignedTo ? [employerPerson(a.assignedTo, job)].filter(Boolean) : [];
     return [teamOwner(a)].filter(Boolean);
   }
+  const messagesOf = (a) => (a && Array.isArray(a.messages) ? a.messages : []);
   const candidate = (a) => (a && a.email && EMAIL_RE.test(a.email) ? { kind: 'candidate', email: a.email } : null);
 
   // The person behind a recipient, if they may still receive it. For employer
@@ -238,6 +239,25 @@ function create(deps) {
       if (!who || job.status !== 'closed') return null;
       return { who, subject: `Your job closed: ${job.title}`, heading: 'A job reached its closing date', intro: `${job.title} passed its last day to apply (${job.closesOn}) and closed by itself. Reopen it from your jobs if you're still hiring.`, rows: [], link: `${baseUrl}/employer/jobs`, label: 'Your jobs', why: 'your jobs closing' };
     },
+  };
+  // A message about an application (messages.js). The email says only that
+  // there is one: the words stay on the site, where they can be reported.
+  NOTICES['message-to-candidate'] = (refs) => {
+    const a = appById(refs.applicationId);
+    if (!a || a.withdrawnAt || !candidate(a)) return null;
+    const job = jobById(a.jobId);
+    return {
+      who: { name: a.name, email: a.email, kind: 'candidate' }, subject: `New message about your application: ${a.jobTitle}`, heading: 'You have a new message',
+      intro: `${job ? job.company : 'The employer'} sent you a message about ${a.jobTitle}. Sign in to read it and reply.`,
+      rows: [], link: `${baseUrl}/account/messages/${a.id}`, label: 'Read the message', why: 'your job applications',
+    };
+  };
+  NOTICES['message-to-hiring'] = (refs, to) => {
+    const a = appById(refs.applicationId);
+    const job = a && jobById(a.jobId);
+    const who = job && person(to, job, 'applicants.contact');
+    if (!who) return null;
+    return { who, subject: `${first(a.name)} replied about ${job.title}`, heading: 'An applicant replied', intro: `${first(a.name)} replied to your message about ${job.title}.`, rows: [], link: applicantLink(who, a) + '#messages', label: 'Read the reply' };
   };
   NOTICES['hire-request-overdue'] = (refs, to) => {
     const h = readSubmissions('hire-requests').find((x) => x.id === refs.hireRequestId);
@@ -617,6 +637,27 @@ function create(deps) {
       inApp: { title: `${job.company} opened your application`, body: `For ${job.title}. They decide the next step; we will tell you when your application moves.`, link: '/account#applications' },
     });
   }
+  function messageToCandidate(a, job, m) {
+    if (!a || a.withdrawnAt) return null;
+    return emit({
+      key: `message:${m.id}`, type: 'message-received', to: [candidate(a)],
+      inApp: { title: `Message from ${job ? job.company : 'the employer'}`, body: `About ${a.jobTitle}. Read it and reply in your account.`, link: `/account/messages/${a.id}` },
+      email: { template: 'notice', refs: { kind: 'message-to-candidate', applicationId: a.id } },
+    });
+  }
+  // A reply goes to the people who started the conversation, or else to
+  // everyone who may contact applicants on the job.
+  function messageToHiring(a, job, m) {
+    if (!a || !job) return null;
+    const writers = [...new Set(messagesOf(a).filter((x) => x.from === 'employer' && x.userId).map((x) => x.userId))];
+    const people = jobPeople(job, 'applicants.contact');
+    const to = writers.length ? people.filter((p) => writers.includes(p.userId)) : people;
+    return emit({
+      key: `reply:${m.id}`, type: 'candidate-replied', to: to.length ? to : people,
+      inApp: { title: `${first(a.name)} replied about ${job.title}`, body: 'Open the application to read it.', link: `/employer/applicants/${a.id}#messages`, jobId: job.id },
+      email: { template: 'notice', refs: { kind: 'message-to-hiring', applicationId: a.id } },
+    });
+  }
   // A staffing request (public form or client portal): everyone on the team sees it.
   function staffingRequest(entry) {
     emit({ key: `staffing-request:${entry.id}`, type: 'staffing-request', to: team.members().map((u) => ({ kind: 'team', userId: u.id })), inApp: { title: `Staffing request from ${entry.company}`, body: `${entry.roles}${entry.headcount ? ` · ${entry.headcount} people` : ''}${entry.location ? ` · ${entry.location}` : ''}`, link: '/admin?tab=hire-requests' } });
@@ -712,7 +753,7 @@ function create(deps) {
   return {
     applicationSubmitted, newApplication, stageMoved, statusEmail, interviewBooked, interviewOptionsOffered, interviewRescheduled, interviewCancelled, interviewReminder, interviewAnswered,
     feedbackDueScan, offerCreated, offerApproved, offerAnswered, offerAnsweredByCandidate, offerDeadlineScan, assigned, jobDecision, jobExpired, jobClosingSoonScan, jobSubmitted, jobAlerts, jobDigest, jobInvite, contactUnlocked, applicationViewed, staffingRequest, hireRequestAssigned, hireOverdueScan, leadSummaryScan, leadSummaryNow, analyticsWeeklyScan, analyticsWeeklyNow, exportRequested, exportDecided, agencyAssigned,
-    accountSecurity, scan, JOB_ALERTS_PER_DAY,
+    accountSecurity, scan, JOB_ALERTS_PER_DAY, messageToCandidate, messageToHiring,
   };
 }
 
