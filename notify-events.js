@@ -11,6 +11,7 @@
 const { can } = require('./employer-team');
 const ats = require('./ats');
 
+const withdrawReasons = require('./withdraw-reasons');
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 const DAY = 86400000;
 // At most this many job-alert emails per person a day; more stay in-app.
@@ -272,6 +273,20 @@ function create(deps) {
       who: { name: a.name, email: a.email, kind: 'candidate' }, subject: `Invitation to apply: ${job.title} at ${job.company}`, heading: `${job.company} would like you to apply`,
       intro: `after your application for ${a.jobTitle}, ${job.company} thinks you may suit another of their jobs and invites you to apply. You don't have to: your application for ${a.jobTitle} stays as it is either way. Applying is free: never pay anyone for a job.`,
       rows: [['Job', job.title], ['Location', `${job.location} (${job.mode})`], ['Type', job.type], ['Salary', job.salary || '']], link: `${baseUrl}${jobPath(job)}?utm_source=invite`, label: 'View the job', why: 'invitations to apply',
+    };
+  };
+  // The company running the job hears that someone withdrew, and why if they said.
+  NOTICES['candidate-withdrew'] = (refs, to) => {
+    const a = appById(refs.applicationId);
+    if (!a || !a.withdrawnAt) return null;
+    const job = jobById(a.jobId);
+    const who = job && person(to, job, 'applicants.view');
+    if (!who) return null;
+    const n = refs.cancelled || 0;
+    return {
+      who, subject: `${first(a.name)} withdrew from ${job.title}`, heading: 'An applicant withdrew',
+      intro: `${first(a.name)} withdrew their application for ${job.title}.${n ? ` ${n === 1 ? 'The interview you scheduled was' : `The ${n} interviews you scheduled were`} cancelled.` : ''}`,
+      rows: [['Their reason', withdrawReasons.labelOf(a.withdrawReason) || 'They didn\'t say']], link: applicantLink(who, a), label: 'Open the applicant', why: 'changes to your applicants',
     };
   };
   NOTICES['message-to-candidate'] = (refs) => {
@@ -680,6 +695,17 @@ function create(deps) {
       email: { template: 'notice', refs: { kind: 'added-by-employer', applicationId: a.id } },
     });
   }
+  // On jobs the team runs, the team inbox already gets mailer.applicationWithdrawn.
+  function candidateWithdrew(a, job, cancelled = 0) {
+    if (!a || !job || !selfManaged(job)) return null;
+    const to = a.assignedTo ? responsible(a, job) : jobPeople(job, 'applicants.manage');
+    if (!to.length) return null;
+    return emit({
+      key: `withdrew:${a.id}`, type: 'stage-changed', to,
+      inApp: { title: `${first(a.name)} withdrew from ${job.title}`, body: `${withdrawReasons.labelOf(a.withdrawReason) || 'They didn\'t give a reason'}.${cancelled ? ' Interviews were cancelled.' : ''}`, link: `/employer/applicants/${a.id}`, jobId: job.id },
+      email: { template: 'notice', refs: { kind: 'candidate-withdrew', applicationId: a.id, cancelled } },
+    });
+  }
   function applicantInvite(a, job, { team: fromTeam = false } = {}) {
     if (!a || a.withdrawnAt || !candidate(a) || !job) return null;
     return emit({
@@ -812,7 +838,7 @@ function create(deps) {
   return {
     applicationSubmitted, newApplication, stageMoved, statusEmail, interviewBooked, interviewOptionsOffered, interviewRescheduled, interviewCancelled, interviewReminder, interviewAnswered,
     feedbackDueScan, offerCreated, offerApproved, offerAnswered, offerAnsweredByCandidate, offerDeadlineScan, assigned, jobDecision, jobExpired, jobClosingSoonScan, jobSubmitted, jobAlerts, jobDigest, jobInvite, contactUnlocked, applicationViewed, staffingRequest, hireRequestAssigned, hireOverdueScan, leadSummaryScan, leadSummaryNow, analyticsWeeklyScan, analyticsWeeklyNow, exportRequested, exportDecided, agencyAssigned,
-    accountSecurity, scan, JOB_ALERTS_PER_DAY, messageToCandidate, messageToHiring, addedByEmployer, applicantInvite,
+    accountSecurity, scan, JOB_ALERTS_PER_DAY, messageToCandidate, messageToHiring, addedByEmployer, applicantInvite, candidateWithdrew,
   };
 }
 

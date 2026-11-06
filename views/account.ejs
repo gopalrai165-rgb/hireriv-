@@ -140,7 +140,16 @@
             </div>
           <% }) %>
           <% if (!a.withdrawn && !a.closedOut) { %>
-            <form method="post" action="/account/applications/<%= a.id %>/withdraw" data-confirm="Withdraw your application for <%= a.jobTitle %>? This can't be undone."><button class="link-btn small withdraw">Withdraw application</button></form>
+            <details class="withdraw-box">
+              <summary class="small">Withdraw application</summary>
+              <form class="form" method="post" action="/account/applications/<%= a.id %>/withdraw" data-confirm="Withdraw your application for <%= a.jobTitle %>? This can't be undone.">
+                <label>Why? <span class="muted small">(optional)</span>
+                  <select name="reason"><option value="">I'd rather not say</option><% withdrawReasons.forEach(function (r) { %><option value="<%= r.key %>"><%= r.label %></option><% }) %></select>
+                </label>
+                <p class="small muted">The hiring team sees your answer. It helps them, and doesn't change anything for you.</p>
+                <button class="btn btn-outline btn-sm" type="submit">Withdraw application</button>
+              </form>
+            </details>
           <% } %>
         </article>
       <% }) %>

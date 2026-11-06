@@ -11,6 +11,7 @@ const crypto = require('crypto');
 const screening = require('./screening');
 const messages = require('./messages');
 const rejectReasons = require('./reject-reasons');
+const withdrawReasons = require('./withdraw-reasons');
 const fs = require('fs');
 const vault = require('./vault');
 const path = require('path');
@@ -773,7 +774,7 @@ function register(app, deps) {
       matches: recommendFor(email, { limit: 6 }), alerts: readSubmissions('job-alerts').filter((x) => x.email === email), categories: jobCategories(), locations: jobLocations(),
       savedCount: savedOf(email).length, referrals: referralsOf(email),
       openOffers: apps.filter((a) => a.offer && a.offer.status === 'awaiting'),
-      invitations: openInvitations(email),
+      invitations: openInvitations(email), withdrawReasons: withdrawReasons.REASONS,
     });
   });
 
@@ -1228,10 +1229,14 @@ function register(app, deps) {
     if (!a) return next();
     if (!a.withdrawnAt && !['Hired', 'Rejected'].includes(a.status)) {
       a.withdrawnAt = nowIso();
+      const why = withdrawReasons.parse(req.body.reason);
+      if (why) a.withdrawReason = why;
       // Cancel any interviews still on the calendar.
-      for (const iv of a.interviews || []) if (iv.status === 'scheduled') { iv.status = 'cancelled'; iv.sequence = (iv.sequence || 0) + 1; iv.cancelledAt = a.withdrawnAt; }
+      let cancelled = 0;
+      for (const iv of a.interviews || []) if (iv.status === 'scheduled') { iv.status = 'cancelled'; iv.sequence = (iv.sequence || 0) + 1; iv.cancelledAt = a.withdrawnAt; cancelled++; }
       writeSubmissions('applications', list);
       mailer.applicationWithdrawn(a);
+      if (events && events.candidateWithdrew) events.candidateWithdrew(a, getJobs().find((j) => j.id === a.jobId), cancelled);
     }
     back(res, `You've withdrawn your application for ${a.jobTitle}.`);
   });
@@ -1267,6 +1272,7 @@ function register(app, deps) {
         emailsSent: (a.emails || []).map((m) => ({ at: m.at, subject: m.subject })),
         sharedWithClient: a.shared ? { at: a.shared.sharedAt } : null,
         withdrawnAt: a.withdrawnAt || null,
+        ...(a.withdrawReason ? { withdrawReason: withdrawReasons.labelOf(a.withdrawReason) } : {}),
       })),
       savedJobs: savedOf(email).map((s) => ({ jobId: s.jobId, savedAt: s.createdAt })),
       jobAlerts: subs('job-alerts').map((s) => (s.filters

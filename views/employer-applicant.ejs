@@ -59,7 +59,7 @@
       <section class="dash-card">
         <div class="dash-head"><h2>Stage</h2></div>
         <% if (v.withdrawn) { %>
-          <p class="muted">The candidate withdrew this application.</p>
+          <p class="muted">The candidate withdrew this application on <%= formatDate(v.withdrawnAt) %>.<% if (v.withdrawReason) { %> Their reason: <b><%= v.withdrawReason %></b><% } %></p>
         <% } else if (v.allowedMoves.length) { %>
           <form class="form inline-form" method="post" action="/employer/applicants/<%= v.id %>/status">
             <label>Move to

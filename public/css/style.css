@@ -1491,6 +1491,9 @@ form .check-row { min-height: 44px; padding: 6px 0; cursor: pointer; }
 .compare-table tbody th, .compare-table thead th:first-child { position: sticky; left: 0; background: #fff; text-align: left; font-weight: 600; width: 130px; }
 .compare-table td { vertical-align: top; overflow-wrap: anywhere; }
 @media (max-width: 600px) { .compare-table { min-width: 0; } .compare-table tbody th, .compare-table thead th:first-child { width: 92px; min-width: 92px; max-width: 92px; white-space: normal; overflow-wrap: anywhere; padding-left: 4px; padding-right: 6px; } .compare-table td, .compare-table thead th { min-width: 118px; } }
+.withdraw-box { margin-top: 8px; }
+.withdraw-box summary { cursor: pointer; }
+.withdraw-box .form { margin-top: 8px; max-width: 420px; }
 .todo-card { margin-bottom: 20px; }
 .todo-list { list-style: none; margin: 8px 0 0; padding: 0; }
 .todo-list li + li { border-top: 1px solid var(--line); }

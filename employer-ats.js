@@ -8,6 +8,7 @@
 // itself), the same role checks (employer-team.js can()) and the same history.
 // Rules live in ats.js.
 const rejectReasons = require('./reject-reasons');
+const withdrawReasons = require('./withdraw-reasons');
 const ats = require('./ats');
 const { can } = require('./employer-team');
 const { parseScorecard, parseNewTime, RECOMMENDATIONS } = require('./interviews');
@@ -71,7 +72,7 @@ function register(app, deps) {
     const days = daysOf(req.query);
     const since = days ? new Date(Date.now() - days * 86400000).toISOString() : null;
     const { apps } = applicationsFor(req);
-    page(res, 'employer-ats-reports', { title: 'Hiring reports', tab: 'ats', m: metricsFor(req, days), days, showWorkload: can(req.member, 'workload.view'), reasons: rejectReasons.summary(apps, { since }) });
+    page(res, 'employer-ats-reports', { title: 'Hiring reports', tab: 'ats', m: metricsFor(req, days), days, showWorkload: can(req.member, 'workload.view'), reasons: rejectReasons.summary(apps, { since }), withdrawn: withdrawReasons.summary(apps, { since }) });
   });
 
   // ---------- notes ----------

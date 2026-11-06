@@ -26,6 +26,7 @@ const jobParse = require('./job-parse');
 const { INVITES_PER_DAY } = require('./employer-discovery');
 const applicantInvites = require('./applicant-invites');
 const employerTodo = require('./employer-todo');
+const withdrawReasons = require('./withdraw-reasons');
 
 // A company can have this many jobs live, paused or waiting for review.
 const MAX_ACTIVE_JOBS = 50;
@@ -365,7 +366,7 @@ function register(app, deps) {
     const may = (action) => can(req.member, action, job);
     const assignee = a.assignedTo ? team.userById(a.assignedTo) : null;
     const v = {
-      id: a.id, jobId: a.jobId, jobTitle: job.title, appliedAt: a.createdAt, viewedAt: a.viewedAt || null, status: ats.stageOf(a), stageLabel: ats.label(ats.stageOf(a)), withdrawn: Boolean(a.withdrawnAt),
+      id: a.id, jobId: a.jobId, jobTitle: job.title, appliedAt: a.createdAt, viewedAt: a.viewedAt || null, status: ats.stageOf(a), stageLabel: ats.label(ats.stageOf(a)), withdrawn: Boolean(a.withdrawnAt), withdrawnAt: a.withdrawnAt || null, withdrawReason: withdrawReasons.labelOf(a.withdrawReason),
       name: a.name, experience: a.experience || '', location: a.location || '', noticePeriod: a.noticePeriod || '', skills: a.skills || '',
       match: skillMatch(a, job),
       screening: screening.view(a, { showTyped: may('applicants.contact') }),

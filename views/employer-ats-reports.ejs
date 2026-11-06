@@ -63,6 +63,22 @@
         <% } %>
       </section>
 
+      <section class="dash-card dash-wide" aria-labelledby="left-h">
+        <div class="dash-head"><h2 id="left-h">Why applicants withdrew</h2><span class="muted small">The reason they picked, if they gave one</span></div>
+        <% if (!withdrawn.total) { %><p class="muted dash-empty">Nobody withdrew in this period.</p><% } else { %>
+          <div class="table-wrap">
+            <table class="cards-on-phone">
+              <thead><tr><th scope="col">Reason</th><th scope="col">Applicants</th><th scope="col">Share</th></tr></thead>
+              <tbody>
+                <% withdrawn.rows.forEach(function (x) { %><tr><td><%= x.label %></td><td data-label="Applicants"><%= x.count %></td><td data-label="Share"><%= x.share %>%</td></tr><% }) %>
+                <% if (withdrawn.none) { %><tr><td class="muted">No reason given</td><td data-label="Applicants"><%= withdrawn.none %></td><td data-label="Share"><%= withdrawn.noneShare %>%</td></tr><% } %>
+              </tbody>
+            </table>
+          </div>
+          <p class="muted small">Out of <%= withdrawn.total %> withdrawn.</p>
+        <% } %>
+      </section>
+
       <% if (showWorkload) { %>
         <section class="dash-card dash-wide">
           <div class="dash-head"><h2>Team workload</h2><span class="muted small">Applicants assigned to each person</span></div>

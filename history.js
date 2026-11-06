@@ -64,7 +64,7 @@ function timeline(a) {
     ev.push({ at: a.shared.sharedAt, kind: 'Shared', text: 'Shared with client' });
     if (a.shared.feedback) ev.push({ at: a.shared.feedback.at, kind: 'Client', text: `Client feedback: ${a.shared.feedback.decision}${a.shared.feedback.comment ? ` – “${a.shared.feedback.comment}”` : ''}`, by: a.shared.feedback.by });
   }
-  if (a.withdrawnAt) ev.push({ at: a.withdrawnAt, kind: 'Withdrawn', text: 'Candidate withdrew' });
+  if (a.withdrawnAt) ev.push({ at: a.withdrawnAt, kind: 'Withdrawn', text: a.withdrawReason ? `Candidate withdrew: ${require('./withdraw-reasons').labelOf(a.withdrawReason)}` : 'Candidate withdrew' });
   return ev.filter((e) => e.at).sort((x, y) => y.at.localeCompare(x.at));
 }
 

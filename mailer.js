@@ -942,7 +942,7 @@ function createMailer(site) {
         replyTo: a.email,
         subject: `Application withdrawn for ${a.jobTitle}`,
         heading: 'A candidate withdrew their application',
-        html: detailsTable([['Candidate', a.name], ['Email', a.email], ['Job', a.jobTitle], ['Stage at withdrawal', a.status || 'New']]) +
+        html: detailsTable([['Candidate', a.name], ['Email', a.email], ['Job', a.jobTitle], ['Stage at withdrawal', a.status || 'New'], ['Their reason', require('./withdraw-reasons').labelOf(a.withdrawReason)]]) +
           p('Any scheduled interviews for this application were cancelled.'),
       });
     },

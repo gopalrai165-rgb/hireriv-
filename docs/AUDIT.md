@@ -958,3 +958,11 @@ Suggested order: 2 → 1 → 3 → 4, which makes Hireriv usable for skilled and
 - **Left out.** Only people who can still be moved have a tick box, because it shares the bar for moving people.
 - **Tests.** `test/compare-applicants.test.js`.
 
+## Step 213: Telling the company when someone withdraws, and why
+
+- **The gap.** A withdrawal emailed only the Hireriv team inbox. A company running its own job was never told, even when an interview it had scheduled was cancelled. Nobody could learn why people dropped out either.
+- **Built.** Withdrawing now offers an optional reason from a fixed list. The people working on the job get a notice and an email ("stage changed" in their settings), saying whether interviews were cancelled. The reason shows on the applicant's page, the team's timeline and inbox email, and in the candidate's data download, and "Why applicants withdrew" is in the company's hiring reports. `withdraw-reasons.js`.
+- **Rules.** The reason is never needed, and a bad value doesn't stop a withdrawal. The form says the hiring team sees it. A fixed list, as with reasons for not selecting someone, so it doesn't invite remarks about named people.
+- **Left out.** The reason isn't in API v1 yet, or in the team's own recruitment reports.
+- **Tests.** `test/withdraw-reasons.test.js`.
+
