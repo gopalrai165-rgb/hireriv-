@@ -878,3 +878,10 @@ Suggested order: 2 → 1 → 3 → 4, which makes Hireriv usable for skilled and
 - **Replies** go to the team members who wrote, or else the application's owner, or else the shared inbox. The email says only that there is a reply. Same rules as Step 199: no money, codes or passwords; none after withdrawal; and they need an email address to sign in and read.
 - **Tests.** `test/team-messages.test.js`.
 
+## Step 202: Saved candidates
+
+- **The gap.** Employers using Find candidates had no way to keep someone they liked except a screenshot or a note elsewhere, and had to search again to find them.
+- **Built.** A Save button on each candidate, and All candidates and Saved tabs on Find candidates. The filters and match to a job work on the saved list too. The list is shared across the company. `employer-discovery.js`, `/employer/candidates?saved=1`.
+- **Privacy.** It saves only who, with no notes about the person. It shows only people who still choose to be found, the same as the search, and says how many have stopped. Saving shows no more of the profile and spends no contact credit. Candidates aren't told each time, but the companies that saved them are in their data download, and saves go when they delete their account. The company's activity log records that someone was saved, not who.
+- **Tests.** `test/saved-candidates.test.js`.
+

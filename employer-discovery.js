@@ -24,6 +24,7 @@ const cp = require('./candidate-profile');
 const PAGE_SIZE = 20;
 const INVITES_PER_DAY = 30; // per company
 const MAX_SKILLS = 5;
+const MAX_SAVED = 1000; // per company
 const DAY = 86400000;
 
 // Indian mobile numbers as 10 digits, or ''.
@@ -45,7 +46,7 @@ const shortName = (name) => {
 const EDUCATION_RANK = Object.fromEntries(cp.EDUCATION_LEVELS.map((l, i) => [l, i]));
 
 function register(app, deps) {
-  const { readSubmissions, saveSubmission, sameOrigin, limit, site, getJobs, isLive, isSample, jobPath, clients, events, paginate, stateOf, jobTypes, contacts } = deps;
+  const { readSubmissions, writeSubmissions, saveSubmission, sameOrigin, limit, site, getJobs, isLive, isSample, jobPath, clients, events, paginate, stateOf, jobTypes, contacts } = deps;
   const { requireEmployer, requireEmployerApi, team } = clients;
   const selfManaged = (job) => Boolean(job) && job.createdBy === 'employer';
 
@@ -78,7 +79,7 @@ function register(app, deps) {
     const one = (k, max = 100) => String((Array.isArray(query[k]) ? query[k][0] : query[k]) ?? '').trim().slice(0, max);
     const f = {
       q: one('q'), location: one('location', 80), experience: one('experience', 20), type: one('type', 40), shift: one('shift', 20),
-      available: one('available', 10), contact: one('contact', 10), job: one('job', 40), sort: one('sort', 10), skills: [],
+      available: one('available', 10), contact: one('contact', 10), job: one('job', 40), sort: one('sort', 10), saved: one('saved', 5), skills: [],
     };
     for (const sk of [].concat(query.skill ?? [], String([].concat(query.skills ?? []).join(',')).split(',')).map((x) => String(x).trim()).filter(Boolean)) {
       if (sk.length > 40) errors.push('each skill must be 40 characters or fewer');
@@ -89,6 +90,7 @@ function register(app, deps) {
     if (f.type && !jobTypes.includes(f.type)) { errors.push('type is invalid'); f.type = ''; }
     if (f.shift && !cp.SHIFTS.includes(f.shift)) { errors.push('shift is invalid'); f.shift = ''; }
     if (f.available && f.available !== 'now') { errors.push('available must be "now"'); f.available = ''; }
+    if (f.saved && f.saved !== '1') { errors.push('saved must be 1'); f.saved = ''; }
     if (f.contact && !['shared', 'unlocked'].includes(f.contact)) { errors.push('contact must be shared or unlocked'); f.contact = ''; }
     if (f.sort && !['match', 'recent'].includes(f.sort)) { errors.push('sort must be match or recent'); f.sort = ''; }
     // Only the company's own jobs: anything else is refused, never looked up.
@@ -100,11 +102,12 @@ function register(app, deps) {
   }
 
   const soon = () => new Date(Date.now() + 7 * DAY).toISOString().slice(0, 10);
-  function search(f, job, unlocked = new Set()) {
+  function search(f, job, unlocked = new Set(), saved = new Set()) {
     const terms = lower(f.q).split(/\s+/).filter((t) => t.length > 1).slice(0, 8);
     const weights = jm.weightsOf(site);
     const list = [];
     for (const c of findable()) {
+      if (f.saved && !saved.has(c.id)) continue;
       const v = card(c);
       if (f.skills.length) {
         const have = [...v.skills, ...v.certifications].map(lower);
@@ -126,6 +129,30 @@ function register(app, deps) {
     const recent = (a, b) => String(b.c.updatedAt || b.c.createdAt).localeCompare(String(a.c.updatedAt || a.c.createdAt));
     list.sort(f.sort === 'match' ? (a, b) => (b.match.score ?? -1) - (a.match.score ?? -1) || recent(a, b) : recent);
     return list;
+  }
+
+  // ---------- saved candidates ----------
+  // A list the whole company shares, so people can come back to someone. Just
+  // who was saved: no notes about the person. It only ever shows people who still
+  // choose to be found, the same way as the search. They aren't told, but it is
+  // in their data download, and it goes when they delete their account.
+  const savesOf = (employerId) => readSubmissions('candidate-saves').filter((s) => s.employerId === employerId);
+  const savedIds = (employerId) => new Set(savesOf(employerId).map((s) => s.candidateId));
+  function setSaved(req, candidateId, want) {
+    const mine = savesOf(req.employer.id);
+    const has = mine.some((s) => s.candidateId === candidateId);
+    if (!want) {
+      if (!has) return { status: 200, changed: false };
+      writeSubmissions('candidate-saves', readSubmissions('candidate-saves').filter((s) => !(s.employerId === req.employer.id && s.candidateId === candidateId)));
+      team.audit(req.employer.id, req.employerUser, 'candidate-unsaved', 'Removed a candidate from the saved list');
+      return { status: 200, changed: true };
+    }
+    if (has) return { status: 200, changed: false };
+    if (!findable().some((c) => c.id === candidateId)) return { status: 404, error: 'this candidate is not available' };
+    if (mine.length >= MAX_SAVED) return { status: 409, error: `your saved list is full (${MAX_SAVED}). Remove someone first` };
+    saveSubmission('candidate-saves', { candidateId, employerId: req.employer.id, savedBy: req.employerUser.id });
+    team.audit(req.employer.id, req.employerUser, 'candidate-saved', 'Saved a candidate');
+    return { status: 201, changed: true };
   }
 
   const invitesOf = (employerId) => readSubmissions('candidate-invites').filter((i) => i.employerId === employerId);
@@ -166,8 +193,8 @@ function register(app, deps) {
     return { name: String(c.profile.name || '').trim() || shortName(c.profile.name), phone: `+91 ${phone.slice(0, 5)} ${phone.slice(5)}`, tel: `+91${phone}`, whatsapp: `https://wa.me/91${phone}`,
       confirmed: Boolean(c.phoneVerified && c.phoneVerified.phone === phone) };
   };
-  const cardJson = (x, invited, unlocked = new Set()) => ({
-    ...x.card, invitedTo: invited.filter((i) => i.candidateId === x.c.id).map((i) => i.jobId),
+  const cardJson = (x, invited, unlocked = new Set(), saved = new Set()) => ({
+    ...x.card, saved: saved.has(x.c.id), invitedTo: invited.filter((i) => i.candidateId === x.c.id).map((i) => i.jobId),
     unlocked: unlocked.has(x.c.id) && x.card.sharesContact, contact: unlocked.has(x.c.id) && x.card.sharesContact ? contactOf(x.c) : null,
     match: x.match ? { score: x.match.score, level: x.match.level, label: x.match.label, factors: x.match.factors.map(({ key, label, weight, status, detail }) => ({ key, label, weight, status, detail })), requirements: x.match.requirements.map(({ label, met }) => ({ label, met })) } : null,
   });
@@ -178,13 +205,16 @@ function register(app, deps) {
     const allowed = can(req.member, 'candidates.search');
     if (!allowed || !verified(req)) return res.render('employer-candidates', { ...base, allowed, verified: verified(req), rows: [], pager: null, f: {}, jobs: [], errors: [] });
     const { f, job, errors } = filtersOf(req.query, req);
-    const found = search(f, job, contacts().unlockedIds(req.employer.id));
-    const query = { q: f.q, skill: f.skills, location: f.location, experience: f.experience, type: f.type, shift: f.shift, available: f.available, contact: f.contact, job: f.job, sort: f.sort };
+    const saved = savedIds(req.employer.id);
+    const found = search(f, job, contacts().unlockedIds(req.employer.id), saved);
+    const query = { q: f.q, skill: f.skills, location: f.location, experience: f.experience, type: f.type, shift: f.shift, available: f.available, contact: f.contact, job: f.job, sort: f.sort, saved: f.saved };
+    const findableIds = new Set(findable().map((c) => c.id));
+    const savedNow = [...saved].filter((id) => findableIds.has(id)).length;
     const { rows, pager } = paginate(found, { page: req.query.page, size: PAGE_SIZE, query, path: '/employer/candidates' });
     const invited = invitesOf(req.employer.id);
     const unlocked = contacts().unlockedIds(req.employer.id);
     res.render('employer-candidates', {
-      ...base, allowed, verified: true, rows: rows.map((x) => cardJson(x, invited, unlocked)), credits: contacts().status(req.employer), pager, f, job, jobs: jobsFor(req), errors,
+      ...base, allowed, verified: true, rows: rows.map((x) => cardJson(x, invited, unlocked, saved)), credits: contacts().status(req.employer), pager, f, job, savedCount: savedNow, savedHidden: saved.size - savedNow, backQuery: new URLSearchParams(Object.entries(req.query).filter(([k, v]) => k !== 'msg' && typeof v === 'string' && v)).toString(), jobs: jobsFor(req), errors,
       experienceOptions: cp.EXPERIENCE, shifts: cp.SHIFTS, jobTypes, invitesLeft: Math.max(0, INVITES_PER_DAY - invited.filter((i) => i.createdAt >= new Date(Date.now() - DAY).toISOString()).length),
     });
   });
@@ -195,6 +225,20 @@ function register(app, deps) {
     const r = invite(req, req.params.id, String(req.body.jobId || ''));
     if (r.error) return back(r.error.charAt(0).toUpperCase() + r.error.slice(1) + '.');
     back(r.existed ? `You already invited them to apply for ${r.job.title}.` : `Invitation sent for ${r.job.title}. They'll decide whether to apply.`);
+  });
+
+  // Back to the same search and the same person.
+  const KEEP = ['q', 'skills', 'skill', 'location', 'experience', 'type', 'shift', 'available', 'contact', 'job', 'sort', 'saved', 'page'];
+  app.post('/employer/candidates/:id/save', requireEmployer, limit('candidate-save', 120), sameOrigin, (req, res) => {
+    const from = new URLSearchParams(String(req.body.back || '').slice(0, 600));
+    const kept = new URLSearchParams([...from].filter(([k]) => KEEP.includes(k)));
+    const back = (msg, anchor = '') => { kept.set('msg', msg); res.redirect(303, `/employer/candidates?${kept}${anchor}`); };
+    if (!can(req.member, 'candidates.search')) return clients.forbid(req, res);
+    if (!verified(req)) return back('Finding candidates opens once your company is verified.');
+    const want = req.body.saved !== '0';
+    const r = setSaved(req, req.params.id, want);
+    if (r.error) return back(r.error.charAt(0).toUpperCase() + r.error.slice(1) + '.');
+    back(want ? 'Saved. Everyone in your company who finds candidates can see this list.' : 'Removed from your saved list.', `#cand-${encodeURIComponent(req.params.id)}`);
   });
 
   app.post('/employer/candidates/:id/unlock', requireEmployer, limit('candidate-unlock', 120), sameOrigin, (req, res) => {
@@ -219,12 +263,13 @@ function register(app, deps) {
     if (raw !== undefined && !(/^\d{1,4}$/.test(String(raw)) && +raw >= 1)) errors.push('page must be a whole number from 1');
     if (errors.length) return res.status(400).json({ ok: false, errors });
     const unlocked = contacts().unlockedIds(req.employer.id);
-    const found = search(f, job, unlocked);
+    const saved = savedIds(req.employer.id);
+    const found = search(f, job, unlocked, saved);
     const page = raw ? +raw : 1;
     const invited = invitesOf(req.employer.id);
     res.json({
       ok: true, total: found.length, page, limit: PAGE_SIZE, pages: Math.max(1, Math.ceil(found.length / PAGE_SIZE)), sort: f.sort, job: job ? { id: job.id, title: job.title } : null,
-      note: jm.NOTE, contacts: contacts().status(req.employer), candidates: found.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE).map((x) => cardJson(x, invited, unlocked)),
+      note: jm.NOTE, contacts: contacts().status(req.employer), candidates: found.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE).map((x) => cardJson(x, invited, unlocked, saved)),
     });
   });
   app.post('/api/employers/candidates/:id/invites', requireEmployerApi, limit('candidate-invite', 60), sameOrigin, (req, res) => {
@@ -232,6 +277,14 @@ function register(app, deps) {
     const r = invite(req, req.params.id, String((req.body || {}).jobId || ''));
     if (r.error) return res.status(r.status).json({ ok: false, errors: [r.error] });
     res.status(r.status).json({ ok: true, existed: Boolean(r.existed), invitation: { candidateId: r.c.id, jobId: r.job.id, jobUrl: jobPath(r.job) } });
+  });
+
+  app.post('/api/employers/candidates/:id/save', requireEmployerApi, limit('candidate-save', 120), sameOrigin, (req, res) => {
+    if (!gate(req, res)) return;
+    const want = (req.body || {}).saved !== false;
+    const r = setSaved(req, req.params.id, want);
+    if (r.error) return res.status(r.status).json({ ok: false, errors: [r.error] });
+    res.status(r.status).json({ ok: true, saved: want, changed: r.changed });
   });
 
   app.post('/api/employers/candidates/:id/unlock', requireEmployerApi, limit('candidate-unlock', 120), sameOrigin, (req, res) => {

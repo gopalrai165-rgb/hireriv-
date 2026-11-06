@@ -11,7 +11,14 @@
     <% } else { %>
       <p class="muted small">Only people who chose to let verified employers find them appear here, with their first name and initial, skills, experience and the work they want. You see their contact details and resume only if they apply, or their name and mobile number when they chose to show it and you unlock them. Invite someone to one of your open jobs and they decide. A match score is a guide for sorting, never a reason to turn anyone away.</p>
 
+      <nav class="filter-chips" aria-label="Which candidates">
+        <a class="chip<%= f.saved ? '' : ' is-active' %>" href="/employer/candidates"<%- f.saved ? '' : ' aria-current="page"' %>>All candidates</a>
+        <a class="chip<%= f.saved ? ' is-active' : '' %>" href="/employer/candidates?saved=1"<%- f.saved ? ' aria-current="page"' : '' %>>Saved (<%= savedCount %>)</a>
+      </nav>
+      <% if (f.saved && savedHidden) { %><p class="small muted"><%= savedHidden %> saved <%= savedHidden === 1 ? 'person has' : 'people have' %> stopped sharing their profile, so they don't show here.</p><% } %>
+
       <form class="form filter-bar" method="get" action="/employer/candidates" role="search">
+        <% if (f.saved) { %><input type="hidden" name="saved" value="1"><% } %>
         <label>Keywords<input name="q" maxlength="100" value="<%= f.q %>" placeholder="e.g. warehouse, accounts"></label>
         <label>Skills <span class="muted small">(comma separated)</span><input name="skills" maxlength="200" value="<%= (f.skills || []).join(', ') %>"></label>
         <label>City or state<input name="location" maxlength="80" value="<%= f.location %>"></label>
@@ -42,7 +49,7 @@
       <p class="small muted"><b><%= pager ? pager.total : 0 %></b> <%= pager && pager.total === 1 ? 'candidate' : 'candidates' %> · <%= invitesLeft %> invitations left today</p>
       <p class="small contact-credits">Contacts: <b><%= credits.freeLeft %></b> of <%= credits.free %> free this month left · <b><%= credits.credits %></b> contact <%= credits.credits === 1 ? 'credit' : 'credits' %><% if (!credits.freeLeft && !credits.credits) { %> · <a href="/employer/billing#credits">Get more contacts</a><% } %></p>
       <% if (!rows.length) { %>
-        <p class="muted dash-empty">No candidates match. Try fewer filters.</p>
+        <p class="muted dash-empty"><%= f.saved && !savedCount ? 'Nobody saved yet. Use "Save" on a candidate to come back to them.' : 'No candidates match. Try fewer filters.' %></p>
       <% } else { %>
         <ul class="cand-list">
           <% rows.forEach(function (c) { %>
@@ -52,7 +59,14 @@
                   <b><%= c.displayName %></b><% if (c.headline) { %> · <%= c.headline %><% } %>
                   <br><span class="muted small"><%= [c.experienceLevel, [c.city, c.state].filter(Boolean).join(', '), c.education].filter(Boolean).join(' · ') || 'Profile details coming' %> · updated <%= formatDate(c.updatedOn) %></span>
                 </div>
-                <% if (c.match) { %><span class="pill match-pill match-<%= c.match.level %>"><%= c.match.score === null ? c.match.label : c.match.score + '% · ' + c.match.label %></span><% } %>
+                <div class="row-actions-wrap">
+                  <% if (c.match) { %><span class="pill match-pill match-<%= c.match.level %>"><%= c.match.score === null ? c.match.label : c.match.score + '% · ' + c.match.label %></span><% } %>
+                  <form method="post" action="/employer/candidates/<%= c.id %>/save">
+                    <input type="hidden" name="back" value="<%= backQuery %>">
+                    <input type="hidden" name="saved" value="<%= c.saved ? '0' : '1' %>">
+                    <button class="btn btn-outline btn-sm" type="submit"><%= c.saved ? 'Saved: remove' : 'Save' %><span class="sr-only">: <%= c.displayName %></span></button>
+                  </form>
+                </div>
               </div>
               <% if (c.skills.length) { %><div class="chips"><% c.skills.forEach(function (s) { %><span class="chip"><%= s %></span><% }) %></div><% } %>
               <p class="small">

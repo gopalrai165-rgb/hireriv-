@@ -1240,6 +1240,7 @@ function register(app, deps) {
         const job = getJobs().find((j) => j.id === i.jobId);
         return { at: i.createdAt, job: job ? job.title : 'A job that was removed', company: job ? job.company : '' };
       }) : [],
+      employersWhoSavedYourProfile: c ? readSubmissions('candidate-saves').filter((s) => s.candidateId === c.id).map((s) => ({ at: s.createdAt, company: (readSubmissions('employers').find((e) => e.id === s.employerId) || {}).company || '' })) : [],
       employersWhoSawYourNumber: c ? readSubmissions('contact-unlocks').filter((u) => u.candidateId === c.id).map((u) => ({ at: u.createdAt, company: u.company || '' })) : [],
       newsletter: subs('newsletter').map((s) => ({ since: s.createdAt })),
       notifications: notify.list({ rk: notify.candidateRk(email) }, { limit: 1000 }).items.map((n) => ({ at: n.createdAt, title: n.title, text: n.body, readAt: n.readAt })),
@@ -1356,6 +1357,8 @@ function register(app, deps) {
       const invites = readSubmissions('candidate-invites');
       const rest = invites.filter((i) => i.candidateId !== c.id);
       if (rest.length !== invites.length) writeSubmissions('candidate-invites', rest);
+      const saves = readSubmissions('candidate-saves');
+      if (saves.some((s) => s.candidateId === c.id)) writeSubmissions('candidate-saves', saves.filter((s) => s.candidateId !== c.id));
       // Unlocks stay counted against the company's month, without saying whose.
       const unlocks = readSubmissions('contact-unlocks');
       if (unlocks.some((u) => u.candidateId === c.id)) writeSubmissions('contact-unlocks', unlocks.map((u) => (u.candidateId === c.id ? { ...u, candidateId: 'erased' } : u)));

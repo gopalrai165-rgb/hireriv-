@@ -2640,7 +2640,7 @@ setInterval(() => { try { recommendations.digestScan(); } catch (e) { console.er
 
 // Finding candidates who agreed to be found, for verified employers.
 employerDiscovery.register(app, {
-  readSubmissions, saveSubmission, sameOrigin, limit, site, getJobs: () => jobs, isLive, isSample, jobPath, clients, events, paginate,
+  readSubmissions, writeSubmissions, saveSubmission, sameOrigin, limit, site, getJobs: () => jobs, isLive, isSample, jobPath, clients, events, paginate,
   stateOf: search.stateOf, jobTypes: JOB_TYPES, contacts: () => contacts,
 });
 
