@@ -37,6 +37,8 @@ const EVENT_TYPES = {
   'bulk-export': 'Bulk export',
   'identity-confirmed': 'Confirmed it was them',
   'privileged-change': 'Privileged change',
+  'export-requested': 'Export approval asked for',
+  'export-decided': 'Export approval answered',
   alert: 'Alert',
 };
 // Sign-in forms and APIs: 401 is a wrong password or code, 429 a lock-out.

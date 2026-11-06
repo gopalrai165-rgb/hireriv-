@@ -548,6 +548,7 @@ function teamSideOf(req, user) {
     can('requisitions.view') ? ['/admin/workspace', 'Agency & staffing'] : can('invoices.draft') ? ['/admin/invoice-drafts', 'Invoice drafts'] : null,
     can('crm.view') ? ['/admin/crm', 'Sales CRM'] : null,
     user.role === 'Admin' ? ['/admin/notifications', 'Email delivery'] : null,
+    user.role === 'Admin' ? ['/admin/export-requests', 'Export approvals'] : null,
     can('analytics.view') ? ['/admin/analytics', 'Analytics'] : null,
     can('site.analytics') ? ['/admin/site-analytics', 'Website analytics'] : null,
     can('subscriptions.view') ? ['/admin/billing', 'Plans & payments'] : null,
@@ -3329,7 +3330,9 @@ app.post('/admin/:type/:id/delete', adminAuth, requireAdmin, sameOrigin, (req, r
 });
 
 // Full database snapshot (VACUUM INTO) for backups; safe while the site runs.
-app.get('/admin/backup', adminAuth, requireAdmin, requireConfirmed, security.bulkExport('Full database'), (req, res) => {
+// A second Admin approves bulk exports when the owner turns it on (export-approval.js).
+const exportApproval = require('./export-approval').register(app, { db, team, adminAuth, requireAdmin, requireConfirmed, sameOrigin, limit, events: () => events, security });
+app.get('/admin/backup', adminAuth, requireAdmin, requireConfirmed, exportApproval.requireApproval('Full database'), security.bulkExport('Full database'), (req, res) => {
   team.log(req.admin, 'Downloaded the database');
   const file = path.join(require('os').tmpdir(), `hireriv-backup-${Date.now()}.db`);
   db.backupTo(file);
@@ -3337,7 +3340,7 @@ app.get('/admin/backup', adminAuth, requireAdmin, requireConfirmed, security.bul
 });
 
 // Automatic backups: download any kept copy, or take one now.
-app.get('/admin/backups/:name', adminAuth, requireAdmin, requireConfirmed, security.bulkExport((req) => `Backup ${req.params.name}`), (req, res, next) => {
+app.get('/admin/backups/:name', adminAuth, requireAdmin, requireConfirmed, exportApproval.requireApproval((req) => `Backup ${req.params.name}`), security.bulkExport((req) => `Backup ${req.params.name}`), (req, res, next) => {
   const file = backups.fileFor(req.params.name);
   if (!file) return next();
   team.log(req.admin, 'Downloaded a database backup', req.params.name);
@@ -3365,7 +3368,8 @@ function csvCell(v) {
 
 // Exports with personal data need the password again (security.js), are
 // limited, and each one is in the security log.
-const exportGuard = (req, res, next) => (req.params.type === 'jobs' ? next() : requireConfirmed(req, res, next));
+// Jobs are public: every other CSV holds personal data, so it needs the password again (and a second Admin's approval when that is on).
+const exportGuard = (req, res, next) => (req.params.type === 'jobs' ? next() : requireConfirmed(req, res, () => exportApproval.requireApproval((r) => `${r.params.type}.csv`)(req, res, next)));
 app.get('/admin/export/:type.csv', adminAuth, (req, res, next) => {
   const { type } = req.params;
   if (!ADMIN_TABS.includes(type)) return next();

@@ -557,7 +557,7 @@ Suggested order: 2 → 1 → 3 → 4, which makes Hireriv usable for skilled and
   - No real ClamAV, key store or provider in testing.
   - The alert counters are in memory.
   - ~~Employer accounts have no two-step sign-in yet.~~ Done in Step 161: employer people can turn on an authenticator code, owners can require it for the whole company, and the team can reset it.
-  - Bulk exports have no second-person approval; they need a fresh confirmation, a limit and logging. Left as an owner decision: with a single Admin a required second approver would lock the owner out of their own backups.
+  - ~~Bulk exports have no second-person approval.~~ Done in Step 185 (`export-approval.js`, Admin → Export approvals): when an Admin turns it on, the database, backup copies and CSVs with personal data need another Admin's approval, for one download within 24 hours. It pauses while the team has fewer than two Admins who can sign in, so a single owner is never locked out.
   - Legal review of the notice and consent texts, the Rules' commencement dates and CERT-In applicability is still to be done (docs/SECURITY.md section 7).
   - The incident contacts still need filling in.
 - **Adapted from the brief.**

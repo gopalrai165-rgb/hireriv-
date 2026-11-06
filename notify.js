@@ -73,6 +73,9 @@ const TYPES = {
   'hire-request-overdue': { category: 'jobs', optional: true, label: 'Employer enquiry not yet contacted' },
   'lead-summary': { category: 'jobs', optional: true, label: 'Weekly summary of employer enquiries' },
   'analytics-weekly': { category: 'jobs', optional: true, label: 'Weekly analytics email' },
+  // second-Admin approval for exports (export-approval.js); always sent
+  'export-request': { category: 'account', label: 'Export waiting for your approval' },
+  'export-decision': { category: 'account', label: 'Your export request was answered' },
   // workers, their supervisors and the staffing team (workforce.js)
   'work-onboarding': { category: 'work', optional: true, label: 'Joining steps and documents to review' },
   'work-shift': { category: 'work', optional: true, label: 'Shift reminders' },

@@ -1,0 +1,96 @@
+<%- include('partials/head') %>
+<% const when = function (d) { return d ? new Date(d).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'medium', timeStyle: 'short' }) : ''; }; %>
+<% const STATUS = { pending: 'Waiting', approved: 'Approved, not yet downloaded', declined: 'Declined', used: 'Downloaded', expired: 'Ran out' }; %>
+
+<section class="section admin admin-console">
+  <div class="container">
+    <%- include('partials/team-side') %>
+    <div class="admin-head">
+      <div class="admin-title">
+        <span class="admin-crumb">Admin · Security</span>
+        <h1><%= section === 'ask' ? 'Approval needed' : 'Export approvals' %></h1>
+      </div>
+    </div>
+    <% if (msg) { %><p class="notice" role="status"><%= msg %></p><% } %>
+    <% if (errors.length) { %><div class="notice notice-err" role="alert"><% errors.forEach(function (e) { %><p><%= e %></p><% }) %></div><% } %>
+
+    <% if (section === 'ask') { %>
+      <section class="dash-card dash-wide">
+        <h2><%= name %></h2>
+        <% if (pending) { %>
+          <p>You asked on <%= when(pending.createdAt) %>. Another Admin has to approve it before you can download it. You will get a notification when they answer.</p>
+          <p class="muted small">Your reason: <%= pending.reason %></p>
+          <p><a class="btn btn-outline btn-sm" href="/admin/export-requests">See your requests</a></p>
+        <% } else { %>
+          <p>Exports with personal data need a second Admin on this team. Say why you need it; <%= others.map(function (u) { return u.name; }).join(', ') || 'another Admin' %> will be asked. Once approved, you can download it once within 24 hours.</p>
+          <form class="form" method="post" action="/admin/export-requests">
+            <input type="hidden" name="target" value="<%= target %>">
+            <input type="hidden" name="name" value="<%= name %>">
+            <label for="xr-reason">Why do you need it?*</label>
+            <textarea id="xr-reason" name="reason" rows="3" maxlength="300" required placeholder="For example: monthly backup copy for the office drive"></textarea>
+            <button class="btn btn-primary" type="submit">Ask for approval</button>
+          </form>
+        <% } %>
+      </section>
+    <% } else { %>
+      <% if (isAdmin) { %>
+        <section class="dash-card dash-wide" id="setting">
+          <h2>Second Admin for exports</h2>
+          <p class="muted small">When this is on, downloading the database, a backup copy or a CSV with personal data needs another Admin to approve it first (jobs CSV excepted). It only applies while the team has two or more Admins who can sign in, so a single Admin is never locked out. The team has <%= adminCount %> Admin<%= adminCount === 1 ? '' : 's' %> now.</p>
+          <p><b><%= on ? (inForce ? 'On: exports need a second Admin.' : 'On, but waiting for a second Admin to join.') : 'Off: Admins download exports after confirming their password.' %></b></p>
+          <form method="post" action="/admin/export-requests/settings">
+            <input type="hidden" name="on" value="<%= on ? '' : '1' %>">
+            <button class="btn <%= on ? 'btn-outline' : 'btn-primary' %> btn-sm" type="submit"><%= on ? 'Turn off' : 'Turn on' %></button>
+          </form>
+        </section>
+
+        <section class="dash-card dash-wide" id="waiting">
+          <h2>Waiting for you</h2>
+          <% if (!waiting.length) { %><p class="muted dash-empty">Nothing to approve.</p><% } else { %>
+            <ul class="notif-list">
+              <% waiting.forEach(function (r) { %>
+                <li class="notif">
+                  <div class="notif-main"><b><%= r.requesterName %>: <%= r.name %></b><span class="notif-body"><%= r.reason %></span><span class="muted small">Asked <%= when(r.createdAt) %></span></div>
+                  <div class="row-actions wrap-actions">
+                    <form method="post" action="/admin/export-requests/<%= r.id %>/approve"><button class="btn btn-primary btn-sm" type="submit">Approve</button></form>
+                    <form method="post" action="/admin/export-requests/<%= r.id %>/decline"><button class="btn btn-outline btn-sm" type="submit">Decline</button></form>
+                  </div>
+                </li>
+              <% }) %>
+            </ul>
+          <% } %>
+        </section>
+      <% } %>
+
+      <section class="dash-card dash-wide" id="mine">
+        <h2>Your requests</h2>
+        <% if (!mine.length) { %><p class="muted dash-empty">You have not asked for any exports.</p><% } else { %>
+          <div class="table-wrap"><table>
+            <thead><tr><th>Export</th><th>Asked</th><th>Status</th><th></th></tr></thead>
+            <tbody>
+              <% mine.forEach(function (r) { %>
+                <tr><td><%= r.name %></td><td><%= when(r.createdAt) %></td><td><%= STATUS[r.status] || r.status %><%= r.decidedByName ? ' by ' + r.decidedByName : '' %></td><td><% if (r.status === 'approved') { %><a class="btn btn-primary btn-sm" href="<%= r.target %>">Download</a><% } %></td></tr>
+              <% }) %>
+            </tbody>
+          </table></div>
+        <% } %>
+      </section>
+
+      <% if (isAdmin && history.length) { %>
+        <section class="dash-card dash-wide" id="history">
+          <h2>Answered</h2>
+          <div class="table-wrap"><table>
+            <thead><tr><th>Who</th><th>Export</th><th>Reason</th><th>Status</th><th>When</th></tr></thead>
+            <tbody>
+              <% history.forEach(function (r) { %>
+                <tr><td><%= r.requesterName %></td><td><%= r.name %></td><td><%= r.reason %></td><td><%= STATUS[r.status] || r.status %><%= r.decidedByName ? ' by ' + r.decidedByName : '' %></td><td><%= when(r.usedAt || r.decidedAt || r.createdAt) %></td></tr>
+              <% }) %>
+            </tbody>
+          </table></div>
+        </section>
+      <% } %>
+    <% } %>
+  </div>
+</section>
+
+<%- include('partials/foot') %>

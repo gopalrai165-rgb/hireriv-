@@ -267,6 +267,48 @@ function create(deps) {
       link: `${baseUrl}/admin?tab=hire-requests`, label: 'Open hire requests', why: 'the weekly summary of employer enquiries',
     };
   };
+  // Second-Admin approval for exports (export-approval.js).
+  const exportRequestOf = (id) => readSubmissions('export-requests').find((r) => r.id === id) || null;
+  NOTICES['export-request'] = (refs, to) => {
+    const who = person(to);
+    const r = who && exportRequestOf(refs.requestId);
+    if (!r || r.status !== 'pending') return null;
+    return {
+      who, subject: `Approve an export? ${r.requesterName} asked for ${r.name}`, heading: 'An export is waiting for your approval',
+      intro: `${r.requesterName} wants to download ${r.name}. Exports need a second Admin. Approve only if you know why it is needed.`,
+      rows: [['Export', r.name], ['Reason given', r.reason], ['Asked by', r.requesterName]],
+      link: `${baseUrl}/admin/export-requests`, label: 'Approve or decline', why: 'export approvals for your team',
+    };
+  };
+  NOTICES['export-decision'] = (refs, to) => {
+    const who = person(to);
+    const r = who && exportRequestOf(refs.requestId);
+    if (!r || !['approved', 'declined', 'used'].includes(r.status)) return null;
+    const ok = r.status !== 'declined';
+    return {
+      who, subject: ok ? `Approved: you can download ${r.name}` : `Declined: ${r.name}`, heading: ok ? 'Your export was approved' : 'Your export was declined',
+      intro: ok ? `${r.decidedByName} approved your export of ${r.name}. You can download it once in the next 24 hours.` : `${r.decidedByName} declined your export of ${r.name}. Talk to them if you still need it.`,
+      rows: [['Export', r.name], ['Reason you gave', r.reason]],
+      link: `${baseUrl}/admin/export-requests`, label: 'Open export approvals', why: 'your export request',
+    };
+  };
+  function exportRequested(r, adminIds) {
+    if (!adminIds.length) return 0;
+    return emit({
+      key: `export-request:${r.id}`, type: 'export-request', to: adminIds.map((userId) => ({ kind: 'team', userId })),
+      inApp: { title: `Approve an export? ${r.requesterName}: ${r.name}`, body: r.reason, link: '/admin/export-requests' },
+      email: { template: 'notice', refs: { kind: 'export-request', requestId: r.id } },
+    }).notifications;
+  }
+  function exportDecided(r) {
+    const ok = r.status === 'approved';
+    return emit({
+      key: `export-decision:${r.id}`, type: 'export-decision', to: [{ kind: 'team', userId: r.requesterId }],
+      inApp: { title: ok ? `Approved: ${r.name}` : `Declined: ${r.name}`, body: ok ? `${r.decidedByName} approved it. Download it once within 24 hours.` : `${r.decidedByName} declined it.`, link: ok ? r.target : '/admin/export-requests' },
+      email: { template: 'notice', refs: { kind: 'export-decision', requestId: r.id } },
+    }).notifications;
+  }
+
   // Monday's analytics email (analytics.js weekly): the last 7 days against the 7 before.
   const weeklyOf = (to, endMs) => (deps.analyticsWeekly ? deps.analyticsWeekly()(to, endMs) : null);
   const kpiText = (k) => {
@@ -669,7 +711,7 @@ function create(deps) {
 
   return {
     applicationSubmitted, newApplication, stageMoved, statusEmail, interviewBooked, interviewOptionsOffered, interviewRescheduled, interviewCancelled, interviewReminder, interviewAnswered,
-    feedbackDueScan, offerCreated, offerApproved, offerAnswered, offerAnsweredByCandidate, offerDeadlineScan, assigned, jobDecision, jobExpired, jobClosingSoonScan, jobSubmitted, jobAlerts, jobDigest, jobInvite, contactUnlocked, applicationViewed, staffingRequest, hireRequestAssigned, hireOverdueScan, leadSummaryScan, leadSummaryNow, analyticsWeeklyScan, analyticsWeeklyNow, agencyAssigned,
+    feedbackDueScan, offerCreated, offerApproved, offerAnswered, offerAnsweredByCandidate, offerDeadlineScan, assigned, jobDecision, jobExpired, jobClosingSoonScan, jobSubmitted, jobAlerts, jobDigest, jobInvite, contactUnlocked, applicationViewed, staffingRequest, hireRequestAssigned, hireOverdueScan, leadSummaryScan, leadSummaryNow, analyticsWeeklyScan, analyticsWeeklyNow, exportRequested, exportDecided, agencyAssigned,
     accountSecurity, scan, JOB_ALERTS_PER_DAY,
   };
 }

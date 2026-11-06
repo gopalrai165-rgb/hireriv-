@@ -202,6 +202,11 @@ Total: 727 routes.
 | GET | `/api/analytics/reports/:reportId/export` | account | CSV of a report with the same filters and permissions; revenue needs money.view; every export is recorded in the team or company audit log; 30 per 10 minutes |
 | GET | `/admin/analytics` | team | The analytics dashboard for the team (analytics.view): what each role sees as in the API; Finance Managers can open it |
 | GET | `/employer/analytics` | employer | The analytics dashboard for the company (not site supervisors) |
+| GET | `/admin/export-requests` | team | Export approvals: the setting and requests waiting for you (Admins), your own requests and their status (export-approval.js) |
+| POST | `/admin/export-requests` | team | Ask another Admin to approve one export (database, backup or a CSV with personal data); a reason is required; only while the rule is on and the team has 2+ Admins; same-origin; 10 an hour |
+| POST | `/admin/export-requests/settings` | admin | Turn second-Admin approval for exports on or off; Admins only, password confirmed again; same-origin; 10 an hour; logged and in the security log |
+| POST | `/admin/export-requests/:id/approve` | admin | Approve another Admin's export, once, for 24 hours; never your own; password confirmed again; same-origin; 30 an hour |
+| POST | `/admin/export-requests/:id/decline` | admin | Decline it; same rules |
 | POST | `/admin/analytics/weekly` | team | Turns the Monday analytics email on or off for the signed-in team member, or sends the last 7 days now (analytics.view; same-origin; 20 an hour) |
 | POST | `/employer/analytics/weekly` | employer | The same for the signed-in person in this company (analytics.view; same-origin; 20 an hour) |
 | GET | `/analytics` | public | Short link to /admin/analytics |
