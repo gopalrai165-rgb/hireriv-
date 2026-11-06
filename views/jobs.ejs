@@ -1,11 +1,16 @@
 <%- include('partials/head') %>
 
 <section class="page-hero page-hero-search">
-  <span class="deco deco-spark" aria-hidden="true"></span><span class="deco deco-dots" aria-hidden="true"></span><span class="deco deco-squiggle" aria-hidden="true"></span>
+  <%# The banner photo sits in its own clipped layer, so the Categories and More filters panels can still open below the hero. %>
+  <div class="jobs-hero-media" aria-hidden="true"><img src="/img/photos/jobs.webp" alt="" width="900" height="700" fetchpriority="high"></div>
   <div class="container">
     <span class="eyebrow"><%= t('jobs.eyebrow') %></span>
     <h1><%= t('jobs.title') %></h1>
     <p class="lead"><%= t('jobs.lead') %></p>
+    <ul class="jobs-hero-points small">
+      <li><svg class="i" aria-hidden="true"><use href="#i-check"/></svg> <%= t('home.pointFree') %></li>
+      <li><svg class="i" aria-hidden="true"><use href="#i-check"/></svg> <%= t('home.pointChecked') %></li>
+    </ul>
     <form class="job-filters" action="/jobs" method="get" role="search">
       <div class="filter-search">
         <svg class="i" aria-hidden="true"><use href="#i-search"/></svg>

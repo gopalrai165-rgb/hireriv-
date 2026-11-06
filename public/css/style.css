@@ -2903,3 +2903,50 @@ h2 { letter-spacing: -.035em; }
 @media (prefers-reduced-motion: reduce) {
   .service-card:hover, .job-card:hover, .post-card:hover, .contact-card:hover, .employer-card:hover { transform: none; }
 }
+
+/* Find Jobs banner: navy like the home hero, a photo fading in from the right,
+   gold accents and the search as a raised white card. Scoped to the Find Jobs page. */
+.page-jobs .page-hero-search {
+  padding: clamp(56px, 6vw, 96px) 0 clamp(40px, 4vw, 64px);
+  color: #fff;
+  background:
+    radial-gradient(ellipse at 12% 0%, rgba(63, 97, 142, .45), transparent 45%),
+    radial-gradient(ellipse at 30% 100%, rgba(215, 169, 81, .12), transparent 40%),
+    #101f35;
+}
+.page-jobs .page-hero-search::before { display: none; }
+.page-jobs .jobs-hero-media { position: absolute; inset: 0 0 0 auto; width: min(58%, 1100px); overflow: hidden; z-index: 0; pointer-events: none; }
+.page-jobs .jobs-hero-media img {
+  width: 100%; height: 100%; object-fit: cover; object-position: 70% 40%;
+  opacity: .62; filter: saturate(.9) contrast(1.05);
+  -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 55%);
+  mask-image: linear-gradient(90deg, transparent 0%, #000 55%);
+}
+.page-jobs .jobs-hero-media::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(16, 31, 53, .1), rgba(16, 31, 53, .75)); }
+.page-jobs .page-hero-search > .container { position: relative; z-index: 2; }
+.page-jobs .page-hero-search .eyebrow { color: #f0cb8b; background: rgba(232, 189, 114, .1); border: 1px solid rgba(232, 189, 114, .28); }
+.page-jobs .page-hero-search .eyebrow::before { background: currentColor; }
+.page-jobs .page-hero-search h1 { color: #fff; font-size: clamp(2.6rem, 5vw, 4.6rem); letter-spacing: -.05em; max-width: 12em; margin-bottom: .35em; }
+.page-jobs .page-hero-search h1::after { content: ""; display: block; width: 72px; height: 5px; margin-top: .28em; border-radius: 4px; background: linear-gradient(90deg, #d7a951, #efc778); }
+.page-jobs .page-hero-search .lead { color: #c8d2df; max-width: 36em; }
+.jobs-hero-points { list-style: none; display: flex; flex-wrap: wrap; gap: 8px 22px; padding: 0; margin: 4px 0 0; color: #e2e8ef; }
+.jobs-hero-points li { display: inline-flex; align-items: center; gap: 7px; }
+.jobs-hero-points .i { color: #8ed0ae; }
+.page-jobs .page-hero-search .job-filters {
+  margin-top: clamp(26px, 3vw, 40px); padding: 14px; border: 1px solid rgba(255, 255, 255, .7); border-radius: 22px;
+  box-shadow: 0 30px 70px rgba(2, 13, 30, .45), 0 2px 6px rgba(2, 13, 30, .2);
+}
+.page-jobs .page-hero-search .job-filters { color: var(--text); }
+.page-jobs .page-hero-search .work-tabs { margin-top: 20px; }
+.page-jobs .page-hero-search .work-tabs a { background: rgba(255, 255, 255, .08); border-color: rgba(255, 255, 255, .2); color: #f4f6f9; backdrop-filter: blur(6px); }
+.page-jobs .page-hero-search .work-tabs a:hover { border-color: #efc778; color: #fff; }
+.page-jobs .page-hero-search .work-tabs a[aria-current="page"] { background: #d7a951; border-color: #d7a951; color: #17243a; }
+.page-jobs .page-hero-search .work-tabs .count { background: rgba(255, 255, 255, .14); color: #e2e8ef; }
+.page-jobs .page-hero-search .work-tabs a[aria-current="page"] .count { background: rgba(23, 36, 58, .16); color: #17243a; }
+@media (max-width: 960px) { .page-jobs .jobs-hero-media { width: 100%; } .page-jobs .jobs-hero-media img { opacity: .28; -webkit-mask-image: none; mask-image: none; } }
+@media (max-width: 640px) {
+  .page-jobs .page-hero-search { padding: 22px 0 22px; }
+  .page-jobs .page-hero-search h1 { font-size: 1.7rem; }
+  .page-jobs .page-hero-search h1::after, .jobs-hero-points { display: none; }
+  .page-jobs .page-hero-search .job-filters { padding: 10px; border-radius: 18px; }
+}
