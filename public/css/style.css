@@ -897,6 +897,11 @@ a.contact-card:hover .service-icon { background: var(--c); color: #fff; }
 .kpi-label { font-size: .82rem; font-weight: 600; color: var(--muted); }
 .kpi-value { font-size: 2rem; font-weight: 800; color: var(--ink); letter-spacing: -0.02em; line-height: 1.2; }
 .kpi-note { font-size: .8rem; color: var(--muted); }
+/* Change against the previous period on the analytics numbers: green when better, red when worse. */
+.kpi-change { display: block; margin-top: 4px; font-size: .8rem; font-weight: 600; color: var(--muted); }
+.kpi-change.kpi-better { color: #157347; }
+.kpi-change.kpi-worse { color: #b42318; }
+.kpi-change .muted { font-weight: 400; }
 .dash-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; }
 .dash-card { border: 1px solid var(--line); border-radius: var(--radius); padding: 22px 24px; background: #fff; min-width: 0; }
 .setup-todo { margin-bottom: 20px; border-color: #f5c46b; background: #fffbeb; }

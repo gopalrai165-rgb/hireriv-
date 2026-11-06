@@ -71,7 +71,7 @@
       </label><% } %>
       <div class="filter-actions"><button class="btn btn-primary" type="submit">Apply</button> <a class="btn btn-outline" href="<%= base %>">Reset</a></div>
     </form>
-    <p class="muted small">Showing <b><%= f.label %></b>: <%= fmtDay(f.from) %> to <%= fmtDay(f.to) %>, by India date (Asia/Kolkata). <%= isTeam ? (scope.allRecruiters ? 'Everyone on the team.' : 'Your own applications, interviews and placements.') : 'Only your company' + (['owner', 'viewer'].includes(scope.member.role) ? '.' : ', and only the jobs you work on.') %></p>
+    <p class="muted small">Showing <b><%= f.label %></b>: <%= fmtDay(f.from) %> to <%= fmtDay(f.to) %>, by India date (Asia/Kolkata). Changes are against the <%= fmtDay(ov.previous.from) %> to <%= fmtDay(ov.previous.to) %> period of the same length. <%= isTeam ? (scope.allRecruiters ? 'Everyone on the team.' : 'Your own applications, interviews and placements.') : 'Only your company' + (['owner', 'viewer'].includes(scope.member.role) ? '.' : ', and only the jobs you work on.') %></p>
 
     <h2 class="sr-only">Key numbers</h2>
     <div class="kpis analytics-kpis">
@@ -80,6 +80,9 @@
           <span class="kpi-label"><%= k.label %></span>
           <span class="kpi-value"><%= val(k) %></span>
           <span class="kpi-note"><% if (k.numerator !== undefined && k.denominator) { %><%= k.numerator.toLocaleString('en-IN') %> of <%= k.denominator.toLocaleString('en-IN') %><% } else if (k.id === 'timeToHire' || k.id === 'timeToFill') { %><%= k.denominator ? 'median of ' + k.denominator : 'none in this range' %><% } else if (k.id === 'outstandingInvoices') { %><%= k.count %> open<%= k.overdueCount ? ', ' + inrP(k.overduePaise) + ' overdue (' + k.overdueCount + ')' : '' %><% } %><%= k.note ? k.note : '' %></span>
+          <% if (k.change) { var c = k.change; var prevText = k.unit === 'paise' ? inrP(c.previous) : k.unit === '%' ? c.previous + '%' : k.unit === 'days' ? c.previous + ' days' : Number(c.previous).toLocaleString('en-IN'); %>
+            <span class="kpi-change kpi-<%= c.better %>"><% if (c.better === 'same') { %>Same as the previous period<% } else if (c.from0) { %><span aria-hidden="true">▲</span> Up from none in the previous period<% } else { %><span aria-hidden="true"><%= c.by > 0 ? '▲' : '▼' %></span> <%= c.by > 0 ? 'Up' : 'Down' %> <%= Math.abs(c.by) %><%= c.kind === 'percent' ? '%' : c.kind === 'points' ? ' points' : ' days' %> <span class="muted">(was <%= prevText %>)</span><% } %></span>
+          <% } %>
           <details class="kpi-def"><summary>How it's counted</summary><p><%= k.definition.formula %>. <%= k.definition.excludes %>.</p></details>
         </div>
       <% }) %>

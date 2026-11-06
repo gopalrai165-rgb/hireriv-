@@ -130,6 +130,25 @@ function parseFilters(q, today = dayKey(Date.now())) {
   return { f, errors };
 }
 
+// The range of the same length just before the chosen one (for "vs previous").
+function previousRange(f) {
+  const n = spanDays(f.from, f.to);
+  return { from: addDays(f.from, -n), to: addDays(f.from, -1) };
+}
+// Lower is better for these; balances today have no previous value.
+const LOWER_IS_BETTER = ['timeToHire', 'timeToFill'];
+const NO_PREVIOUS = ['outstandingInvoices'];
+// How a number moved against the previous range: percentages and days move in
+// points or days, counts and money in per cent of the previous value.
+function changeOf(k, prev) {
+  if (NO_PREVIOUS.includes(k.id) || prev === null || prev === undefined || k.value === null || k.value === undefined) return null;
+  if (k.value === 0 && prev === 0) return null; // nothing either time: no line
+  const diff = k.value - prev;
+  const better = diff === 0 ? 'same' : (diff < 0) === LOWER_IS_BETTER.includes(k.id) ? 'better' : 'worse';
+  if (k.unit === '%' || k.unit === 'days') return { previous: prev, by: Math.round(diff * 10) / 10, kind: k.unit === '%' ? 'points' : 'days', better };
+  return { previous: prev, by: prev ? Math.round((diff / prev) * 1000) / 10 : null, kind: 'percent', better, from0: !prev && k.value > 0 };
+}
+
 // ---------- the numbers ----------
 function create(deps) {
   const { readSubmissions, getJobs, billing, team, clients, agency, appOwner, siteAnalytics, trust, ops, now = () => Date.now() } = deps;
@@ -473,8 +492,11 @@ function create(deps) {
     const d = dataset(scope, f);
     switch (name) {
       case 'overview': {
+        const prevF = { ...f, ...previousRange(f) };
+        const prev = new Map(kpis(scope, dataset(scope, prevF), prevF).map((k) => [k.id, k.value]));
         const out = {
-          kpis: kpis(scope, d, f),
+          kpis: kpis(scope, d, f).map((k) => ({ ...k, change: changeOf(k, prev.get(k.id)) })),
+          previous: { from: prevF.from, to: prevF.to },
           activity: series(f, {
             applications: d.apps.map((a) => [a.createdAt]),
             interviews: d.apps.flatMap((a) => (a.interviews || []).filter((iv) => iv.status !== 'cancelled').map((iv) => [iv.createdAt])),
@@ -503,7 +525,7 @@ function create(deps) {
     const r = report(name, scope, all);
     const rupees = (p) => (p / 100).toFixed(2);
     switch (name) {
-      case 'overview': return r.kpis.map((k) => ({ kpi: k.label, value: k.unit === 'paise' ? rupees(k.value) : k.value ?? '', unit: k.unit === 'paise' ? 'INR' : k.unit || 'count', numerator: k.numerator ?? '', denominator: k.denominator ?? '', from: f.from, to: f.to, timezone: TZ, definition: k.definition.formula }));
+      case 'overview': return r.kpis.map((k) => ({ kpi: k.label, value: k.unit === 'paise' ? rupees(k.value) : k.value ?? '', unit: k.unit === 'paise' ? 'INR' : k.unit || 'count', numerator: k.numerator ?? '', denominator: k.denominator ?? '', from: f.from, to: f.to, previousValue: k.change ? (k.unit === 'paise' ? rupees(k.change.previous) : k.change.previous) : '', previousFrom: r.previous.from, previousTo: r.previous.to, timezone: TZ, definition: k.definition.formula }));
       case 'recruitment-funnel': return r.stages.map((s) => ({ stage: s.label, applications: s.count, percentOfApplied: s.percentOfApplied ?? '', toNextStage: s.toNext ?? '', from: f.from, to: f.to }));
       case 'time-to-hire': return r.vacancies.rows.map((v) => ({ job: v.title, company: v.company || '', status: v.status, openedOn: v.openedOn || '', firstHireOn: v.firstHireOn || '', daysToFill: v.days ?? '' }));
       case 'recruiter-performance': return r.recruiters.rows.map(({ id, ...x }) => ({ ...x, vacancies: x.vacancies ?? '', medianDaysToHire: x.medianDaysToHire ?? '', from: f.from, to: f.to }));
@@ -635,4 +657,4 @@ function register(app, deps) {
   return core;
 }
 
-module.exports = { create, register, parseFilters, DEFINITIONS, PERIODS, HIRING_TYPES, REPORTS, JOB_TYPE_KIND, PLACEMENT_TYPE_KIND };
+module.exports = { create, register, parseFilters, previousRange, changeOf, DEFINITIONS, PERIODS, HIRING_TYPES, REPORTS, JOB_TYPE_KIND, PLACEMENT_TYPE_KIND };
