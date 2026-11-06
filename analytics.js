@@ -75,6 +75,7 @@ const DEFINITIONS = {
   recruiterProductivity: { label: 'Placements per recruiter', formula: 'Placements recorded in the range ÷ recruiters with at least one application, interview or placement in the range', excludes: 'Each placement counts for the recruiter on it (or who owns the application)' },
   revenueCollected: { label: 'Revenue collected', formula: 'Payments received (including TDS the client deducted) dated in the range, less refunds dated in the range', excludes: 'From billing records only, never estimates. Cancelled invoices are excluded' },
   invoiced: { label: 'Invoiced', formula: 'Invoice totals (with GST) dated in the range, less credit notes dated in the range', excludes: 'Cancelled invoices' },
+  planRevenue: { label: 'Plans and credit packs collected', formula: 'Payments for employer plans, renewals and contact credit packs dated in the range, less refunds dated in the range', excludes: 'From the plan invoices only (Billing), never estimates; cancelled invoices are excluded. Counted for the whole business or one employer, so it is not shown with job, recruiter or placement filters' },
   outstandingInvoices: { label: 'Outstanding invoices', formula: 'Unpaid balances of open invoices today', excludes: 'A balance today, whatever the range; overdue is the part past its due date' },
 };
 for (const d of Object.values(DEFINITIONS)) Object.assign(d, COMMON);
@@ -152,7 +153,34 @@ function changeOf(k, prev) {
 
 // ---------- the numbers ----------
 function create(deps) {
-  const { readSubmissions, getJobs, billing, team, clients, agency, appOwner, siteAnalytics, trust, ops, now = () => Date.now() } = deps;
+  const { readSubmissions, getJobs, billing, team, clients, agency, appOwner, siteAnalytics, trust, ops, plans, now = () => Date.now() } = deps;
+
+  // Step 188: answers are kept for a short while and dropped on any write to
+  // the database (onChange), so the dashboard's six reports share one reading
+  // of the records and a reload costs nothing until something changes. The
+  // key holds the whole scope (who, role, permissions, company and jobs) and
+  // the filters; a copy is handed out so no caller can change the kept one.
+  const CACHE_MS = Number(process.env.ANALYTICS_CACHE_MS ?? 5 * 60000);
+  const CACHE_MAX = 200;
+  let version = 0;
+  if (typeof deps.onChange === 'function') deps.onChange(() => { version += 1; });
+  const cache = new Map();
+  const stats = { hits: 0, misses: 0 };
+  const scopeKey = (scope) => JSON.stringify(scope.as === 'team'
+    ? ['team', scope.user && scope.user.id, scope.role, scope.allRecruiters, scope.money, scope.platform]
+    : ['employer', scope.employer && scope.employer.id, scope.member && [scope.member.id, scope.member.userId, scope.member.role, scope.member.jobIds], scope.money]);
+  function remember(kind, scope, f, fn) {
+    if (!CACHE_MS || typeof deps.onChange !== 'function') return fn();
+    const key = `${kind}|${scopeKey(scope)}|${JSON.stringify(f)}|${dayKey(now())}`;
+    const hit = cache.get(key);
+    if (hit && hit.version === version && now() - hit.at < CACHE_MS) { stats.hits += 1; return hit.value; }
+    stats.misses += 1;
+    const value = fn();
+    cache.delete(key);
+    cache.set(key, { version, at: now(), value });
+    if (cache.size > CACHE_MAX) cache.delete(cache.keys().next().value);
+    return value;
+  }
 
   // The stages an application really reached (see the rules above).
   function furthest(a, placedIds) {
@@ -182,7 +210,8 @@ function create(deps) {
   const firstReviewAt = (a) => ((a.history || []).find((h) => h.from === 'New') || {}).at || null;
 
   // Everything one request needs, with the person's scope and the filters applied.
-  function dataset(scope, f) {
+  const dataset = (scope, f) => remember('dataset', scope, f, () => buildDataset(scope, f));
+  function buildDataset(scope, f) {
     const today = dayKey(now());
     const inRange = (d) => { const k = ymd(d); return Boolean(k) && k >= f.from && k <= f.to; };
     const allJobs = getJobs().filter((j) => j.sample !== true);
@@ -204,11 +233,12 @@ function create(deps) {
     const ownerOf = scope.as === 'team' ? (a) => appOwner(a) : (a) => a.assignedTo || '';
     const placementsAll = billing.read().filter((p) => (scope.as !== 'employer' || p.employerId === scope.employer.id));
     const placedIds = new Set(placementsAll.map((p) => p.appId).filter(Boolean));
-    const apps = readSubmissions('applications').filter((a) => jobIds.has(a.jobId) && !a.duplicateOf && (!who || ownerOf(a) === who));
+    const allApplications = readSubmissions('applications');
+    const apps = allApplications.filter((a) => jobIds.has(a.jobId) && !a.duplicateOf && (!who || ownerOf(a) === who));
     const stageNow = (a) => (a.withdrawnAt ? 'Withdrawn' : a.status || 'New');
     const appsFiltered = f.applicationStatus ? apps.filter((a) => stageNow(a) === f.applicationStatus) : apps;
     const anyJobFilter = f.work || f.location || f.industry || f.jobStatus;
-    const appById = new Map(readSubmissions('applications').map((a) => [a.id, a]));
+    const appById = new Map(allApplications.map((a) => [a.id, a]));
     // The recruiter on a placement: recorded on it, else who owns the application or the job.
     const placementOwner = (p) => (scope.as === 'employer' ? (appById.get(p.appId) || {}).assignedTo || ''
       : p.recruiterId || (appById.has(p.appId) ? ownerOf(appById.get(p.appId)) : (jobById.get(p.jobId) || {}).ownerId || ''));
@@ -367,6 +397,52 @@ function create(deps) {
     };
   }
 
+  // Plans, renewals and contact credit packs (subscriptions.js billing
+  // invoices, in paise): the team's own revenue, for the whole business or one
+  // employer. Null for employers and roles without money.
+  const PLAN_KIND = { subscription: 'Plan', package: 'Credit pack' };
+  function planRevenue(scope, d, f) {
+    if (!plans || scope.as !== 'team' || !scope.money) return null;
+    if (f.work || f.hiringType || f.location || f.industry || f.jobStatus || f.applicationStatus || f.placementStatus || d.who) {
+      return { available: false, note: 'Plans and credit packs are counted for the whole business or one employer. Clear the job, recruiter and placement filters to see them.' };
+    }
+    const open = (inv) => ['Unpaid', 'Part paid'].includes(inv.status);
+    const overdue = (inv) => open(inv) && inv.dueDate && inv.dueDate < d.today;
+    const match = (inv) => !f.revenueStatus || f.revenueStatus === 'invoiced'
+      || (f.revenueStatus === 'paid' && inv.status === 'Paid')
+      || (f.revenueStatus === 'overdue' && overdue(inv))
+      || (f.revenueStatus === 'refunded' && (inv.refunds || []).length > 0);
+    const list = readSubmissions(plans.INVOICES).filter((inv) => inv.status !== 'Cancelled' && (!f.employer || inv.employerId === f.employer) && match(inv));
+    const sumOf = (xs, fn) => xs.reduce((n, x) => n + (Number(fn(x)) || 0), 0);
+    const kindOf = (inv) => (inv.kind === 'package' ? 'packs' : 'plans');
+    const payments = list.flatMap((inv) => (inv.payments || []).filter((x) => d.inRange(x.date)).map((x) => ({ ...x, kind: kindOf(inv) })));
+    const refunds = list.flatMap((inv) => (inv.refunds || []).filter((x) => d.inRange(x.date)).map((x) => ({ ...x, kind: kindOf(inv) })));
+    const credits = list.flatMap((inv) => (inv.creditNotes || []).filter((c) => d.inRange(c.date)));
+    const issued = list.filter((inv) => d.inRange(inv.date));
+    const collected = (kind) => sumOf(payments.filter((x) => !kind || x.kind === kind), (x) => x.amountPaise) - sumOf(refunds.filter((x) => !kind || x.kind === kind), (x) => x.amountPaise);
+    const names = new Map(clients.read().map((c) => [c.id, c.company]));
+    const balance = (inv) => (plans.balanceOf ? plans.balanceOf(inv) : 0);
+    return {
+      available: true, currency: 'INR', unit: 'paise',
+      collectedPaise: collected(),
+      plansPaise: collected('plans'),
+      packsPaise: collected('packs'),
+      refundedPaise: sumOf(refunds, (x) => x.amountPaise),
+      invoicedPaise: sumOf(issued, (inv) => inv.totalPaise) - sumOf(credits, (c) => c.totalPaise),
+      creditNotesPaise: sumOf(credits, (c) => c.totalPaise),
+      invoicesIssued: issued.length,
+      outstandingPaise: sumOf(list.filter(open), balance),
+      series: series(f, { collectedPaise: [...payments.map((x) => [x.date, x.amountPaise]), ...refunds.map((x) => [x.date, -x.amountPaise])] }),
+      rows: list.filter((inv) => d.inRange(inv.date) || (inv.payments || []).some((x) => d.inRange(x.date)) || (inv.refunds || []).some((x) => d.inRange(x.date)))
+        .sort((x, y) => String(y.date).localeCompare(String(x.date)))
+        .map((inv) => ({
+          number: inv.number || '', date: inv.date, dueDate: inv.dueDate || '', company: names.get(inv.employerId) || (inv.buyer && inv.buyer.name) || '',
+          kind: PLAN_KIND[inv.kind] || 'Plan', status: overdue(inv) ? 'Overdue' : inv.status,
+          totalPaise: inv.totalPaise || 0, balancePaise: open(inv) ? balance(inv) : 0, refundedPaise: sumOf(inv.refunds || [], (x) => x.amountPaise),
+        })),
+    };
+  }
+
   // Each recruiter's (or each company member's) work in the range.
   function recruiters(scope, d) {
     let people;
@@ -434,6 +510,8 @@ function create(deps) {
     if (scope.money) {
       const r = revenue(d, f);
       out.push(k('revenueCollected', r.collectedPaise, { unit: 'paise' }), k('invoiced', r.invoicedPaise, { unit: 'paise' }), k('outstandingInvoices', r.outstandingPaise, { unit: 'paise', count: r.outstandingInvoices, overduePaise: r.overduePaise, overdueCount: r.overdueInvoices }));
+      const pr = planRevenue(scope, d, f);
+      if (pr && pr.available) out.push(k('planRevenue', pr.collectedPaise, { unit: 'paise', plansPaise: pr.plansPaise, packsPaise: pr.packsPaise }));
     }
     return out;
   }
@@ -489,7 +567,9 @@ function create(deps) {
   const page = (rows, f) => ({ total: rows.length, page: f.page, pageSize: f.pageSize, pages: Math.max(1, Math.ceil(rows.length / f.pageSize)), rows: rows.slice((f.page - 1) * f.pageSize, f.page * f.pageSize) });
 
   // One report by name, for the API, the pages and the CSV export.
-  function report(name, scope, f) {
+  // A copy of the kept answer (see remember above).
+  const report = (name, scope, f) => structuredClone(remember(`report:${name}`, scope, f, () => buildReport(name, scope, f)));
+  function buildReport(name, scope, f) {
     const d = dataset(scope, f);
     switch (name) {
       case 'overview': {
@@ -514,7 +594,11 @@ function create(deps) {
       case 'time-to-hire': { const t = timing(d); return { timeToHire: t.timeToHire, timeToFill: t.timeToFill, vacancies: page(t.vacancies, f) }; }
       case 'recruiter-performance': return { recruiters: page(recruiters(scope, d), f), overdueAfterDays: OVERDUE_FOLLOW_UP_DAYS };
       case 'placements': { const p = placementSummary(d); return { ...p, series: series(f, { placements: d.placements.filter((x) => !x.replacementFor).map((x) => [x.createdAt]) }), rows: undefined, list: page(p.rows, f) }; }
-      case 'revenue': { const r = revenue(d, f); return { ...r, rows: undefined, invoices: page(r.rows, f) }; }
+      case 'revenue': {
+        const r = revenue(d, f);
+        const pr = planRevenue(scope, d, f);
+        return { ...r, rows: undefined, invoices: page(r.rows, f), ...(pr ? { plans: pr.available ? { ...pr, rows: undefined, invoices: page(pr.rows, f) } : pr } : {}) };
+      }
       case 'vacancies': return { vacancies: page(vacancyRows(d), f) };
       default: return null;
     }
@@ -531,13 +615,16 @@ function create(deps) {
       case 'time-to-hire': return r.vacancies.rows.map((v) => ({ job: v.title, company: v.company || '', status: v.status, openedOn: v.openedOn || '', firstHireOn: v.firstHireOn || '', daysToFill: v.days ?? '' }));
       case 'recruiter-performance': return r.recruiters.rows.map(({ id, ...x }) => ({ ...x, vacancies: x.vacancies ?? '', medianDaysToHire: x.medianDaysToHire ?? '', from: f.from, to: f.to }));
       case 'placements': return r.list.rows;
-      case 'revenue': return r.invoices.rows.map((x) => ({ invoice: x.number, date: x.date, dueDate: x.dueDate, client: x.company, status: x.status, totalInr: rupees(x.totalPaise), balanceInr: rupees(x.balancePaise), refundedInr: rupees(x.refundedPaise) }));
+      case 'revenue': return [
+        ...r.invoices.rows.map((x) => ({ invoice: x.number, date: x.date, dueDate: x.dueDate, client: x.company, status: x.status, totalInr: rupees(x.totalPaise), balanceInr: rupees(x.balancePaise), refundedInr: rupees(x.refundedPaise), source: 'Placement' })),
+        ...(r.plans && r.plans.available ? r.plans.invoices.rows.map((x) => ({ invoice: x.number, date: x.date, dueDate: x.dueDate, client: x.company, status: x.status, totalInr: rupees(x.totalPaise), balanceInr: rupees(x.balancePaise), refundedInr: rupees(x.refundedPaise), source: x.kind })) : []),
+      ];
       case 'vacancies': return r.vacancies.rows.map(({ jobId, ...x }) => x);
       default: return null;
     }
   }
 
-  return { report, exportRows, dataset, furthest, parseFilters };
+  return { report, exportRows, dataset, furthest, parseFilters, cacheStats: () => ({ ...stats, size: cache.size }) };
 }
 
 const REPORTS = ['overview', 'recruitment-funnel', 'time-to-hire', 'recruiter-performance', 'placements', 'revenue', 'vacancies'];

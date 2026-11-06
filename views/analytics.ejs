@@ -245,6 +245,21 @@
           </table></div>
           <% if (rv.invoices.total > rv.invoices.rows.length) { %><p class="muted small">Showing the newest <%= rv.invoices.rows.length %> of <%= rv.invoices.total %>; the download has them all.</p><% } %>
         <% } else { %><p class="muted dash-empty">No invoices match these filters.</p><% } %>
+        <% if (rv.plans) { const pl = rv.plans; %>
+          <h3 id="plan-revenue">Plans and credit packs</h3>
+          <% if (!pl.available) { %><p class="muted small"><%= pl.note %></p><% } else { %>
+            <div class="kpis">
+              <div class="kpi"><span class="kpi-label">Collected</span><span class="kpi-value"><%= inrP(pl.collectedPaise) %></span><span class="kpi-note">plans <%= inrP(pl.plansPaise) %>, credit packs <%= inrP(pl.packsPaise) %>, less <%= inrP(pl.refundedPaise) %> refunded</span></div>
+              <div class="kpi"><span class="kpi-label">Invoiced</span><span class="kpi-value"><%= inrP(pl.invoicedPaise) %></span><span class="kpi-note"><%= pl.invoicesIssued %> invoice<%= pl.invoicesIssued === 1 ? '' : 's' %></span></div>
+            </div>
+            <% if (pl.invoices.total) { %>
+              <div class="table-wrap"><table>
+                <thead><tr><th>Invoice</th><th>Date</th><th>Client</th><th>For</th><th>Status</th><th class="num">Total</th></tr></thead>
+                <tbody><% pl.invoices.rows.forEach(function (x) { %><tr><td><%= x.number %></td><td><%= fmtDay(x.date) %></td><td><%= x.company %></td><td><%= x.kind %></td><td><%= x.status %></td><td class="num"><%= inrP(x.totalPaise) %></td></tr><% }) %></tbody>
+              </table></div>
+            <% } else { %><p class="muted dash-empty">No plan or credit pack invoices in this range.</p><% } %>
+          <% } %>
+        <% } %>
       </section>
     <% } %>
 

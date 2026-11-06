@@ -2784,6 +2784,7 @@ setInterval(() => runBilling().catch((e) => console.error('Billing renewals:', e
 const analyticsCore = analytics.register(app, {
   writeSubmissions, sameOrigin, events: () => events,
   readSubmissions, getJobs: () => jobs, billing, team, clients, agency: agencyDesk, appOwner, siteAnalytics, trust: trustDesk, ops,
+  plans: plansStore, onChange: db.onChange,
   limit, adminAuth, requireEmployer: clients.requireEmployer, sendCsv,
 });
 

@@ -494,7 +494,7 @@ Suggested order: 2 → 1 → 3 → 4, which makes Hireriv usable for skilled and
 - **Not done here.**
   - ~~Scheduled email reports.~~ Done in Step 182: a weekly analytics email each person can turn on from the analytics page (Mondays from 9 am IST, the last 7 days against the 7 before; `test/analytics-weekly.test.js`).
   - ~~Comparison with the previous period.~~ Done in Step 181: every number shows its change against the period of the same length before, on the page, in the API and in the CSV (`test/analytics-compare.test.js`).
-  - Caching for much larger data sets; the numbers are recalculated on each request.
+  - ~~Caching for much larger data sets.~~ Done in Step 188: answers are kept up to 5 minutes and dropped on any database write (ANALYTICS_CACHE_MS).
 - **Tests.** `test/analytics.test.js` has 8 tests, covering:
   - filter validation
   - totals that reconcile with seeded records: the funnel with a duplicate stage entry and a corrected offer, offers, time to hire, placements and replacements, and revenue with refunds, credit notes and cancelled invoices
@@ -771,7 +771,7 @@ Suggested order: 2 → 1 → 3 → 4, which makes Hireriv usable for skilled and
   - No test against Razorpay's own sandbox yet (the tests use an imitation of its API with real signatures).
   - No automatic charging (mandates). No Cashfree.
   - No e-invoicing (IRN). GST rates and SAC codes still need an accountant's confirmation (docs/BILLING.md section 8).
-  - Subscription revenue is not yet in the analytics dashboards (it is on the billing desk).
+  - ~~Subscription revenue is not yet in the analytics dashboards.~~ Done in Step 188: plans and credit packs collected are a KPI and a section of the revenue report and CSV (team, money roles).
 - **Adapted from the brief.**
   - Express, EJS and SQLite collections instead of React and PostgreSQL tables. Invoice items are the `lines` of each invoice.
   - "Reuse existing invoices": plan invoices share the number series, settings and printable page, but are stored in paise in their own collection, because placement invoices are kept in rupees inside each placement.
