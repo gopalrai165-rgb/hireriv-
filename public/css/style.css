@@ -1543,6 +1543,8 @@ details.more-fields .form-grid { margin-top: 12px; }
 .main-nav .nav-bell .nav-bell-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
 .bell-count { min-width: 1.4em; padding: 0 .4em; border-radius: 999px; background: #C2410C; color: #fff; font-size: .72rem; font-weight: 700; line-height: 1.5; text-align: center; }
 .notif-filters { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10px; margin: 0 0 14px; }
+.notif-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; margin: 0 0 14px; }
+.notif-head p { margin: 0; }
 .chip-row { display: flex; flex-wrap: wrap; gap: 8px; }
 .chip-row .chip { font-size: .86rem; padding: .4em .95em; background: #fff; }
 .chip-row .chip-on { background: var(--primary); border-color: var(--primary); color: #fff; }

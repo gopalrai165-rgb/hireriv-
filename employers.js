@@ -1154,7 +1154,7 @@ function register(app, deps) {
   }
 
   const verification = { verifyCompany, declineCompany, requestCompanyInfo, restrictCompany, reinstateCompany, reopenVerification, setPostingHold, verificationDetails, OPEN_CHECKS };
-  return { verification, hooks, read, write, team, context, currentEmployer, requireEmployer, requireEmployerApi, allow, forbid, shortlistFor, shortlistFeedback, clientView, createClient, DECISIONS, isApproved, verificationOf, addressed, membersWith: (employerId, action, job) => team.membersOf(employerId).filter((m) => can(m, action, job)) };
+  return { verification, hooks, read, write, team, context, attach, currentEmployer, requireEmployer, requireEmployerApi, allow, forbid, shortlistFor, shortlistFeedback, clientView, createClient, DECISIONS, isApproved, verificationOf, addressed, membersWith: (employerId, action, job) => team.membersOf(employerId).filter((m) => can(m, action, job)) };
 }
 
 module.exports = { register, hashPassword, checkPassword, validGstin, gstinCheckChar, isFreeEmail, isApproved, parseCompany, verificationOf, INDUSTRIES, COMPANY_SIZES };

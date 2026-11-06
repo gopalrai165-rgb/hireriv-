@@ -1,20 +1,23 @@
 <%- include('partials/head') %>
 
+<%# Inside the job seeker's or employer's console (its menu prints the title and the message); the team's page stands alone. %>
 <section class="section admin portal">
-  <div class="container narrow">
+  <div class="container<%= inConsole ? '' : ' narrow' %>">
+    <% if (inConsole === 'candidate') { %><%- include('partials/account-nav', { heading: 'Notification settings', tab: '', email: email }) %><% } else if (inConsole === 'employer') { %><%- include('partials/employer-nav', { heading: 'Notification settings', tab: '' }) %><% } else { %>
     <div class="admin-head">
       <div>
         <span class="eyebrow"><%= viewer.label %></span>
         <h1>Notification settings</h1>
-        <p class="muted"><a href="/notifications<%= viewers.length > 1 ? '?as=' + viewer.as : '' %>">Back to notifications</a></p>
       </div>
     </div>
+    <% } %>
+    <p class="muted"><a href="/notifications<%= viewers.length > 1 ? '?as=' + viewer.as : '' %>">Back to notifications</a></p>
     <% if (viewers.length > 1) { %>
       <nav class="account-tabs" aria-label="Account">
         <% viewers.forEach(function (v) { %><a href="/notifications/settings?as=<%= v.as %>"<%- v.as === viewer.as ? ' aria-current="page" class="active"' : '' %>><%= v.label %></a><% }) %>
       </nav>
     <% } %>
-    <% if (msg) { %><p class="notice" role="status"><%= msg %></p><% } %>
+    <% if (msg && !inConsole) { %><p class="notice" role="status"><%= msg %></p><% } %>
 
     <form class="form dash-card" method="post" action="/notifications/settings">
       <% if (viewers.length > 1) { %><input type="hidden" name="as" value="<%= viewer.as %>"><% } %>

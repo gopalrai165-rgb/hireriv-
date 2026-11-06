@@ -103,6 +103,14 @@ function register(app, deps) {
     req.viewer = pick(req, list);
     next();
   }
+  // The page opens inside the console of the account it is for: the job
+  // seeker's account menu or the employer portal menu (whose locals it sets).
+  const consoleOf = (req, res) => {
+    if (req.viewer.as === 'candidate') return { inConsole: 'candidate', email: req.viewer.email };
+    const c = req.viewer.as === 'employer' && clients().context(req);
+    if (c) { clients().attach(req, res, c); return { inConsole: 'employer' }; }
+    return { inConsole: '' };
+  };
   const backTo = (req, msg, extra = {}) => {
     const q = new URLSearchParams(Object.entries({ as: req.viewers.length > 1 ? req.viewer.as : '', filter: req.body.filter === 'unread' ? 'unread' : '', category: filtersOf(req.body).category, msg, ...extra }).filter(([, v]) => v));
     return `/notifications${q.toString() ? `?${q}` : ''}`;
@@ -112,7 +120,7 @@ function register(app, deps) {
     const f = filtersOf(req.query);
     const r = notify.list(req.viewer, f);
     page(res, 'notifications', {
-      title: 'Notifications', viewer: req.viewer, viewers: req.viewers, f, items: r.items.map(view), total: r.total, unread: r.unread,
+      ...consoleOf(req, res), title: 'Notifications', viewer: req.viewer, viewers: req.viewers, f, items: r.items.map(view), total: r.total, unreadTotal: r.unread,
       categories: notify.CATEGORIES, msg: String(req.query.msg || '').slice(0, 200),
       link: (patch) => `/notifications?${new URLSearchParams(Object.entries({ as: req.viewers.length > 1 ? req.viewer.as : '', filter: f.unread ? 'unread' : '', category: f.category, ...patch }).filter(([, v]) => v !== '' && v != null))}`,
     });
@@ -150,7 +158,7 @@ function register(app, deps) {
   const devicesOf = (req) => push.list(req.viewer).map((s) => push.view(s, req));
   app.get('/notifications/settings', anyAccount, (req, res) => {
     const alerts = req.viewer.as === 'candidate' ? readSubmissions('job-alerts').filter((s) => s.email === req.viewer.email && s.confirmed) : [];
-    page(res, 'notification-settings', { title: 'Notification settings', viewer: req.viewer, viewers: req.viewers, prefs: prefsView(req.viewer), alerts, devices: devicesOf(req), pushKey: push.publicKey(), msg: String(req.query.msg || '').slice(0, 200) });
+    page(res, 'notification-settings', { ...consoleOf(req, res), title: 'Notification settings', viewer: req.viewer, viewers: req.viewers, prefs: prefsView(req.viewer), alerts, devices: devicesOf(req), pushKey: push.publicKey(), msg: String(req.query.msg || '').slice(0, 200) });
   });
   app.post('/notifications/settings', anyAccount, limit('notification-settings', 30), sameOrigin, (req, res) => {
     const email = Object.fromEntries(notify.OPTIONAL_CATEGORIES.map((c) => [c, req.body[`email_${c}`] === '1']));

@@ -1,16 +1,18 @@
 <%- include('partials/head') %>
 
+<%# Inside the job seeker's or employer's console (its menu prints the title and the message); the team's page stands alone. %>
 <section class="section admin portal">
   <div class="container">
-    <div class="admin-head">
+    <% if (inConsole === 'candidate') { %><%- include('partials/account-nav', { heading: 'Notifications', tab: '', email: email }) %><% } else if (inConsole === 'employer') { %><%- include('partials/employer-nav', { heading: 'Notifications', tab: '' }) %><% } %>
+    <div class="<%= inConsole ? 'notif-head' : 'admin-head' %>">
       <div>
-        <span class="eyebrow"><%= viewer.label %></span>
-        <h1>Notifications</h1>
-        <p class="muted"><%= unread %> unread · <a href="<%= viewer.home %>">Back to your dashboard</a></p>
+        <% if (!inConsole) { %><span class="eyebrow"><%= viewer.label %></span>
+        <h1>Notifications</h1><% } %>
+        <p class="muted"><%= unreadTotal %> unread<% if (!inConsole) { %> · <a href="<%= viewer.home %>">Back to your dashboard</a><% } %></p>
       </div>
       <div class="row-actions">
         <a class="btn btn-outline btn-sm" href="/notifications/settings<%= viewers.length > 1 ? '?as=' + viewer.as : '' %>">Notification settings</a>
-        <% if (unread) { %>
+        <% if (unreadTotal) { %>
           <form method="post" action="/notifications/read-all">
             <% if (viewers.length > 1) { %><input type="hidden" name="as" value="<%= viewer.as %>"><% } %>
             <input type="hidden" name="filter" value="<%= f.unread ? 'unread' : '' %>">
@@ -26,12 +28,12 @@
         <% viewers.forEach(function (v) { %><a href="/notifications?as=<%= v.as %>"<%- v.as === viewer.as ? ' aria-current="page" class="active"' : '' %>><%= v.label %></a><% }) %>
       </nav>
     <% } %>
-    <% if (msg) { %><p class="notice" role="status"><%= msg %></p><% } %>
+    <% if (msg && !inConsole) { %><p class="notice" role="status"><%= msg %></p><% } %>
 
     <div class="notif-filters">
       <nav class="chip-row" aria-label="Show">
         <a class="chip<%= !f.unread ? ' chip-on' : '' %>" href="<%= link({ filter: '', offset: '' }) %>"<%- !f.unread ? ' aria-current="true"' : '' %>>All</a>
-        <a class="chip<%= f.unread ? ' chip-on' : '' %>" href="<%= link({ filter: 'unread', offset: '' }) %>"<%- f.unread ? ' aria-current="true"' : '' %>>Unread<% if (unread) { %> (<%= unread %>)<% } %></a>
+        <a class="chip<%= f.unread ? ' chip-on' : '' %>" href="<%= link({ filter: 'unread', offset: '' }) %>"<%- f.unread ? ' aria-current="true"' : '' %>>Unread<% if (unreadTotal) { %> (<%= unreadTotal %>)<% } %></a>
       </nav>
       <nav class="chip-row" aria-label="Category">
         <a class="chip<%= !f.category ? ' chip-on' : '' %>" href="<%= link({ category: '', offset: '' }) %>">Everything</a>
