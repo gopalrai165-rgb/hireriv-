@@ -25,6 +25,7 @@
 //   recruiters see their own work unless their role covers the whole team;
 //   money needs the money permission (Admins, Account and Finance Managers;
 //   company owners for their own invoices).
+const crypto = require('crypto');
 const ats = require('./ats');
 const { WORK_KINDS, workOf } = require('./content');
 const { accountOf } = require('./placements');
@@ -549,20 +550,59 @@ function register(app, deps) {
   // Who is asking, from the session only. Team members need the analytics
   // permission (and two-step sign-in where the team requires it); employer
   // people need their role's analytics permission.
+  const teamScope = (user) => ({ as: 'team', user, role: user.role, allRecruiters: roles.can(user, 'workload.view'), money: roles.can(user, 'money.view'), platform: roles.can(user, 'analytics.platform') });
+  const memberScope = (c) => ({ as: 'employer', user: c.user, employer: c.employer, member: c.member, money: employerTeam.can(c.member, 'billing.view'), platform: false });
   function scopeOf(req, want = String(req.query.as || '')) {
     const user = team.currentUser(req);
     const teamOk = user && !(team.mustUse2fa(user) && !team.has2fa(user.id));
     const c = clients.context(req);
     if (teamOk && want !== 'employer') {
       if (!roles.can(user, 'analytics.view')) return { error: 403 };
-      return { as: 'team', user, role: user.role, allRecruiters: roles.can(user, 'workload.view'), money: roles.can(user, 'money.view'), platform: roles.can(user, 'analytics.platform') };
+      return teamScope(user);
     }
     if (c && want !== 'team') {
       if (!employerTeam.can(c.member, 'analytics.view')) return { error: 403 };
-      return { as: 'employer', user: c.user, employer: c.employer, member: c.member, money: employerTeam.can(c.member, 'billing.view'), platform: false };
+      return memberScope(c);
     }
     return { error: user ? 403 : 401 };
   }
+
+  // ---------- the weekly email ----------
+  // People who asked for their numbers every Monday (collection analytics-reports:
+  // one record per team member, or per person and company). The scope is worked
+  // out again from their current role each time, so a lost permission stops it.
+  const SUBS = 'analytics-reports';
+  const subKey = (scope) => (scope.as === 'team' ? { as: 'team', userId: scope.user.id } : { as: 'employer', userId: scope.user.id, employerId: scope.employer.id });
+  const sameSub = (a, b) => a.as === b.as && a.userId === b.userId && (a.employerId || '') === (b.employerId || '');
+  const subscribed = (scope) => deps.readSubmissions(SUBS).some((s) => sameSub(s, subKey(scope)));
+  function setWeekly(scope, on) {
+    const key = subKey(scope);
+    const rest = deps.readSubmissions(SUBS).filter((s) => !sameSub(s, key));
+    deps.writeSubmissions(SUBS, on ? [{ id: `ar-${crypto.randomUUID()}`, ...key, createdAt: new Date().toISOString() }, ...rest] : rest);
+  }
+  // The scope for a stored subscription or a notification recipient, or null.
+  function scopeForRecipient(to) {
+    if (to.kind === 'team' || to.as === 'team') {
+      const user = team.byId(to.userId);
+      return user && roles.can(user, 'analytics.view') ? teamScope(user) : null;
+    }
+    const u = clients.team.userById(to.userId);
+    const m = u && u.active && clients.team.membership(u.id, to.employerId);
+    const emp = m && clients.read().find((e) => e.id === to.employerId && e.active);
+    return emp && employerTeam.can(m, 'analytics.view') ? memberScope({ user: u, member: m, employer: emp }) : null;
+  }
+  // The last 7 whole India days before endMs, against the 7 before them.
+  function weekly(to, endMs = Date.now()) {
+    const scope = scopeForRecipient(to);
+    if (!scope) return null;
+    const yesterday = addDays(dayKey(endMs), -1);
+    const { f, errors } = core.parseFilters({ from: addDays(yesterday, -6), to: yesterday }, dayKey(endMs));
+    if (errors.length) return null;
+    const ov = core.report('overview', scope, f);
+    return { scope, f, kpis: ov.kpis, previous: ov.previous, link: scope.as === 'team' ? '/admin/analytics' : '/employer/analytics', company: scope.employer ? scope.employer.company : '' };
+  }
+  core.weekly = weekly;
+  core.weeklySubscriptions = () => deps.readSubmissions(SUBS);
   // Filters a person may use: other companies and other people are "not found".
   function checkScope(scope, f) {
     if (scope.as === 'employer') {
@@ -644,7 +684,9 @@ function register(app, deps) {
     const exportQuery = new URLSearchParams(Object.entries(filtersJson(f)).filter(([k]) => !['page', 'pageSize', 'label', 'from', 'to'].includes(k) || f.period === 'custom').map(([k, v]) => [k, String(v)]));
     if (f.period !== 'custom') { exportQuery.delete('from'); exportQuery.delete('to'); }
     if (as) exportQuery.set('as', as);
+    const weeklyMsg = { on: 'You will get these numbers by email every Monday.', off: 'Weekly email turned off.', sent: 'The last 7 days are on their way to your email.', noemail: 'Add an email address to your account to get the weekly email.' }[String(req.query.weekly || '')] || '';
     res.status(errors.length ? 400 : 200).set('Cache-Control', 'private, no-store').render('analytics', {
+      weekly: { on: subscribed(scope), msg: weeklyMsg },
       title: scope.as === 'team' ? 'Analytics' : `${scope.employer.company} · Analytics`, page: scope.as === 'team' ? 'admin' : 'employer', noindex: true,
       scope, f, errors, reports, options, DEFINITIONS, PERIODS, HIRING_TYPES, WORK_KINDS, JOB_STATUSES, APP_STATUSES, REVENUE_STATUSES, placementStatuses: deps.billing.STATUSES,
       exportQuery: exportQuery.toString(), base: scope.as === 'team' ? '/admin/analytics' : '/employer/analytics', admin: scope.as === 'team' ? scope.user : null, tab: 'analytics',
@@ -652,6 +694,22 @@ function register(app, deps) {
   }
   app.get('/admin/analytics', adminAuth, (req, res) => dashboard(req, res, 'team'));
   app.get('/employer/analytics', requireEmployer, (req, res) => dashboard(req, res, 'employer'));
+  // Turn the Monday email on or off, or have it now.
+  const weeklySwitch = (as, base) => (req, res) => {
+      const scope = scopeOf(req, as);
+      if (scope.error) return res.status(403).render('thanks', { title: 'Not part of your role', page: '', ok: false, message: 'Your role does not include analytics.', noindex: true });
+      if (req.body.action === 'now') {
+        const to = scope.as === 'team' ? { kind: 'team', userId: scope.user.id } : { kind: 'employer', userId: scope.user.id, employerId: scope.employer.id };
+        const sent = deps.events().analyticsWeeklyNow(to);
+        return res.redirect(`${base}?weekly=${sent ? 'sent' : 'noemail'}#weekly`);
+      }
+      const on = req.body.weekly === 'on';
+      setWeekly(scope, on);
+      audit(scope, on ? 'Turned on the weekly analytics email' : 'Turned off the weekly analytics email', core.parseFilters({}).f);
+      res.redirect(`${base}?weekly=${on ? 'on' : 'off'}#weekly`);
+  };
+  app.post('/admin/analytics/weekly', adminAuth, deps.sameOrigin, limit('analytics-weekly', 20, 60 * 60 * 1000), (req, res) => weeklySwitch('team', '/admin/analytics')(req, res));
+  app.post('/employer/analytics/weekly', requireEmployer, deps.sameOrigin, limit('analytics-weekly', 20, 60 * 60 * 1000), (req, res) => weeklySwitch('employer', '/employer/analytics')(req, res));
   app.get('/analytics', (req, res) => res.redirect('/admin/analytics'));
 
   return core;

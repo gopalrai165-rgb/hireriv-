@@ -73,6 +73,18 @@
     </form>
     <p class="muted small">Showing <b><%= f.label %></b>: <%= fmtDay(f.from) %> to <%= fmtDay(f.to) %>, by India date (Asia/Kolkata). Changes are against the <%= fmtDay(ov.previous.from) %> to <%= fmtDay(ov.previous.to) %> period of the same length. <%= isTeam ? (scope.allRecruiters ? 'Everyone on the team.' : 'Your own applications, interviews and placements.') : 'Only your company' + (['owner', 'viewer'].includes(scope.member.role) ? '.' : ', and only the jobs you work on.') %></p>
 
+    <section class="weekly-email" id="weekly" aria-labelledby="weekly-title">
+      <div>
+        <h2 id="weekly-title">Weekly email</h2>
+        <p class="muted small"><%= weekly.on ? 'On: every Monday morning you get the last 7 days of these numbers, compared with the 7 days before.' : 'Get the last 7 days of these numbers by email every Monday morning, compared with the 7 days before.' %></p>
+        <% if (weekly.msg) { %><p class="notice" role="status"><%= weekly.msg %></p><% } %>
+      </div>
+      <div class="row-actions wrap-actions">
+        <form method="post" action="<%= base %>/weekly"><input type="hidden" name="weekly" value="<%= weekly.on ? 'off' : 'on' %>"><button class="btn <%= weekly.on ? 'btn-outline' : 'btn-primary' %> btn-sm" type="submit"><%= weekly.on ? 'Turn off' : 'Email me every Monday' %></button></form>
+        <form method="post" action="<%= base %>/weekly"><input type="hidden" name="action" value="now"><button class="btn btn-outline btn-sm" type="submit">Email me the last 7 days now</button></form>
+      </div>
+    </section>
+
     <h2 class="sr-only">Key numbers</h2>
     <div class="kpis analytics-kpis">
       <% ov.kpis.forEach(function (k) { %>

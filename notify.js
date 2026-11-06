@@ -72,6 +72,7 @@ const TYPES = {
   'hire-request-assigned': { category: 'jobs', optional: true, label: 'Employer enquiry assigned to you' },
   'hire-request-overdue': { category: 'jobs', optional: true, label: 'Employer enquiry not yet contacted' },
   'lead-summary': { category: 'jobs', optional: true, label: 'Weekly summary of employer enquiries' },
+  'analytics-weekly': { category: 'jobs', optional: true, label: 'Weekly analytics email' },
   // workers, their supervisors and the staffing team (workforce.js)
   'work-onboarding': { category: 'work', optional: true, label: 'Joining steps and documents to review' },
   'work-shift': { category: 'work', optional: true, label: 'Shift reminders' },

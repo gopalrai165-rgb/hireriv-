@@ -240,6 +240,7 @@ const events = notifyEvents.create({
   notify, mailer, site, baseUrl: BASE_URL, db, readSubmissions: (t) => db.all(t), getJobs: () => jobs, formatIst: interviews.formatIst, interviewIcs, jobPath,
   appOwner: (a) => appOwner(a), team: { byId: (id) => team.byId(id), members: () => team.members() }, clients: () => clients,
   hasAccount: (email) => db.all('candidates').some((c) => c.email === String(email).toLowerCase()),
+  analyticsWeekly: () => analyticsCore.weekly,
 });
 // Every stage move, from any screen, goes through history.moveStage.
 history.onMove((a, entry) => events.stageMoved(a, entry));
@@ -2734,7 +2735,8 @@ setInterval(() => runBilling().catch((e) => console.error('Billing renewals:', e
 
 // Recruitment analytics: dashboards for the team and for each employer, the
 // /api/analytics/* reports and their CSV exports (analytics.js).
-analytics.register(app, {
+const analyticsCore = analytics.register(app, {
+  writeSubmissions, sameOrigin, events: () => events,
   readSubmissions, getJobs: () => jobs, billing, team, clients, agency: agencyDesk, appOwner, siteAnalytics, trust: trustDesk, ops,
   limit, adminAuth, requireEmployer: clients.requireEmployer, sendCsv,
 });
@@ -2761,6 +2763,7 @@ const scanEvents = ops.track('scheduled-reminders', () => {
   try { events.hireOverdueScan(hireOverdue); } catch (e) { console.error('Enquiry reminders failed:', e.message); }
   try { events.jobClosingSoonScan(todayIst()); } catch (e) { console.error('Closing-soon reminders failed:', e.message); }
   try { events.leadSummaryScan(hireOverdue); } catch (e) { console.error('Weekly enquiry summary failed:', e.message); }
+  try { events.analyticsWeeklyScan(); } catch (e) { console.error('Weekly analytics email failed:', e.message); }
 }, 60 * 60 * 1000);
 // The first check a minute after start (REMINDER_DELAY_MS changes it, for tests).
 setTimeout(scanEvents, Number(process.env.REMINDER_DELAY_MS) || 60 * 1000).unref();

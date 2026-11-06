@@ -267,6 +267,29 @@ function create(deps) {
       link: `${baseUrl}/admin?tab=hire-requests`, label: 'Open hire requests', why: 'the weekly summary of employer enquiries',
     };
   };
+  // Monday's analytics email (analytics.js weekly): the last 7 days against the 7 before.
+  const weeklyOf = (to, endMs) => (deps.analyticsWeekly ? deps.analyticsWeekly()(to, endMs) : null);
+  const kpiText = (k) => {
+    if (k.value === null || k.value === undefined) return 'Not enough data';
+    const v = k.unit === 'paise' ? `Rs ${(k.value / 100).toLocaleString('en-IN', { maximumFractionDigits: 0 })}` : k.unit === '%' ? `${k.value}%` : k.unit === 'days' ? `${k.value} days` : Number(k.value).toLocaleString('en-IN');
+    const c = k.change;
+    if (!c) return v;
+    if (c.better === 'same') return `${v} (same as the week before)`;
+    if (c.from0) return `${v} (none the week before)`;
+    return `${v} (${c.by > 0 ? 'up' : 'down'} ${Math.abs(c.by)}${c.kind === 'percent' ? '%' : c.kind === 'points' ? ' points' : ' days'})`;
+  };
+  NOTICES['analytics-weekly'] = (refs, to) => {
+    const who = person(to);
+    const w = who && weeklyOf(to, refs.endMs);
+    if (!w) return null;
+    const apps = w.kpis.find((k) => k.id === 'applications');
+    return {
+      who, subject: `${w.company ? `${w.company}: ` : ''}your week in numbers, ${apps ? apps.value : 0} application${apps && apps.value === 1 ? '' : 's'}`, heading: 'Your weekly hiring numbers',
+      intro: `${w.f.from} to ${w.f.to} (India dates), compared with the 7 days before.`,
+      rows: w.kpis.map((k) => [k.label, kpiText(k)]),
+      link: `${baseUrl}${w.link}`, label: 'Open analytics', why: 'the weekly analytics email you turned on',
+    };
+  };
   // Interview times offered for the candidate to choose from.
   NOTICES['interview-options'] = (refs, to) => {
     const a = appById(refs.applicationId);
@@ -602,6 +625,24 @@ function create(deps) {
     });
     return r.notifications + r.deliveries ? 1 : 0;
   }
+  // Monday from 9 am IST: everyone who turned on the weekly analytics email.
+  function analyticsWeeklyScan(nowMs = Date.now()) {
+    const ist = new Date(nowMs + IST);
+    if (ist.getUTCDay() !== 1 || ist.getUTCHours() < 9 || !deps.analyticsWeekly) return 0;
+    const day = ist.toISOString().slice(0, 10);
+    let sent = 0;
+    for (const s of readSubmissions('analytics-reports')) {
+      const to = s.as === 'team' ? { kind: 'team', userId: s.userId, inApp: false } : { kind: 'employer', userId: s.userId, employerId: s.employerId, inApp: false };
+      if (!weeklyOf(to, nowMs)) continue;
+      const r = emit({ key: `analytics-weekly:${s.id}:${day}`, type: 'analytics-weekly', to: [to], email: { template: 'notice', refs: { kind: 'analytics-weekly', endMs: nowMs } } });
+      sent += r.deliveries ? 1 : 0;
+    }
+    return sent;
+  }
+  function analyticsWeeklyNow(to, nowMs = Date.now()) {
+    if (!person(to) || !weeklyOf(to, nowMs)) return 0;
+    return emit({ key: `analytics-weekly-now:${to.userId}:${to.employerId || ''}:${nowMs}`, type: 'analytics-weekly', to: [{ ...to, inApp: false }], email: { template: 'notice', refs: { kind: 'analytics-weekly', endMs: nowMs } } }).deliveries;
+  }
   // The same summary, now, to one team member who asked for it in admin.
   function leadSummaryNow(userId, isOverdue, nowMs = Date.now()) {
     const u = team.byId(userId);
@@ -628,7 +669,7 @@ function create(deps) {
 
   return {
     applicationSubmitted, newApplication, stageMoved, statusEmail, interviewBooked, interviewOptionsOffered, interviewRescheduled, interviewCancelled, interviewReminder, interviewAnswered,
-    feedbackDueScan, offerCreated, offerApproved, offerAnswered, offerAnsweredByCandidate, offerDeadlineScan, assigned, jobDecision, jobExpired, jobClosingSoonScan, jobSubmitted, jobAlerts, jobDigest, jobInvite, contactUnlocked, applicationViewed, staffingRequest, hireRequestAssigned, hireOverdueScan, leadSummaryScan, leadSummaryNow, agencyAssigned,
+    feedbackDueScan, offerCreated, offerApproved, offerAnswered, offerAnsweredByCandidate, offerDeadlineScan, assigned, jobDecision, jobExpired, jobClosingSoonScan, jobSubmitted, jobAlerts, jobDigest, jobInvite, contactUnlocked, applicationViewed, staffingRequest, hireRequestAssigned, hireOverdueScan, leadSummaryScan, leadSummaryNow, analyticsWeeklyScan, analyticsWeeklyNow, agencyAssigned,
     accountSecurity, scan, JOB_ALERTS_PER_DAY,
   };
 }

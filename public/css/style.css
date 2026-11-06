@@ -902,6 +902,11 @@ a.contact-card:hover .service-icon { background: var(--c); color: #fff; }
 .kpi-change.kpi-better { color: #157347; }
 .kpi-change.kpi-worse { color: #b42318; }
 .kpi-change .muted { font-weight: 400; }
+/* The weekly analytics email switch, above the numbers. */
+.weekly-email { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 20px; margin: 0 0 18px; padding: 14px 18px; border: 1px solid #e3e8f0; border-radius: 16px; background: #fff; }
+.weekly-email h2 { margin: 0 0 2px; font-size: 1rem; }
+.weekly-email p { margin: 0; }
+.weekly-email .notice { margin-top: 8px; }
 .dash-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; }
 .dash-card { border: 1px solid var(--line); border-radius: var(--radius); padding: 22px 24px; background: #fff; min-width: 0; }
 .setup-todo { margin-bottom: 20px; border-color: #f5c46b; background: #fffbeb; }

@@ -202,6 +202,8 @@ Total: 727 routes.
 | GET | `/api/analytics/reports/:reportId/export` | account | CSV of a report with the same filters and permissions; revenue needs money.view; every export is recorded in the team or company audit log; 30 per 10 minutes |
 | GET | `/admin/analytics` | team | The analytics dashboard for the team (analytics.view): what each role sees as in the API; Finance Managers can open it |
 | GET | `/employer/analytics` | employer | The analytics dashboard for the company (not site supervisors) |
+| POST | `/admin/analytics/weekly` | team | Turns the Monday analytics email on or off for the signed-in team member, or sends the last 7 days now (analytics.view; same-origin; 20 an hour) |
+| POST | `/employer/analytics/weekly` | employer | The same for the signed-in person in this company (analytics.view; same-origin; 20 an hour) |
 | GET | `/analytics` | public | Short link to /admin/analytics |
 
 ## Trust & safety and platform operations: verification, moderation, complaint cases, appeals, audit history, system health; public reports and appeal links
