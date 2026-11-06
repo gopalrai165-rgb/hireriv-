@@ -336,6 +336,20 @@ document.querySelectorAll('form[action="/api/apply"]').forEach((form) => {
   }, { once: true });
 });
 
+// The "why not selected" list shows only while Not selected is chosen.
+document.querySelectorAll('select[data-reject-stage]').forEach((stage) => {
+  const field = stage.form && stage.form.querySelector('[data-reject-reason]');
+  if (!field) return;
+  const sync = () => {
+    const on = stage.value === 'Rejected';
+    field.hidden = !on;
+    const pick = field.querySelector('select');
+    pick.disabled = !on;
+  };
+  stage.addEventListener('change', sync);
+  sync();
+});
+
 // Admin: ask before destructive actions.
 document.querySelectorAll('form[data-confirm]').forEach((form) => {
   form.addEventListener('submit', (e) => {

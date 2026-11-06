@@ -34,6 +34,7 @@ const { SHIFTS, INDIAN_STATES } = require('./candidate-profile');
 // How much English a job needs, and walk-in interview days (job-needs.js).
 const jobNeeds = require('./job-needs');
 const screening = require('./screening');
+const rejectReasons = require('./reject-reasons');
 // What roles pay, from the pay on real listings (salaries.js).
 const salaries = require('./salaries');
 // Interview tips for job seekers, in general and by role (interview-tips.js).
@@ -797,6 +798,7 @@ app.locals.areaLabel = geo.areaLabel;
 app.locals.areaNames = [...new Set(geo.ALL_AREAS.map((a) => a.name))].sort();
 app.locals.nearPlaces = [...geo.ALL_AREAS.map((a) => a.cityLabel), ...Object.keys(geo.CITIES)].sort();
 app.locals.screening = screening;
+app.locals.rejectReasons = rejectReasons;
 app.locals.jobExtras = { EDUCATION: jobNeeds.EDUCATION, PERKS: jobNeeds.PERKS, ITEMS: jobNeeds.ITEMS };
 app.locals.educationOf = jobNeeds.educationOf;
 // Mobile-only job seekers (identity.js): no email to show or write to.
@@ -3289,7 +3291,9 @@ app.post('/admin/applications/:id/status', adminAuth, sameOrigin, (req, res, nex
   if (!entry) return next();
   const { status, notes, notify, ownerId } = clean(req.body, ['status', 'notes', 'notify', 'ownerId']);
   if (!APP_STATUSES.includes(status)) return res.status(400).send('Invalid status');
-  const changed = history.moveStage(entry, status, req.admin.name, undefined, { actor: 'team', userId: req.admin.id });
+  const why = rejectReasons.parse(status === 'Rejected' ? req.body.rejectReason : '');
+  if (why.error) return res.status(400).send('Choose a reason from the list');
+  const changed = history.moveStage(entry, status, req.admin.name, undefined, { actor: 'team', userId: req.admin.id, ...(why.key ? { rejectReason: why.key } : {}) });
   Object.assign(entry, { notes, updatedAt: new Date().toISOString() });
   // "job" means follow the job's owner; otherwise a named team member.
   const before = entry.ownerId || '';
@@ -3431,7 +3435,8 @@ function applicationCsvRow(a) {
   return {
     ...rest,
     screeningAnswers: screening.csvText(a),
-    stageHistory: h.map((x) => `${csvDate(x.at)}: ${x.from} → ${x.to} (${x.by})`).join(' | '),
+    stageHistory: h.map((x) => `${csvDate(x.at)}: ${x.from} → ${x.to} (${x.by})${x.rejectReason ? `: ${rejectReasons.labelOf(x.rejectReason)}` : ''}`).join(' | '),
+    notSelectedReason: rejectReasons.labelOf(rejectReasons.reasonOf(a)),
     interviews: ivs.map((iv) => `${csvDate(iv.at)} ${iv.mode} (${iv.status})`).join(' | '),
     emails: emails.map((m) => `${csvDate(m.at)}: ${m.subject} (${m.by})`).join(' | '),
     sharedWithClient: shared ? `${csvDate(shared.sharedAt)}${shared.feedback ? ` · ${shared.feedback.decision}` : ''}` : '',

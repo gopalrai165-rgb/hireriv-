@@ -47,6 +47,22 @@
         <% } %>
       </section>
 
+      <section class="dash-card dash-wide" aria-labelledby="why-h">
+        <div class="dash-head"><h2 id="why-h">Why applicants weren't selected</h2><span class="muted small">The reason picked when each one was moved to Not selected</span></div>
+        <% if (!reasons.total) { %><p class="muted dash-empty">Nobody was marked Not selected in this period.</p><% } else { %>
+          <div class="table-wrap">
+            <table class="cards-on-phone">
+              <thead><tr><th scope="col">Reason</th><th scope="col">Applicants</th><th scope="col">Share</th></tr></thead>
+              <tbody>
+                <% reasons.rows.forEach(function (x) { %><tr><td><%= x.label %></td><td data-label="Applicants"><%= x.count %></td><td data-label="Share"><%= x.share %>%</td></tr><% }) %>
+                <% if (reasons.none) { %><tr><td class="muted">No reason given</td><td data-label="Applicants"><%= reasons.none %></td><td data-label="Share"><%= reasons.noneShare %>%</td></tr><% } %>
+              </tbody>
+            </table>
+          </div>
+          <p class="muted small">Out of <%= reasons.total %> not selected. Reasons are for your team only and are never put in the email to the candidate, but they are in the candidate's own data download if they ask for it.</p>
+        <% } %>
+      </section>
+
       <% if (showWorkload) { %>
         <section class="dash-card dash-wide">
           <div class="dash-head"><h2>Team workload</h2><span class="muted small">Applicants assigned to each person</span></div>

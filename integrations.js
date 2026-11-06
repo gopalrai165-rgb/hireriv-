@@ -11,6 +11,7 @@
 // Jobs sent through the API are reviewed by Hireriv like any other.
 // Webhook payloads carry ids and states, not candidates' personal details.
 // Delivery is at least once: receivers dedupe on the event id.
+const rejectReasons = require('./reject-reasons');
 const screening = require('./screening');
 const crypto = require('crypto');
 const { safeRequest, checkUrl, resolveSafe } = require('./safe-fetch');
@@ -340,6 +341,7 @@ function create(deps) {
     // A typed answer can hold contact details, so it needs the same permission.
     v.screening = screening.view(a, { showTyped: scopes.includes('applications:contact') }).map(({ text, type, answer, hidden, mustBe, met }) => ({ question: text, type, answer, hidden, mustBe, met }));
     v.screeningOutcome = screening.outcome(a);
+    v.rejectReason = rejectReasons.reasonOf(a) || null;
     return v;
   }
   const companyJobs = (req) => getJobs().filter((j) => j.employerId === req.employer.id && !j.sample);
@@ -596,7 +598,7 @@ function create(deps) {
     const job = a && companyJob(req, a.jobId);
     if (!a || !job) return fail(res, 404, 'not_found', 'application not found');
     Object.assign(req, { applications: list, application: a, job });
-    const r = hiring.changeStatus(req, to);
+    const r = hiring.changeStatus(req, to, { rejectReason: to === 'Rejected' ? (req.body || {}).rejectReason : '' });
     if (r.error) return fail(res, r.status, r.status === 400 ? 'validation_failed' : 'conflict', r.error);
     res.json({ data: applicationOut(a, job, req.integration.scopes), changed: r.changed });
   });

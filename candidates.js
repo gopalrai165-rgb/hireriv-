@@ -9,6 +9,7 @@
 const failureLog = require('./failure-log');
 const crypto = require('crypto');
 const screening = require('./screening');
+const rejectReasons = require('./reject-reasons');
 const fs = require('fs');
 const vault = require('./vault');
 const path = require('path');
@@ -1181,7 +1182,7 @@ function register(app, deps) {
         skillsFoundInResume: a.resumeSkills || [],
         answersToJobQuestions: screening.answersOf(a).map((x) => ({ question: x.text, answer: screening.answerWords(x) })),
         reappliedAt: a.reapplied || [],
-        stageChanges: (a.history || []).map((h) => ({ at: h.at, from: CANDIDATE_STAGE[h.from] || h.from, to: CANDIDATE_STAGE[h.to] || h.to })).filter((h) => h.from !== h.to),
+        stageChanges: (a.history || []).map((h) => ({ at: h.at, from: CANDIDATE_STAGE[h.from] || h.from, to: CANDIDATE_STAGE[h.to] || h.to, ...(h.rejectReason ? { reasonRecorded: rejectReasons.labelOf(h.rejectReason) } : {}) })).filter((h) => h.from !== h.to),
         interviews: (a.interviews || []).map((iv) => ({ at: iv.at, durationMinutes: iv.duration, format: iv.mode, status: iv.status })),
         emailsSent: (a.emails || []).map((m) => ({ at: m.at, subject: m.subject })),
         sharedWithClient: a.shared ? { at: a.shared.sharedAt } : null,

@@ -49,8 +49,8 @@ const allowedMoves = (a) => (a.withdrawnAt ? [] : (NEXT[a.status || 'New'] || []
 
 // Records the move in the application's history (append-only: corrections are
 // new entries, nothing is removed). Returns false when it was already there.
-function recordMove(moveStage, a, to, actor, { correction = false, reason = '' } = {}) {
-  return moveStage(a, to, actor.label, undefined, { actor: actor.kind, ...(actor.userId ? { userId: actor.userId } : {}), ...(correction ? { correction: true, reason } : {}) });
+function recordMove(moveStage, a, to, actor, { correction = false, reason = '', rejectReason = '' } = {}) {
+  return moveStage(a, to, actor.label, undefined, { actor: actor.kind, ...(actor.userId ? { userId: actor.userId } : {}), ...(correction ? { correction: true, reason } : {}), ...(to === 'Rejected' && rejectReason ? { rejectReason } : {}) });
 }
 
 // ---------- notes ----------

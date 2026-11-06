@@ -1,0 +1,5 @@
+<%# Why someone wasn't selected (reject-reasons.js). Shown by main.js only while Not selected is chosen. %>
+<label class="reject-reason<%= typeof compact !== 'undefined' && compact ? ' bulk-stage' : '' %>" data-reject-reason>
+  <% if (typeof compact !== 'undefined' && compact) { %><span class="sr-only">Why not selected</span><% } else { %>Why not selected <span class="muted small">(optional; only your team sees this)</span><% } %>
+  <select name="rejectReason"><option value=""><%= typeof compact !== 'undefined' && compact ? 'Why not selected (optional)…' : 'Not given' %></option><% reasons.forEach(function (x) { %><option value="<%= x.key %>"><%= x.label %></option><% }) %></select>
+</label>

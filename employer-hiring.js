@@ -7,6 +7,7 @@
 //
 // Jobs the Hireriv team runs for a client stay with the team: the client sees
 // counts and the candidates the team shortlists, not every applicant.
+const rejectReasons = require('./reject-reasons');
 const screening = require('./screening');
 const path = require('path');
 const crypto = require('crypto');
@@ -365,7 +366,8 @@ function register(app, deps) {
       screeningOutcome: screening.outcome(a),
       screeningLabel: screening.outcomeLabel(a),
       assignedTo: assignee ? { userId: assignee.id, name: assignee.name } : null,
-      history: (a.history || []).map((h) => ({ at: h.at, from: h.from, to: h.to, by: h.by, ...(h.correction ? { correction: true, reason: h.reason } : {}) })),
+      history: (a.history || []).map((h) => ({ at: h.at, from: h.from, to: h.to, by: h.by, ...(h.correction ? { correction: true, reason: h.reason } : {}), ...(h.rejectReason ? { rejectReason: h.rejectReason, rejectReasonLabel: rejectReasons.labelOf(h.rejectReason) } : {}) })),
+      rejectReason: rejectReasons.reasonOf(a) || null,
       interviews: (a.interviews || []).map((iv) => ({
         id: iv.id, at: iv.at, duration: iv.duration, mode: iv.mode, status: iv.status, interviewer: iv.interviewer || '', confirmation: iv.status === 'scheduled' ? iv.confirmation || 'confirmed' : null,
         ...(may('feedback.view') ? { feedback: (iv.feedback || []).map((f) => ({ by: f.by, at: f.at, rating: f.rating, recommendation: f.recommendation, strengths: f.strengths || '', concerns: f.concerns || '' })) } : {}),
@@ -396,7 +398,7 @@ function register(app, deps) {
       .map((a) => applicantView(req, a, jobs.get(a.jobId)))
       .filter((v) => (!status || v.status === status) && (!answers || v.screeningOutcome === answers))
       .sort(sort === 'match' ? (x, y) => ((y.match && y.match.score) || 0) - ((x.match && x.match.score) || 0) || newest(x, y) : newest);
-    page(res, 'employer-applicants', { title: 'Applicants', tab: 'applicants', rows, jobs: [...jobs.values()], jobId, status, sort, answers, anyQuestions: [...jobs.values()].some((j) => screening.hasQuestions(j)), statuses: appStatuses, msg: String(req.query.msg || '') });
+    page(res, 'employer-applicants', { title: 'Applicants', tab: 'applicants', rows, jobs: [...jobs.values()], jobId, status, sort, answers, rejectReasons: rejectReasons.REASONS, anyQuestions: [...jobs.values()].some((j) => screening.hasQuestions(j)), statuses: appStatuses, msg: String(req.query.msg || '') });
   });
 
   // The applicant from the URL, if this member may see them.
@@ -422,7 +424,7 @@ function register(app, deps) {
     }
     const workers = team.membersOf(req.employer.id).filter((m) => can(m, 'applicants.manage', req.job)).map((m) => ({ userId: m.userId, name: (team.userById(m.userId) || {}).name || 'Unknown' }));
     page(res, 'employer-applicant', {
-      title: `${v.name} · Applicant`, tab: 'applicants', v, job: req.job, stages: ats.STAGES, label: ats.label, workers, recommendations: RECOMMENDATIONS,
+      title: `${v.name} · Applicant`, tab: 'applicants', v, job: req.job, stages: ats.STAGES, label: ats.label, rejectReasons: rejectReasons.REASONS, workers, recommendations: RECOMMENDATIONS,
       today: todayIst(), nowMs: Date.now(), msg: String(req.query.msg || ''),
     });
   });
@@ -438,9 +440,12 @@ function register(app, deps) {
 
   // Moves an application along the workflow; the change is kept in its
   // history. An owner can correct a mistake outside the workflow, with a reason.
-  function changeStatus(req, to, { correction = false, reason = '' } = {}) {
+  function changeStatus(req, to, { correction = false, reason = '', rejectReason = '' } = {}) {
     const a = req.application;
     if (!ats.STAGES.includes(to)) return { status: 400, error: `status must be one of: ${ats.STAGES.join(', ')}` };
+    // Why they weren't taken: optional, from the fixed list (reject-reasons.js).
+    const why = rejectReasons.parse(rejectReason);
+    if (why.error) return { status: 400, error: why.error };
     if (a.withdrawnAt) return { status: 409, error: 'the candidate withdrew this application' };
     const from = a.status || 'New';
     if (correction) {
@@ -451,7 +456,7 @@ function register(app, deps) {
       const problem = ats.moveProblem(a, to);
       if (problem) return { status: 409, error: problem };
     }
-    if (!ats.recordMove(moveStage, a, to, actorOf(req), { correction, reason })) return { changed: false };
+    if (!ats.recordMove(moveStage, a, to, actorOf(req), { correction, reason, rejectReason: why.key })) return { changed: false };
     writeSubmissions('applications', req.applications);
     team.audit(req.employer.id, req.employerUser, correction ? 'stage-corrected' : 'status-changed', `${a.name}: ${ats.label(from)} → ${ats.label(to)} (${req.job.title})${correction ? `: ${reason}` : ''}`);
     return { changed: true };
@@ -463,6 +468,7 @@ function register(app, deps) {
   app.post('/employer/applicants/bulk', requireEmployer, limit('employer-status', 120), sameOrigin, (req, res) => {
     const ids = [...new Set([].concat(req.body.ids || []).map(String))].slice(0, MAX_BULK);
     const to = String(req.body.status || '');
+    const rejectReason = to === 'Rejected' ? String(req.body.rejectReason || '') : '';
     const keep = new URLSearchParams(Object.fromEntries(['job', 'status', 'sort', 'answers'].map((k) => [k, String(req.body[`back_${k}`] || '')]).filter(([, v]) => v))).toString();
     const back = (msg) => res.redirect(303, `/employer/applicants?${keep ? `${keep}&` : ''}msg=${encodeURIComponent(msg)}`);
     if (!ids.length) return back('Tick the applicants to move first.');
@@ -473,7 +479,7 @@ function register(app, deps) {
       const a = list.find((x) => x.id === id && !x.duplicateOf);
       const job = a && getJobs().find((j) => j.id === a.jobId && j.employerId === req.employer.id);
       if (!a || !job || !selfManaged(job) || !can(req.member, 'applicants.manage', job)) { skipped.push('not yours to change'); continue; }
-      const r = changeStatus(Object.assign(Object.create(req), { applications: list, application: a, job }), to);
+      const r = changeStatus(Object.assign(Object.create(req), { applications: list, application: a, job }), to, { rejectReason });
       if (r.error) skipped.push(`${a.name}: ${r.error}`);
       else if (r.changed) moved++;
     }
@@ -483,7 +489,8 @@ function register(app, deps) {
 
   app.post('/employer/applicants/:id/status', requireEmployer, withApplicant('applicants.manage'), limit('employer-status', 120), sameOrigin, (req, res) => {
     const correction = req.body.correction === '1';
-    const r = changeStatus(req, String(req.body.status || ''), { correction, reason: req.body.reason });
+    const to = String(req.body.status || '');
+    const r = changeStatus(req, to, { correction, reason: req.body.reason, rejectReason: to === 'Rejected' ? req.body.rejectReason : '' });
     if (r.status === 403) return clients.forbid(req, res);
     const back = req.body.back === 'ats' ? '/employer/ats?' : `/employer/applicants/${req.application.id}?`;
     res.redirect(`${back}msg=${encodeURIComponent(r.error ? `Not changed: ${r.error}.` : r.changed ? `${req.application.name}: moved to ${ats.label(req.body.status)}.` : 'No change.')}`);

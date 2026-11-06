@@ -180,6 +180,7 @@
                     <select name="status" aria-label="Status for <%= r.name %>">
                       <% statuses.forEach(function (s) { %><option<%= s === (r.status || 'New') ? ' selected' : '' %>><%= s %></option><% }) %>
                     </select>
+                    <select name="rejectReason" aria-label="Reason if not selected, for <%= r.name %>"><option value="">Reason if not selected…</option><% rejectReasons.REASONS.forEach(function (x) { %><option value="<%= x.key %>"<%= rejectReasons.reasonOf(r) === x.key ? ' selected' : '' %>><%= x.label %></option><% }) %></select>
                     <select name="ownerId" aria-label="Owner for <%= r.name %>">
                       <option value="job">Owner: job's recruiter<%= r.owner && !r.ownerId ? ' (' + (memberName[r.owner] || '—') + ')' : '' %></option>
                       <% members.forEach(function (u) { %><option value="<%= u.id %>"<%= r.ownerId === u.id ? ' selected' : '' %>>Owner: <%= u.name %></option><% }) %>

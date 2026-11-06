@@ -32,7 +32,8 @@
         <div class="bulk-bar" data-bulk-bar>
           <label class="check-row bulk-all"><input type="checkbox" data-bulk-all> <span>Select all</span></label>
           <span class="bulk-count small muted" data-bulk-count>None selected</span>
-          <label class="bulk-stage"><span class="sr-only">Move to</span><select name="status" required><option value="">Move selected to…</option><% statuses.forEach(function (s) { %><option value="<%= s %>"><%= s %></option><% }) %></select></label>
+          <label class="bulk-stage"><span class="sr-only">Move to</span><select name="status" required data-reject-stage><option value="">Move selected to…</option><% statuses.forEach(function (s) { %><option value="<%= s %>"><%= s %></option><% }) %></select></label>
+          <%- include('partials/reject-reason-field', { reasons: rejectReasons, compact: true }) %>
           <button class="btn btn-primary btn-sm" type="submit">Move</button>
         </div>
       <% } %>

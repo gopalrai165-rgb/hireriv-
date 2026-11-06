@@ -54,8 +54,9 @@
         <% } else if (v.allowedMoves.length) { %>
           <form class="form inline-form" method="post" action="/employer/applicants/<%= v.id %>/status">
             <label>Move to
-              <select name="status"><% v.allowedMoves.forEach(function (s) { %><option value="<%= s %>"><%= label(s) %></option><% }) %></select>
+              <select name="status" data-reject-stage><% v.allowedMoves.forEach(function (s) { %><option value="<%= s %>"><%= label(s) %></option><% }) %></select>
             </label>
+            <% if (v.allowedMoves.indexOf('Rejected') !== -1) { %><%- include('partials/reject-reason-field', { reasons: rejectReasons }) %><% } %>
             <button class="btn btn-primary btn-sm" type="submit">Move</button>
           </form>
           <p class="muted small">Offer follows an approved offer, and Hired the candidate accepting it.</p>
@@ -76,7 +77,7 @@
         <h3 class="dash-sub">History</h3>
         <ul class="activity">
           <li><span class="activity-row"><span class="pill st-new">Applied</span><span class="activity-text"><%= formatDate(v.appliedAt) %></span></span></li>
-          <% v.history.forEach(function (h) { %><li><span class="activity-row"><span class="pill <%= stageClass(h.to) %>"><%= label(h.to) %></span><span class="activity-text">from <%= label(h.from) %><%= h.by ? ' · ' + h.by : '' %><%= h.correction ? ' · correction: ' + h.reason : '' %></span><span class="muted small"><%= formatDate(h.at) %></span></span></li><% }) %>
+          <% v.history.forEach(function (h) { %><li><span class="activity-row"><span class="pill <%= stageClass(h.to) %>"><%= label(h.to) %></span><span class="activity-text">from <%= label(h.from) %><%= h.by ? ' · ' + h.by : '' %><%= h.correction ? ' · correction: ' + h.reason : '' %><%= h.rejectReasonLabel ? ' · reason: ' + h.rejectReasonLabel : '' %></span><span class="muted small"><%= formatDate(h.at) %></span></span></li><% }) %>
         </ul>
       </section>
 

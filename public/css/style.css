@@ -1732,6 +1732,7 @@ form.inline { display: inline; }
 .list-row { border-top: 1px solid var(--line, #e5e7eb); padding: 12px 0; }
 .list-row:first-of-type { border-top: 0; }
 .list-row .row-actions { display: flex; flex-wrap: wrap; gap: 8px; white-space: normal; }
+.reject-reason[hidden] { display: none; }
 .screening-set { display: grid; gap: 10px; margin: 16px 0; padding-top: 14px; border-top: 1px solid var(--line); }
 .screening-set h3, .screening-set > p { margin: 0; }
 .screening-q { margin: 0; }

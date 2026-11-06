@@ -847,3 +847,11 @@ Suggested order: 2 → 1 → 3 → 4, which makes Hireriv usable for skilled and
 - **Not done here.** Applying through WhatsApp stays a conversation with a recruiter, so those questions are asked there. Candidates added by hand by the team have no answers.
 - **Tests.** `test/screening.test.js`.
 
+## Step 198: Why applicants weren't selected
+
+- **Built.** When an employer or the team moves someone to Not selected, they can pick why from a fixed list (not enough experience, missing a licence, pay, too far, didn't come to the interview, position filled and so on). `reject-reasons.js`.
+- **Where.** The applicant page and the ticked-applicants bar for employers, the team's Applications tab, the employer pipeline API and API v1. The list shows only while Not selected is chosen. Giving a reason is optional, so a quick move on a pipeline card still works.
+- **Reports.** Employer → Hiring reports shows how many were not selected for each reason in the period, and how many had none.
+- **Fixed list only.** No free text, so nobody writes remarks about the person. The reason is never in the candidate's email. It is in their data download, because it is information about them. It is kept on the move in the application's history, so a later correction keeps what happened.
+- **Tests.** `test/reject-reasons.test.js`.
+

@@ -7,6 +7,7 @@
 // Builds on employer-hiring.js: the same applicants (jobs the company posted
 // itself), the same role checks (employer-team.js can()) and the same history.
 // Rules live in ats.js.
+const rejectReasons = require('./reject-reasons');
 const ats = require('./ats');
 const { can } = require('./employer-team');
 const { parseScorecard, parseNewTime, RECOMMENDATIONS } = require('./interviews');
@@ -68,7 +69,9 @@ function register(app, deps) {
 
   app.get('/employer/ats/reports', requireEmployer, (req, res) => {
     const days = daysOf(req.query);
-    page(res, 'employer-ats-reports', { title: 'Hiring reports', tab: 'ats', m: metricsFor(req, days), days, showWorkload: can(req.member, 'workload.view') });
+    const since = days ? new Date(Date.now() - days * 86400000).toISOString() : null;
+    const { apps } = applicationsFor(req);
+    page(res, 'employer-ats-reports', { title: 'Hiring reports', tab: 'ats', m: metricsFor(req, days), days, showWorkload: can(req.member, 'workload.view'), reasons: rejectReasons.summary(apps, { since }) });
   });
 
   // ---------- notes ----------
@@ -249,7 +252,7 @@ function register(app, deps) {
   app.get('/api/ats/applications/:id', requireEmployerApi, withApplicant('applicants.view', { api: true }), (req, res) => res.json({ ok: true, application: applicantView(req, req.application, req.job) }));
   app.patch('/api/ats/applications/:id/stage', requireEmployerApi, withApplicant('applicants.manage', { api: true }), limit('employer-status', 120), sameOrigin, (req, res) => {
     const body = req.body || {};
-    const r = changeStatus(req, String(body.stage || ''), { correction: body.correction === true, reason: body.reason });
+    const r = changeStatus(req, String(body.stage || ''), { correction: body.correction === true, reason: body.reason, rejectReason: body.stage === 'Rejected' ? body.rejectReason : '' });
     if (r.error) return fail(res, r.status, r.error);
     res.json({ ok: true, changed: r.changed, application: applicantView(req, req.application, req.job) });
   });
