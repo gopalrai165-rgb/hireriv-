@@ -1,21 +1,45 @@
-<%# Header, tabs and profile meter shared by the candidate account pages. On a
-    page not yet translated, <main> is lang="en"; these parts are in the page's language. %>
+<%# Shared by the candidate account pages: a sidebar with the person, the sections in groups and the account tools (a scrolling row on phones), then the page title. The page's own content follows beside it. On a page not yet translated, <main> is lang="en"; these parts are in the page's language. %>
 <% const own = locale !== 'en' && !locals.translated ? ' lang="' + locale + '"' : ''; %>
-<div class="admin-head"<%- own %>>
-  <div>
-    <span class="eyebrow"><%= t('account.myAccount') %></span>
-    <h1><%= tm(heading) %></h1>
-    <p class="muted"><%= t('account.signedInAs', { email: contactLabel(email) }) %></p>
+<% var navTabs = [['dashboard', '/account', 'tabDashboard', 'i-home'], ['recommendations', '/account/recommendations', 'tabRecommended', 'i-spark'], ['saved', '/account/saved', 'tabSaved', 'i-bookmark'], ['saved-searches', '/account/saved-searches', 'tabSearches', 'i-search'], ['interviews', '/account/interviews', 'tabInterviews', 'i-clock'], ['work', '/account/work', 'tabWork', 'i-briefcase'], ['profile', '/account/profile', 'tabProfile', 'i-user'], ['assistant', '/account/assistant', 'tabAssistant', 'i-target'], ['settings', '/account/settings', 'tabSettings', 'i-gear'], ['privacy', '/account/privacy', 'tabPrivacy', 'i-shield']]; %>
+<% var navGroups = [['groupOverview', ['dashboard', 'recommendations']], ['groupJobs', ['saved', 'saved-searches', 'interviews', 'work']], ['groupYou', ['profile', 'assistant']], ['groupAccount', ['settings', 'privacy']]]; %>
+<% var openTab = typeof tab !== 'undefined' ? tab : ''; %>
+<% var openGroup = (navGroups.find(function (g) { return g[1].includes(openTab); }) || [''])[0]; %>
+<% var who = contactLabel(email); %>
+<% var myName = String((locals.candidate && candidate.profile && candidate.profile.name) || (locals.profile && profile.name) || '').trim() || who; %>
+<aside class="admin-side emp-side acct-side" aria-label="<%= t('account.menu') %>"<%- own %>>
+  <div class="admin-me">
+    <span class="admin-avatar" aria-hidden="true"><%= String(myName || '?').trim().charAt(0).toUpperCase() %></span>
+    <span class="admin-me-text"><b><%= myName %></b><span><%= t('account.jobSeeker') %></span></span>
+    <%- include('notification-bell', { as: 'candidate', bellQuery: '?as=candidate', bellClass: 'admin-me-bell' }) %>
   </div>
-  <div class="row-actions">
-    <%- include('notification-bell', { as: 'candidate', bellQuery: '?as=candidate', bellClass: 'btn btn-outline btn-sm' }) %>
-    <form method="post" action="/account/logout"><button class="btn btn-outline btn-sm" type="submit"><%= t('account.logout') %></button></form>
+  <nav class="admin-nav" aria-label="<%= t('account.tabs') %>">
+    <% navGroups.forEach(function (g) { var items = navTabs.filter(function (x) { return g[1].includes(x[0]); }); %>
+      <div class="admin-nav-group">
+        <span class="admin-nav-label"><%= t('account.' + g[0]) %></span>
+        <div class="admin-nav-tabs">
+          <% items.forEach(function (x) { %>
+            <a class="tab<%= openTab === x[0] ? ' active' : '' %>" href="<%= x[1] %>"<%- openTab === x[0] ? ' aria-current="page"' : '' %>><svg class="i" aria-hidden="true"><use href="#<%= x[3] %>"/></svg><span class="tab-name"><%= t('account.' + x[2]) %></span></a>
+          <% }) %>
+        </div>
+      </div>
+    <% }) %>
+  </nav>
+  <details class="admin-tools" open>
+    <summary class="admin-tools-label"><%= t('account.quickLinks') %></summary>
+    <div class="admin-userbar">
+      <a class="small" href="/jobs"><%= t('account.findJobs') %></a>
+      <a class="small" href="/account/resume-builder"><%= t('account.makeResume') %></a>
+      <a class="small" href="/notifications?as=candidate"><%= t('account.notifications') %></a>
+      <form method="post" action="/account/logout"><button class="link-btn small" type="submit"><%= t('account.logout') %></button></form>
+    </div>
+  </details>
+</aside>
+<div class="admin-head"<%- own %>>
+  <div class="admin-title">
+    <span class="admin-crumb"><%= t('account.myAccount') %><%= openGroup ? ' · ' + t('account.' + openGroup) : '' %></span>
+    <h1><%= tm(heading) %></h1>
+    <p class="muted"><%= t('account.signedInAs', { email: who }) %></p>
   </div>
 </div>
-<nav class="account-tabs" aria-label="<%= t('account.tabs') %>"<%- own %>>
-  <% [['dashboard', '/account', 'tabDashboard'], ['recommendations', '/account/recommendations', 'tabRecommended'], ['profile', '/account/profile', 'tabProfile'], ['saved', '/account/saved', 'tabSaved'], ['saved-searches', '/account/saved-searches', 'tabSearches'], ['assistant', '/account/assistant', 'tabAssistant'], ['interviews', '/account/interviews', 'tabInterviews'], ['work', '/account/work', 'tabWork'], ['settings', '/account/settings', 'tabSettings'], ['privacy', '/account/privacy', 'tabPrivacy']].forEach(function (x) { %>
-    <a href="<%= x[1] %>"<%- tab === x[0] ? ' aria-current="page" class="active"' : '' %>><%= t('account.' + x[2]) %></a>
-  <% }) %>
-</nav>
 <% if (typeof msg !== 'undefined' && msg) { %><p class="notice" role="status"><%= tm(msg) %></p><% } %>
 <% if (own) { %><p class="small muted"<%- own %>><%= t('lang.translationNote') %></p><% } %>
