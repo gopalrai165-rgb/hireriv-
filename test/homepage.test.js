@@ -25,7 +25,7 @@ test('header: Find Jobs, For Employers, Services, Career Resources, About, Conta
   assert.match(home, /href="\/employer\/login"/);
   assert.match(home, /href="\/post-a-job"[^>]*>[^<]*Post a Job/);
   // Job seekers first: search by job and city, near me, popular roles, top cities.
-  assert.match(home, /HIRERIV<\/b> <span>By Raigozen/);
+  assert.doesNotMatch(home, /hero-brand|By Raigozen/); // Hero line removed: the header logo and the footer carry the brand.
   assert.match(home, /Find Talent\. Build Careers\. <span class="grad">Grow Faster\./);
   assert.match(home, /recruitment and staffing partner for IT and non-IT hiring across India/);
   assert.match(home, />Hire Employees</);

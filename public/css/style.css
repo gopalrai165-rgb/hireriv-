@@ -2172,11 +2172,6 @@ p, li, dd { text-wrap: pretty; }
 .stats .stat-offer b { font-size: clamp(1.1rem, 2vw, 1.35rem); letter-spacing: -0.01em; }
 
 /* Homepage: brand line, employer box beside the search, services, why us, how it works */
-.hero-brand { display: flex; align-items: baseline; gap: 10px; margin: 0 0 14px; letter-spacing: .14em; font-size: .9rem; color: var(--muted); }
-.hero-brand b { font-family: var(--font-display); font-size: 1.05rem; color: var(--ink); }
-.hero-brand span { letter-spacing: .02em; font-weight: 600; }
-.page-home .hero-brand, .page-home .hero-brand b { color: #fff; }
-.page-home .hero-brand span { color: var(--home-gold); }
 .page-home .hero .hero-ctas { margin: 0 0 18px; }
 .hero-side { display: grid; gap: 18px; justify-items: end; }
 .employer-ask { width: 100%; max-width: 420px; padding: 22px 24px; border-radius: var(--radius); background: #fff; color: var(--text); box-shadow: var(--shadow-lg); border: 1px solid var(--line); }
@@ -2205,6 +2200,31 @@ p, li, dd { text-wrap: pretty; }
 @media (max-width: 960px) {
   .hero-seek .hero-side { justify-items: stretch; }
   .employer-ask { max-width: none; }
+}
+
+/* Home hero on wide screens: text and photo fill the width instead of a centred column */
+@media (min-width: 1200px) {
+  .page-home .hero { padding: clamp(44px, 3.4vw, 68px) 0 clamp(56px, 4.5vw, 84px); }
+  .page-home .hero-grid {
+    max-width: 2040px;
+    padding-inline: clamp(24px, 3vw, 64px);
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: clamp(32px, 3.5vw, 72px);
+  }
+  .page-home .hero-copy { max-width: none; }
+  .page-home .hero h1 { max-width: 7.4em; font-size: clamp(3.6rem, 5.4vw, 6rem); }
+  .page-home .hero .lead { max-width: 44em; font-size: clamp(1.08rem, 1.15vw, 1.3rem); }
+  .page-home .hero-search-seek { max-width: none; }
+  .page-home .hero-side { position: relative; justify-items: stretch; }
+  .page-home .hero-visual { max-width: none; padding: 10px 22px 0 0; }
+  .page-home .photo-arch { aspect-ratio: 7 / 6; border-radius: 240px 240px 28px 28px; }
+  .page-home .hero-visual::before { inset: 8% 0 -14px 8%; border-radius: 240px 240px 30px 30px; transform: rotate(2deg); }
+  .page-home .hero-side .employer-ask { position: relative; z-index: 2; justify-self: end; margin: -132px 40px 0 0; }
+}
+@media (min-width: 1200px) and (max-width: 1439px) {
+  .page-home .hero-grid { grid-template-columns: minmax(0, 1.14fr) minmax(0, .86fr); }
+  .page-home .photo-arch { aspect-ratio: 1 / 1.02; }
+  .page-home .hero-side .employer-ask { margin-top: -84px; margin-right: 24px; max-width: 380px; }
 }
 
 /* Services: the four main services, benefits, payroll and compliance */
