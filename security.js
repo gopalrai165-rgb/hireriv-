@@ -115,6 +115,24 @@ const cleanPath = (p) => String(p || '').split('?')[0].replace(/[A-Za-z0-9_-]{20
 function create({ db, notify, mailer, getTeam }) {
   const recent = new Map(); // rule|subject -> [times]
   const alerted = new Map(); // rule|subject -> last alert time
+  // The counts above live in memory; after a restart or deploy they are built
+  // again from the last hour of the stored log, so a burst of failed sign-ins
+  // that spans a restart still raises its alert, and an alert already sent in
+  // the last hour is not sent again.
+  let warmed = false;
+  let replaying = false;
+  function warm(now) {
+    warmed = true;
+    const since = iso(now - HOUR);
+    const past = db.all(EVENTS).filter((e) => e.at >= since);
+    past.sort((a, b) => (a.at < b.at ? -1 : a.at > b.at ? 1 : 0));
+    replaying = true;
+    try {
+      for (const e of past) {
+        if (e.type === 'alert') { if (e.alertKey) alerted.set(e.alertKey, Date.parse(e.at)); } else watch(e);
+      }
+    } finally { replaying = false; }
+  }
 
   function actorOf(req) {
     if (!req) return { actorKind: 'system', actorId: '', actorLabel: 'System' };
@@ -130,6 +148,7 @@ function create({ db, notify, mailer, getTeam }) {
       ip: req ? clip(req.ip, 60) : '', path: req ? cleanPath(req.originalUrl || req.path) : '', method: req ? req.method : '',
       target: scrub(clip(target, 160)), detail: scrub(clip(detail, 300)),
     };
+    if (!warmed) { try { warm(Date.parse(at)); } catch (err) { console.error('Security alert warm-up failed:', err.message); } }
     db.prepend(EVENTS, e);
     try { watch(e); } catch (err) { console.error('Security alert check failed:', err.message); }
     return e;
@@ -169,6 +188,7 @@ function create({ db, notify, mailer, getTeam }) {
   }
   const watchers = () => getTeam().members().filter((u) => roles.can(u, 'security.view'));
   function alert(rule, subject, summary, cause, { force = false } = {}) {
+    if (replaying) return null;
     const key = `${rule}|${subject}`;
     const now = Date.parse(cause.at);
     if (!force && alerted.get(key) > now - HOUR) return null;
@@ -179,7 +199,7 @@ function create({ db, notify, mailer, getTeam }) {
     const severity = rule === 'privileged-change' && (hourIst >= 22 || hourIst < 6) ? 'high' : r.severity;
     const a = {
       id: crypto.randomUUID(), at: iso(now), type: 'alert', outcome: 'raised', actorKind: cause.actorKind, actorId: cause.actorId, actorLabel: cause.actorLabel,
-      ip: cause.ip, path: cause.path, method: cause.method, target: rule, detail: clip(summary, 300), severity, rule: r.label, causeId: cause.id,
+      ip: cause.ip, path: cause.path, method: cause.method, target: rule, detail: clip(summary, 300), severity, rule: r.label, causeId: cause.id, alertKey: key,
     };
     db.prepend(EVENTS, a);
     const people = watchers();

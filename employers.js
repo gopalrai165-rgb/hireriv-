@@ -2,6 +2,7 @@
 // verified by the team), the people who work in them (see employer-team.js:
 // one login per person, a role in each company), password login, the company
 // profile, team, personal settings with mobile verification, and the portal.
+const failureLog = require('./failure-log');
 const crypto = require('crypto');
 const path = require('path');
 const vault = require('./vault');
@@ -586,7 +587,7 @@ function register(app, deps) {
       // The link reached their inbox, so the email is confirmed too.
       Object.assign(user, { passwordHash: hashPassword(pw), link: null, passwordSetAt: now(), emailVerifiedAt: user.emailVerifiedAt || now() });
       team.saveUser(user);
-      loginFailures.delete(String(user.email || '').toLowerCase());
+      loginFailures.clear(String(user.email || '').toLowerCase());
       // A password change ends every other session for this person.
       endUserSessions(user.id);
       if (!emp) return expired(res, 'Your password is saved, but your login is not linked to a company any more.');
@@ -605,25 +606,22 @@ function register(app, deps) {
 
   // Wrong passwords per account (any connection): 10 in 15 minutes locks that
   // account's password sign-in for the rest of the 15 minutes.
-  const loginFailures = new Map();
+  // Kept across restarts (failure-log.js).
   const LOCK_MS = 15 * 60 * 1000;
+  const loginFailures = failureLog.create(db, 'employer-login', LOCK_MS);
   const MAX_LOGIN_FAILURES = 10;
-  const recentLoginFailures = (email) => (loginFailures.get(email) || []).filter((t) => Date.now() - t < LOCK_MS);
   app.post('/employer/login', limit('employer-login', 10, 15 * 60 * 1000), sameOrigin, (req, res) => {
     const email = String(req.body.email || '').trim().toLowerCase().slice(0, 160);
     const pw = String(req.body.password || '').slice(0, 200);
-    if (recentLoginFailures(email).length >= MAX_LOGIN_FAILURES) return page(res, 'employer-login', { title: 'Employer login', email, errors: ['Too many wrong passwords for this account. Wait 15 minutes, or reset your password.'] }, 429);
+    if (loginFailures.count(email) >= MAX_LOGIN_FAILURES) return page(res, 'employer-login', { title: 'Employer login', email, errors: ['Too many wrong passwords for this account. Wait 15 minutes, or reset your password.'] }, 429);
     const user = team.userByEmail(email);
     // Same message and similar work for unknown emails, so accounts can't be probed.
     const ok = user && user.active && user.passwordHash ? checkPassword(pw, user.passwordHash) : (hashPassword(pw), false);
     if (!ok) {
-      if (email) {
-        loginFailures.set(email, [...recentLoginFailures(email), Date.now()]);
-        if (loginFailures.size > 5000) for (const [k] of loginFailures) { if (!recentLoginFailures(k).length) loginFailures.delete(k); }
-      }
+      if (email) loginFailures.note(email);
       return page(res, 'employer-login', { title: 'Employer login', email, errors: ['Email or password is incorrect.'] }, 401);
     }
-    loginFailures.delete(email);
+    loginFailures.clear(email);
     const emp = defaultCompany(user);
     if (!user.emailVerifiedAt) {
       if (emp) mailer.employerVerify(addressed(emp, user), issueLink(user, 'verify', VERIFY_HOURS), VERIFY_HOURS);
@@ -683,10 +681,10 @@ function register(app, deps) {
     const p = pendingCode(req);
     if (!p) return page(res, 'employer-login', { title: 'Employer login', email: '', errors: ['That took too long. Sign in again.'] }, 401);
     const email = String(p.user.email || '').toLowerCase();
-    if (recentLoginFailures(email).length >= MAX_LOGIN_FAILURES) { endPending(res, p.key); return page(res, 'employer-login', { title: 'Employer login', email, errors: ['Too many wrong codes for this account. Wait 15 minutes, then sign in again.'] }, 429); }
+    if (loginFailures.count(email) >= MAX_LOGIN_FAILURES) { endPending(res, p.key); return page(res, 'employer-login', { title: 'Employer login', email, errors: ['Too many wrong codes for this account. Wait 15 minutes, then sign in again.'] }, 429); }
     const used = useSecondFactor(p.user.id, String(req.body.code || '').slice(0, 40));
     if (!used) {
-      loginFailures.set(email, [...recentLoginFailures(email), Date.now()]);
+      loginFailures.note(email);
       const tries = (codeTries.get(p.key) || 0) + 1;
       codeTries.set(p.key, tries);
       if (tries >= MAX_CODE_TRIES) { codeTries.delete(p.key); endPending(res, p.key); return page(res, 'employer-login', { title: 'Employer login', email, errors: ['Too many wrong codes. Sign in again.'] }, 401); }
@@ -694,7 +692,7 @@ function register(app, deps) {
     }
     codeTries.delete(p.key);
     endPending(res, p.key);
-    loginFailures.delete(email);
+    loginFailures.clear(email);
     const emp = read().find((e) => e.id === p.employerId && e.active) || defaultCompany(p.user);
     if (!emp) return page(res, 'employer-login', { title: 'Employer login', email, errors: ['Your login is not linked to an active company. Ask a company owner to add you again, or contact us.'] }, 403);
     startSession(res, p.user.id, emp.id);

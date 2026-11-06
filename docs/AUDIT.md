@@ -80,7 +80,7 @@ Checks found nothing wrong: every team route requires a team sign-in, every Admi
 **Duplicates:** none found that need fixing. Public hiring requests and client-portal requirements already share one inbox, and candidates are merged by email in the Talent pool.
 
 **Other risks:**
-- Rate limits and the sign-in lock-out are counted in memory. That's fine on one server, but the counts reset on restart and aren't shared if the site ever runs on several.
+- Rate limits are counted in memory. That's fine on one server, but the counts reset on restart and aren't shared if the site ever runs on several. Since Step 186 the sign-in lock-outs (team, employer and job-seeker passwords, team codes) and the security alert counts are kept across restarts (`failure-log.js`, `security.js` warm-up); they are still per server.
 - Two-step sign-in keys are stored unencrypted in the database, so backups need to be kept as private as the database.
 - Saved jobs live in the visitor's browser only.
 
@@ -555,7 +555,7 @@ Suggested order: 2 → 1 → 3 → 4, which makes Hireriv usable for skilled and
 - **Not done here.**
   - No external penetration test or load test.
   - No real ClamAV, key store or provider in testing.
-  - The alert counters are in memory.
+  - ~~The alert counters are in memory.~~ Done in Step 186: after a restart the alert counts are built again from the last hour of the security log, so a burst that spans a deploy still raises its alert and an alert is not sent twice in the hour; the sign-in lock-outs are saved too (`failure-log.js`).
   - ~~Employer accounts have no two-step sign-in yet.~~ Done in Step 161: employer people can turn on an authenticator code, owners can require it for the whole company, and the team can reset it.
   - ~~Bulk exports have no second-person approval.~~ Done in Step 185 (`export-approval.js`, Admin → Export approvals): when an Admin turns it on, the database, backup copies and CSVs with personal data need another Admin's approval, for one download within 24 hours. It pauses while the team has fewer than two Admins who can sign in, so a single owner is never locked out.
   - Legal review of the notice and consent texts, the Rules' commencement dates and CERT-In applicability is still to be done (docs/SECURITY.md section 7).

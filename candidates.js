@@ -6,6 +6,7 @@
 // download / delete-my-data. A registration is also stored as a general
 // application, so the team sees new sign-ups in Applications and the Talent
 // pool like any CV. Pages live under /account; /candidate/* addresses lead there.
+const failureLog = require('./failure-log');
 const crypto = require('crypto');
 const fs = require('fs');
 const vault = require('./vault');
@@ -433,25 +434,24 @@ function register(app, deps) {
     loginPage(res, { next: safeNext(req.query.next), method: req.query.with === 'phone' ? 'phone' : 'email' });
   });
 
-  // Wrong passwords per email (in memory). Unknown emails count the same way,
-  // so the lock-out can't reveal who has an account.
-  const failures = new Map();
-  const recentFailures = (email) => (failures.get(email) || []).filter((t) => t > Date.now() - FAILURE_WINDOW_MS);
+  // Wrong passwords per email, kept across restarts (failure-log.js). Unknown
+  // emails count the same way, so the lock-out can't reveal who has an account.
+  const failures = failureLog.create(db, 'candidate-login', FAILURE_WINDOW_MS);
   // Checks an email and password. Returns { email } or { status, error }.
   function passwordSignIn(emailInput, password) {
     const email = String(emailInput || '').trim().toLowerCase().slice(0, 160);
     const wrong = { status: 401, error: 'That email and password don’t match. Check them, or sign in with an email link instead.' };
     if (!EMAIL_RE.test(email) || !password) return { status: 400, error: 'Enter your email and password.' };
-    if (recentFailures(email).length >= MAX_FAILURES) return { status: 429, error: 'Too many wrong passwords. Wait 15 minutes, or sign in with an email link instead.' };
+    if (failures.count(email) >= MAX_FAILURES) return { status: 429, error: 'Too many wrong passwords. Wait 15 minutes, or sign in with an email link instead.' };
     const c = candidateOf(email);
     // Hash even when there's no account, so the reply takes as long either way.
     const ok = c && c.passwordHash ? checkPassword(String(password).slice(0, 200), c.passwordHash) : (hashPassword(String(password).slice(0, 200)), false);
     if (!ok) {
-      failures.set(email, [...recentFailures(email), Date.now()]);
+      failures.note(email);
       if (c) activity(email, 'sign-in-failed');
       return wrong;
     }
-    failures.delete(email);
+    failures.clear(email);
     if (!c.emailVerifiedAt) {
       const token = issueLink('candidate-link', email, LINK_MINUTES);
       mailer.candidateSignIn(email, `${baseUrl}/account/verify/${token}`, LINK_MINUTES);
@@ -459,7 +459,6 @@ function register(app, deps) {
     }
     return { email };
   }
-  setInterval(() => { for (const [k] of failures) if (!recentFailures(k).length) failures.delete(k); }, FAILURE_WINDOW_MS).unref();
 
   app.post('/account/login', limit('account-login', 10), sameOrigin, (req, res) => {
     const email = String(req.body.email || '').trim().toLowerCase().slice(0, 160);
@@ -700,7 +699,7 @@ function register(app, deps) {
     // The link came to their inbox, so the email is confirmed too.
     Object.assign(c, { passwordHash: hashPassword(String(req.body.password)), passwordSetAt: nowIso(), emailVerifiedAt: c.emailVerifiedAt || nowIso() });
     saveCandidate(c);
-    failures.delete(c.email);
+    failures.clear(c.email);
     db.sessions.deleteSubject('candidate', c.email);
     db.sessions.deleteSubject('candidate-reset', c.email);
     startSession(res, c.email);
@@ -1316,7 +1315,7 @@ function register(app, deps) {
       if (rest.length !== subs.length) writeSubmissions(type, rest);
     }
     for (const kind of ['candidate', 'candidate-link', 'candidate-reset']) db.sessions.deleteSubject(kind, email);
-    failures.delete(email);
+    failures.clear(email);
     notify.forget(notify.candidateRk(email));
     if (push) push.forget(notify.candidateRk(email));
     privacy.erased(email);

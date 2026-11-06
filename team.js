@@ -7,6 +7,7 @@
 // (always an Admin), so a fresh install can sign in and invite the team.
 // Anyone can add two-step sign-in (an authenticator app code after the
 // password), and an Admin can require it for the whole team.
+const failureLog = require('./failure-log');
 const crypto = require('crypto');
 const { hashPassword, checkPassword } = require('./employers');
 const tf = require('./twofactor');
@@ -215,15 +216,13 @@ function create({ db, mailer, baseUrl, ownerUser, ownerPass, site = {}, resetOwn
   }
 
   // ---------- login ----------
-  const failed = new Map();
-  const tooMany = (ip) => (failed.get(ip) || []).filter((t) => Date.now() - t < 15 * 60000).length >= 10;
+  // Failures are kept across restarts (failure-log.js).
+  const failed = failureLog.create(db, 'team-ip', 15 * 60000);
+  const tooMany = (ip) => failed.count(ip) >= 10;
   // The same limit per sign-in name, so guesses from many addresses also stop.
-  const failedLogins = new Map();
-  const accountLocked = (login) => (failedLogins.get(login) || []).filter((t) => Date.now() - t < 15 * 60000).length >= 10;
-  const noteFailure = (map, key) => {
-    map.set(key, [...(map.get(key) || []).filter((t) => Date.now() - t < 15 * 60000), Date.now()]);
-    if (map.size > 5000) for (const [k, v] of map) { if (!v.some((t) => Date.now() - t < 15 * 60000)) map.delete(k); }
-  };
+  const failedLogins = failureLog.create(db, 'team-login', 15 * 60000);
+  const accountLocked = (login) => failedLogins.count(login) >= 10;
+  const noteFailure = (log, key) => log.note(key);
   const safeNext = (n) => (/^\/admin(\/|\?|$)/.test(String(n || '')) ? String(n) : '/admin');
   const page = (res, view, locals, status = 200) => res.status(status).render(view, { page: 'admin', noindex: true, errors: [], ...locals });
 
@@ -259,7 +258,7 @@ function create({ db, mailer, baseUrl, ownerUser, ownerPass, site = {}, resetOwn
         res.cookie(CODE_COOKIE, token, { httpOnly: true, sameSite: 'lax', secure: secureCookie, maxAge: CODE_MINUTES * 60000, path: '/admin/login' });
         return res.redirect(`/admin/login/code?next=${encodeURIComponent(next)}`);
       }
-      failed.delete(req.ip);
+      failed.clear(req.ip);
       startSession(res, user.id);
       log(user, 'Signed in');
       res.redirect(next);
@@ -309,7 +308,7 @@ function create({ db, mailer, baseUrl, ownerUser, ownerPass, site = {}, resetOwn
         return page(res, 'admin-code', { title: 'Two-step sign-in', next, errors: ["That code didn't work. Codes change every 30 seconds, so use the one showing now."] }, 401);
       }
       endPending(res, p.key);
-      failed.delete(req.ip);
+      failed.clear(req.ip);
       startSession(res, p.user.id);
       if (used.how === 'recovery') {
         log(p.user, `Signed in with a recovery code (${used.left} left)`);
