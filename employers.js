@@ -7,6 +7,7 @@ const crypto = require('crypto');
 const path = require('path');
 const vault = require('./vault');
 const teamStore = require('./employer-team');
+const employerTodo = require('./employer-todo');
 const agencyRoles = require('./agency-roles');
 const tf = require('./twofactor');
 
@@ -1057,6 +1058,7 @@ function register(app, deps) {
       newApplicants: myJobs.filter((j) => j.createdBy === 'employer').reduce((n, j) => n + j.fresh, 0), interviews, contacted, followers: req.app.locals.followersOf(emp),
       shortlist: shortlistFor(emp), placements: can(req.member, 'billing.view') ? placementsFor(emp) : [], timesheets: can(req.member, 'timesheets.review') ? timesheetsFor(emp) : [],
       decisions: DECISIONS, welcome: req.query.welcome === '1', msg: String(req.query.msg || ''), mobileVerified: Boolean(req.employerUser.phoneVerifiedAt),
+      todo: employerTodo.build({ member: req.member, jobs: myJobs, apps, now: nowMs }),
     });
   });
 

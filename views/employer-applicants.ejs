@@ -18,8 +18,10 @@
       <% if (anyQuestions) { %><label>Needed answers
         <select name="answers"><option value="">Anyone</option><option value="meets"<%= answers === 'meets' ? ' selected' : '' %>>Has the needed answers</option><option value="misses"<%= answers === 'misses' ? ' selected' : '' %>>Answers to check</option></select>
       </label><% } %>
+      <% if (todo) { %><input type="hidden" name="todo" value="<%= todo %>"><% } %>
       <button class="btn btn-outline btn-sm" type="submit">Filter</button>
     </form>
+    <% if (todo) { %><p class="small">Showing: <b><%= todoLabel %></b> · <a href="/employer/applicants">Show everyone</a></p><% } %>
 
     <% if (!jobs.length) { %>
       <p class="muted dash-empty">People who apply to the jobs you post appear here. For jobs <%= site.name %> runs for you, your account manager shares a shortlist on the <a href="/employer#shortlist">dashboard</a>.</p>

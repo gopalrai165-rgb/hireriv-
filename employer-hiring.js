@@ -25,6 +25,7 @@ const jobImport = require('./job-import');
 const jobParse = require('./job-parse');
 const { INVITES_PER_DAY } = require('./employer-discovery');
 const applicantInvites = require('./applicant-invites');
+const employerTodo = require('./employer-todo');
 
 // A company can have this many jobs live, paused or waiting for review.
 const MAX_ACTIVE_JOBS = 50;
@@ -421,17 +422,19 @@ function register(app, deps) {
     // Needed answers narrow what's on screen only. Nobody is rejected or moved by them.
     const answers = ['meets', 'misses'].includes(req.query.answers) ? req.query.answers : '';
     const newest = (x, y) => String(y.appliedAt).localeCompare(String(x.appliedAt));
-    const rows = apps.filter((a) => (!jobId || a.jobId === jobId))
+    // From the dashboard's list of what needs attention.
+    const todo = employerTodo.LABELS[req.query.todo] ? req.query.todo : '';
+    const rows = apps.filter((a) => (!jobId || a.jobId === jobId) && (!todo || employerTodo.matches(todo, a, jobs.get(a.jobId), req.member)))
       .map((a) => applicantView(req, a, jobs.get(a.jobId)))
       .filter((v) => (!status || v.status === status) && (!answers || v.screeningOutcome === answers))
       .sort(sort === 'match' ? (x, y) => ((y.match && y.match.score) || 0) - ((x.match && x.match.score) || 0) || newest(x, y) : newest);
-    return { jobs, rows, jobId, status, sort, answers };
+    return { jobs, rows, jobId, status, sort, answers, todo };
   }
 
   app.get('/employer/applicants', requireEmployer, (req, res) => {
-    const { jobs, rows, jobId, status, sort, answers } = filteredApplicants(req);
-    const filters = new URLSearchParams(Object.entries({ job: jobId, status, sort: sort === 'match' ? sort : '', answers }).filter(([, v]) => v)).toString();
-    page(res, 'employer-applicants', { title: 'Applicants', tab: 'applicants', rows, filters, canAdd: addableJobs(req).length > 0, jobs: [...jobs.values()], jobId, status, sort, answers, rejectReasons: rejectReasons.REASONS, anyQuestions: [...jobs.values()].some((j) => screening.hasQuestions(j)), statuses: appStatuses, msg: String(req.query.msg || '') });
+    const { jobs, rows, jobId, status, sort, answers, todo } = filteredApplicants(req);
+    const filters = new URLSearchParams(Object.entries({ job: jobId, status, sort: sort === 'match' ? sort : '', answers, todo }).filter(([, v]) => v)).toString();
+    page(res, 'employer-applicants', { title: 'Applicants', tab: 'applicants', rows, filters, todo, todoLabel: employerTodo.LABELS[todo] || '', canAdd: addableJobs(req).length > 0, jobs: [...jobs.values()], jobId, status, sort, answers, rejectReasons: rejectReasons.REASONS, anyQuestions: [...jobs.values()].some((j) => screening.hasQuestions(j)), statuses: appStatuses, msg: String(req.query.msg || '') });
   });
 
   // ---------- adding someone who reached the company another way ----------

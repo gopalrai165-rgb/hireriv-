@@ -1487,6 +1487,13 @@ form .check-row { min-height: 44px; padding: 6px 0; cursor: pointer; }
 .invite-actions { display: flex; flex-wrap: wrap; gap: 8px; white-space: normal; flex: none; }
 @media (max-width: 600px) { .invite-list li { flex-direction: column; align-items: stretch; } }
 .invite-sent .pill, .invite-sent td:first-child b { white-space: nowrap; }
+.todo-card { margin-bottom: 20px; }
+.todo-list { list-style: none; margin: 8px 0 0; padding: 0; }
+.todo-list li + li { border-top: 1px solid var(--line); }
+.todo-list a { display: flex; align-items: center; gap: 12px; min-height: 48px; padding: 8px 0; color: inherit; text-decoration: none; }
+.todo-list a:hover .todo-text { text-decoration: underline; }
+.todo-count { flex: none; min-width: 32px; text-align: center; font-weight: 700; }
+.todo-text { flex: 1; min-width: 0; }
 .dash-sub { font-size: 1rem; margin: 22px 0 6px; }
 .inline-upload { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; }
 .inline-upload .file-field { flex: 1 1 220px; }

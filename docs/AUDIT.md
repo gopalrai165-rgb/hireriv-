@@ -943,3 +943,10 @@ Suggested order: 2 → 1 → 3 → 4, which makes Hireriv usable for skilled and
 - **Fixed from Step 207.** A job past its closing date still had status "open", so it could be offered. Only live jobs are now, on both pages.
 - **Tests.** `test/team-applicant-invite.test.js`.
 
+## Step 211: What needs you, on the employer dashboard
+
+- **The gap.** The dashboard counted jobs and new applicants, but nothing said what someone should do today. Replies, waiting applicants, missing feedback and offers to approve each lived on a different page, or in a notice that scrolled away.
+- **Built.** "What needs you" at the top of the dashboard: applicants waiting for a reply, offers to approve, finished interviews with no feedback, applicants who waited over 7 days at Applied or Screening, and jobs closing within 7 days. Each line links to the person when there is one, or to a filtered list (`/employer/applicants?todo=unread|waiting|offers`), which the spreadsheet download follows too. `employer-todo.js`.
+- **Rules.** Only jobs the company runs itself, and only what this person's role lets them act on. Someone else approves an offer a person made, unless they own the company, so it's listed the same way. Feedback follows the same 14-day window as the reminder. Withdrawn applications don't count. The list only points: nobody is moved, rejected or messaged from it. Viewers don't see it.
+- **Tests.** `test/employer-todo.test.js`.
+
