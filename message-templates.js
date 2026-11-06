@@ -73,24 +73,24 @@ function register(app, { readSubmissions, writeSubmissions, saveSubmission, same
   // ---------- employer portal ----------
   const EMP = '/employer/message-templates';
   const mayWrite = (req) => can(req.member, 'templates.manage');
-  app.get(EMP, requireEmployer, (req, res) => {
+  app.get('/employer/message-templates', requireEmployer, (req, res) => {
     if (!mayWrite(req)) return clients.forbid(req, res);
     view(res, { page: 'employer', side: 'employer', base: EMP, items: employerList(req.employer.id), msg: String(req.query.msg || '') });
   });
-  app.post(EMP, requireEmployer, limit('message-templates', 60), sameOrigin, (req, res) => {
+  app.post('/employer/message-templates', requireEmployer, limit('message-templates', 60), sameOrigin, (req, res) => {
     if (!mayWrite(req)) return clients.forbid(req, res);
     const r = create(`employer:${req.employer.id}`, req.employerUser.id, req.body);
     if (!r.error) clients.team.audit(req.employer.id, req.employerUser, 'saved-reply-added', r.name);
     redirectTo(res, EMP, said(r, 'Saved.'));
   });
-  app.post(`${EMP}/:id`, requireEmployer, limit('message-templates', 60), sameOrigin, (req, res) => {
+  app.post('/employer/message-templates/:id', requireEmployer, limit('message-templates', 60), sameOrigin, (req, res) => {
     if (!mayWrite(req)) return clients.forbid(req, res);
     const r = update(`employer:${req.employer.id}`, req.params.id, req.employerUser.id, req.body);
     if (r.missing) return redirectTo(res, EMP, 'That reply is no longer here.');
     if (!r.error) clients.team.audit(req.employer.id, req.employerUser, 'saved-reply-changed', r.name);
     redirectTo(res, EMP, said(r, 'Saved.'));
   });
-  app.post(`${EMP}/:id/delete`, requireEmployer, limit('message-templates', 60), sameOrigin, (req, res) => {
+  app.post('/employer/message-templates/:id/delete', requireEmployer, limit('message-templates', 60), sameOrigin, (req, res) => {
     if (!mayWrite(req)) return clients.forbid(req, res);
     const r = remove(`employer:${req.employer.id}`, req.params.id);
     if (r.missing) return redirectTo(res, EMP, 'That reply is no longer here.');
@@ -102,24 +102,24 @@ function register(app, { readSubmissions, writeSubmissions, saveSubmission, same
   const TEAM = '/admin/message-templates';
   const teamMay = (req) => agencyRoles.can(req.admin, 'candidates.message');
   const teamNo = (res) => res.status(403).render('thanks', { title: 'Not part of your role', page: '', ok: false, message: 'Your role does not include writing to candidates.' });
-  app.get(TEAM, adminAuth, (req, res) => {
+  app.get('/admin/message-templates', adminAuth, (req, res) => {
     if (!teamMay(req)) return teamNo(res);
     view(res, { page: 'admin', side: 'team', base: TEAM, items: teamList(), msg: String(req.query.msg || '') });
   });
-  app.post(TEAM, adminAuth, limit('message-templates', 60), sameOrigin, (req, res) => {
+  app.post('/admin/message-templates', adminAuth, limit('message-templates', 60), sameOrigin, (req, res) => {
     if (!teamMay(req)) return teamNo(res);
     const r = create('team', req.admin.id, req.body);
     if (!r.error) teamLog(req.admin, 'Added a saved reply', r.name);
     redirectTo(res, TEAM, said(r, 'Saved.'));
   });
-  app.post(`${TEAM}/:id`, adminAuth, limit('message-templates', 60), sameOrigin, (req, res) => {
+  app.post('/admin/message-templates/:id', adminAuth, limit('message-templates', 60), sameOrigin, (req, res) => {
     if (!teamMay(req)) return teamNo(res);
     const r = update('team', req.params.id, req.admin.id, req.body);
     if (r.missing) return redirectTo(res, TEAM, 'That reply is no longer here.');
     if (!r.error) teamLog(req.admin, 'Changed a saved reply', r.name);
     redirectTo(res, TEAM, said(r, 'Saved.'));
   });
-  app.post(`${TEAM}/:id/delete`, adminAuth, limit('message-templates', 60), sameOrigin, (req, res) => {
+  app.post('/admin/message-templates/:id/delete', adminAuth, limit('message-templates', 60), sameOrigin, (req, res) => {
     if (!teamMay(req)) return teamNo(res);
     const r = remove('team', req.params.id);
     if (r.missing) return redirectTo(res, TEAM, 'That reply is no longer here.');
