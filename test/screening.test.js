@@ -112,6 +112,13 @@ test('the job page asks the questions, and never shows the needed answer', async
   assert.match(html, new RegExp(`<input name="answer_${area.id}" maxlength="300" required>`));
   assert.doesNotMatch(html, /mustBe|needs:/);
   assert.doesNotMatch(await (await get('/jobs/hr-2')).text(), /answer_q/);
+  // Apply on WhatsApp carries the questions (Step 200), never the needed answer.
+  const wa = decodeURIComponent(((html.match(/href="https:\/\/wa\.me\/\d+\?text=([^"]+)"/) || [])[1] || '').replace(/&#39;/g, "'"));
+  assert.match(wa, /My answers to the job's questions:\n1\. Do you have a two-wheeler licence\? \n2\. Can you work nights in Hinjewadi\? \n3\. Which area do you live in\? \n\nMy name is $/);
+  assert.doesNotMatch(wa, /mustBe|needs/);
+  assert.match(wa, /My name is $/);
+  const plain = decodeURIComponent(((await (await get('/jobs/hr-2')).text()).match(/href="https:\/\/wa\.me\/\d+\?text=([^"]+)"/) || [])[1] || '');
+  assert.match(plain, /\(job hr-2\)\. My name is $/);
   const api = await jsonOf(await get('/api/public/jobs/hr-1'));
   const raw = JSON.stringify(api);
   assert.ok(raw.includes(LICENCE));

@@ -1391,8 +1391,14 @@ app.get('/jobs', (req, res) => {
 // "Apply on WhatsApp" opens a chat with the team, pre-filled with the job.
 // Hidden while the WhatsApp number in Settings is still the placeholder.
 const realWhatsapp = () => /^\d{10,15}$/.test(site.whatsapp || '') && !/^\d{2}0+$/.test(site.whatsapp);
-const whatsappApplyLink = (job) =>
-  realWhatsapp() ? `https://wa.me/${site.whatsapp}?text=${encodeURIComponent(`Hi ${site.name}, I want to apply for ${job.title} in ${job.location} (job ${job.id}). My name is `)}` : '';
+// The job's screening questions (screening.js) go in the message, so the
+// recruiter gets the answers there too.
+const whatsappApplyLink = (job) => {
+  if (!realWhatsapp()) return '';
+  const qs = screening.publicQuestions(job);
+  const asked = qs.length ? `\n\nMy answers to the job's questions:\n${qs.map((q, i) => `${i + 1}. ${q.text} `).join('\n')}\n\n` : ' ';
+  return `https://wa.me/${site.whatsapp}?text=${encodeURIComponent(`Hi ${site.name}, I want to apply for ${job.title} in ${job.location} (job ${job.id}).${asked}My name is `)}`;
+};
 
 // The hiring contact shown to someone who applied: the employer's confirmed
 // mobile when they share it, or our recruitment desk for jobs we post.

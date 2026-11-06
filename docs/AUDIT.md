@@ -844,7 +844,7 @@ Suggested order: 2 → 1 → 3 → 4, which makes Hireriv usable for skilled and
 - **People decide.** A needed answer only marks the application ("Has the needed answers", "1 answer to check") and adds a filter on Applicants. Nothing is rejected, hidden or ranked by it, and the person applying never sees which answer is needed: not on the page, in the public API or in job data.
 - **Kept with the application.** Each answer keeps a copy of the question, so editing a job doesn't change what someone was asked. Answers are in the team's spreadsheet, the job seeker's data download and API v1, and they go when the application is deleted. A typed answer could hold contact details, so it follows the same permission as contact details.
 - **What can't be asked.** Questions about age, family, religion, caste, gender or health, about paying money, for codes or passwords, with links or contact details, or asking someone to type an ID or bank detail are refused when the job is saved. The list catches obvious wording, not everything: the question text also goes through the listing checks and shows on the moderation page.
-- **Not done here.** Applying through WhatsApp stays a conversation with a recruiter, so those questions are asked there. Candidates added by hand by the team have no answers.
+- **Not done here.** ~~Applying through WhatsApp stays a conversation with a recruiter.~~ Done in Step 200: the pre-filled WhatsApp message lists the job's questions for the person to answer. Candidates added by hand by the team have no answers.
 - **Tests.** `test/screening.test.js`.
 
 ## Step 198: Why applicants weren't selected
@@ -864,4 +864,9 @@ Suggested order: 2 → 1 → 3 → 4, which makes Hireriv usable for skilled and
 - **Kept with the application**, so messages are in the job seeker's data download and go when the application is deleted. Sending is in the company's activity log without the words.
 - **Not done here.** Jobs the Hireriv team runs for a client keep using phone and email, and messages are not in API v1.
 - **Tests.** `test/messages.test.js`.
+
+## Step 200: Job questions in "Apply on WhatsApp"
+
+- **Built.** For a job with screening questions (Step 197), the pre-filled WhatsApp message lists them, numbered, for the person to answer before sending. Never the answer the job needs. Jobs without questions keep the short message.
+- **Tests.** `test/screening.test.js`.
 
