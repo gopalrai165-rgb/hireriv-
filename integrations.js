@@ -24,6 +24,8 @@ const DISABLE_AFTER = 20;
 // Requests a minute per integration (API_RATE_LIVE and API_RATE_SANDBOX override them).
 const RATE = { live: Number(process.env.API_RATE_LIVE) || 600, sandbox: Number(process.env.API_RATE_SANDBOX) || 120 };
 const KEEP_DELIVERIES_DAYS = 30;
+const KEEP_USAGE_DAYS = 90;
+const USAGE_FLUSH_MS = Number(process.env.USAGE_FLUSH_MS) || 60000;
 const API_VERSION = '2026-10-25';
 
 const SCOPES = {
@@ -43,7 +45,7 @@ const EVENTS = {
   'application.status_changed': 'An application moved to another stage',
   'interview.scheduled': 'An interview was booked',
 };
-const C = { clients: 'integration-clients', creds: 'integration-credentials', tokens: 'integration-tokens', endpoints: 'webhook-endpoints', deliveries: 'webhook-deliveries', events: 'integration-events', idem: 'integration-idempotency', sandbox: 'integration-sandbox' };
+const C = { clients: 'integration-clients', creds: 'integration-credentials', tokens: 'integration-tokens', endpoints: 'webhook-endpoints', deliveries: 'webhook-deliveries', events: 'integration-events', idem: 'integration-idempotency', sandbox: 'integration-sandbox', usage: 'integration-usage' };
 
 const iso = (ms = Date.now()) => new Date(ms).toISOString();
 const sha = (s) => crypto.createHash('sha256').update(String(s)).digest('hex');
@@ -117,6 +119,7 @@ function create(deps) {
   // minute, and the owners are emailed at most once a day for each integration,
   // so someone repeating a stolen key cannot fill the database or the inboxes.
   function refuseAddress(client, ip) {
+    countUsage(client, 'refused');
     const now = Date.now();
     if (client.refusedAt && now - Date.parse(client.refusedAt) < 60000) return;
     const alert = !client.refusalAlertAt || now - Date.parse(client.refusalAlertAt) >= DAY;
@@ -159,6 +162,60 @@ function create(deps) {
     for (const u of owners(emp)) mailer.notice({ ...emp, name: u.name, email: u.email }, { subject, heading, intro, rows: [], link: `${baseUrl}/employer/integrations`, label: 'Open Integrations' });
   }
 
+  // ---------- usage ----------
+  // Counts per integration and India day: no addresses, paths or bodies. Kept in
+  // memory and saved about once a minute (and before a page shows them, and on
+  // shutdown), so API calls don't each write to the database.
+  const usageDay = (ms = Date.now()) => new Date(ms + 5.5 * 3600000).toISOString().slice(0, 10);
+  const USAGE_FIELDS = ['requests', 'clientErrors', 'serverErrors', 'limited', 'refused', 'tokens'];
+  const unsaved = new Map();
+  function countUsage(client, field) {
+    const day = usageDay();
+    const id = `${client.id}|${day}`;
+    let u = unsaved.get(id);
+    if (!u) { u = { id, clientId: client.id, employerId: client.employerId, day, requests: 0, clientErrors: 0, serverErrors: 0, limited: 0, refused: 0, tokens: 0 }; unsaved.set(id, u); }
+    u[field] += 1;
+  }
+  let usagePrunedOn = '';
+  function flushUsage() {
+    const today = usageDay();
+    const old = usagePrunedOn === today ? [] : db.all(C.usage).filter((u) => u.day < usageDay(Date.now() - KEEP_USAGE_DAYS * DAY)).map((u) => u.id);
+    usagePrunedOn = today;
+    if (!unsaved.size && !old.length) return;
+    const batch = [...unsaved.values()];
+    unsaved.clear();
+    db.transaction(() => {
+      if (old.length) db.remove(C.usage, old);
+      for (const u of batch) {
+        const had = one(C.usage, 'id', u.id);
+        if (!had) { db.prepend(C.usage, u); continue; }
+        const sum = { ...had };
+        for (const f of USAGE_FIELDS) sum[f] = (had[f] || 0) + u[f];
+        db.update(C.usage, sum);
+      }
+    });
+  }
+  setInterval(() => { try { flushUsage(); } catch (e) { console.error('Saving API usage failed:', e.message); } }, USAGE_FLUSH_MS).unref();
+  // One integration's figures: today, 7 and 30 days, and each of the last 14 days.
+  function usageOf(clientId) {
+    const rows = db.where(C.usage, 'clientId', clientId);
+    const since = (days) => usageDay(Date.now() - (days - 1) * DAY);
+    const total = (days) => {
+      const out = { requests: 0, clientErrors: 0, serverErrors: 0, limited: 0, refused: 0, tokens: 0 };
+      for (const r of rows) if (r.day >= since(days)) for (const f of USAGE_FIELDS) out[f] += r[f] || 0;
+      return out;
+    };
+    const month = total(30);
+    const days = Array.from({ length: 14 }, (_, i) => {
+      const day = usageDay(Date.now() - (13 - i) * DAY);
+      const r = rows.find((x) => x.day === day) || {};
+      const d = new Date(`${day}T12:00:00Z`);
+      return { label: d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', timeZone: 'UTC' }), full: d.toLocaleDateString('en-IN', { dateStyle: 'medium', timeZone: 'UTC' }), value: r.requests || 0 };
+    });
+    const errors = month.clientErrors + month.serverErrors;
+    return { today: total(1).requests, week: total(7).requests, month, errors, errorPercent: month.requests ? Math.round((errors / month.requests) * 1000) / 10 : 0, days, any: month.requests + month.refused + month.tokens > 0 };
+  }
+
   // ---------- tokens ----------
   // client_credentials: the secret (in the body or HTTP Basic) for a 15-minute token.
   function exchange(input, basic, ip) {
@@ -184,6 +241,7 @@ function create(deps) {
     const token = `hrv_at_${b64u(crypto.randomBytes(32))}`;
     db.prepend(C.tokens, { id: crypto.randomUUID(), tokenHash: sha(token), clientId: client.id, credentialId: cred.id, employerId: client.employerId, environment: client.environment, scopes: asked.scopes, exp: Date.now() + TOKEN_TTL_S * 1000, createdAt: iso() });
     db.update(C.creds, { ...cred, lastUsedAt: iso() });
+    countUsage(client, 'tokens');
     return { status: 200, body: { access_token: token, token_type: 'Bearer', expires_in: TOKEN_TTL_S, scope: asked.scopes.join(' ') } };
   }
   setInterval(() => revokeTokens((t) => t.exp < Date.now()), 10 * 60000).unref();
@@ -222,6 +280,12 @@ function create(deps) {
       return fail(res, 403, 'ip_not_allowed', `this integration does not accept requests from ${clip(ipAllow.plain(req.ip), 60) || 'this address'}`);
     }
     req.integration = { client, scopes: t.scopes, sandbox: client.environment === 'sandbox' };
+    countUsage(client, 'requests');
+    res.once('finish', () => {
+      if (res.statusCode === 429) countUsage(client, 'limited');
+      else if (res.statusCode >= 500) countUsage(client, 'serverErrors');
+      else if (res.statusCode >= 400) countUsage(client, 'clientErrors');
+    });
     if (!rateLimit(req, res)) return;
     if (scope && !t.scopes.includes(scope)) { res.set('WWW-Authenticate', `Bearer realm="hireriv", error="insufficient_scope", scope="${scope}"`); return fail(res, 403, 'insufficient_scope', `this token needs the ${scope} permission`); }
     const creator = team.userById(client.createdById) || {};
@@ -606,7 +670,8 @@ function create(deps) {
   // ---------- the company's Integrations page ----------
   const view = (req, res, locals = {}, status = 200) => {
     res.set('Cache-Control', 'no-store');
-    const list = clientsOf(req.employer.id).map((c) => ({ ...c, keys: credsOf(c.id).map((k) => ({ id: k.id, masked: mask(k.prefix, k.last4), createdAt: k.createdAt, createdBy: k.createdBy, lastUsedAt: k.lastUsedAt, expiresAt: k.expiresAt, revokedAt: k.revokedAt })) }));
+    flushUsage();
+    const list = clientsOf(req.employer.id).map((c) => ({ ...c, usage: usageOf(c.id), keys: credsOf(c.id).map((k) => ({ id: k.id, masked: mask(k.prefix, k.last4), createdAt: k.createdAt, createdBy: k.createdBy, lastUsedAt: k.lastUsedAt, expiresAt: k.expiresAt, revokedAt: k.revokedAt })) }));
     const endpoints = db.where(C.endpoints, 'employerId', req.employer.id).filter((e) => e.status !== 'deleted').map((e) => ({ ...endpointOut(e), deliveries: db.where(C.deliveries, 'endpointId', e.id).slice(0, 10).map(deliveryOut) }));
     res.status(status).render('employer-integrations', { title: `${req.employer.company} · Integrations`, page: 'employer', noindex: true, tab: 'integrations', errors: [], msg: clip(req.query.msg, 300), list, endpoints, SCOPES, EVENTS, newSecret: null, values: {}, addressValues: {}, yourAddress: ipAllow.plain(req.ip), ...locals });
   };
@@ -668,8 +733,9 @@ function create(deps) {
   const gate = (action) => (req, res, next) => (roles.can(req.admin, action) ? next() : res.status(403).render('thanks', { title: 'Not part of your role', page: '', ok: false, message: 'Your role does not include integrations.', noindex: true }));
   app.get('/admin/integrations', adminAuth, gate('integrations.view'), (req, res) => {
     res.set('Cache-Control', 'no-store');
+    flushUsage();
     const emps = new Map(clients.read().map((e) => [e.id, e]));
-    const all = db.all(C.clients).map((c) => ({ ...c, company: (emps.get(c.employerId) || {}).company || c.employerId, keys: credsOf(c.id).filter((k) => !k.revokedAt).map((k) => ({ masked: mask(k.prefix, k.last4), lastUsedAt: k.lastUsedAt, expiresAt: k.expiresAt })) }));
+    const all = db.all(C.clients).map((c) => ({ ...c, usage: usageOf(c.id), company: (emps.get(c.employerId) || {}).company || c.employerId, keys: credsOf(c.id).filter((k) => !k.revokedAt).map((k) => ({ masked: mask(k.prefix, k.last4), lastUsedAt: k.lastUsedAt, expiresAt: k.expiresAt })) }));
     const endpoints = db.all(C.endpoints).filter((e) => e.status !== 'deleted').map((e) => ({ ...endpointOut(e), company: (emps.get(e.employerId) || {}).company || e.employerId }));
     const ds = db.all(C.deliveries).filter((d) => d.createdAt >= iso(Date.now() - DAY));
     res.render('admin-integrations', { title: 'Integrations', page: 'admin', noindex: true, admin: req.admin, ...adminNav(req), msg: clip(req.query.msg, 300), all, endpoints, stats: { delivered: ds.filter((d) => d.status === 'delivered').length, pending: ds.filter((d) => d.status === 'pending').length, failed: ds.filter((d) => d.status === 'failed').length }, canManage: roles.can(req.admin, 'integrations.manage') });
@@ -703,7 +769,7 @@ function create(deps) {
     history.onMove((a, entry) => { const job = getJobs().find((j) => j.id === a.jobId); if (ofJob(job)) emit('application.status_changed', job.employerId, { applicationId: a.id, jobId: job.id, from: entry.from, to: entry.to }); });
   }
 
-  return { tap, emit, tick, prune, exchange, createClient, setAddresses, rotate, revoke, createEndpoint, signingSecret, SCOPES, EVENTS, API_VERSION };
+  return { tap, emit, tick, prune, flushUsage, exchange, createClient, setAddresses, rotate, revoke, createEndpoint, signingSecret, SCOPES, EVENTS, API_VERSION };
 }
 
 module.exports = { create, SCOPES, EVENTS, API_VERSION };

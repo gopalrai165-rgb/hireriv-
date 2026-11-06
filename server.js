@@ -3484,6 +3484,7 @@ app.use((err, req, res, next) => {
 for (const signal of ['SIGINT', 'SIGTERM']) {
   process.on(signal, () => {
     try { siteAnalytics.flush(); } catch (e) { console.error(e.message); }
+    try { integrationsDesk.flushUsage(); } catch (e) { console.error(e.message); }
     try { ops.save(); } catch (e) { console.error(e.message); }
     db.close();
     process.exit(0);

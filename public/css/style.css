@@ -1731,7 +1731,13 @@ form.inline { display: inline; }
 .list-row { border-top: 1px solid var(--line, #e5e7eb); padding: 12px 0; }
 .list-row:first-of-type { border-top: 0; }
 .list-row .row-actions { display: flex; flex-wrap: wrap; gap: 8px; white-space: normal; }
-.int-addresses { margin: 8px 0 12px; }
+.int-addresses, .int-usage { margin: 8px 0 12px; }
+.int-usage summary { cursor: pointer; color: var(--primary); font-weight: 600; font-size: .92rem; padding: 6px 0; }
+.int-usage-totals { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 8px 0 12px; }
+.int-usage-totals div { border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; }
+.int-usage-totals b { display: block; font-size: 1.15rem; overflow-wrap: anywhere; }
+.int-usage-totals span { color: var(--muted); font-size: .82rem; }
+.int-usage-notes { margin-top: 10px; }
 .int-addresses summary { cursor: pointer; color: var(--primary); font-weight: 600; font-size: .92rem; padding: 6px 0; }
 .int-addresses form { margin-top: 6px; }
 label.check { display: block; font-weight: 500; font-size: .92rem; padding: 8px 0; cursor: pointer; }

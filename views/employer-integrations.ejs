@@ -5,6 +5,7 @@
   const chosen = function (name, key) { return [].concat(v[name] || []).includes(key); };
   const active = list.filter(function (c) { return c.status === 'active'; });
   const sandboxes = active.filter(function (c) { return c.environment === 'sandbox'; });
+  const number = function (n) { return Number(n || 0).toLocaleString('en-IN'); };
   const dStatus = { pending: 'Waiting to send', delivered: 'Delivered', failed: 'Failed', cancelled: 'Cancelled' };
 %>
 <section class="section admin portal">
@@ -39,6 +40,25 @@
             </ul>
             <% const ips = c.allowedIps || []; %>
             <% if (c.refusedAt) { %><p class="small notice notice-err">Last refused: a request from <code><%= c.refusedIp %></code> on <%= day(c.refusedAt) %>. If that isn't your system, make a new secret and stop the old one now.</p><% } %>
+            <% const use = c.usage; %>
+            <% if (!use.any) { %>
+              <p class="small muted">No requests in the last 30 days.</p>
+            <% } else { %>
+              <details class="int-usage">
+                <summary>Last 30 days: <%= number(use.month.requests) %> request<%= use.month.requests === 1 ? '' : 's' %>, <%= number(use.errors) %> error<%= use.errors === 1 ? '' : 's' %></summary>
+                <div class="int-usage-totals">
+                  <div><b><%= number(use.today) %></b><span>Today</span></div>
+                  <div><b><%= number(use.week) %></b><span>7 days</span></div>
+                  <div><b><%= number(use.month.requests) %></b><span>30 days</span></div>
+                </div>
+                <%- include('partials/report-colchart', { items: use.days, fmt: number, noun: 'requests', span: 'per day for the last 14 days', unitLabel: 'Day', empty: 'No requests in the last 14 days.' }) %>
+                <ul class="small plain int-usage-notes">
+                  <li>Errors: <%= number(use.errors) %> (<%= use.errorPercent %>% of requests). Mistakes in the request: <%= number(use.month.clientErrors) %>. Problems on our side: <%= number(use.month.serverErrors) %>.</li>
+                  <li>Over the rate limit: <%= number(use.month.limited) %>.</li>
+                  <li>Refused because of the address: <%= number(use.month.refused) %>. Tokens issued: <%= number(use.month.tokens) %>.</li>
+                </ul>
+              </details>
+            <% } %>
             <% if (c.status === 'active') { const typed = addressValues[c.id]; %>
               <details class="int-addresses"<%= typed !== undefined ? ' open' : '' %>>
                 <summary>Addresses allowed: <%= ips.length ? ips.length + (ips.length === 1 ? ' address or range' : ' addresses or ranges') : 'any address' %></summary>

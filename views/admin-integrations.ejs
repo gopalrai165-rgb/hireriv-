@@ -20,7 +20,7 @@
     <% if (!all.length) { %><p class="muted">None yet.</p><% } else { %>
       <div class="table-wrap">
         <table class="table">
-          <thead><tr><th scope="col">Company</th><th scope="col">Integration</th><th scope="col">Permissions</th><th scope="col">Keys</th><th scope="col">Status</th><% if (canManage) { %><th scope="col"><span class="sr-only">Actions</span></th><% } %></tr></thead>
+          <thead><tr><th scope="col">Company</th><th scope="col">Integration</th><th scope="col">Permissions</th><th scope="col">Keys</th><th scope="col">Requests, 30 days</th><th scope="col">Status</th><% if (canManage) { %><th scope="col"><span class="sr-only">Actions</span></th><% } %></tr></thead>
           <tbody>
             <% all.forEach(function (c) { %>
               <tr>
@@ -28,6 +28,7 @@
                 <td><b><%= c.name %></b> <span class="pill"><%= c.environment === 'sandbox' ? 'Sandbox' : 'Live' %></span><br><span class="muted small"><%= c.id %> · created <%= when(c.createdAt) %> by <%= c.createdBy %></span></td>
                 <td class="small"><%= c.scopes.join(' ') %><br><span class="muted">Addresses: <%= (c.allowedIps || []).join(', ') || 'any' %></span><% if (c.refusedAt) { %><br><span class="muted">Refused <%= c.refusedIp %>, <%= when(c.refusedAt) %></span><% } %></td>
                 <td class="small"><% c.keys.forEach(function (k) { %><code><%= k.masked %></code> <%= k.lastUsedAt ? 'used ' + when(k.lastUsedAt) : 'never used' %><br><% }) %></td>
+                <td class="small"><b><%= c.usage.month.requests.toLocaleString('en-IN') %></b><br><span class="muted"><%= c.usage.errors.toLocaleString('en-IN') %> error<%= c.usage.errors === 1 ? '' : 's' %>, <%= c.usage.month.refused.toLocaleString('en-IN') %> refused</span></td>
                 <td><%= c.status === 'active' ? 'Active' : 'Revoked' %><% if (c.revokeReason) { %><br><span class="muted small"><%= c.revokeReason %></span><% } %></td>
                 <% if (canManage) { %>
                   <td><% if (c.status === 'active') { %>

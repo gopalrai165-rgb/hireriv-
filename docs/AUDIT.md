@@ -800,3 +800,9 @@ Suggested order: 2 → 1 → 3 → 4, which makes Hireriv usable for skilled and
 - **Audit first.** Integrations had scopes, rate limits, rotation and revocation, but a leaked key worked from anywhere.
 - **Built.** `ip-allow.js`, a list per integration, checks on tokens and on every call, the form on Integrations (also when creating), the last refused address, owners emailed, and the list on the team's page. See docs/API.md section 5a.
 - **Tests.** `test/integration-addresses.test.js`.
+
+## Step 191: API usage per integration
+
+- **Built.** Daily counts per integration (`integration-usage`), shown on the owner's Integrations page with the existing column chart and its table view, and as 30-day figures on the team's page. See docs/API.md section 5b.
+- **Tests.** `test/integration-usage.test.js`.
+

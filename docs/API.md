@@ -71,6 +71,14 @@ Each integration can be limited to the addresses of the systems that use it (Int
 - **Told to the owners.** Every change is in the company's activity log and emailed. The first refusal in a day is logged and emailed too; the page and the team's Integrations page show the last refused address. Saved at most once a minute, so repeated requests can't fill the database or inboxes.
 - **Behind a proxy** the address comes from `TRUST_PROXY` (set to 1 in `docker-compose.yml`). If it were unset on a proxied host, every request would look like the proxy and a list would refuse them all; `npm run check:config` warns about it.
 
+## 5b. Usage
+
+Each integration shows its requests today and over 7 and 30 days, a chart of the last 14 days, errors (mistakes in the request, and problems on our side), requests over the rate limit, refused addresses and tokens issued, on the Integrations page. The team's Integrations page shows the 30-day figures for every integration.
+
+- **Counts only** (`integration-usage`, one record per integration and India day): no addresses, paths or request contents. Kept 90 days.
+- **Saved about once a minute** (`USAGE_FLUSH_MS`), before a page shows them, and on a clean shutdown. A crash can lose up to a minute of counts.
+- **What isn't counted.** A bad secret or token can't be tied to an integration. Requests refused because of the address are counted as refused, not as requests.
+
 ## 6. Sandbox
 
 An integration created as **Sandbox** gets an `hrv_test_` secret. It sees only sample jobs and applications seeded for it (`integration-sandbox`): never live jobs, real candidates or the review queue. Its changes and events stay in the sandbox, and its events go only to that integration's sandbox endpoints. Its rate limit is lower.
@@ -83,6 +91,5 @@ The version is in the path (`/api/v1`). Within v1 we only add things. A breaking
 
 - **No certified partner integrations** (job boards, HRMS, background checks). The API is ready for them, but none has been built or tested with a real partner.
 - **No signed request bodies from integrations to us**, and no mutual TLS. Bearer tokens over HTTPS only.
-- **No usage dashboards** beyond the delivery counts on the admin page.
 - **Single-process limits.** Rate-limit counters are kept per process, and with several processes two workers could send the same delivery. Receivers dedupe on the event id anyway, but a shared lock would avoid the waste.
 - **No penetration test.** It should be part of the external test listed in docs/SECURITY.md.
