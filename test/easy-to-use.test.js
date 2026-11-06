@@ -10,8 +10,8 @@ const path = require('path');
 const { startServer } = require('./helpers');
 
 const ROOT = path.join(__dirname, '..');
-const css = fs.readFileSync(path.join(ROOT, 'public/css/style.css'), 'utf8');
-const js = fs.readFileSync(path.join(ROOT, 'public/js/main.js'), 'utf8');
+const css = fs.readFileSync(path.join(ROOT, 'public/css/style.css'), 'utf8').replace(/\r\n/g, '\n');
+const js = fs.readFileSync(path.join(ROOT, 'public/js/main.js'), 'utf8').replace(/\r\n/g, '\n');
 
 let srv;
 before(async () => { srv = await startServer(); });
@@ -88,12 +88,12 @@ test('account pages: tabs that fit, two columns of choices, no single-language p
   assert.match(js, /document\.querySelectorAll\('\.account-tabs'\)\.forEach\(\(nav\) => \{/);
   assert.match(css, /\.account-tabs\[data-more="right"\]/);
   assert.match(css, /\.check-grid \.check-row:has\(input:checked\)/);
-  const settings = fs.readFileSync(path.join(ROOT, 'views/account-settings.ejs'), 'utf8');
+  const settings = fs.readFileSync(path.join(ROOT, 'views/account-settings.ejs'), 'utf8').replace(/\r\n/g, '\n');
   assert.match(settings, /<% if \(languages\.length > 1\) \{ %>\n      <section class="dash-card" id="language"/);
-  const saved = fs.readFileSync(path.join(ROOT, 'views/account-saved.ejs'), 'utf8');
+  const saved = fs.readFileSync(path.join(ROOT, 'views/account-saved.ejs'), 'utf8').replace(/\r\n/g, '\n');
   assert.ok(!saved.includes('☆'), 'the save button is a bookmark, not a star');
   assert.match(saved, /<a class="btn btn-primary" href="\/jobs">Find jobs<\/a>/);
-  assert.match(fs.readFileSync(path.join(ROOT, 'views/account.ejs'), 'utf8'), /You haven&#39;t applied for a job yet/);
+  assert.match(fs.readFileSync(path.join(ROOT, 'views/account.ejs'), 'utf8').replace(/\r\n/g, '\n'), /You haven&#39;t applied for a job yet/);
 });
 
 test('job posting form: walk-in details only once ticked, pay from/up to side by side on phones', () => {
@@ -102,7 +102,7 @@ test('job posting form: walk-in details only once ticked, pay from/up to side by
 });
 
 test('job posting form: optional details fold under "More details", open when filled or after problems', () => {
-  const form = fs.readFileSync(path.join(ROOT, 'views/employer-job.ejs'), 'utf8');
+  const form = fs.readFileSync(path.join(ROOT, 'views/employer-job.ejs'), 'utf8').replace(/\r\n/g, '\n');
   const fold = form.slice(form.indexOf('<details class="span-2 more-details"'), form.indexOf('</details>', form.indexOf('more-details')));
   for (const name of ['hours', 'schedule', 'overtime', 'workerCosts']) assert.ok(fold.includes(`name="${name}"`), name);
   assert.ok(!fold.includes('name="shift"'), 'the shift stays in view');

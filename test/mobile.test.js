@@ -438,7 +438,7 @@ test('Find Jobs on a phone: kinds of work, folding filters, big tap targets, lig
   assert.match(css, /@media \(max-width: 700px\) \{\n  \/\* Easy to tap: at least 44px high\. \*\/\n  [^}]*min-height: 44px;/);
   // Every table sits in a box that scrolls on its own, so pages never scroll sideways.
   for (const f of fs.readdirSync(path.join(ROOT, 'views')).filter((x) => x.endsWith('.ejs'))) {
-    const s = fs.readFileSync(path.join(ROOT, 'views', f), 'utf8');
+    const s = fs.readFileSync(path.join(ROOT, 'views', f), 'utf8').replace(/\r\n/g, '\n');
     for (let i = s.indexOf('<table'); i >= 0; i = s.indexOf('<table', i + 1)) {
       const before = s.slice(Math.max(0, i - 400), i);
       const wrap = Math.max(before.lastIndexOf('table-wrap'), before.lastIndexOf('scroll-x'));
@@ -467,7 +467,7 @@ test('app use is counted without personal data; phone notifications are never re
   assert.ok(rows.some((x) => x.event === 'push-enabled'));
   for (const x of rows) assert.deepEqual(Object.keys(x).sort(), ['count', 'day', 'event', 'id', 'label']);
 
-  const js = fs.readFileSync(path.join(ROOT, 'public/js/main.js'), 'utf8');
+  const js = fs.readFileSync(path.join(ROOT, 'public/js/main.js'), 'utf8').replace(/\r\n/g, '\n');
   assert.equal(js.match(/requestPermission\(/g).length, 1);
   assert.match(js, /on\.addEventListener\('click', async \(\) => \{\n    on\.disabled = true;\n    try \{\n      const permission = await Notification\.requestPermission\(\);/);
   assert.doesNotMatch(js, /localStorage\.setItem\([^)]*(?:resume|email|token|phone)/i);

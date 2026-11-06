@@ -93,14 +93,14 @@ Each item keeps what exists working and adds to it. Size: S ≈ one step, M ≈ 
 | 1 | ✅ **Done in Step 42.** **Easy applying for skilled and field jobs**: per-job "resume not needed" (default for skilled and field categories), email optional when a phone number is given, a 4-field quick apply, and a WhatsApp "apply by message" link | Without this, hiring for skilled and field jobs can't work | M |
 | 2 | ✅ **Done in Step 41.** **Job taxonomy**: skilled and field categories (Factory & Production, Warehouse, Delivery & Driving, Skilled Trades, Construction, Security, Facility & Housekeeping, Food & Hospitality, Domestic Staff, Agriculture); job types Temporary, Gig/Daily wage, Apprenticeship, Walk-in; a "kind of work" tag (Office & professional, Skilled & technical, Industrial, field & service) | Lets jobs be posted and found properly | S |
 | 3 | ✅ **Done in Step 45.** **Structured pay + better search**: salary min/max per month, day or hour (existing text converted automatically), and filters for pay, experience, job type and kind of work | The plan's "search by salary and experience" | M |
-| 4 | **Services and industries**: Payroll & compliance service page, industry desks for skilled and field work (the `/staffing-solutions` redirect was done in Step 43) | Matches the planned offer | S |
+| 4 | ✅ **Done** (`/services`, `/industries`). **Services and industries**: Payroll & compliance service page, industry desks for skilled and field work (the `/staffing-solutions` redirect was done in Step 43) | Matches the planned offer | S |
 | 5 | ✅ **Closed.** Built in Step 67, then removed by the owner's decision (Steps 84 and 148): the site is English only (docs/I18N.md). ~~Hindi for the public site, the apply form and candidate emails~~ | Not planned | – |
 | 6 | ✅ **Done in Steps 44 and 45** (saved jobs follow the account from Step 45). **Candidate accounts before applying**: profile + resume once, one-click apply, saved jobs and job alerts in the dashboard | The planned candidate dashboard | M |
 | 7 | ✅ **Done in Steps 47 and 50** (hiring analytics still to come). **Client self-signup** with verification (work email + GSTIN), direct job posting held for Admin approval, and hiring analytics in the client portal | The planned employer portal | L |
-| 8 | **Phone sign-in by OTP** (SMS or WhatsApp) for candidates | Candidates without email; needs a paid provider and DLT registration for SMS in India | M |
-| 9 | **Employer packages** (job-post credits or subscriptions) with online payment, e.g. Razorpay | The plan's subscription revenue | L |
+| 8 | ✅ **Done in Steps 69 and 71-72** (the owner still picks an SMS provider and registers on DLT). **Phone sign-in by OTP** (SMS or WhatsApp) for candidates | Candidates without email; needs a paid provider and DLT registration for SMS in India | M |
+| 9 | ✅ **Done in Steps 63 and 85** (the owner still sets live Razorpay keys). **Employer packages** (job-post credits or subscriptions) with online payment, e.g. Razorpay | The plan's subscription revenue | L |
 | 10 | ✅ **Done in Step 195** (`gov-jobs.js`, Admin → Government jobs). The section stays hidden until the team publishes a notice. **Government jobs information** with source links, a verification step and a non-affiliation notice | Optional traffic driver | M |
-| 11 | **International recruitment**, only after the Emigration Act registration | Legal requirement | L |
+| 11 | **International recruitment**, only after the Emigration Act registration | Legal requirement: not started, and can't be until the owner has the registration | L |
 | 12 | ✅ **Started in Step 48**: the jobs data (jobs, places, categories, skills, applications, saved jobs) is kept in PostgreSQL and searched there. Moving the rest only if a trigger in section 1 happens | Not needed yet | L |
 
 Step 41 also made Google for Jobs read per-month, per-day and per-hour pay, and added a job-type filter to Find Work (part of item 3). Walk-in was left out of job types: it describes how candidates are interviewed rather than the job, so it fits better as a job detail later.
@@ -681,7 +681,7 @@ Suggested order: 2 → 1 → 3 → 4, which makes Hireriv usable for skilled and
   - Signing secrets: derived, never stored.
 - **Not done here.**
   - No partner integrations (none are claimed).
-  - No IP allow-lists or mutual TLS.
+  - ~~No IP allow-lists.~~ Done in Step 190. No mutual TLS.
   - Rate counters are kept per process.
   - Not part of an external penetration test yet.
 - **Adapted from the brief.** Express and SQLite collections instead of PostgreSQL tables: `integration-clients`, `integration-credentials`, `integration-tokens`, `webhook-endpoints`, `webhook-deliveries`, `integration-events`, `integration-idempotency` and `integration-sandbox`. There is a server-rendered Integrations page in place of React screens.
@@ -829,4 +829,11 @@ Suggested order: 2 → 1 → 3 → 4, which makes Hireriv usable for skilled and
 - **While empty.** Not in the footer or sitemap, and `/government-jobs` is out of search.
 - **Not done here.** Notices are entered by hand. The wording of the notice should be part of the legal review (docs/SECURITY.md section 7).
 - **Tests.** `test/gov-jobs.test.js`.
+
+## Step 196: Housekeeping after an audit of what was pending
+
+- **Whole-site crawl** of 1,825 pages as a visitor, job seeker, employer and Admin: no server errors and no broken links.
+- **Backlog table** brought up to date. Only international recruitment is left, and it needs the owner's Emigration Act registration first.
+- **Libraries.** `@anthropic-ai/sdk` to the latest; `npm audit` finds nothing.
+- **Tests** that read files now read them the same on a fresh Windows checkout.
 
