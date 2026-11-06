@@ -751,6 +751,8 @@ app.locals.educationOf = jobNeeds.educationOf;
 // Mobile-only job seekers (identity.js): no email to show or write to.
 app.locals.realEmail = identity.realEmail;
 app.locals.contactLabel = identity.contactLabel;
+// The job seeker's own name for the account sidebar, on pages that don't load their profile.
+app.locals.candidateNameOf = (email) => { const c = email && candidateAccounts.helpers.candidateOf(email); return (c && c.profile && c.profile.name) || ''; };
 // Links to the biggest cities' job pages (partials/job-landing-links).
 app.locals.majorCityPages = ['Mumbai', 'Delhi', 'Bengaluru', 'Hyderabad', 'Chennai', 'Pune', 'Kolkata', 'Ahmedabad', 'Jaipur', 'Lucknow', 'Indore', 'Kochi'].map((c) => geo.cityPageBySlug(geo.citySlug(c)));
 app.locals.jobPath = jobPath;

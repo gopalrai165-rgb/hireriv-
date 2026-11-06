@@ -5,7 +5,7 @@
 <% var openTab = typeof tab !== 'undefined' ? tab : ''; %>
 <% var openGroup = (navGroups.find(function (g) { return g[1].includes(openTab); }) || [''])[0]; %>
 <% var who = contactLabel(email); %>
-<% var myName = String((locals.candidate && candidate.profile && candidate.profile.name) || (locals.profile && profile.name) || '').trim() || who; %>
+<% var myName = String((locals.candidate && candidate.profile && candidate.profile.name) || (locals.profile && profile.name) || candidateNameOf(email) || '').trim() || who; %>
 <aside class="admin-side emp-side acct-side" aria-label="<%= t('account.menu') %>"<%- own %>>
   <div class="admin-me">
     <span class="admin-avatar" aria-hidden="true"><%= String(myName || '?').trim().charAt(0).toUpperCase() %></span>

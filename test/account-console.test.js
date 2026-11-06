@@ -46,6 +46,8 @@ test('the sidebar names the person and links to finding jobs and the resume make
   assert.match(side, /<b>Asha Rao<\/b><span>Job seeker<\/span>/);
   assert.match(side, /href="\/jobs">Find jobs</);
   assert.match(side, /href="\/account\/resume-builder">Make a resume</);
+  // Pages that don't load the profile still show the name, not the email.
+  for (const url of ['/account/saved', '/account/saved-searches', '/account/interviews', '/account/work', '/account/privacy', '/account/recommendations']) assert.match(sideOf(await page(url)), /<b>Asha Rao<\/b>/, url);
   // The resume maker belongs to the Profile section.
   assert.match(sideOf(await page('/account/resume-builder')), /<a class="tab active" href="\/account\/profile"/);
 });
