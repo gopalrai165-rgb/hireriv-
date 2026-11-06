@@ -94,7 +94,7 @@ Each item keeps what exists working and adds to it. Size: S ≈ one step, M ≈ 
 | 2 | ✅ **Done in Step 41.** **Job taxonomy**: skilled and field categories (Factory & Production, Warehouse, Delivery & Driving, Skilled Trades, Construction, Security, Facility & Housekeeping, Food & Hospitality, Domestic Staff, Agriculture); job types Temporary, Gig/Daily wage, Apprenticeship, Walk-in; a "kind of work" tag (Office & professional, Skilled & technical, Industrial, field & service) | Lets jobs be posted and found properly | S |
 | 3 | ✅ **Done in Step 45.** **Structured pay + better search**: salary min/max per month, day or hour (existing text converted automatically), and filters for pay, experience, job type and kind of work | The plan's "search by salary and experience" | M |
 | 4 | **Services and industries**: Payroll & compliance service page, industry desks for skilled and field work (the `/staffing-solutions` redirect was done in Step 43) | Matches the planned offer | S |
-| 5 | **Hindi** for the public site, the apply form and candidate emails | Reaches field-work and non-metro candidates | L |
+| 5 | ✅ **Closed.** Built in Step 67, then removed by the owner's decision (Steps 84 and 148): the site is English only (docs/I18N.md). ~~Hindi for the public site, the apply form and candidate emails~~ | Not planned | – |
 | 6 | ✅ **Done in Steps 44 and 45** (saved jobs follow the account from Step 45). **Candidate accounts before applying**: profile + resume once, one-click apply, saved jobs and job alerts in the dashboard | The planned candidate dashboard | M |
 | 7 | ✅ **Done in Steps 47 and 50** (hiring analytics still to come). **Client self-signup** with verification (work email + GSTIN), direct job posting held for Admin approval, and hiring analytics in the client portal | The planned employer portal | L |
 | 8 | **Phone sign-in by OTP** (SMS or WhatsApp) for candidates | Candidates without email; needs a paid provider and DLT registration for SMS in India | M |
@@ -579,6 +579,8 @@ Suggested order: 2 → 1 → 3 → 4, which makes Hireriv usable for skilled and
 
 ## Step 67: multilingual experience and accessibility
 
+> **History.** The languages described here were removed by the owner's decision (Steps 84 and 148): the site is English only, and the Hindi and Telugu locale files and the language selector are gone. See docs/I18N.md. The accessibility work still applies.
+
 - **Audit first.** Already there:
   - a skip link, focus outlines, labelled forms, `aria-hidden` icons and reduced-motion rules
   - a resume that is optional for field jobs, and the short quick-apply
@@ -644,7 +646,7 @@ Suggested order: 2 → 1 → 3 → 4, which makes Hireriv usable for skilled and
   - Every feature has a rules-based answer, plus a circuit breaker.
   - Limits per person a day, per company a month and for the site a day.
   - Usage events carry no text.
-- **Not done here.** No evaluation set, no Hindi (Step 67), no streaming or voice. Legal review in docs/AI.md section 7.
+- **Not done here.** No evaluation set, no streaming or voice. The site is English only (docs/I18N.md). Legal review in docs/AI.md section 7.
 - **Adapted from the brief.** SQLite collections `ai-assistant-sessions`, `ai-assistant-messages`, `ai-generation-records`, `ai-feedback`, `ai-review-records` and `ai-usage-events` instead of tables. Panels on the existing pages instead of React screens.
 - **Tests.** `test/ai-assistant.test.js` has 8 tests, covering:
   - the guards (redaction, fences, injection signs, invented pay, personal topics), prices, and the mock refused in production

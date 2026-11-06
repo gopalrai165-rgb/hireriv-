@@ -78,7 +78,7 @@ The answer always says it was made without AI and why. After three failures in a
 
 ## 6. Not done yet
 
-- **Languages.** English only. Hindi and the other languages come with Step 67.
+- **Languages.** English only, like the rest of the site (docs/I18N.md).
 - **No measured quality.** There is no evaluation set of real drafts and summaries yet. Answers should be sampled and the prompts tuned from the feedback before a wide launch.
 - **Narrow pattern checks.** Invented pay and personal questions are caught by patterns. They catch the common forms, not every one, which is why a person reviews everything.
 - **Prices kept by hand.** The price table is updated by hand.
