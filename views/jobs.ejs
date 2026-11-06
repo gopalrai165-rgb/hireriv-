@@ -177,6 +177,14 @@
     <% if (results.length) { %>
       <div class="jobs-grid">
         <% results.forEach(function (job) { %><%- include('partials/job-card', { job: job }) %><% }) %>
+        <% if (results.length < 3) { %>
+        <%# A short row ends with a way to hear about the next jobs, instead of empty space. %>
+        <div class="job-card job-card-more">
+          <span class="job-card-more-icon" aria-hidden="true"><svg class="i"><use href="#i-bell"/></svg></span>
+          <p><b><%= t('home.noJobsTitle') %></b> <%= t('home.noJobsText') %></p>
+          <p class="job-card-more-actions"><a class="btn btn-primary btn-sm" href="#alerts"><%= t('home.jobAlerts') %></a></p>
+        </div>
+        <% } %>
       </div>
       <%- include('partials/pager', { pager: pager, pagerLabel: t('jobs.resultPages') }) %>
     <% } else { %>

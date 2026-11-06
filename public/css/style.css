@@ -58,7 +58,7 @@ body {
   color: var(--text);
   background: var(--bg);
   line-height: 1.65;
-  font-size: 16px;
+  font-size: 1rem;
   -webkit-font-smoothing: antialiased;
 }
 h1, h2, h3, h4 { font-family: var(--font-display); color: var(--ink); line-height: 1.1; margin: 0 0 .6em; letter-spacing: -0.025em; }
@@ -81,7 +81,7 @@ img { max-width: 100%; display: block; }
 .container { width: 100%; max-width: var(--container); margin: 0 auto; padding: 0 16px; }
 @media (min-width: 640px) { .container { padding: 0 24px; } }
 .narrow { max-width: 800px; }
-.section { position: relative; padding: 104px 0; }
+.section { position: relative; padding: clamp(60px, 5.5vw, 96px) 0; }
 .section-tint { background: var(--tint); }
 @media (max-width: 720px) { .section { padding: 64px 0; } }
 
@@ -693,9 +693,9 @@ img { max-width: 100%; display: block; }
 .vm-cards .vm-card:nth-child(2) { background: var(--violet-50); }
 .vm-cards .vm-card:nth-child(2) .service-icon { --c: var(--violet); --c50: #fff; }
 .vm-cards .vm-card .service-icon { background: #fff; }
-.about-collage { position: relative; display: grid; grid-template-columns: 1.2fr 1fr; grid-template-rows: 1fr 1fr; gap: 16px; height: 460px; }
-.about-collage figure { margin: 0; border-radius: 28px; overflow: hidden; box-shadow: var(--shadow); }
-.about-collage figure:first-child { grid-row: 1 / 3; border-radius: 200px 200px 28px 28px; }
+.about-collage { position: relative; display: grid; grid-template-columns: 1.2fr 1fr; grid-template-rows: 1fr 1fr; gap: 16px; height: clamp(420px, 34vw, 640px); }
+.about-collage figure { margin: 0; min-height: 0; border-radius: 28px; overflow: hidden; box-shadow: var(--shadow); }
+.about-collage figure:first-of-type { grid-row: 1 / 3; border-radius: 200px 200px 28px 28px; }
 .about-collage img { width: 100%; height: 100%; object-fit: cover; transition: transform 1s ease; }
 .about-collage figure:hover img { transform: scale(1.06); }
 .about-collage .deco-ring { left: -24px; bottom: -20px; }
@@ -1281,7 +1281,7 @@ code { background: var(--tint); padding: 0 .3em; border-radius: 4px; font-size: 
 .chip-link:hover { border-color: var(--primary); color: var(--primary); }
 .chip-link .i { width: 18px; height: 18px; color: var(--primary); }
 .stack-cards { display: grid; gap: 14px; margin-top: 20px; }
-.guide-table { max-width: 920px; margin: 0 auto; }
+.guide-table { max-width: 1180px; margin: 0 auto; }
 .guide-note { margin-top: 20px; }
 .panel-links { display: flex; gap: 20px; flex-wrap: wrap; }
 .page-hero .eyebrow .i { width: 16px; height: 16px; vertical-align: -3px; }
@@ -2826,4 +2826,47 @@ td > a:first-child:not(.btn) { display: inline-block; padding-block: 6px; min-wi
 @media (max-width: 1080px) {
   .portal > .container:has(> .emp-side) { display: block; }
   .portal .emp-side { margin-bottom: 18px; }
+}
+
+/* Site-wide finish: pages use the width of large screens, one card style, calmer decoration */
+@media (min-width: 1400px) { :root { --container: 1360px; } }
+@media (min-width: 1700px) {
+  :root { --container: 1680px; }
+  html { font-size: 17.5px; }
+  .narrow { max-width: 900px; }
+}
+h1, h2, h3 { text-wrap: balance; }
+p, li { text-wrap: pretty; }
+h2 { letter-spacing: -.035em; }
+.section-head { max-width: 820px; }
+.section-head p { color: var(--muted); }
+.deco-spark, .deco-squiggle { display: none; }
+.deco-dots { opacity: .18; }
+.deco-ring { animation: none; opacity: .22; border-width: 2px; border-style: solid; }
+.service-card::before { display: none; }
+.service-card, .job-card, .post-card, .why-item, .contact-card, .employer-card, .how-steps li {
+  border: 1px solid rgba(16, 42, 76, .09);
+  border-radius: 20px;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(16, 42, 76, .04), 0 14px 34px -24px rgba(16, 42, 76, .22);
+  transition: transform .25s ease, box-shadow .25s ease, border-color .25s ease;
+}
+.service-card:hover, .job-card:hover, .post-card:hover, .contact-card:hover, .employer-card:hover {
+  transform: translateY(-4px);
+  border-color: rgba(31, 107, 194, .32);
+  box-shadow: 0 2px 4px rgba(16, 42, 76, .05), 0 26px 48px -26px rgba(16, 42, 76, .34);
+}
+@media (min-width: 1200px) {
+  .services-grid:has(> :nth-child(4):last-child) { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .why-grid:has(> :nth-child(6):last-child) { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .card-photo { height: clamp(180px, 13vw, 250px); }
+}
+/* About: the company facts sit beside the story, not under it */
+@media (min-width: 961px) {
+  .split:has(> .company-facts) { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); row-gap: 0; }
+  .split:has(> .company-facts) > div, .split:has(> .company-facts) > p { grid-column: 1; }
+  .split:has(> .company-facts) > .company-facts { grid-column: 2; grid-row: 1 / span 3; margin: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .service-card:hover, .job-card:hover, .post-card:hover, .contact-card:hover, .employer-card:hover { transform: none; }
 }
