@@ -12,6 +12,7 @@
 // Webhook payloads carry ids and states, not candidates' personal details.
 // Delivery is at least once: receivers dedupe on the event id.
 const rejectReasons = require('./reject-reasons');
+const withdrawReasons = require('./withdraw-reasons');
 const screening = require('./screening');
 const crypto = require('crypto');
 const { safeRequest, checkUrl, resolveSafe } = require('./safe-fetch');
@@ -342,6 +343,7 @@ function create(deps) {
     v.screening = screening.view(a, { showTyped: scopes.includes('applications:contact') }).map(({ text, type, answer, hidden, mustBe, met }) => ({ question: text, type, answer, hidden, mustBe, met }));
     v.screeningOutcome = screening.outcome(a);
     v.rejectReason = rejectReasons.reasonOf(a) || null;
+    v.withdrawReason = withdrawReasons.KEYS.includes(a.withdrawReason) ? a.withdrawReason : null;
     return v;
   }
   const companyJobs = (req) => getJobs().filter((j) => j.employerId === req.employer.id && !j.sample);

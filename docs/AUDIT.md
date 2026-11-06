@@ -955,7 +955,6 @@ Suggested order: 2 → 1 → 3 → 4, which makes Hireriv usable for skilled and
 - **The gap.** Choosing between people meant flipping between their pages and remembering the details.
 - **Built.** Tick 2 to 4 people on the Applicants list and press Compare: job, stage, date, skill match, experience, location, start date, skills, the answers to the job's questions (when they all applied for one job), interview scores and resumes in one table. `/employer/applicants/compare`, `views/employer-applicants-compare.ejs`.
 - **Rules.** It never ranks them or picks one, and says the person decides. It shows only what each applicant's own page would show this role, and leaves out phone and email. Each person counts as viewed: the activity log records it and the candidate sees "Seen by the hiring team", as with opening their page. On phones the table scrolls sideways with the labels kept in view.
-- **Left out.** Only people who can still be moved have a tick box, because it shares the bar for moving people.
 - **Tests.** `test/compare-applicants.test.js`.
 
 ## Step 213: Telling the company when someone withdraws, and why
@@ -963,6 +962,11 @@ Suggested order: 2 → 1 → 3 → 4, which makes Hireriv usable for skilled and
 - **The gap.** A withdrawal emailed only the Hireriv team inbox. A company running its own job was never told, even when an interview it had scheduled was cancelled. Nobody could learn why people dropped out either.
 - **Built.** Withdrawing now offers an optional reason from a fixed list. The people working on the job get a notice and an email ("stage changed" in their settings), saying whether interviews were cancelled. The reason shows on the applicant's page, the team's timeline and inbox email, and in the candidate's data download, and "Why applicants withdrew" is in the company's hiring reports. `withdraw-reasons.js`.
 - **Rules.** The reason is never needed, and a bad value doesn't stop a withdrawal. The form says the hiring team sees it. A fixed list, as with reasons for not selecting someone, so it doesn't invite remarks about named people.
-- **Left out.** The reason isn't in API v1 yet, or in the team's own recruitment reports.
 - **Tests.** `test/withdraw-reasons.test.js`.
+
+## Step 214: Finishing withdrawal reasons and comparing
+
+- **The gaps.** Steps 212 and 213 left three things out: Hired and Rejected people couldn't be compared, because only people who could be moved had a tick box; viewers couldn't compare at all; and the withdrawal reason wasn't in API v1, the spreadsheets or the team's reports.
+- **Built.** Every applicant on the list has a tick box, and people who can't move anyone see only Compare. Anyone ticked who can't make the move is left alone and listed as not moved, as before. API v1 gives `withdrawReason`, both spreadsheets have the reason, and the team's Recruitment reports show why candidates weren't selected and why they withdrew, on the jobs the team runs only.
+- **Tests.** `test/withdraw-reasons.test.js`, `test/compare-applicants.test.js`.
 

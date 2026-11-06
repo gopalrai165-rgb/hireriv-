@@ -75,6 +75,7 @@ function spec(baseUrl) {
             email: { type: 'string' }, phone: { type: 'string' }, allowedMoves: { type: 'array', items: { type: 'string' } },
             screening: { type: 'array', description: 'Answers to the job’s questions, with a copy of each question as it was asked', items: { type: 'object', properties: { question: { type: 'string' }, type: { type: 'string', enum: ['yesno', 'text'] }, answer: { type: 'string', nullable: true }, hidden: { type: 'boolean' }, mustBe: { type: 'string', nullable: true }, met: { type: 'boolean', nullable: true } } } },
             rejectReason: { type: 'string', nullable: true, enum: [...require('./reject-reasons').KEYS, null], description: 'Why it did not go ahead, when it is Rejected and a reason was given' },
+            withdrawReason: { type: 'string', nullable: true, enum: [...require('./withdraw-reasons').KEYS, null], description: 'Why the candidate withdrew, when they chose to say' },
             screeningOutcome: { type: 'string', enum: ['meets', 'misses'], nullable: true, description: 'Whether the answers match those the job needs. A guide for a person; it never rejects anyone' },
             history: { type: 'array', items: { type: 'object', properties: { at: { type: 'string' }, from: { type: 'string' }, to: { type: 'string' } } } },
           },

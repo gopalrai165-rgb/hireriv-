@@ -511,7 +511,7 @@ function register(app, deps) {
         Experience: v.experience, Location: v.location, 'Notice period': v.noticePeriod, Skills: v.skills,
         'Skill match': v.match && v.match.score !== null && v.match.score !== undefined ? `${v.match.score}%` : '',
         'Needed answers': v.screeningLabel || '', 'Answers to questions': v.screening.filter((x) => !x.hidden).map((x) => `${x.text}: ${x.answer}`).join(' | '),
-        'Reason not selected': rejectReasons.labelOf(v.rejectReason) || '', 'Assigned to': v.assignedTo ? v.assignedTo.name : '',
+        'Reason not selected': rejectReasons.labelOf(v.rejectReason) || '', 'Reason withdrawn': v.withdrawReason || '', 'Assigned to': v.assignedTo ? v.assignedTo.name : '',
       };
       if (can(req.member, 'applicants.contact', jobs.get(v.jobId)) && !v.withdrawn) {
         withContact += 1;

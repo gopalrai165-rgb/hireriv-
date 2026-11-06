@@ -14,6 +14,8 @@
 // commission rate: fees come from the client's contract, else from Settings.
 const crypto = require('crypto');
 const roles = require('./agency-roles');
+const rejectReasons = require('./reject-reasons');
+const withdrawReasons = require('./withdraw-reasons');
 
 // ---------- money ----------
 const MONEY_RE = /^\d{1,11}(\.\d{1,2})?$/;
@@ -826,6 +828,10 @@ function register(app, deps) {
       clients: byClient,
       invoiceDrafts: { waiting: drafts().filter((d) => d.status === 'Draft').length },
     };
+    // Why candidates on the jobs the team runs dropped out. A company's own hiring stays in its own reports.
+    const companyRuns = new Set(getJobs().filter((j) => j.createdBy === 'employer').map((j) => j.id));
+    const teamApps = readSubmissions('applications').filter((a) => !companyRuns.has(a.jobId));
+    out.leaving = { notSelected: rejectReasons.summary(teamApps, { since: since || null }), withdrawn: withdrawReasons.summary(teamApps, { since: since || null }) };
     if (money) {
       const waiting = drafts().filter((d) => d.status === 'Draft');
       out.invoiceDrafts.waitingPaise = waiting.reduce((n, d) => n + d.subtotalPaise, 0);

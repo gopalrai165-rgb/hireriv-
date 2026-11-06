@@ -35,6 +35,7 @@ const { SHIFTS, INDIAN_STATES } = require('./candidate-profile');
 const jobNeeds = require('./job-needs');
 const screening = require('./screening');
 const rejectReasons = require('./reject-reasons');
+const withdrawReasons = require('./withdraw-reasons');
 const messages = require('./messages');
 // What roles pay, from the pay on real listings (salaries.js).
 const salaries = require('./salaries');
@@ -3541,6 +3542,7 @@ function applicationCsvRow(a) {
     screeningAnswers: screening.csvText(a),
     stageHistory: h.map((x) => `${csvDate(x.at)}: ${x.from} → ${x.to} (${x.by})${x.rejectReason ? `: ${rejectReasons.labelOf(x.rejectReason)}` : ''}`).join(' | '),
     notSelectedReason: rejectReasons.labelOf(rejectReasons.reasonOf(a)),
+    withdrawnReason: withdrawReasons.labelOf(a.withdrawReason),
     interviews: ivs.map((iv) => `${csvDate(iv.at)} ${iv.mode} (${iv.status})`).join(' | '),
     emails: emails.map((m) => `${csvDate(m.at)}: ${m.subject} (${m.by})`).join(' | '),
     sharedWithClient: shared ? `${csvDate(shared.sharedAt)}${shared.feedback ? ` · ${shared.feedback.decision}` : ''}` : '',

@@ -1,0 +1,12 @@
+<%# Counts by reason, from reject-reasons.js or withdraw-reasons.js summary(). %>
+<% if (!s.total) { %><p class="muted dash-empty"><%= empty %></p><% } else { %>
+  <div class="table-wrap">
+    <table class="cards-on-phone">
+      <thead><tr><th scope="col">Reason</th><th scope="col">Candidates</th><th scope="col">Share</th></tr></thead>
+      <tbody>
+        <% s.rows.forEach(function (x) { %><tr><td><%= x.label %></td><td data-label="Candidates"><%= x.count %></td><td data-label="Share"><%= x.share %>%</td></tr><% }) %>
+        <% if (s.none) { %><tr><td class="muted">No reason given</td><td data-label="Candidates"><%= s.none %></td><td data-label="Share"><%= s.noneShare %>%</td></tr><% } %>
+      </tbody>
+    </table>
+  </div>
+<% } %>

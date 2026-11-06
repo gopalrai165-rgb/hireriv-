@@ -1494,6 +1494,7 @@ form .check-row { min-height: 44px; padding: 6px 0; cursor: pointer; }
 .withdraw-box { margin-top: 8px; }
 .withdraw-box summary { cursor: pointer; }
 .withdraw-box .form { margin-top: 8px; max-width: 420px; }
+.reason-next { margin-top: 24px; }
 .todo-card { margin-bottom: 20px; }
 .todo-list { list-style: none; margin: 8px 0 0; padding: 0; }
 .todo-list li + li { border-top: 1px solid var(--line); }

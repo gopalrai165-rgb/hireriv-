@@ -21,11 +21,11 @@ after(() => srv && srv.stop());
 const status = (id) => srv.records('applications').find((x) => x.id === id).status;
 const bulk = (form, cookie = employer) => srv.request('/employer/applicants/bulk', { method: 'POST', cookie, form });
 
-test('the list has tick boxes for applicants this member can move, and a stage to move them to', async () => {
+test('the list has tick boxes, and a stage to move them to', async () => {
   const html = await (await srv.request('/employer/applicants', { cookie: employer })).text();
   assert.match(html, /action="\/employer\/applicants\/bulk"/);
   assert.match(html, /name="ids" value="a1" aria-label="Select Asha Rao"/);
-  assert.doesNotMatch(html, /name="ids" value="a3"/, 'not a withdrawn application');
+  assert.match(html, /name="ids" value="a3"/, 'a withdrawn application can be compared; the next test shows it is never moved');
   assert.match(html, /Move selected to…/);
 });
 

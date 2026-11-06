@@ -28,6 +28,15 @@
       <p><% Object.keys(r.placementsByType).forEach(function (t, i) { %><%= i ? ' · ' : '' %><%= t %>: <b><%= r.placementsByType[t] %></b><% }) %></p>
     </section>
 
+    <section class="dash-card dash-wide" id="leaving">
+      <h2>Why candidates weren't selected</h2>
+      <p class="muted small">Jobs the team runs, in this period.</p>
+      <%- include('partials/reason-table', { s: r.leaving.notSelected, empty: 'Nobody was marked Not selected in this period.' }) %>
+      <h2 class="reason-next">Why candidates withdrew</h2>
+      <p class="muted small">The reason they picked, if they gave one.</p>
+      <%- include('partials/reason-table', { s: r.leaving.withdrawn, empty: 'Nobody withdrew in this period.' }) %>
+    </section>
+
     <section class="dash-card dash-wide" id="workload">
       <h2>Workload</h2>
       <% if (!r.workload.length) { %><p class="muted dash-empty">No one on the team works requisitions yet.</p><% } else { %><%- include('partials/workload-table', { rows: r.workload }) %><% } %>
