@@ -921,3 +921,10 @@ Suggested order: 2 → 1 → 3 → 4, which makes Hireriv usable for skilled and
 - **Rules.** They decide: nothing is applied for them, and the email says their first application stays as it is and that applying is free. Only people who may contact applicants on both jobs. Once per applicant and job; invitations from the candidate search and from here share the company's daily limit (30). Not after they withdrew. Someone who turned off "Invitation to apply" in their notification settings gets neither. Without an email address the page offers the job links to send by phone or WhatsApp. Invitations are in their data download and erased with their account. The activity log records the two jobs, not the name.
 - **Tests.** `test/applicant-invite.test.js`.
 
+## Step 208: Invitations in the candidate's account
+
+- **The gap.** Invitations to apply (from the candidate search, and after an application since Step 207) reached people only as an email and a notice, which scroll away. Nothing in the account listed them.
+- **Built.** "Invitations to apply" on the account dashboard, above Jobs for you: each job, the company, why they were invited and when, "View & apply" and "Not for me". `/account/invitations/:id/dismiss`.
+- **Rules.** Only jobs still open, and never one they already applied for; one line per job when two invitations name the same job. "Not for me" hides it for good and the company is not told, so nobody is pressed to explain. Their data download says which they put aside.
+- **Tests.** `test/account-invitations.test.js`.
+

@@ -581,6 +581,7 @@ Total: 727 routes.
 | POST | `/account/settings` | candidate |  |
 | POST | `/account/sessions/revoke` | candidate | Signs out every session of the candidate's own account |
 | POST | `/account/applications/:id/withdraw` | candidate | Only the candidate's own applications |
+| POST | `/account/invitations/:id/dismiss` | candidate | Signed-in candidate; same-origin, rate-limited; only invitations to their account or after one of their applications; the company is not told |
 | GET | `/account/my-data.json` | candidate | Only the signed-in email's own data |
 | GET | `/account/resume/:appId` | candidate | Only the candidate's own applications; signed link, valid 15 minutes |
 | GET | `/account/interviews/:appId/:ivId.ics` | candidate | Only the candidate's own interviews |

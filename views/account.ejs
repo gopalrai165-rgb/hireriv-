@@ -36,6 +36,27 @@
       </section>
     <% } %>
 
+    <% if (invitations.length) { %>
+    <section class="dash-card dash-wide" id="invitations" aria-labelledby="inv-h">
+      <div class="dash-head"><h2 id="inv-h">Invitations to apply</h2><span class="muted small">Companies asked you to apply. It's your choice, and always free</span></div>
+      <ul class="match-list invite-list">
+        <% invitations.forEach(function (n) { %>
+          <li>
+            <div>
+              <a href="<%= jobPath(n.job) %>"><b><%= n.job.title %></b></a>
+              <span class="muted small"><%= n.job.company %> · <%= n.job.location %> · <%= n.job.type %><%= n.job.salary ? ' · ' + n.job.salary : '' %></span>
+              <span class="small"><%= n.why %> · <%= formatDate(n.at) %></span>
+            </div>
+            <span class="invite-actions">
+              <a class="btn btn-primary btn-sm" href="<%= jobPath(n.job) %>?utm_source=invite#apply">View &amp; apply</a>
+              <form method="post" action="/account/invitations/<%= n.id %>/dismiss"><button class="btn btn-outline btn-sm" type="submit">Not for me</button></form>
+            </span>
+          </li>
+        <% }) %>
+      </ul>
+    </section>
+    <% } %>
+
     <section class="dash-card dash-wide" id="jobs-for-you">
       <div class="dash-head"><h2>Jobs for you</h2><a class="small" href="/account/recommendations">All recommendations</a></div>
       <% const myState = candidate && candidate.profile ? stateJobsLink(candidate.profile.city) : null; %>

@@ -716,6 +716,41 @@ function register(app, deps) {
   const stageOf = (a) => (a.withdrawnAt ? 'Withdrawn' : CANDIDATE_STAGE[a.status || 'New'] || 'Received');
   const upcoming = (iv, now) => iv.status === 'scheduled' && new Date(iv.at).getTime() + iv.duration * 60000 > now;
 
+  // Invitations to apply that are still worth acting on: from the candidate
+  // search (to the account) or after one of their applications (to the email).
+  // Not for jobs that closed, they already applied for, or they put aside.
+  const invitesOf = (email) => {
+    const c = candidateOf(email);
+    return readSubmissions('candidate-invites').filter((i) => (c && i.candidateId === c.id) || (i.email && i.email === email));
+  };
+  function openInvitations(email) {
+    const applied = new Set(mine(email).map((a) => a.jobId));
+    const jobs = getJobs();
+    const seen = new Set();
+    return invitesOf(email)
+      .filter((i) => !i.dismissedAt && !applied.has(i.jobId))
+      .sort((x, y) => String(y.createdAt).localeCompare(String(x.createdAt)))
+      .map((i) => ({ i, job: jobs.find((j) => j.id === i.jobId) }))
+      .filter(({ i, job }) => job && isLive(job) && !isSample(job) && !seen.has(job.id) && seen.add(job.id))
+      .map(({ i, job }) => {
+        const from = i.fromJobId ? jobs.find((j) => j.id === i.fromJobId) : null;
+        return { id: i.id, at: i.createdAt, job, why: from ? `After your application for ${from.title}` : 'They saw your profile' };
+      });
+  }
+  // Put an invitation aside. The company isn't told; it simply goes away.
+  app.post('/account/invitations/:id/dismiss', requireCandidate, limit('invite-dismiss', 60), sameOrigin, (req, res) => {
+    const email = req.candidateEmail;
+    const list = readSubmissions('candidate-invites');
+    const ids = new Set(invitesOf(email).map((i) => i.id));
+    const inv = list.find((i) => i.id === req.params.id && ids.has(i.id));
+    if (!inv) return res.redirect(303, `/account?msg=${encodeURIComponent('That invitation is no longer there.')}#invitations`);
+    // Every invitation for the same job goes, so it doesn't come straight back.
+    const at = nowIso();
+    for (const i of list) if (ids.has(i.id) && i.jobId === inv.jobId && !i.dismissedAt) i.dismissedAt = at;
+    writeSubmissions('candidate-invites', list);
+    res.redirect(303, `/account?msg=${encodeURIComponent('Invitation put aside. The company is not told.')}#invitations`);
+  });
+
   app.get('/account', requireCandidate, (req, res) => {
     const email = req.candidateEmail;
     const jobs = getJobs();
@@ -738,6 +773,7 @@ function register(app, deps) {
       matches: recommendFor(email, { limit: 6 }), alerts: readSubmissions('job-alerts').filter((x) => x.email === email), categories: jobCategories(), locations: jobLocations(),
       savedCount: savedOf(email).length, referrals: referralsOf(email),
       openOffers: apps.filter((a) => a.offer && a.offer.status === 'awaiting'),
+      invitations: openInvitations(email),
     });
   });
 
@@ -1238,7 +1274,7 @@ function register(app, deps) {
         : { category: s.category || 'Any', location: s.location || 'Any', confirmed: Boolean(s.confirmed), since: s.createdAt })),
       invitationsFromEmployers: readSubmissions('candidate-invites').filter((i) => (c && i.candidateId === c.id) || (i.email && i.email === String(email).toLowerCase())).map((i) => {
         const job = getJobs().find((j) => j.id === i.jobId);
-        return { at: i.createdAt, job: job ? job.title : 'A job that was removed', company: job ? job.company : '' };
+        return { at: i.createdAt, job: job ? job.title : 'A job that was removed', company: job ? job.company : '', ...(i.dismissedAt ? { putAsideAt: i.dismissedAt } : {}) };
       }),
       employersWhoSavedYourProfile: c ? readSubmissions('candidate-saves').filter((s) => s.candidateId === c.id).map((s) => ({ at: s.createdAt, company: (readSubmissions('employers').find((e) => e.id === s.employerId) || {}).company || '' })) : [],
       employersWhoSawYourNumber: c ? readSubmissions('contact-unlocks').filter((u) => u.candidateId === c.id).map((u) => ({ at: u.createdAt, company: u.company || '' })) : [],
