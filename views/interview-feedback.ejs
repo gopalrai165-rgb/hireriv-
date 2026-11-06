@@ -2,7 +2,7 @@
 
 <section class="section <%= external ? 'auth-section' : 'admin' %>">
   <div class="container narrow">
-    <% if (!external) { %><a href="/admin?tab=interviews" class="back-link">← Interviews</a><% } %>
+    <% if (!external) { %><a href="<%= backHref %>" class="back-link">← <%= backLabel %></a><% } %>
     <span class="eyebrow">Interview feedback</span>
     <h1><%= a.name %></h1>
     <p class="lead"><%= a.jobTitle %> · <%= iv.mode %> interview on <%= formatIst(iv.at) %><%= iv.interviewer && !external ? ' · interviewer: ' + iv.interviewer : '' %></p>

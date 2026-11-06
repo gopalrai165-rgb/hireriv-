@@ -195,12 +195,17 @@ function register(app, { adminAuth, sameOrigin, readSubmissions, writeSubmission
     return true;
   }
 
+  // Actions started from a candidate's own page go back there, not to the Interviews tab.
+  const fromApplication = (req) => req.query.from === 'application';
+  const backFrom = (req, a, m) => (fromApplication(req) ? `/admin/applications/${a.id}?msg=${encodeURIComponent(m)}#interviews` : adminUrl('interviews', m));
+
   const formPage = (res, a, f, errors, status = 200) =>
-    res.status(status).render('admin-interview', { title: 'Schedule interview', page: 'admin', a, f, errors, modes: MODES, durations: DURATIONS, noindex: true });
+    res.status(status).render('admin-interview', { title: 'Schedule interview', page: 'admin', a, f, errors, modes: MODES, durations: DURATIONS, noindex: true, fromApplication: fromApplication(res.req) });
 
   app.get('/admin/applications/:id/interview', adminAuth, (req, res, next) => {
     const a = readSubmissions('applications').find((x) => x.id === req.params.id);
     if (!a) return next();
+    if (a.withdrawnAt) return res.redirect(backFrom(req, a, 'Not booked: the candidate withdrew this application.'));
     // Default: tomorrow at 11:00 India time.
     const tomorrow = new Date(Date.now() + 86400000).toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
     formPage(res, a, { date: tomorrow, time: '11:00', duration: 45, mode: 'Video call', where: '', interviewer: '', interviewerEmail: '', message: '' }, []);
@@ -210,16 +215,17 @@ function register(app, { adminAuth, sameOrigin, readSubmissions, writeSubmission
     const list = readSubmissions('applications');
     const a = list.find((x) => x.id === req.params.id);
     if (!a) return next();
+    if (a.withdrawnAt) return res.redirect(backFrom(req, a, 'Not booked: the candidate withdrew this application.'));
     const { f, at, errors } = parseInterview(req.body, a);
     if (errors.length) return formPage(res, a, f, errors, 400);
 
     const { feedbackUrl } = book(list, a, f, at, `${req.admin.name} (interview booked)`, { actor: 'team', userId: req.admin.id });
-    res.redirect(adminUrl('interviews', `Interview booked with ${a.name} for ${formatIst(at)} · ${a.email ? 'invite emailed' : 'no email on file, so tell them by phone or WhatsApp'}${feedbackUrl ? ` · feedback link sent to ${f.interviewerEmail}` : ''}`));
+    res.redirect(backFrom(req, a, `Interview booked with ${a.name} for ${formatIst(at)} · ${a.email ? 'invite emailed' : 'no email on file, so tell them by phone or WhatsApp'}${feedbackUrl ? ` · feedback link sent to ${f.interviewerEmail}` : ''}`));
   });
 
   // ---------- scorecards ----------
   const scorecardPage = (res, locals, status = 200) =>
-    res.status(status).render('interview-feedback', { noindex: true, errors: [], recommendations: RECOMMENDATIONS, formatIst, ...locals });
+    res.status(status).render('interview-feedback', { noindex: true, errors: [], recommendations: RECOMMENDATIONS, formatIst, backHref: fromApplication(res.req) && !locals.external ? `/admin/applications/${locals.a.id}#interviews` : '/admin?tab=interviews', backLabel: fromApplication(res.req) ? 'Application' : 'Interviews', ...locals });
 
   // One scorecard per person: submitting again replaces your own.
   function saveScorecard(iv, fb, by, byType) {
@@ -238,7 +244,7 @@ function register(app, { adminAuth, sameOrigin, readSubmissions, writeSubmission
     const { a, iv } = findIv(readSubmissions('applications'), req.params.appId, req.params.ivId);
     if (!iv) return next();
     const mine = (iv.feedback || []).find((x) => x.by === req.admin.name) || {};
-    scorecardPage(res, { title: 'Interview feedback', page: 'admin', a, iv, external: false, f: mine, action: `/admin/interviews/${a.id}/${iv.id}/feedback`, others: (iv.feedback || []) });
+    scorecardPage(res, { title: 'Interview feedback', page: 'admin', a, iv, external: false, f: mine, action: `/admin/interviews/${a.id}/${iv.id}/feedback${fromApplication(req) ? '?from=application' : ''}`, others: (iv.feedback || []) });
   });
 
   app.post('/admin/interviews/:appId/:ivId/feedback', adminAuth, sameOrigin, (req, res, next) => {
@@ -249,7 +255,7 @@ function register(app, { adminAuth, sameOrigin, readSubmissions, writeSubmission
     if (errors.length) return scorecardPage(res, { title: 'Interview feedback', page: 'admin', a, iv, external: false, f: fb, action: req.originalUrl, others: iv.feedback || [], errors }, 400);
     saveScorecard(iv, fb, req.admin.name, 'team');
     writeSubmissions('applications', list);
-    res.redirect(adminUrl('interviews', `Feedback saved for ${a.name}: ${fb.recommendation}, ${fb.rating}/5`));
+    res.redirect(backFrom(req, a, `Feedback saved for ${a.name}: ${fb.recommendation}, ${fb.rating}/5`));
   });
 
   // ---------- interviewer link (no login) ----------
@@ -290,7 +296,7 @@ function register(app, { adminAuth, sameOrigin, readSubmissions, writeSubmission
     const iv = a && (a.interviews || []).find((x) => x.id === req.params.ivId);
     if (!iv) return next();
     cancel(list, a, iv);
-    res.redirect(adminUrl('interviews', `Cancelled the interview with ${a.name} · candidate notified`));
+    res.redirect(backFrom(req, a, `Cancelled the interview with ${a.name} · candidate notified`));
   });
 
   // A new time for a scheduled interview (e.g. the candidate asked for one).
@@ -300,9 +306,9 @@ function register(app, { adminAuth, sameOrigin, readSubmissions, writeSubmission
     const iv = a && (a.interviews || []).find((x) => x.id === req.params.ivId);
     if (!iv) return next();
     const r = parseNewTime(req.body);
-    if (r.error) return res.redirect(adminUrl('interviews', `Not moved: ${r.error}`));
-    if (!reschedule(list, a, iv, r.at)) return res.redirect(adminUrl('interviews', 'Not moved: that interview is not scheduled'));
-    res.redirect(adminUrl('interviews', `Moved the interview with ${a.name} to ${formatIst(r.at)} · candidate notified`));
+    if (r.error) return res.redirect(backFrom(req, a, `Not moved: ${r.error}`));
+    if (!reschedule(list, a, iv, r.at)) return res.redirect(backFrom(req, a, 'Not moved: that interview is not scheduled'));
+    res.redirect(backFrom(req, a, `Moved the interview with ${a.name} to ${formatIst(r.at)} · candidate notified`));
   });
 
   // Download the invite (e.g. to forward to the interviewer's calendar).

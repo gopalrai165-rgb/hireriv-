@@ -3,11 +3,11 @@
 <section class="section admin admin-console">
   <div class="container narrow">
     <%- include('partials/team-side') %>
-    <a href="/admin?tab=applications" class="back-link">← Applications</a>
+    <a href="<%= fromApplication ? '/admin/applications/' + a.id + '#interviews' : '/admin?tab=applications' %>" class="back-link">← <%= fromApplication ? 'Application' : 'Applications' %></a>
     <h1>Schedule interview</h1>
     <p class="lead"><b><%= a.name %></b> for <%= a.jobTitle %> <% if (realEmail(a.email)) { %>· <a href="mailto:<%= a.email %>"><%= a.email %></a> <% } %>· <a href="tel:<%= a.phone %>"><%= a.phone %></a></p>
     <% if (errors.length) { %><p class="notice notice-err" role="alert">Please fix: <%= errors.join(', ') %></p><% } %>
-    <form class="form form-card" method="post" action="/admin/applications/<%= a.id %>/interview">
+    <form class="form form-card" method="post" action="/admin/applications/<%= a.id %>/interview<%= fromApplication ? '?from=application' : '' %>">
       <div class="form-grid">
         <label>Date*<input type="date" name="date" required value="<%= f.date %>"></label>
         <label>Time (India time)*<input type="time" name="time" required value="<%= f.time %>"></label>
@@ -24,7 +24,7 @@
       </div>
       <p class="muted small">The candidate gets an email with a calendar invite. If they're still New or in Screening, they move to Interview.</p>
       <button class="btn btn-primary" type="submit">Book interview &amp; email invite</button>
-      <a class="btn btn-outline" href="/admin?tab=applications">Cancel</a>
+      <a class="btn btn-outline" href="<%= fromApplication ? '/admin/applications/' + a.id + '#interviews' : '/admin?tab=applications' %>">Cancel</a>
     </form>
   </div>
 </section>

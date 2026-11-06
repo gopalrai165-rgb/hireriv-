@@ -51,6 +51,8 @@
         <p class="small"><a href="/admin?tab=applications">Change the stage on the Applications tab</a></p>
       </section>
 
+      <%- include('partials/team-interviews') %>
+
       <%- include('partials/other-jobs', { ox: otherJobs, action: '/admin/applications/' + a.id + '/invite', firstName: String(a.name).split(' ')[0], jobTitle: a.jobTitle, whose: "the team's", who: 'The team' }) %>
 
       <section class="dash-card dash-wide" id="messages" aria-labelledby="msg-h">

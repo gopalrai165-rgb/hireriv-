@@ -3331,3 +3331,6 @@ body.page-hire .cta-band .cta-inner {
     margin-bottom: 34px;
   }
 }
+/* Interviews on the team application page (Step 216): wrap on phones. */
+.team-ivs .cand-top { flex-wrap: wrap; }
+.team-ivs .iv-move { margin: 0; }

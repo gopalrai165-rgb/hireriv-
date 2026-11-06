@@ -1,0 +1,42 @@
+<%# A candidate's interviews on the team's application page. On a job a company runs, the team sees that they exist and nothing else. %>
+<% const ivs = (a.interviews || []).slice().sort(function (x, y) { return String(y.at).localeCompare(String(x.at)); });
+   const CONFIRM = { awaiting: 'Awaiting candidate', confirmed: 'Confirmed by candidate', 'reschedule-requested': 'Asked for another time' }; %>
+<section class="dash-card dash-wide team-ivs" id="interviews" aria-labelledby="iv-h">
+  <div class="dash-head">
+    <h2 id="iv-h">Interviews</h2>
+    <% if (!employerRuns && !a.withdrawnAt && !['Hired', 'Rejected'].includes(a.status)) { %><a class="btn btn-outline btn-sm" href="/admin/applications/<%= a.id %>/interview?from=application">Schedule an interview</a><% } %>
+  </div>
+  <% if (employerRuns) { %><p class="muted small">This company runs its own hiring for this job, so its team books interviews and writes the feedback.</p><% } %>
+  <% if (!ivs.length) { %><p class="muted dash-empty">None yet.</p><% } %>
+  <% ivs.forEach(function (iv) { const started = new Date(iv.at).getTime() <= nowMs; const live = iv.status === 'scheduled'; const base = '/admin/interviews/' + a.id + '/' + iv.id; %>
+    <article class="cand-card">
+      <div class="cand-top">
+        <div>
+          <h3><%= formatIst(iv.at) %></h3>
+          <p class="muted small"><%= iv.duration %> minutes · <%= iv.mode %><%= !employerRuns && iv.interviewer ? ' · ' + iv.interviewer : '' %></p>
+          <% if (!employerRuns && live && !started && iv.where) { %><p class="small"><% if (/^https?:\/\//.test(iv.where)) { %><a href="<%= iv.where %>" target="_blank" rel="noopener noreferrer">Join link</a><% } else { %><%= iv.where %><% } %></p><% } %>
+        </div>
+        <span>
+          <span class="pill <%= iv.status === 'cancelled' ? 'st-rejected' : 'st-interview' %>"><%= iv.status === 'cancelled' ? 'Cancelled' : started ? 'Finished' : 'Scheduled' %></span>
+          <% if (live && !started && CONFIRM[iv.confirmation]) { %><span class="pill <%= iv.confirmation === 'confirmed' ? 'st-hired' : 'st-screening' %>"><%= CONFIRM[iv.confirmation] %></span><% } %>
+        </span>
+      </div>
+      <% if (!employerRuns) { %>
+        <% (iv.feedback || []).forEach(function (fb) { %><p class="cand-note"><b><%= fb.by %>:</b> <%= fb.recommendation %>, <%= fb.rating %>/5<%= fb.strengths ? ' · Strengths: ' + fb.strengths : '' %><%= fb.concerns ? ' · Concerns: ' + fb.concerns : '' %></p><% }) %>
+        <% if (live && started) { %>
+          <p class="small"><% if (!(iv.feedback || []).length) { %><span class="muted">No feedback yet. </span><% } %><a href="<%= base %>/feedback?from=application">Add or change your feedback</a></p>
+        <% } else if (live) { %>
+          <div class="row-actions-wrap">
+            <form class="iv-move" method="post" action="<%= base %>/reschedule?from=application">
+              <label class="sr-only" for="mv-date-<%= iv.id %>">New date</label><input id="mv-date-<%= iv.id %>" type="date" name="date" min="<%= today %>" required>
+              <label class="sr-only" for="mv-time-<%= iv.id %>">New time</label><input id="mv-time-<%= iv.id %>" type="time" name="time" required>
+              <button class="btn btn-outline btn-sm" type="submit">Move to this time</button>
+            </form>
+            <a class="btn btn-outline btn-sm" href="<%= base %>.ics">Calendar file</a>
+            <form method="post" action="<%= base %>/cancel?from=application" data-confirm="Cancel this interview? The candidate will be emailed and it will be removed from their calendar."><button class="btn btn-outline btn-sm" type="submit">Cancel interview</button></form>
+          </div>
+        <% } %>
+      <% } %>
+    </article>
+  <% }) %>
+</section>

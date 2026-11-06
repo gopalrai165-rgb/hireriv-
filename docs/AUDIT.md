@@ -977,3 +977,12 @@ Suggested order: 2 → 1 → 3 → 4, which makes Hireriv usable for skilled and
 - **Rules.** Only jobs the team runs. Admins and Recruitment Managers see everything; everyone else sees their own work and work nobody owns yet. Roles that don't write to candidates don't get the candidate lines. General resumes don't count as waiting, because they aren't for a job yet. The list only points. The candidate lists behind the links show exactly the people counted; the Interviews and enquiries tabs have no such filter, so they can also show other people's items.
 - **Tests.** `test/team-todo.test.js`.
 
+## Step 216: Interviews on the team's application page
+
+- **The gap.** A company's applicant page shows that person's interviews. The team's did not: to see, move or cancel one, or add feedback, a recruiter left for the Interviews tab and hunted for the name.
+- **Built.** An Interviews section on `/admin/applications/:id`: time, length, format, interviewer, join link, whether the candidate confirmed, and scorecards. Schedule, move, cancel, calendar file and feedback start here and come back here with the result; from the Interviews tab they still go back there. `views/partials/team-interviews.ejs`.
+- **Rules.** On a job a company runs, the page shows only that interviews exist, when, and their state, with no scorecards, interviewer, link or actions, because a company's scorecards are for people working on its job.
+- **Also fixed.** The team could book an interview for someone who had withdrawn, and the candidate would be emailed an invite. Both the form and the save now refuse.
+- **Still open.** The Interviews tab and the `/admin/interviews/...` routes are not limited this way: the team can still see and act on interviews on company-run jobs there.
+- **Tests.** `test/team-interviews.test.js`.
+

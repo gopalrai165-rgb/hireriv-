@@ -3329,7 +3329,7 @@ app.get('/admin/applications/:id', adminAuth, (req, res, next) => {
   res.render('admin-application', {
     replies, used: used ? used.id : '', prefill: used && !t.a.withdrawnAt ? messageTemplates.fill(used.text, { name: t.a.name, job: t.a.jobTitle, company: site.name }) : '',
     title: `${t.a.name} · Application`, page: 'admin', a: t.a, job: t.job, employerRuns: t.employerRuns, timeline: history.timeline(t.a),
-    canMessage: agencyRoles.can(req.admin, 'candidates.message'), otherJobs: teamInviteState(req, t), msg: String(req.query.msg || ''),
+    canMessage: agencyRoles.can(req.admin, 'candidates.message'), otherJobs: teamInviteState(req, t), msg: String(req.query.msg || ''), nowMs: Date.now(), today: todayIst(),
   });
 });
 // Invite someone who applied to apply for another job the team runs. They decide.
