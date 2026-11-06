@@ -8,6 +8,7 @@
       <div class="notice iv-offer-note small"><b>Waiting for <%= v.name %> to choose an interview time</b> from <%= v.interviewOptions.slots.length %> you offered: <%= v.interviewOptions.slots.map(function (s) { return formatIst(s); }).join(' · ') %>.
         <form method="post" action="/employer/applicants/<%= v.id %>/interview-options/cancel" class="inline-form"><button class="link-btn small" type="submit">Withdraw the times</button></form></div>
     <% } %>
+    <% if (v.addedBy) { %><p class="notice small">Added by <%= v.addedBy.by %> · <%= v.addedBy.via %>. They didn't fill in the application form themselves.</p><% } %>
     <% if (v.referredBy) { %><p class="notice referred-note small">Referred by <b><%= v.referredBy %></b>, a job seeker on <%= site.name %>, who shared this job with them.</p><% } %>
     <% if (v.hrContacts.length) { const lastC = v.hrContacts[v.hrContacts.length - 1]; %>
       <p class="notice hr-contacted"><svg class="i" aria-hidden="true"><use href="#i-phone"/></svg> <span><b><%= v.name %> <%= lastC.via === 'call' ? 'called' : 'sent a WhatsApp message to' %> your hiring contact</b> on <%= formatIst(lastC.at) %><% if (v.hrContacts.length > 1) { %> (<%= v.hrContacts.length %> times in all)<% } %>. If you missed it, call back from this page.</span></p>
@@ -26,7 +27,15 @@
         <% if (v.screening.length) { %>
           <h3 class="dash-sub">Answers to your questions</h3>
           <%- include('partials/screening-answers', { items: v.screening }) %>
+          <% if (v.answersRecordedBy) { %><p class="small muted">Recorded by <%= v.answersRecordedBy.by %> from what the candidate told them, <%= formatDate(v.answersRecordedBy.at) %>.</p><% } %>
           <p class="muted small">A guide only; it never rejects anyone.</p>
+        <% } %>
+        <% if (v.canRecordAnswers && !v.screening.length) { %>
+          <h3 class="dash-sub">Record their answers</h3>
+          <p class="small muted">They didn't fill in this job's questions, for example because they called or walked in.</p>
+          <%- include('partials/record-answers', { action: '/employer/applicants/' + v.id + '/answers', questions: v.answersForm.questions, current: [] }) %>
+        <% } else if (v.canRecordAnswers) { %>
+          <details><summary class="small">Correct these answers</summary><%- include('partials/record-answers', { action: '/employer/applicants/' + v.id + '/answers', questions: v.answersForm.questions, current: v.answersForm.current }) %></details>
         <% } %>
         <% if (v.email !== undefined) { %>
           <h3 class="dash-sub">Contact</h3>

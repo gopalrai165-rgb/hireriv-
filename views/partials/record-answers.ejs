@@ -1,18 +1,18 @@
-<%# The team records a job's question answers for someone who didn't fill in the form. %>
-<form class="form" method="post" action="/admin/applications/<%= a.id %>/answers">
+<%# Someone records a job's question answers for a person who didn't fill in the form. `action`, `questions`, `current` (their answers so far). %>
+<form class="form" method="post" action="<%= action %>">
   <p class="small muted">Only what they told you, in their words. They can see these in their data download.</p>
-  <% screening.questionsOf(job).forEach(function (q) { const had = screening.answersOf(a).find(function (x) { return x.id === q.id; }); const now = had ? had.answer : ''; %>
+  <% questions.forEach(function (q) { const had = current.find(function (x) { return x.id === q.id; }); const now = had ? had.answer : ''; %>
     <% if (q.type === 'yesno') { %>
       <fieldset class="check-set screening-q">
-        <legend><%= q.text %>*</legend>
+        <legend><%= q.text %><%= typeof optional !== 'undefined' && optional ? '' : '*' %></legend>
         <div class="screening-yn">
-          <label class="check-row"><input type="radio" name="answer_<%= q.id %>" value="yes" required<%= now === 'yes' ? ' checked' : '' %>> <span>Yes</span></label>
-          <label class="check-row"><input type="radio" name="answer_<%= q.id %>" value="no" required<%= now === 'no' ? ' checked' : '' %>> <span>No</span></label>
+          <label class="check-row"><input type="radio" name="answer_<%= q.id %>" value="yes"<%= typeof optional !== 'undefined' && optional ? '' : ' required' %><%= now === 'yes' ? ' checked' : '' %>> <span>Yes</span></label>
+          <label class="check-row"><input type="radio" name="answer_<%= q.id %>" value="no"<%= typeof optional !== 'undefined' && optional ? '' : ' required' %><%= now === 'no' ? ' checked' : '' %>> <span>No</span></label>
         </div>
       </fieldset>
     <% } else { %>
-      <label class="screening-q"><%= q.text %>*<input name="answer_<%= q.id %>" maxlength="300" required value="<%= now %>"></label>
+      <label class="screening-q"><%= q.text %><%= typeof optional !== 'undefined' && optional ? '' : '*' %><input name="answer_<%= q.id %>" maxlength="300"<%= typeof optional !== 'undefined' && optional ? '' : ' required' %> value="<%= now %>"></label>
     <% } %>
   <% }) %>
-  <button class="btn btn-outline btn-sm" type="submit">Save answers</button>
+  <% if (typeof inner === 'undefined' || !inner) { %><button class="btn btn-outline btn-sm" type="submit">Save answers</button><% } %>
 </form>

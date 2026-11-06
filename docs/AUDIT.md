@@ -907,3 +907,10 @@ Suggested order: 2 → 1 → 3 → 4, which makes Hireriv usable for skilled and
 - **Considered and left out.** Messages in API v1. Conversations stay on the site, where they can be reported and the checks for money, codes and passwords apply. API v1 already gives screening answers.
 - **Tests.** `test/recorded-answers.test.js`.
 
+## Step 206: Employers add applicants who reached them another way
+
+- **The gap.** People call the hiring number on a job (Step 141), walk in or are referred, but only the Hireriv team could add someone by hand. Companies kept them in a notebook or spreadsheet, outside the pipeline, reports and messages.
+- **Built.** "Add an applicant" on the Applicants page: job, name, mobile, how they reached you, and optionally email, area, experience, start date, skills, resume and answers to the job's questions. Employers can also record answers later on the applicant's page, like the team (Step 205). `/employer/applicants/new`, `/employer/applicants/:id/answers`, `views/employer-applicant-new.ejs`.
+- **Rules.** Only open jobs the person manages. They must tick that the person agreed to be added. With an email address, the person is told who added them, how to follow or withdraw it, and that applying is free. Someone who already applied for the job is never changed, so their own details stay. The applicant page says who added them and how. Answers are all or none, never over the candidate's own. The activity log records the job and channel, not the name. The resume goes through the same checks as on the apply form.
+- **Tests.** `test/employer-add-applicant.test.js`.
+

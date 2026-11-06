@@ -242,6 +242,17 @@ function create(deps) {
   };
   // A message about an application (messages.js). The email says only that
   // there is one: the words stay on the site, where they can be reported.
+  NOTICES['added-by-employer'] = (refs) => {
+    const a = appById(refs.applicationId);
+    if (!a || a.withdrawnAt || !candidate(a)) return null;
+    const job = jobById(a.jobId);
+    const company = job ? job.company : 'An employer';
+    return {
+      who: { name: a.name, email: a.email, kind: 'candidate' }, subject: `${company} added you as an applicant for ${a.jobTitle}`, heading: 'You were added as an applicant',
+      intro: `${company} added you as an applicant for ${a.jobTitle}, after you contacted them (${a.addedVia || 'another way'}). Sign in with this email address to follow the application, or withdraw it if you didn't agree. Applying is free: never pay anyone for a job.`,
+      rows: [], link: `${baseUrl}/account`, label: 'See your application', why: 'your job applications',
+    };
+  };
   NOTICES['message-to-candidate'] = (refs) => {
     const a = appById(refs.applicationId);
     if (!a || a.withdrawnAt || !candidate(a)) return null;
@@ -639,6 +650,15 @@ function create(deps) {
       inApp: { title: `${job.company} opened your application`, body: `For ${job.title}. They decide the next step; we will tell you when your application moves.`, link: '/account#applications' },
     });
   }
+  // An employer added someone who reached them another way: they are told.
+  function addedByEmployer(a, job, employer) {
+    if (!a || !candidate(a)) return null;
+    return emit({
+      key: `added-by-employer:${a.id}`, type: 'application-submitted', to: [candidate(a)],
+      inApp: { title: `Added as an applicant: ${a.jobTitle}`, body: `${employer.company} added you. You can follow or withdraw it here.`, link: '/account' },
+      email: { template: 'notice', refs: { kind: 'added-by-employer', applicationId: a.id } },
+    });
+  }
   function messageToCandidate(a, job, m) {
     if (!a || a.withdrawnAt) return null;
     return emit({
@@ -763,7 +783,7 @@ function create(deps) {
   return {
     applicationSubmitted, newApplication, stageMoved, statusEmail, interviewBooked, interviewOptionsOffered, interviewRescheduled, interviewCancelled, interviewReminder, interviewAnswered,
     feedbackDueScan, offerCreated, offerApproved, offerAnswered, offerAnsweredByCandidate, offerDeadlineScan, assigned, jobDecision, jobExpired, jobClosingSoonScan, jobSubmitted, jobAlerts, jobDigest, jobInvite, contactUnlocked, applicationViewed, staffingRequest, hireRequestAssigned, hireOverdueScan, leadSummaryScan, leadSummaryNow, analyticsWeeklyScan, analyticsWeeklyNow, exportRequested, exportDecided, agencyAssigned,
-    accountSecurity, scan, JOB_ALERTS_PER_DAY, messageToCandidate, messageToHiring,
+    accountSecurity, scan, JOB_ALERTS_PER_DAY, messageToCandidate, messageToHiring, addedByEmployer,
   };
 }
 

@@ -4,6 +4,7 @@
   <div class="container">
     <%- include('partials/employer-nav', { heading: 'Applicants', tab: 'applicants' }) %>
 
+    <% if (canAdd) { %><p><a class="btn btn-outline btn-sm" href="/employer/applicants/new">Add an applicant</a> <span class="small muted">Someone who called, walked in or was referred</span></p><% } %>
     <form class="form filter-bar" method="get" action="/employer/applicants">
       <label>Job
         <select name="job"><option value="">All jobs</option><% jobs.forEach(function (j) { %><option value="<%= j.id %>"<%= jobId === j.id ? ' selected' : '' %>><%= j.title %> · <%= j.location %></option><% }) %></select>

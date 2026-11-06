@@ -2585,6 +2585,7 @@ app.get('/post-a-job', (req, res) => res.redirect(clients.currentEmployer(req) ?
 // applied, status changes and interviews: employer-hiring.js.
 const hiring = employerHiring.register(app, {
   site, mailer, baseUrl: BASE_URL, limit, sameOrigin, adminAuth, adminUrl, clients, readSubmissions, writeSubmissions, saveSubmission, uploadsDir: UPLOADS_DIR, downloadLinks, linkExpired, sendCsv,
+  addApplicant: { save: (...args) => saveApplication(...args), upload, vet: resumeCheck.vet, validate, sources: reportsModule.MANUAL_SOURCES },
   getJobs: () => jobs, saveJobs, parseJob, nextJobId, todayIst, publicJob, jobPath, sendJobAlerts, alertedNote: (n) => alertedNote(n),
   appStatuses: APP_STATUSES, moveStage: history.moveStage, interviewDesk, parseInterview: interviews.parseInterview, interviewModes: interviews.MODES, interviewDurations: interviews.DURATIONS,
   formatIst: interviews.formatIst, skillMatch, events,

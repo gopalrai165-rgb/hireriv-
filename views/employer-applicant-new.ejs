@@ -1,0 +1,63 @@
+<%- include('partials/head') %>
+
+<section class="section admin portal">
+  <div class="container">
+    <%- include('partials/employer-nav', { heading: 'Add an applicant', tab: 'applicants' }) %>
+    <a href="/employer/applicants" class="back-link">← Applicants</a>
+    <p class="muted">For people who reached you another way: a phone call, a walk-in, WhatsApp or a referral. A name and mobile number are enough. Add someone only if they agreed to apply for this job.</p>
+    <% if (errors.length) { %><p class="notice notice-err" role="alert">Please fix: <%= errors.join(', ') %></p><% } %>
+
+    <form class="form form-card" method="post" action="/employer/applicants/new" enctype="multipart/form-data">
+      <div class="form-grid">
+        <label class="span-2">Job*
+          <select name="jobId" required>
+            <% jobs.forEach(function (j) { %><option value="<%= j.id %>"<%= j.id === f.jobId ? ' selected' : '' %>><%= j.title %> · <%= j.location %></option><% }) %>
+          </select>
+        </label>
+        <label>Full name*<input name="name" required maxlength="120" value="<%= f.name || '' %>"></label>
+        <label>Mobile number*<input type="tel" name="phone" required value="<%= f.phone || '' %>" placeholder="98xxxxxxxx"></label>
+        <label>How they reached you*
+          <select name="source" required><% Object.keys(sources).forEach(function (k) { %><option value="<%= k %>"<%= k === f.source ? ' selected' : '' %>><%= sources[k] %></option><% }) %></select>
+        </label>
+        <label>Email <span class="muted small">(optional; we tell them they were added)</span><input type="email" name="email" maxlength="200" value="<%= f.email || '' %>"></label>
+        <label>Area / city<input name="location" maxlength="120" value="<%= f.location || '' %>"></label>
+        <label>Experience
+          <select name="experience"><option value="">—</option><% ['Fresher', '0-1 years', '1-3 years', '3-5 years', '5-10 years', '10+ years'].forEach(function (x) { %><option<%= x === f.experience ? ' selected' : '' %>><%= x %></option><% }) %></select>
+        </label>
+        <label>Can start
+          <select name="noticePeriod"><option value="">—</option><% ['Immediate', '15 days', '30 days', '60 days', '90 days'].forEach(function (x) { %><option<%= x === f.noticePeriod ? ' selected' : '' %>><%= x %></option><% }) %></select>
+        </label>
+        <label class="file-field">Resume <span class="muted small">(optional; PDF, DOC or DOCX)</span><input type="file" name="resume" accept=".pdf,.doc,.docx"></label>
+        <label class="span-2">Skills, licences or certificates<input name="skills" maxlength="300" value="<%= f.skills || '' %>" placeholder="e.g. ITI Electrician, two-wheeler licence"></label>
+      </div>
+      <% const withQuestions = jobs.filter(function (j) { return screening.hasQuestions(j); }); %>
+      <% if (withQuestions.length) { %>
+        <div class="screening-set">
+          <h3 class="h4">Their answers to the job's questions <span class="muted small">(optional; answer all or none)</span></h3>
+          <% withQuestions.forEach(function (j) { %>
+            <fieldset class="check-set" data-job-questions="<%= j.id %>">
+              <legend class="small muted">For <%= j.title %></legend>
+              <% screening.questionsOf(j).forEach(function (q) { const now = f['answer_' + q.id] || ''; %>
+                <% if (q.type === 'yesno') { %>
+                  <div class="screening-q"><span><%= q.text %></span>
+                    <div class="screening-yn">
+                      <label class="check-row"><input type="radio" name="answer_<%= q.id %>" value="yes"<%= now === 'yes' ? ' checked' : '' %>> <span>Yes</span></label>
+                      <label class="check-row"><input type="radio" name="answer_<%= q.id %>" value="no"<%= now === 'no' ? ' checked' : '' %>> <span>No</span></label>
+                    </div>
+                  </div>
+                <% } else { %>
+                  <label class="screening-q"><%= q.text %><input name="answer_<%= q.id %>" maxlength="300" value="<%= now %>"></label>
+                <% } %>
+              <% }) %>
+            </fieldset>
+          <% }) %>
+        </div>
+      <% } %>
+      <label class="check-row"><input type="checkbox" name="consent" value="1" required<%= f.consent ? ' checked' : '' %>> <span>They agreed to be added as an applicant for this job*</span></label>
+      <button class="btn btn-primary" type="submit">Add applicant</button>
+      <p class="muted small">If you give an email, we tell them you added them, how to follow or withdraw the application, and that they never pay for a job.</p>
+    </form>
+  </div>
+</section>
+
+<%- include('partials/foot') %>

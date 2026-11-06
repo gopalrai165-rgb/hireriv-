@@ -34,9 +34,9 @@
           <% if (!screening.answersOf(a).length) { %>
             <h3 class="dash-sub">Record their answers</h3>
             <p class="small muted">They didn't fill in this job's questions, for example because they applied on WhatsApp or you added them.</p>
-            <%- include('partials/record-answers') %>
+            <%- include('partials/record-answers', { action: '/admin/applications/' + a.id + '/answers', questions: screening.questionsOf(job), current: screening.answersOf(a) }) %>
           <% } else if (a.screeningRecordedBy) { %>
-            <details><summary class="small">Correct these answers</summary><%- include('partials/record-answers') %></details>
+            <details><summary class="small">Correct these answers</summary><%- include('partials/record-answers', { action: '/admin/applications/' + a.id + '/answers', questions: screening.questionsOf(job), current: screening.answersOf(a) }) %></details>
           <% } %>
         <% } %>
       </section>

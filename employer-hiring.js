@@ -12,6 +12,7 @@ const rejectReasons = require('./reject-reasons');
 const screening = require('./screening');
 const messageTemplates = require('./message-templates');
 const path = require('path');
+const fs = require('fs');
 const crypto = require('crypto');
 const vault = require('./vault');
 const { can } = require('./employer-team');
@@ -36,7 +37,7 @@ const lockedByModeration = (job) => Boolean(job && job.moderation && job.moderat
 const LOCKED_MESSAGE = 'this listing was restricted by our moderators; use the link in our email to appeal';
 
 function register(app, deps) {
-  const { site, mailer, baseUrl, limit, sameOrigin, adminAuth, adminUrl, clients, readSubmissions, writeSubmissions, uploadsDir, downloadLinks, linkExpired, sendCsv } = deps;
+  const { site, mailer, baseUrl, limit, sameOrigin, adminAuth, adminUrl, clients, readSubmissions, writeSubmissions, uploadsDir, downloadLinks, linkExpired, sendCsv, addApplicant } = deps;
   const { getJobs, saveJobs, parseJob, nextJobId, todayIst, publicJob, jobPath, sendJobAlerts, alertedNote, appStatuses, moveStage, interviewDesk, parseInterview, interviewModes, interviewDurations, formatIst, skillMatch, jobFormLocals } = deps;
   const { requireEmployer, requireEmployerApi, team, addressed } = clients;
   const { events } = deps;
@@ -378,6 +379,11 @@ function register(app, deps) {
       allowedMoves: may('applicants.manage') ? ats.allowedMoves(a) : [],
       hrContacts: (a.hrContacts || []).map((c) => ({ via: c.via, at: c.at })),
       referredBy: a.referredBy ? a.referredBy.name : '',
+      addedBy: a.addedByEmployer ? { by: a.addedBy || '', via: a.addedVia || '' } : null,
+      answersRecordedBy: a.screeningRecordedBy ? { by: a.screeningRecordedBy.by, at: a.screeningRecordedBy.at } : null,
+      // Someone on the job may record answers the person gave another way, never over their own.
+      canRecordAnswers: may('applicants.manage') && !a.withdrawnAt && screening.hasQuestions(job) && (!screening.answersOf(a).length || Boolean(a.screeningRecordedBy)),
+      answersForm: may('applicants.manage') && screening.hasQuestions(job) ? { questions: screening.questionsOf(job), current: screening.answersOf(a) } : null,
       interviewOptions: a.interviewOptions && a.interviewOptions.status === 'open' ? { slots: a.interviewOptions.slots.map((s) => s.at), createdAt: a.interviewOptions.createdAt } : null,
     };
     if (may('applicants.contact')) v.messages = messages.listOf(a).map((m) => ({ id: m.id, at: m.at, from: m.from, by: m.by, text: m.text, readAt: m.readAt }));
@@ -409,7 +415,66 @@ function register(app, deps) {
   app.get('/employer/applicants', requireEmployer, (req, res) => {
     const { jobs, rows, jobId, status, sort, answers } = filteredApplicants(req);
     const filters = new URLSearchParams(Object.entries({ job: jobId, status, sort: sort === 'match' ? sort : '', answers }).filter(([, v]) => v)).toString();
-    page(res, 'employer-applicants', { title: 'Applicants', tab: 'applicants', rows, filters, jobs: [...jobs.values()], jobId, status, sort, answers, rejectReasons: rejectReasons.REASONS, anyQuestions: [...jobs.values()].some((j) => screening.hasQuestions(j)), statuses: appStatuses, msg: String(req.query.msg || '') });
+    page(res, 'employer-applicants', { title: 'Applicants', tab: 'applicants', rows, filters, canAdd: addableJobs(req).length > 0, jobs: [...jobs.values()], jobId, status, sort, answers, rejectReasons: rejectReasons.REASONS, anyQuestions: [...jobs.values()].some((j) => screening.hasQuestions(j)), statuses: appStatuses, msg: String(req.query.msg || '') });
+  });
+
+  // ---------- adding someone who reached the company another way ----------
+  // A phone call, a walk-in, WhatsApp or a referral. Only open jobs this person
+  // manages. The person is told by email when there is one (notify-events.js).
+  // Someone who already applied is never changed: their own details stay.
+  const addableJobs = (req) => visibleJobs(req.member).filter((j) => selfManaged(j) && j.status === 'open' && can(req.member, 'applicants.manage', j));
+  const ADD_FIELDS = ['jobId', 'name', 'email', 'phone', 'source', 'location', 'experience', 'noticePeriod', 'skills', 'consent'];
+  const addForm = (req, res, f, errors, status = 200) => page(res, 'employer-applicant-new', { title: 'Add an applicant', tab: 'applicants', f, errors, jobs: addableJobs(req), sources: addApplicant.sources }, status);
+  const phoneKey = (p) => String(p || '').replace(/\D/g, '').slice(-10);
+  app.get('/employer/applicants/new', requireEmployer, (req, res) => {
+    if (!addableJobs(req).length) return clients.forbid(req, res);
+    addForm(req, res, { source: 'phone-call' }, []);
+  });
+  app.post('/employer/applicants/new', requireEmployer, limit('employer-add-applicant', 60), sameOrigin, (req, res) => {
+    if (!addableJobs(req).length) return clients.forbid(req, res);
+    addApplicant.upload.single('resume')(req, res, async (err) => {
+      const body = req.body || {};
+      const f = {};
+      for (const k of ADD_FIELDS) f[k] = String(body[k] ?? '').trim().slice(0, k === 'skills' ? 300 : 200);
+      for (const k of Object.keys(body)) if (/^answer_[a-z0-9-]{1,40}$/i.test(k)) f[k] = String(body[k]).slice(0, 300);
+      const drop = () => { if (req.file) fs.unlink(req.file.path, () => {}); };
+      const job = addableJobs(req).find((j) => j.id === f.jobId);
+      const errors = err ? [err.code === 'LIMIT_FILE_SIZE' ? 'resume must be under 5 MB' : err.message] : addApplicant.validate(f, ['name', 'phone']);
+      if (!job) errors.push('pick one of your open jobs');
+      if (!addApplicant.sources[f.source]) errors.push('choose how they reached you');
+      if (f.consent !== '1') errors.push('confirm they agreed to be added');
+      let answers = [];
+      if (job && screening.hasQuestions(job) && screening.questionsOf(job).some((q) => String(body[screening.fieldName(q)] || '').trim())) {
+        const asked = screening.answersFrom(job, body);
+        errors.push(...asked.errors);
+        answers = asked.answers;
+      }
+      if (errors.length) { drop(); return addForm(req, res, f, errors, 400); }
+      // Already applied for this job: open their application instead.
+      const email = f.email.toLowerCase();
+      const prev = readSubmissions('applications').find((a) => a.jobId === job.id && !a.withdrawnAt && !a.duplicateOf && ((email && String(a.email || '').toLowerCase() === email) || phoneKey(a.phone) === phoneKey(f.phone)));
+      if (prev) { drop(); return res.redirect(303, `/employer/applicants/${prev.id}?msg=${encodeURIComponent(`${prev.name} already applied for ${job.title}, so nothing was changed.`)}`); }
+      const bad = await addApplicant.vet(req.file);
+      if (bad) { drop(); return addForm(req, res, f, [bad], 400); }
+      const data = { jobId: job.id, source: f.source };
+      for (const k of ['name', 'email', 'phone', 'location', 'experience', 'noticePeriod', 'skills']) data[k] = f[k];
+      const now = new Date().toISOString();
+      const extra = {
+        addedBy: req.employerUser.name, addedById: req.employerUser.id, addedVia: addApplicant.sources[f.source], addedByEmployer: req.employer.id, consentNoted: now,
+        ...(answers.length ? { screening: answers, screeningRecordedBy: { by: req.employerUser.name, userId: req.employerUser.id, at: now } } : {}),
+      };
+      try {
+        const { app: a, duplicate } = await addApplicant.save(data, req.file, job, extra);
+        if (duplicate) return res.redirect(303, `/employer/applicants/${a.id}?msg=${encodeURIComponent('They already applied, so nothing was changed.')}`);
+        team.audit(req.employer.id, req.employerUser, 'applicant-added', `${job.title} (${addApplicant.sources[f.source]})`);
+        events.addedByEmployer(a, job, req.employer);
+        res.redirect(303, `/employer/applicants/${a.id}?msg=${encodeURIComponent(`Added ${String(a.name).split(' ')[0]} for ${job.title}.`)}`);
+      } catch (e) {
+        console.error(e);
+        drop();
+        addForm(req, res, f, ['could not save, please try again'], 500);
+      }
+    });
   });
 
   // A spreadsheet of what this person can see on the Applicants page. Contact
@@ -488,6 +553,22 @@ function register(app, deps) {
     team.audit(req.employer.id, req.employerUser, 'message-sent', `${a.name} (${req.job.title})`);
     if (events && events.messageToCandidate) events.messageToCandidate(a, req.job, m);
     back(`Message sent to ${String(a.name).split(' ')[0]}.`);
+  });
+
+  // Answers the person gave another way, recorded by someone on the job.
+  app.post('/employer/applicants/:id/answers', requireEmployer, withApplicant('applicants.manage'), limit('employer-add-applicant', 60), sameOrigin, (req, res) => {
+    const a = req.application;
+    const back = (m) => res.redirect(303, `/employer/applicants/${a.id}?msg=${encodeURIComponent(m)}`);
+    if (a.withdrawnAt) return back('Not saved: the candidate withdrew this application.');
+    if (!screening.hasQuestions(req.job)) return back('Not saved: this job has no questions.');
+    if (screening.answersOf(a).length && !a.screeningRecordedBy) return back('Not saved: the candidate answered these themselves.');
+    const asked = screening.answersFrom(req.job, req.body);
+    if (asked.errors.length) return back(`Not saved: ${asked.errors[0]}.`);
+    a.screening = asked.answers;
+    a.screeningRecordedBy = { by: req.employerUser.name, userId: req.employerUser.id, at: new Date().toISOString() };
+    writeSubmissions('applications', req.applications);
+    team.audit(req.employer.id, req.employerUser, 'answers-recorded', req.job.title);
+    back('Answers saved.');
   });
 
   app.get('/employer/applicants/:id/resume', requireEmployer, withApplicant('applicants.contact'), (req, res, next) => {

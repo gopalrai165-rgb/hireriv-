@@ -450,6 +450,9 @@ Total: 727 routes.
 | POST | `/admin/message-templates/:id` | team | Same; only the team's replies |
 | POST | `/admin/message-templates/:id/delete` | team | Same; only the team's replies |
 | POST | `/admin/applications/:id/answers` | team | Team roles that write to candidates (candidates.message); same-origin, rate-limited; jobs the team runs; never over a candidate's own answers; marked with who recorded them; the log leaves the answers out |
+| GET | `/employer/applicants/new` | employer | Members who manage applicants on at least one open job (applicants.manage) |
+| POST | `/employer/applicants/new` | employer | Same; same-origin, rate-limited; only open jobs this member manages; needs a note that the person agreed; someone who already applied is never changed; the person is emailed when there is an address; recorded without the name |
+| POST | `/employer/applicants/:id/answers` | employer | applicants.manage on the job; same-origin; never over a candidate's own answers; marked with who recorded them |
 | POST | `/employer/applicants/bulk` | employer | Same-origin, rate-limited; up to 100 ticked applicants moved to one stage; each checked as a single move (this company's job, applicants.manage, an allowed move), the rest skipped |
 | POST | `/employer/applicants/:id/interview-options/cancel` | employer | Company members who may manage interviews for that job (interviews.manage); withdraws the times offered |
 | GET | `/salary-calculator` | public | Take-home pay from a salary (GET form, nothing stored; results not indexed) |
