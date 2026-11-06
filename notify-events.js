@@ -254,10 +254,12 @@ function create(deps) {
   };
   NOTICES['message-to-hiring'] = (refs, to) => {
     const a = appById(refs.applicationId);
-    const job = a && jobById(a.jobId);
-    const who = job && person(to, job, 'applicants.contact');
+    if (!a) return null;
+    const job = jobById(a.jobId);
+    const who = to.kind === 'employer' ? job && person(to, job, 'applicants.contact') : person(to, job, 'applicants.contact');
     if (!who) return null;
-    return { who, subject: `${first(a.name)} replied about ${job.title}`, heading: 'An applicant replied', intro: `${first(a.name)} replied to your message about ${job.title}.`, rows: [], link: applicantLink(who, a) + '#messages', label: 'Read the reply' };
+    const link = who.kind === 'employer' ? `${applicantLink(who, a)}#messages` : `${baseUrl}/admin/applications/${a.id}#messages`;
+    return { who, subject: `${first(a.name)} replied about ${a.jobTitle}`, heading: 'An applicant replied', intro: `${first(a.name)} replied to your message about ${a.jobTitle}.`, rows: [], link, label: 'Read the reply' };
   };
   NOTICES['hire-request-overdue'] = (refs, to) => {
     const h = readSubmissions('hire-requests').find((x) => x.id === refs.hireRequestId);
@@ -648,7 +650,15 @@ function create(deps) {
   // A reply goes to the people who started the conversation, or else to
   // everyone who may contact applicants on the job.
   function messageToHiring(a, job, m) {
-    if (!a || !job) return null;
+    if (!a) return null;
+    if (!job || !selfManaged(job)) {
+      const team = [...new Set(messagesOf(a).filter((x) => x.from === 'team' && x.userId).map((x) => x.userId))].map((userId) => ({ kind: 'team', userId }));
+      return emit({
+        key: `reply:${m.id}`, type: 'candidate-replied', to: team.length ? team : [teamOwner(a) || { kind: 'inbox' }],
+        inApp: { title: `${first(a.name)} replied about ${a.jobTitle}`, body: 'Open the application to read it.', link: `/admin/applications/${a.id}#messages` },
+        email: { template: 'notice', refs: { kind: 'message-to-hiring', applicationId: a.id } },
+      });
+    }
     const writers = [...new Set(messagesOf(a).filter((x) => x.from === 'employer' && x.userId).map((x) => x.userId))];
     const people = jobPeople(job, 'applicants.contact');
     const to = writers.length ? people.filter((p) => writers.includes(p.userId)) : people;

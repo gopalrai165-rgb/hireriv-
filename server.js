@@ -35,6 +35,7 @@ const { SHIFTS, INDIAN_STATES } = require('./candidate-profile');
 const jobNeeds = require('./job-needs');
 const screening = require('./screening');
 const rejectReasons = require('./reject-reasons');
+const messages = require('./messages');
 // What roles pay, from the pay on real listings (salaries.js).
 const salaries = require('./salaries');
 // Interview tips for job seekers, in general and by role (interview-tips.js).
@@ -3291,6 +3292,41 @@ app.post('/admin/blog/:slug/delete', adminAuth, requireAdmin, sameOrigin, (req, 
 });
 
 // ----- submissions -----
+// One application for the team, with its messages (messages.js). Jobs a
+// company runs itself belong to that company: the team can read, not write.
+const teamApplication = (req) => {
+  const list = readSubmissions('applications');
+  const a = list.find((x) => x.id === req.params.id && !x.duplicateOf);
+  if (!a) return null;
+  const job = jobs.find((j) => j.id === a.jobId) || null;
+  return { list, a, job, employerRuns: hiring.selfManaged(job) };
+};
+app.get('/admin/applications/:id', adminAuth, (req, res, next) => {
+  const t = teamApplication(req);
+  if (!t) return next();
+  if (!t.employerRuns && messages.markRead(t.a, 'hiring')) writeSubmissions('applications', t.list);
+  res.render('admin-application', {
+    title: `${t.a.name} · Application`, page: 'admin', a: t.a, job: t.job, employerRuns: t.employerRuns, timeline: history.timeline(t.a),
+    canMessage: agencyRoles.can(req.admin, 'candidates.message'), msg: String(req.query.msg || ''),
+  });
+});
+app.post('/admin/applications/:id/messages', adminAuth, limit('team-messages', 60), sameOrigin, (req, res, next) => {
+  const t = teamApplication(req);
+  if (!t) return next();
+  const { a, job } = t;
+  if (!agencyRoles.can(req.admin, 'candidates.message')) return res.status(403).render('thanks', { title: 'Not part of your role', page: '', ok: false, message: 'Your role does not include writing to candidates.' });
+  const back = (m) => res.redirect(303, `/admin/applications/${a.id}?msg=${encodeURIComponent(m)}#messages`);
+  if (t.employerRuns) return back('Not sent: this company runs its own hiring for this job.');
+  if (!identity.realEmail(a.email)) return back('Not sent: there is no email address, so they cannot read messages. Call them instead.');
+  const ok = messages.check(a, req.body.text, 'team');
+  if (ok.error) return back(`Not sent: ${ok.error}.`);
+  const m = messages.add(a, { from: 'team', by: `${req.admin.name}, ${site.name}`, userId: req.admin.id, text: ok.text });
+  writeSubmissions('applications', t.list);
+  team.log(req.admin, 'Sent a message to a candidate', `${a.name} (${a.jobTitle})`);
+  events.messageToCandidate(a, job, m);
+  back(`Message sent to ${String(a.name).split(' ')[0]}.`);
+});
+
 app.post('/admin/applications/:id/status', adminAuth, sameOrigin, (req, res, next) => {
   const list = readSubmissions('applications');
   const entry = list.find((a) => a.id === req.params.id);

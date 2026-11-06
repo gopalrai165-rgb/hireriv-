@@ -862,11 +862,19 @@ Suggested order: 2 → 1 → 3 → 4, which makes Hireriv usable for skilled and
 - **Rules.** The hiring side writes first, and a job seeker can only reply, so nobody can message companies out of the blue. Only people allowed to contact applicants on the job can read or write. There are no new messages once an application is withdrawn. Messages from the hiring side can't ask for money, codes or passwords, and the job seeker's page warns about paying and links to reporting the job.
 - **Emails** say only that there is a message, never what it says, so the conversation stays where it can be reported. The applicant always gets a message email; the employer's reply email can be turned off in notification settings.
 - **Kept with the application**, so messages are in the job seeker's data download and go when the application is deleted. Sending is in the company's activity log without the words.
-- **Not done here.** Jobs the Hireriv team runs for a client keep using phone and email, and messages are not in API v1.
+- **Not done here.** ~~Jobs the Hireriv team runs for a client keep using phone and email.~~ Done in Step 201. Messages are not in API v1.
 - **Tests.** `test/messages.test.js`.
 
 ## Step 200: Job questions in "Apply on WhatsApp"
 
 - **Built.** For a job with screening questions (Step 197), the pre-filled WhatsApp message lists them, numbered, for the person to answer before sending. Never the answer the job needs. Jobs without questions keep the short message.
 - **Tests.** `test/screening.test.js`.
+
+## Step 201: A page for each application on the team's side, with messages
+
+- **Built.** `/admin/applications/:id`, opened from the candidate's name on the Applications tab: contact details, resume, answers to the job's questions, the timeline and a Messages card. The tab shows "1 new message" when someone replies.
+- **Who writes.** Admins, Recruitment Managers, Recruiters, Account Managers and Staffing Managers (`candidates.message`). Others can read. Finance, sales and trust roles don't get the page, as before.
+- **Whose job.** On jobs a company runs itself, the company's people write from the employer portal, and the team only reads. Team-run jobs and general applications are the team's.
+- **Replies** go to the team members who wrote, or else the application's owner, or else the shared inbox. The email says only that there is a reply. Same rules as Step 199: no money, codes or passwords; none after withdrawal; and they need an email address to sign in and read.
+- **Tests.** `test/team-messages.test.js`.
 

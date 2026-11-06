@@ -891,6 +891,8 @@ Total: 727 routes.
 | GET | `/admin/blog/:slug/edit` | team |  |
 | POST | `/admin/blog` | team |  |
 | POST | `/admin/blog/:slug` | team |  |
+| GET | `/admin/applications/:id` | team | One application; marks replies read on jobs the team runs |
+| POST | `/admin/applications/:id/messages` | team | Roles with candidates.message; same-origin; not on jobs a company runs itself, not after withdrawal, needs an email; no money, codes or passwords; recorded without the words |
 | POST | `/admin/applications/:id/status` | team |  |
 | GET | `/admin/reports/:section.csv` | team | Money figures only for Admins (checked in the handler) |
 | GET | `/admin/export/:type.csv` | team | Placements and Activity exports are Admin only (checked in the handler); personal data needs the password again within 10 minutes; 20 an hour; each export in the security log |

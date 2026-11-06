@@ -35,6 +35,8 @@ const PERMS = {
   'requisitions.manage': ['Admin', 'Recruitment Manager', 'Account Manager'],
   'requisitions.assign': ['Admin', 'Recruitment Manager'],
   'placements.view': ALL,
+  // Writing to candidates about their applications (messages.js), on jobs the team runs.
+  'candidates.message': ['Admin', 'Recruitment Manager', 'Recruiter', 'Account Manager', 'Staffing Manager'],
   'staffing.view': ['Admin', 'Recruitment Manager', 'Recruiter', 'Account Manager', 'Staffing Manager', 'Finance Manager'],
   'staffing.manage': ['Admin', 'Recruitment Manager', 'Account Manager', 'Staffing Manager', 'Recruiter'],
   // Workers after placement: onboarding status (recruiters see it), running the

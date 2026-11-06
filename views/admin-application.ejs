@@ -1,0 +1,70 @@
+<%- include('partials/head') %>
+<section class="section admin admin-console">
+  <div class="container">
+    <%- include('partials/team-side') %>
+    <a href="/admin?tab=applications" class="back-link">← Applications</a>
+    <div class="admin-head">
+      <div class="admin-title">
+        <span class="admin-crumb">Recruiting · Application</span>
+        <h1><%= a.name %></h1>
+        <p class="muted"><%= a.jobTitle %><%= job ? ' · ' + job.company : '' %> · applied <%= formatDate(a.createdAt) %></p>
+      </div>
+      <div class="admin-head-actions"><span class="pill <%= stageClass(a.status || 'New') %>"><%= a.status || 'New' %></span><% if (a.withdrawnAt) { %> <span class="pill st-rejected">Withdrawn</span><% } %></div>
+    </div>
+    <% if (msg) { %><p class="notice" role="status"><%= msg %></p><% } %>
+
+    <div class="dash-grid">
+      <section class="dash-card" aria-labelledby="who-h">
+        <h2 id="who-h">Candidate</h2>
+        <p><% if (a.phone) { %><a href="tel:<%= a.phone %>"><%= a.phone %></a><% } %><% if (a.phone && realEmail(a.email)) { %> · <% } %><% if (realEmail(a.email)) { %><a href="mailto:<%= a.email %>"><%= a.email %></a><% } %></p>
+        <ul class="job-meta">
+          <li><svg class="i" aria-hidden="true"><use href="#i-briefcase"/></svg><%= a.experience || '—' %></li>
+          <li><svg class="i" aria-hidden="true"><use href="#i-pin"/></svg><%= a.location || '—' %></li>
+          <li><svg class="i" aria-hidden="true"><use href="#i-clock"/></svg>Notice: <%= a.noticePeriod || '—' %></li>
+        </ul>
+        <% if (a.skills) { %><p class="small">Skills: <%= a.skills %></p><% } %>
+        <% if (a.message) { %><p class="cand-note"><b>Their message:</b> <%= a.message %></p><% } %>
+        <% if (a.resume) { %><p><a class="btn btn-outline btn-sm" href="<%= signedLink('/admin/resume/' + encodeURIComponent(a.resume)) %>">Download resume</a></p><% } %>
+        <% if (screening.answersOf(a).length) { %>
+          <h3 class="dash-sub">Answers to the job's questions</h3>
+          <%- include('partials/screening-answers', { items: screening.view(a) }) %>
+        <% } %>
+      </section>
+
+      <section class="dash-card" aria-labelledby="tl-h">
+        <h2 id="tl-h">Timeline</h2>
+        <ol class="timeline">
+          <% timeline.forEach(function (e) { %>
+            <li class="tl-<%= e.kind.toLowerCase() %>"><span class="tl-when"><%= new Date(e.at).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit', timeZone: 'Asia/Kolkata' }) %></span> <%= e.text %><%= e.by ? ' · ' + e.by : '' %></li>
+          <% }) %>
+        </ol>
+        <p class="small"><a href="/admin?tab=applications">Change the stage on the Applications tab</a></p>
+      </section>
+
+      <section class="dash-card dash-wide" id="messages" aria-labelledby="msg-h">
+        <div class="dash-head"><h2 id="msg-h">Messages</h2><span class="muted small">They read and reply in their account</span></div>
+        <% if (employerRuns) { %>
+          <p class="muted">This company runs its own hiring for this job, so its team writes to applicants from the employer portal.</p>
+          <% if (a.messages && a.messages.length) { %><%- include('partials/message-thread', { items: a.messages, mine: function (m) { return m.from !== 'candidate'; } }) %><% } %>
+        <% } else { %>
+          <%- include('partials/message-thread', { items: a.messages || [], mine: function (m) { return m.from !== 'candidate'; } }) %>
+          <% if (a.withdrawnAt) { %>
+            <p class="muted small">The candidate withdrew this application, so it can't get new messages.</p>
+          <% } else if (!realEmail(a.email)) { %>
+            <p class="muted small">No email address on this application, so they can't sign in to read messages. Call them instead.</p>
+          <% } else if (canMessage) { %>
+            <form class="form" method="post" action="/admin/applications/<%= a.id %>/messages">
+              <label for="msg-text">Write to <%= String(a.name).split(' ')[0] %></label>
+              <textarea id="msg-text" name="text" rows="3" maxlength="2000" required aria-describedby="msg-help"></textarea>
+              <p class="small muted" id="msg-help">They get an email saying there's a message, then read it in their account. Never ask for money, codes or passwords.</p>
+              <button class="btn btn-primary btn-sm" type="submit">Send</button>
+            </form>
+          <% } else { %>
+            <p class="muted small">Your role doesn't include writing to candidates.</p>
+          <% } %>
+        <% } %>
+      </section>
+    </div>
+  </div>
+</section>
+<%- include('partials/foot') %>

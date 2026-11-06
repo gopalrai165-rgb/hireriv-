@@ -155,7 +155,7 @@
             <% rows.forEach(function (r) { %>
               <tr>
                 <td class="check-col"><input type="checkbox" name="ids" value="<%= r.id %>" form="bulk-form" aria-label="Select <%= r.name %>" data-row-check></td>
-                <td><b><%= r.name %></b><% if (r.withdrawnAt) { %> <span class="pill st-rejected" title="Withdrawn <%= formatDate(r.withdrawnAt) %>">Withdrawn</span><% } %><% if (r.duplicateOf) { %> <span class="pill st-screening" title="This person already has a live application for this job; that one is kept">Duplicate</span><% } %><%- include('partials/contact-links', { person: r }) %>
+                <td><a href="/admin/applications/<%= r.id %>"><b><%= r.name %></b></a><% const unreadMsg = (r.messages || []).filter(function (m) { return m.from === 'candidate' && !m.readAt; }).length; %><% if (unreadMsg) { %> <a class="pill pill-unseen" href="/admin/applications/<%= r.id %>#messages"><%= unreadMsg %> new message<%= unreadMsg === 1 ? '' : 's' %></a><% } %><% if (r.withdrawnAt) { %> <span class="pill st-rejected" title="Withdrawn <%= formatDate(r.withdrawnAt) %>">Withdrawn</span><% } %><% if (r.duplicateOf) { %> <span class="pill st-screening" title="This person already has a live application for this job; that one is kept">Duplicate</span><% } %><%- include('partials/contact-links', { person: r }) %>
                   <% if (r.linkedin) { %><br><a href="<%= /^https?:\/\//i.test(r.linkedin) ? r.linkedin : '#' %>" target="_blank" rel="noopener noreferrer">LinkedIn / portfolio</a><% } %>
                   <% if (r.resume) { %><br><a href="<%= signedLink('/admin/resume/' + encodeURIComponent(r.resume)) %>">Download resume</a><% } %>
                   <% const lastMail = (r.emails || [])[(r.emails || []).length - 1]; %>
