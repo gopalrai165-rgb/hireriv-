@@ -245,6 +245,8 @@
     "cvPoint1": "Free for candidates, always",
     "cvPoint2": "Resume and interview feedback from recruiters",
     "cvPoint3": "Your details are shared only with your consent",
+    "cvFormTitle": "Your candidate profile",
+    "cvFormLead": "Tell us a little about yourself so we can find the right fit.",
     "cvAccount": "Want to apply in one click next time?",
     "cvAccountLink": "Create a free account",
     "cvAccountAfter": "instead.",

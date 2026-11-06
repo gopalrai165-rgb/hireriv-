@@ -239,19 +239,27 @@
   </div>
 </section>
 
-<section class="section section-tint" id="register">
-  <div class="container split">
-    <div>
+<section class="section talent-network-section" id="register">
+  <div class="container talent-network-layout">
+    <div class="talent-network-story">
+      <div class="talent-network-mark" aria-hidden="true"><svg class="i"><use href="#i-users"/></svg></div>
       <span class="eyebrow"><%= t('jobs.cvEyebrow') %></span>
       <h2><%= t('jobs.cvTitle') %></h2>
       <p class="lead-sm"><%= t('jobs.cvLead') %></p>
-      <ul class="checks">
-        <li><%= t('jobs.cvPoint1') %></li>
-        <li><%= t('jobs.cvPoint2') %></li>
-        <li><%= t('jobs.cvPoint3') %></li>
+      <ul class="checks talent-network-benefits">
+        <li><svg class="i" aria-hidden="true"><use href="#i-check"/></svg><span><%= t('jobs.cvPoint1') %></span></li>
+        <li><svg class="i" aria-hidden="true"><use href="#i-check"/></svg><span><%= t('jobs.cvPoint2') %></span></li>
+        <li><svg class="i" aria-hidden="true"><use href="#i-check"/></svg><span><%= t('jobs.cvPoint3') %></span></li>
       </ul>
     </div>
-    <div class="form-card">
+    <div class="form-card talent-network-card">
+      <div class="talent-network-card-head">
+        <span class="talent-network-card-icon" aria-hidden="true"><svg class="i"><use href="#i-briefcase"/></svg></span>
+        <div>
+          <h3><%= t('jobs.cvFormTitle') %></h3>
+          <p><%= t('jobs.cvFormLead') %></p>
+        </div>
+      </div>
       <p class="small muted register-note"><%= t('jobs.cvAccount') %> <a href="/account/register"><%= t('jobs.cvAccountLink') %></a> <%= t('jobs.cvAccountAfter') %></p>
       <%- include('partials/apply-form', { jobId: 'general' }) %>
     </div>

@@ -436,6 +436,10 @@ test('Find Jobs on a phone: kinds of work, folding filters, big tap targets, lig
 
   const css = fs.readFileSync(path.join(ROOT, 'public/css/style.css'), 'utf8').replace(/\r\n/g, '\n'); // Windows checkouts may have CRLF
   assert.match(css, /@media \(max-width: 700px\) \{\n  \/\* Easy to tap: at least 44px high\. \*\/\n  [^}]*min-height: 44px;/);
+  assert.match(css, /body:has\(\.bottom-nav\) \.whatsapp-float \{ bottom: calc\(72px \+ env\(safe-area-inset-bottom\)\); \}/);
+  assert.match(html, /class="section talent-network-section" id="register"/);
+  assert.match(html, /class="talent-network-card-head"/);
+  assert.match(css, /@media \(max-width: 960px\) \{\n  \.talent-network-layout \{ grid-template-columns: minmax\(0, 1fr\);/);
   // Every table sits in a box that scrolls on its own, so pages never scroll sideways.
   for (const f of fs.readdirSync(path.join(ROOT, 'views')).filter((x) => x.endsWith('.ejs'))) {
     const s = fs.readFileSync(path.join(ROOT, 'views', f), 'utf8').replace(/\r\n/g, '\n');

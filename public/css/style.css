@@ -1983,6 +1983,7 @@ input[type="checkbox"], input[type="radio"] { min-width: 20px; min-height: 20px;
   .bottom-nav a .i { width: 22px; height: 22px; }
   .bottom-nav a[aria-current] { color: var(--primary-600); background: var(--primary-50); }
   body:has(.bottom-nav) { padding-bottom: calc(64px + env(safe-area-inset-bottom)); }
+  body:has(.bottom-nav) .whatsapp-float { bottom: calc(72px + env(safe-area-inset-bottom)); }
   body:has(.bottom-nav) .app-bar, body:has(.bottom-nav) .toast { bottom: calc(72px + env(safe-area-inset-bottom)); }
 }
 @media print { .bottom-nav { display: none; } }
@@ -2951,6 +2952,169 @@ h2 { letter-spacing: -.035em; }
   .page-jobs .page-hero-search .job-filters { padding: 10px; border-radius: 18px; }
 }
 
+/* Candidate CV form: a confident intro panel paired with a focused profile card. */
+.talent-network-section {
+  overflow: hidden;
+  scroll-margin-top: 88px;
+  background:
+    radial-gradient(ellipse at 92% 18%, rgba(91, 155, 227, .13), transparent 34%),
+    linear-gradient(145deg, #f5f7fb, #edf2f8);
+}
+.talent-network-layout {
+  display: grid;
+  grid-template-columns: minmax(0, .86fr) minmax(0, 1.14fr);
+  gap: clamp(24px, 3.5vw, 56px);
+  align-items: stretch;
+}
+.talent-network-story {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: clamp(32px, 4vw, 60px);
+  border: 1px solid rgba(255, 255, 255, .12);
+  border-radius: 28px;
+  color: #d7e0ec;
+  background:
+    radial-gradient(circle at 100% 0%, rgba(215, 169, 81, .2), transparent 33%),
+    radial-gradient(circle at 0% 100%, rgba(91, 155, 227, .22), transparent 42%),
+    linear-gradient(145deg, #17345c, #101f35 76%);
+  box-shadow: 0 28px 60px -34px rgba(16, 31, 53, .65);
+}
+.talent-network-story::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  width: 300px;
+  height: 300px;
+  right: -155px;
+  bottom: -180px;
+  border: 1px solid rgba(240, 203, 139, .25);
+  border-radius: 50%;
+  box-shadow: 0 0 0 26px rgba(240, 203, 139, .035), 0 0 0 54px rgba(240, 203, 139, .025);
+}
+.talent-network-mark {
+  display: grid;
+  place-items: center;
+  width: 58px;
+  height: 58px;
+  margin-bottom: 28px;
+  border: 1px solid rgba(240, 203, 139, .35);
+  border-radius: 18px;
+  color: #f0cb8b;
+  background: rgba(255, 255, 255, .08);
+  box-shadow: inset 0 1px rgba(255, 255, 255, .12);
+}
+.talent-network-mark .i { width: 28px; height: 28px; }
+.talent-network-story .eyebrow {
+  margin-bottom: 16px;
+  color: #f0cb8b;
+  background: rgba(240, 203, 139, .1);
+  border: 1px solid rgba(240, 203, 139, .2);
+}
+.talent-network-story h2 {
+  max-width: 12em;
+  margin-bottom: 18px;
+  color: #fff;
+  font-size: clamp(2rem, 3.4vw, 3.2rem);
+  letter-spacing: -.045em;
+}
+.talent-network-story h2::after {
+  content: "";
+  display: block;
+  width: 58px;
+  height: 4px;
+  margin-top: 20px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, #d7a951, #efc778);
+}
+.talent-network-story .lead-sm { max-width: 39em; color: #c8d2df; line-height: 1.8; }
+.talent-network-benefits { gap: 0; margin: 18px 0 0; }
+.talent-network-benefits li {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 0;
+  border-top: 1px solid rgba(255, 255, 255, .12);
+  color: #e2e8ef;
+}
+.talent-network-benefits li::before { display: none; }
+.talent-network-benefits li .i {
+  width: 20px;
+  height: 20px;
+  margin-top: 2px;
+  padding: 3px;
+  border-radius: 50%;
+  color: #17243a;
+  background: #efc778;
+}
+.talent-network-card {
+  overflow: hidden;
+  padding: clamp(24px, 3vw, 42px);
+  border-color: rgba(16, 42, 76, .08);
+  border-radius: 26px;
+  box-shadow: 0 26px 70px -38px rgba(16, 42, 76, .38), 0 3px 12px rgba(16, 42, 76, .04);
+}
+.talent-network-card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, #1f6bc2, #5b9be3 52%, #d7a951);
+}
+.talent-network-card-head {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding-bottom: 22px;
+  border-bottom: 1px solid rgba(16, 42, 76, .09);
+}
+.talent-network-card-icon {
+  display: grid;
+  place-items: center;
+  flex: 0 0 52px;
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
+  color: #f0cb8b;
+  background: #101f35;
+  box-shadow: 0 10px 24px -14px rgba(16, 31, 53, .8);
+}
+.talent-network-card-icon .i { width: 24px; height: 24px; }
+.talent-network-card-head h3 { margin: 0 0 4px; font-size: 1.35rem; letter-spacing: -.025em; }
+.talent-network-card-head p { margin: 0; color: var(--muted); font-size: .92rem; }
+.talent-network-card .register-note {
+  margin: 18px 0 24px;
+  padding: 12px 14px;
+  border: 1px solid rgba(31, 107, 194, .11);
+  border-radius: 12px;
+  color: #52647e;
+  background: #f4f7fb;
+}
+.talent-network-card .register-note a { font-weight: 700; }
+.talent-network-card .form > .small.muted { margin-bottom: 18px; }
+.talent-network-card .form-grid { row-gap: 18px; }
+.talent-network-card .form-note { padding-top: 14px; border-top: 1px solid rgba(16, 42, 76, .08); line-height: 1.55; }
+@media (max-width: 960px) {
+  .talent-network-layout { grid-template-columns: minmax(0, 1fr); max-width: 760px; }
+  .talent-network-story { padding: clamp(30px, 6vw, 48px); }
+  .talent-network-story h2 { max-width: 16em; }
+}
+@media (max-width: 560px) {
+  .talent-network-layout { gap: 18px; }
+  .talent-network-story { padding: 26px 22px; border-radius: 22px; }
+  .talent-network-mark { width: 50px; height: 50px; margin-bottom: 22px; border-radius: 15px; }
+  .talent-network-story h2 { font-size: 2rem; }
+  .talent-network-benefits li { padding: 12px 0; font-size: .94rem; }
+  .talent-network-card { padding: 24px 20px; border-radius: 22px; }
+  .talent-network-card-head { gap: 12px; }
+  .talent-network-card-head h3 { font-size: 1.2rem; }
+}
+
 /* Find Jobs results: a white results bar, deeper job cards with a gold accent,
    and the row-filling card as a navy promo panel. Scoped to the Find Jobs page. */
 .page-jobs .section-results { padding-top: clamp(36px, 3.5vw, 56px); background: linear-gradient(180deg, #eef2f8 0, #f7f9fc 220px, #fff 520px); }
@@ -3010,4 +3174,142 @@ h2 { letter-spacing: -.035em; }
   .page-jobs .job-card { padding: 18px 16px 16px; border-radius: 18px; }
   .page-jobs .job-card .job-logo { width: 44px; height: 44px; font-size: 1.1rem; }
   .page-jobs .job-card h3 { font-size: 1.15rem; }
+}
+
+/* Public pages share a calm, editorial navy-and-gold visual language. */
+.page-hero:not(.page-hero-search) {
+  color: #d7e0ec;
+  background:
+    radial-gradient(ellipse at 88% 8%, rgba(215, 169, 81, .16), transparent 34%),
+    radial-gradient(ellipse at 12% 100%, rgba(91, 155, 227, .18), transparent 42%),
+    linear-gradient(140deg, #17345c, #101f35 72%);
+}
+.page-hero:not(.page-hero-search)::before {
+  background: #d7a951;
+  opacity: .08;
+}
+.page-hero:not(.page-hero-search) h1 {
+  color: #fff;
+  letter-spacing: -.045em;
+}
+.page-hero:not(.page-hero-search) h1 .grad {
+  color: #f0cb8b;
+  background: none;
+  -webkit-text-fill-color: currentColor;
+  animation: none;
+}
+.page-hero:not(.page-hero-search) .eyebrow {
+  color: #f0cb8b;
+  background: rgba(240, 203, 139, .1);
+  border: 1px solid rgba(240, 203, 139, .22);
+}
+.page-hero:not(.page-hero-search) .lead,
+.page-hero:not(.page-hero-search) .breadcrumbs,
+.page-hero:not(.page-hero-search) .brand-line,
+.page-hero:not(.page-hero-search) .chips,
+.page-hero:not(.page-hero-search) .landing-salary,
+.page-hero:not(.page-hero-search) .landing-nearby {
+  color: #c8d2df;
+}
+.page-hero:not(.page-hero-search) .breadcrumbs a,
+.page-hero:not(.page-hero-search) .landing-salary a,
+.page-hero:not(.page-hero-search) .landing-nearby a {
+  color: #f0cb8b;
+}
+.page-hero:not(.page-hero-search) .btn-outline {
+  border-color: rgba(255, 255, 255, .36);
+  color: #fff;
+  background: rgba(255, 255, 255, .07);
+}
+.page-hero:not(.page-hero-search) .btn-outline:hover {
+  border-color: #efc778;
+  color: #f0cb8b;
+  background: rgba(255, 255, 255, .12);
+}
+.page-hero:not(.page-hero-search) .hero-media::before {
+  background: linear-gradient(135deg, rgba(215, 169, 81, .9), #1f6bc2 65%, #17345c);
+}
+
+:is(body.page-home, body.page-jobs, body.page-categories, body.page-about, body.page-services, body.page-contact, body.page-pricing, body.page-blog, body.page-employers, body.page-industries, body.page-resources, body.page-help, body.page-legal) .section-head:not(.row) h2 {
+  letter-spacing: -.04em;
+}
+:is(body.page-home, body.page-jobs, body.page-categories, body.page-about, body.page-services, body.page-contact, body.page-pricing, body.page-blog, body.page-employers, body.page-industries, body.page-resources, body.page-help, body.page-legal) .section-head:not(.row) h2::after {
+  content: "";
+  display: block;
+  width: 42px;
+  height: 3px;
+  margin: 14px auto 0;
+  border-radius: 3px;
+  background: linear-gradient(90deg, #d7a951, #efc778);
+}
+:is(body.page-home, body.page-jobs, body.page-categories, body.page-about, body.page-services, body.page-contact, body.page-pricing, body.page-blog, body.page-employers, body.page-industries, body.page-resources, body.page-help, body.page-legal) .section-head.row h2 {
+  letter-spacing: -.04em;
+}
+:is(body.page-home, body.page-jobs, body.page-categories, body.page-about, body.page-services, body.page-contact, body.page-pricing, body.page-blog, body.page-employers, body.page-industries, body.page-resources, body.page-help, body.page-legal) .section-tint {
+  background: linear-gradient(145deg, #f7f8fa, #f1f4f8);
+}
+:is(body.page-home, body.page-jobs, body.page-categories, body.page-about, body.page-services, body.page-contact, body.page-pricing, body.page-blog, body.page-employers, body.page-industries, body.page-resources, body.page-help, body.page-legal) .service-card {
+  --c: #a9823d;
+  --c50: #f6f0e4;
+  border-color: rgba(16, 42, 76, .09);
+  border-radius: 20px;
+  box-shadow: 0 12px 34px -28px rgba(16, 42, 76, .5);
+}
+:is(body.page-home, body.page-jobs, body.page-categories, body.page-about, body.page-services, body.page-contact, body.page-pricing, body.page-blog, body.page-employers, body.page-industries, body.page-resources, body.page-help, body.page-legal) .service-card:hover {
+  border-color: rgba(169, 130, 61, .38);
+  box-shadow: 0 22px 42px -30px rgba(16, 42, 76, .55);
+}
+:is(body.page-home, body.page-jobs, body.page-categories, body.page-about, body.page-services, body.page-contact, body.page-pricing, body.page-blog, body.page-employers, body.page-industries, body.page-resources, body.page-help, body.page-legal) .service-icon {
+  border-radius: 15px;
+}
+:is(body.page-home, body.page-jobs, body.page-categories, body.page-about, body.page-services, body.page-contact, body.page-pricing, body.page-blog, body.page-employers, body.page-industries, body.page-resources, body.page-help, body.page-legal) .plan-card,
+:is(body.page-home, body.page-jobs, body.page-categories, body.page-about, body.page-services, body.page-contact, body.page-pricing, body.page-blog, body.page-employers, body.page-industries, body.page-resources, body.page-help, body.page-legal) .contact-card,
+:is(body.page-home, body.page-jobs, body.page-categories, body.page-about, body.page-services, body.page-contact, body.page-pricing, body.page-blog, body.page-employers, body.page-industries, body.page-resources, body.page-help, body.page-legal) .post-card,
+:is(body.page-home, body.page-jobs, body.page-categories, body.page-about, body.page-services, body.page-contact, body.page-pricing, body.page-blog, body.page-employers, body.page-industries, body.page-resources, body.page-help, body.page-legal) .testimonial {
+  border-color: rgba(16, 42, 76, .09);
+  border-radius: 20px;
+}
+:is(body.page-home, body.page-jobs, body.page-categories, body.page-about, body.page-services, body.page-contact, body.page-pricing, body.page-blog, body.page-employers, body.page-industries, body.page-resources, body.page-help, body.page-legal) .cta-band .cta-inner {
+  background:
+    radial-gradient(ellipse at 88% 12%, rgba(215, 169, 81, .22), transparent 34%),
+    radial-gradient(ellipse at 8% 100%, rgba(91, 155, 227, .18), transparent 44%),
+    linear-gradient(135deg, #17345c, #101f35 75%);
+  box-shadow: 0 32px 64px -38px rgba(16, 31, 53, .78);
+}
+:is(body.page-home, body.page-jobs, body.page-categories, body.page-about, body.page-services, body.page-contact, body.page-pricing, body.page-blog, body.page-employers, body.page-industries, body.page-resources, body.page-help, body.page-legal) .cta-band .btn-light {
+  color: #17243a;
+  background: #efc778;
+}
+:is(body.page-home, body.page-jobs, body.page-categories, body.page-about, body.page-services, body.page-contact, body.page-pricing, body.page-blog, body.page-employers, body.page-industries, body.page-resources, body.page-help, body.page-legal) .cta-band .btn-light:hover {
+  background: #f5d99e;
+}
+body.page-hire .section-head:not(.row) h2::after {
+  content: "";
+  display: block;
+  width: 42px;
+  height: 3px;
+  margin: 14px auto 0;
+  border-radius: 3px;
+  background: linear-gradient(90deg, #d7a951, #efc778);
+}
+body.page-hire .section-tint { background: linear-gradient(145deg, #f7f8fa, #f1f4f8); }
+body.page-hire .service-card,
+body.page-hire .contact-card,
+body.page-hire .testimonial {
+  border-color: rgba(16, 42, 76, .09);
+  border-radius: 20px;
+}
+body.page-hire .cta-band .cta-inner {
+  background:
+    radial-gradient(ellipse at 88% 12%, rgba(215, 169, 81, .22), transparent 34%),
+    radial-gradient(ellipse at 8% 100%, rgba(91, 155, 227, .18), transparent 44%),
+    linear-gradient(135deg, #17345c, #101f35 75%);
+  box-shadow: 0 32px 64px -38px rgba(16, 31, 53, .78);
+}
+@media (max-width: 640px) {
+  .page-hero:not(.page-hero-search) { padding: 48px 0 52px; }
+  .page-hero:not(.page-hero-search) h1 { font-size: clamp(2rem, 8vw, 2.8rem); }
+  :is(body.page-home, body.page-jobs, body.page-categories, body.page-about, body.page-services, body.page-contact, body.page-pricing, body.page-blog, body.page-employers, body.page-industries, body.page-resources, body.page-help, body.page-legal) .section-head:not(.row) {
+    margin-bottom: 34px;
+  }
 }

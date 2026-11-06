@@ -60,6 +60,29 @@ test('Job Categories page and the group filter on Find Jobs', async () => {
   assert.equal(found(await page('/jobs?group=nonsense')), all);
 });
 
+test('public marketing pages share the premium inner-page design', async () => {
+  for (const [url, pageClass] of [
+    ['/about', 'about'],
+    ['/services', 'services'],
+    ['/contact', 'contact'],
+    ['/pricing', 'pricing'],
+    ['/blog', 'blog'],
+    ['/categories', 'categories'],
+    ['/hire', 'hire'],
+    ['/accessibility', 'help'],
+    ['/terms', 'legal'],
+  ]) {
+    const res = await srv.request(url);
+    assert.equal(res.status, 200, url);
+    assert.match(await res.text(), new RegExp(`<body class="page-${pageClass}"`), url);
+  }
+  const css = await page('/css/style.css');
+  assert.match(css, /\.page-hero:not\(\.page-hero-search\) \{\n  color: #d7e0ec;/);
+  assert.match(css, /linear-gradient\(135deg, #17345c, #101f35 75%\)/);
+  assert.match(css, /body\.page-hire \.service-card/);
+  assert.match(css, /@media \(max-width: 640px\) \{\n  \.page-hero:not\(\.page-hero-search\) \{ padding: 48px 0 52px; \}/);
+});
+
 test('Post a Job and Staffing Solutions links go to the right place', async () => {
   const post = await srv.request('/post-a-job');
   assert.equal(post.status, 302);
