@@ -440,6 +440,7 @@ Total: 727 routes.
 | POST | `/companies/:id/follow` | public | Same-origin, rate-limited; signed-out visitors go to sign-in; a signed-in job seeker follows (or with action=unfollow stops following) a company with a public page: a saved search for its new jobs |
 | POST | `/account/offers/:appId/:offerId/:answer` | candidate | Same-origin, rate-limited; accept or decline an approved offer on the candidate's own application; the company is told |
 | POST | `/account/interviews/:appId/choose` | candidate | The signed-in job seeker's own application only; same-origin, rate-limited; books one of the times the employer offered, if still open, ahead and free |
+| GET | `/employer/applicants.csv` | employer | Signed link lasting a few minutes, rate-limited; only jobs and details this member may see on the Applicants page; contact details need applicants.contact on the job and are left out for people who withdrew; no notes, messages, offers or resume text; each download is in the company's activity log, without names |
 | POST | `/employer/applicants/bulk` | employer | Same-origin, rate-limited; up to 100 ticked applicants moved to one stage; each checked as a single move (this company's job, applicants.manage, an allowed move), the rest skipped |
 | POST | `/employer/applicants/:id/interview-options/cancel` | employer | Company members who may manage interviews for that job (interviews.manage); withdraws the times offered |
 | GET | `/salary-calculator` | public | Take-home pay from a salary (GET form, nothing stored; results not indexed) |

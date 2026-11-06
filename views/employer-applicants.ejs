@@ -25,6 +25,10 @@
     <% } else if (!rows.length) { %>
       <p class="muted dash-empty">No applicants match.</p>
     <% } else { %>
+      <div class="export-row">
+        <a class="btn btn-outline btn-sm" href="<%= signedLink('/employer/applicants.csv') %><%= filters ? '&' + filters : '' %>">Download as a spreadsheet</a>
+        <p class="small muted">Downloads the <%= rows.length %> applicant<%= rows.length === 1 ? '' : 's' %> shown here. The file holds personal details, so keep it safe and use it only for this hiring. Each download is recorded.</p>
+      </div>
       <% const manageable = rows.filter(function (v) { return v.allowedMoves && v.allowedMoves.length && !v.withdrawn; }); %>
       <form method="post" action="/employer/applicants/bulk" class="bulk-form" id="bulk" data-confirm="Move the selected applicants? Each of them sees their new status in their account.">
       <% [['job', jobId], ['status', status], ['sort', sort], ['answers', answers]].forEach(function (k) { if (k[1]) { %><input type="hidden" name="back_<%= k[0] %>" value="<%= k[1] %>"><% } }) %>

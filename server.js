@@ -2583,7 +2583,7 @@ app.get('/post-a-job', (req, res) => res.redirect(clients.currentEmployer(req) ?
 // Their jobs (draft, the team's check, live, paused, closed), the people who
 // applied, status changes and interviews: employer-hiring.js.
 const hiring = employerHiring.register(app, {
-  site, mailer, baseUrl: BASE_URL, limit, sameOrigin, adminAuth, adminUrl, clients, readSubmissions, writeSubmissions, saveSubmission, uploadsDir: UPLOADS_DIR, downloadLinks, linkExpired,
+  site, mailer, baseUrl: BASE_URL, limit, sameOrigin, adminAuth, adminUrl, clients, readSubmissions, writeSubmissions, saveSubmission, uploadsDir: UPLOADS_DIR, downloadLinks, linkExpired, sendCsv,
   getJobs: () => jobs, saveJobs, parseJob, nextJobId, todayIst, publicJob, jobPath, sendJobAlerts, alertedNote: (n) => alertedNote(n),
   appStatuses: APP_STATUSES, moveStage: history.moveStage, interviewDesk, parseInterview: interviews.parseInterview, interviewModes: interviews.MODES, interviewDurations: interviews.DURATIONS,
   formatIst: interviews.formatIst, skillMatch, events,

@@ -885,3 +885,10 @@ Suggested order: 2 → 1 → 3 → 4, which makes Hireriv usable for skilled and
 - **Privacy.** It saves only who, with no notes about the person. It shows only people who still choose to be found, the same as the search, and says how many have stopped. Saving shows no more of the profile and spends no contact credit. Candidates aren't told each time, but the companies that saved them are in their data download, and saves go when they delete their account. The company's activity log records that someone was saved, not who.
 - **Tests.** `test/saved-candidates.test.js`.
 
+## Step 203: Download applicants as a spreadsheet
+
+- **The gap.** Employers could see applicants only on screen, while the team's side has had downloads for a long time. Companies were copying people's details by hand.
+- **Built.** A "Download as a spreadsheet" button on the Applicants page. It follows the filters on the page. `/employer/applicants.csv`, `employer-hiring.js`.
+- **Privacy.** Each person gets only what they can see on the page: their own jobs, and email, phone and LinkedIn only where they may contact applicants on that job. Viewers get no contact details or typed answers. People who withdrew stay listed without contact details. Notes, messages, offers and resume text are never included. Links last a few minutes, and a cell that starts like a formula is made harmless. Each download is in the company's activity log with the count and job, not names.
+- **Tests.** `test/applicants-export.test.js`.
+

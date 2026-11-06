@@ -35,7 +35,7 @@ const lockedByModeration = (job) => Boolean(job && job.moderation && job.moderat
 const LOCKED_MESSAGE = 'this listing was restricted by our moderators; use the link in our email to appeal';
 
 function register(app, deps) {
-  const { site, mailer, baseUrl, limit, sameOrigin, adminAuth, adminUrl, clients, readSubmissions, writeSubmissions, uploadsDir, downloadLinks, linkExpired } = deps;
+  const { site, mailer, baseUrl, limit, sameOrigin, adminAuth, adminUrl, clients, readSubmissions, writeSubmissions, uploadsDir, downloadLinks, linkExpired, sendCsv } = deps;
   const { getJobs, saveJobs, parseJob, nextJobId, todayIst, publicJob, jobPath, sendJobAlerts, alertedNote, appStatuses, moveStage, interviewDesk, parseInterview, interviewModes, interviewDurations, formatIst, skillMatch, jobFormLocals } = deps;
   const { requireEmployer, requireEmployerApi, team, addressed } = clients;
   const { events } = deps;
@@ -387,7 +387,8 @@ function register(app, deps) {
     return v;
   }
 
-  app.get('/employer/applicants', requireEmployer, (req, res) => {
+  // The list and its download follow the same filters.
+  function filteredApplicants(req) {
     const { jobs, apps } = applicationsFor(req);
     const jobId = jobs.has(req.query.job) ? req.query.job : '';
     const status = [...appStatuses, 'Withdrawn'].includes(req.query.status) ? req.query.status : '';
@@ -401,7 +402,40 @@ function register(app, deps) {
       .map((a) => applicantView(req, a, jobs.get(a.jobId)))
       .filter((v) => (!status || v.status === status) && (!answers || v.screeningOutcome === answers))
       .sort(sort === 'match' ? (x, y) => ((y.match && y.match.score) || 0) - ((x.match && x.match.score) || 0) || newest(x, y) : newest);
-    page(res, 'employer-applicants', { title: 'Applicants', tab: 'applicants', rows, jobs: [...jobs.values()], jobId, status, sort, answers, rejectReasons: rejectReasons.REASONS, anyQuestions: [...jobs.values()].some((j) => screening.hasQuestions(j)), statuses: appStatuses, msg: String(req.query.msg || '') });
+    return { jobs, rows, jobId, status, sort, answers };
+  }
+
+  app.get('/employer/applicants', requireEmployer, (req, res) => {
+    const { jobs, rows, jobId, status, sort, answers } = filteredApplicants(req);
+    const filters = new URLSearchParams(Object.entries({ job: jobId, status, sort: sort === 'match' ? sort : '', answers }).filter(([, v]) => v)).toString();
+    page(res, 'employer-applicants', { title: 'Applicants', tab: 'applicants', rows, filters, jobs: [...jobs.values()], jobId, status, sort, answers, rejectReasons: rejectReasons.REASONS, anyQuestions: [...jobs.values()].some((j) => screening.hasQuestions(j)), statuses: appStatuses, msg: String(req.query.msg || '') });
+  });
+
+  // A spreadsheet of what this person can see on the Applicants page. Contact
+  // details only where they may contact applicants on the job, and never for
+  // someone who withdrew. No notes, messages, offers or resume text. Links last a
+  // few minutes, like resumes, and each download is in the company's activity log.
+  app.get('/employer/applicants.csv', requireEmployer, limit('employer-applicants-export', 20), (req, res) => {
+    if (!downloadLinks.valid(req)) return linkExpired(res, '/employer/applicants');
+    const { jobs, rows, jobId } = filteredApplicants(req);
+    let withContact = 0;
+    const sheet = rows.map((v) => {
+      const row = {
+        Name: v.name, Job: v.jobTitle, Applied: String(v.appliedAt || '').slice(0, 10), Stage: v.withdrawn ? 'Withdrawn' : v.stageLabel,
+        Experience: v.experience, Location: v.location, 'Notice period': v.noticePeriod, Skills: v.skills,
+        'Skill match': v.match && v.match.score !== null && v.match.score !== undefined ? `${v.match.score}%` : '',
+        'Needed answers': v.screeningLabel || '', 'Answers to questions': v.screening.filter((x) => !x.hidden).map((x) => `${x.text}: ${x.answer}`).join(' | '),
+        'Reason not selected': rejectReasons.labelOf(v.rejectReason) || '', 'Assigned to': v.assignedTo ? v.assignedTo.name : '',
+      };
+      if (can(req.member, 'applicants.contact', jobs.get(v.jobId)) && !v.withdrawn) {
+        withContact += 1;
+        Object.assign(row, { Email: v.email, Phone: v.phone, LinkedIn: v.linkedin });
+      }
+      return row;
+    });
+    team.audit(req.employer.id, req.employerUser, 'applicants-exported', `${rows.length} applicant${rows.length === 1 ? '' : 's'}, ${jobId ? jobs.get(jobId).title : 'all jobs'}, ${withContact ? 'with' : 'without'} contact details`);
+    res.set('Cache-Control', 'no-store');
+    sendCsv(res, 'applicants', sheet.length ? sheet : [{ note: 'No applicants match these filters' }]);
   });
 
   // The applicant from the URL, if this member may see them.
