@@ -1,0 +1,44 @@
+<%- include('partials/head') %>
+
+<section class="section admin portal">
+  <div class="container">
+    <%- include('partials/employer-nav', { heading: 'Invitations sent', tab: 'invitations' }) %>
+
+    <p class="muted small">Invitations to apply your company sent, from the candidate search and from applicants' pages, and whether the person applied. Someone who hasn't applied may still; they decide, and nobody is told if they choose not to.</p>
+    <p class="small muted"><b><%= counts.sent %></b> <%= counts.sent === 1 ? 'invitation' : 'invitations' %><%= counts.sent ? ' · ' + counts.applied + ' applied' : '' %> · <%= invitesLeft %> left today<% if (canSearch) { %> · <a href="/employer/candidates">Find candidates</a><% } %></p>
+
+    <form class="form filter-bar" method="get" action="/employer/invitations">
+      <label>Job
+        <select name="job"><option value="">All jobs</option><% jobs.forEach(function (j) { %><option value="<%= j.id %>"<%= job === j.id ? ' selected' : '' %>><%= j.title %></option><% }) %></select>
+      </label>
+      <label>Outcome
+        <select name="outcome"><option value="">Any</option><% Object.keys(outcomes).forEach(function (k) { %><option value="<%= k %>"<%= outcome === k ? ' selected' : '' %>><%= outcomes[k] %></option><% }) %></select>
+      </label>
+      <button class="btn btn-outline btn-sm" type="submit">Show</button>
+    </form>
+
+    <% if (!rows.length) { %>
+      <p class="muted dash-empty"><%= job || outcome ? 'No invitations match.' : 'No invitations yet. Invite people from Find candidates, or from an applicant\'s page to another of your jobs.' %></p>
+    <% } else { %>
+      <div class="table-wrap dash-card">
+        <table class="cards-on-phone invite-sent">
+          <thead><tr><th>Person</th><th>Job</th><th>How</th><th>Sent</th><th>Outcome</th></tr></thead>
+          <tbody>
+            <% rows.forEach(function (r) { %>
+              <tr>
+                <td><% if (r.link) { %><a href="<%= r.link %>"><b><%= r.person %></b></a><% } else { %><b><%= r.person %></b><% } %></td>
+                <td><%= r.job.title %></td>
+                <td class="small"><%= r.via %></td>
+                <td class="muted small"><%= formatDate(r.at) %> · <%= r.by %></td>
+                <td><span class="pill <%= r.outcome === 'applied' ? 'st-hired' : r.outcome === 'closed' ? 'st-rejected' : 'st-new' %>"><%= r.outcomeLabel %></span></td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+      <%- include('partials/pager', { pager: pager, pagerLabel: 'Invitation pages' }) %>
+    <% } %>
+  </div>
+</section>
+
+<%- include('partials/foot') %>

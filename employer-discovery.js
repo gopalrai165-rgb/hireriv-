@@ -227,6 +227,53 @@ function register(app, deps) {
     back(r.existed ? `You already invited them to apply for ${r.job.title}.` : `Invitation sent for ${r.job.title}. They'll decide whether to apply.`);
   });
 
+  // ---------- invitations sent ----------
+  // Every invitation the company sent (from the candidate search, and after an
+  // application, Step 207) on jobs this person may see applicants for, and
+  // whether the person applied. Someone who put one aside reads as "Not yet":
+  // the company is never told.
+  const OUTCOMES = { applied: 'Applied', waiting: 'Not yet', closed: 'Job closed' };
+  function sentInvitations(req) {
+    const jobs = new Map(getJobs().filter((j) => j.employerId === req.employer.id && selfManaged(j) && can(req.member, 'applicants.view', j)).map((j) => [j.id, j]));
+    const candidates = new Map(readSubmissions('candidates').map((c) => [c.id, c]));
+    const apps = readSubmissions('applications').filter((a) => !a.duplicateOf);
+    const appById = new Map(apps.map((a) => [a.id, a]));
+    return invitesOf(req.employer.id).filter((i) => jobs.has(i.jobId)).map((i) => {
+      const job = jobs.get(i.jobId);
+      const c = i.candidateId ? candidates.get(i.candidateId) : null;
+      const from = i.applicationId ? appById.get(i.applicationId) : null;
+      const email = lower(c ? c.email : i.email);
+      const applied = email && apps.find((a) => a.jobId === job.id && lower(a.email) === email && a.createdAt >= i.createdAt);
+      const outcome = applied ? 'applied' : isLive(job) ? 'waiting' : 'closed';
+      const fromJob = from ? jobs.get(from.jobId) : null;
+      return {
+        id: i.id, at: i.createdAt, job: { id: job.id, title: job.title },
+        // Before they apply, people from the search are shown as on their card.
+        person: applied ? applied.name : from ? from.name : c ? shortName(c.profile && c.profile.name) : 'Candidate',
+        link: applied ? `/employer/applicants/${applied.id}` : fromJob ? `/employer/applicants/${from.id}` : '',
+        via: from ? (fromJob ? `After applying for ${fromJob.title}` : 'After applying for another of your jobs') : 'Candidate search',
+        by: (team.userById(i.invitedBy) || {}).name || 'Someone who left the team',
+        outcome, outcomeLabel: OUTCOMES[outcome],
+      };
+    }).sort((x, y) => String(y.at).localeCompare(String(x.at)));
+  }
+  app.get('/employer/invitations', requireEmployer, (req, res) => {
+    const all = sentInvitations(req);
+    const jobIds = new Set(all.map((r) => r.job.id));
+    const job = jobIds.has(req.query.job) ? req.query.job : '';
+    const outcome = OUTCOMES[req.query.outcome] ? req.query.outcome : '';
+    const list = all.filter((r) => (!job || r.job.id === job) && (!outcome || r.outcome === outcome));
+    const { rows, pager } = paginate(list, { page: req.query.page, size: 50, query: { job, outcome }, path: '/employer/invitations' });
+    const since = new Date(Date.now() - DAY).toISOString();
+    const jobs = [...new Map(all.map((r) => [r.job.id, r.job])).values()];
+    res.render('employer-invitations', {
+      title: 'Invitations sent', tab: 'invitations', noindex: true, page: 'employer', rows, pager, job, outcome, jobs, outcomes: OUTCOMES,
+      counts: { sent: list.length, applied: list.filter((r) => r.outcome === 'applied').length },
+      invitesLeft: Math.max(0, INVITES_PER_DAY - invitesOf(req.employer.id).filter((i) => i.createdAt >= since).length),
+      canSearch: can(req.member, 'candidates.search'),
+    });
+  });
+
   // Back to the same search and the same person.
   const KEEP = ['q', 'skills', 'skill', 'location', 'experience', 'type', 'shift', 'available', 'contact', 'job', 'sort', 'saved', 'page'];
   app.post('/employer/candidates/:id/save', requireEmployer, limit('candidate-save', 120), sameOrigin, (req, res) => {

@@ -689,6 +689,7 @@ Total: 727 routes.
 | POST | `/api/ats/offers/:offerId/response` | employer | Owners, or managers and recruiters on the job; only approved offers |
 | GET | `/api/ats/analytics` | employer | 401 when signed out; metrics for the jobs this member may see |
 | GET | `/employer/candidates` | employer | Owners, hiring managers and recruiters of a verified company; only candidates who chose to be found, without contact details, resumes or past employers |
+| GET | `/employer/invitations` | employer | Signed-in company member; only invitations on the company's jobs they may see applicants for (applicants.view); people from the search show as on their card until they apply; putting one aside reads as Not yet |
 | POST | `/employer/candidates/:id/invite` | employer | Invites a findable candidate to one of the company's own open jobs; once per candidate and job, 30 a day per company; recorded in the activity log |
 | GET | `/api/employers/candidates` | employer | JSON; same rules as the page; a job to match must be one of the company's own |
 | POST | `/api/employers/candidates/:id/invites` | employer | JSON; same rules as the page |

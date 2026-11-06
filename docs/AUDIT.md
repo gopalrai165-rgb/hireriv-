@@ -928,3 +928,10 @@ Suggested order: 2 → 1 → 3 → 4, which makes Hireriv usable for skilled and
 - **Rules.** Only jobs still open, and never one they already applied for; one line per job when two invitations name the same job. "Not for me" hides it for good and the company is not told, so nobody is pressed to explain. Their data download says which they put aside.
 - **Tests.** `test/account-invitations.test.js`.
 
+## Step 209: Invitations sent, for employers
+
+- **The gap.** Companies send invitations from the candidate search and from applicants' pages (Step 207), but had no list of what they sent and nothing saying whether anyone applied.
+- **Built.** "Invitations" in the employer portal's Hiring menu: each invitation's person, job, how it was sent, when and by whom, and the outcome (Applied, Not yet, Job closed), with filters by job and outcome, the totals and the invitations left today. `/employer/invitations`, `views/employer-invitations.ejs`.
+- **Rules.** Only jobs the person may see applicants for. Someone found in the search shows as their first name and initial, as on their card, until they apply; then the name links to their application. An application counts only if it came after the invitation. Putting an invitation aside (Step 208) reads as Not yet, so the company is never told.
+- **Tests.** `test/invitations-sent.test.js`.
+
