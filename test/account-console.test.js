@@ -51,3 +51,11 @@ test('the sidebar names the person and links to finding jobs and the resume make
   // The resume maker belongs to the Profile section.
   assert.match(sideOf(await page('/account/resume-builder')), /<a class="tab active" href="\/account\/profile"/);
 });
+
+test('long values and button rows wrap on phones instead of running off the screen', async () => {
+  const css = require('fs').readFileSync(require('path').join(__dirname, '..', 'public', 'css', 'style.css'), 'utf8');
+  assert.match(css, /\.wrap-actions \{ display: flex; flex-wrap: wrap;/);
+  assert.match(css, /\.account-lines dd \{ white-space: normal; overflow-wrap: anywhere; \}/);
+  assert.match(css, /\.check-grid \.check-row span \{ min-width: 0; overflow-wrap: anywhere; \}/);
+  assert.match(await page('/account/resume-builder'), /<div class="row-actions wrap-actions">/);
+});
