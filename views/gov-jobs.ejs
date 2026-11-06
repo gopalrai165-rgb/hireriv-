@@ -1,0 +1,23 @@
+<%- include('partials/head') %>
+<section class="section">
+  <div class="container">
+    <h1>Government job notices</h1>
+    <p class="lead">Recruitment notices from government bodies, each read against the official source by our team.</p>
+    <%- include('partials/gov-notice') %>
+    <% if (!list.length) { %>
+      <p class="muted dash-empty">No notices are open right now. <a href="/jobs">See all jobs on <%= site.name %></a>.</p>
+    <% } else { %>
+      <ul class="gov-list plain">
+        <% list.forEach(function (n) { %>
+          <li class="dash-card">
+            <h2 class="gov-title"><a href="/government-jobs/<%= n.id %>"><%= n.title %></a></h2>
+            <p class="muted"><%= n.organisation %><% if (n.location) { %> · <%= n.location %><% } %></p>
+            <p><b>Last date: <%= formatDate(n.lastDate) %></b><% if (n.posts) { %> · Posts: <%= n.posts %><% } %></p>
+            <p class="small muted">Official source: <%= n.host %>. Checked <%= formatDate(n.checkedAt) %>.</p>
+          </li>
+        <% }) %>
+      </ul>
+    <% } %>
+  </div>
+</section>
+<%- include('partials/foot') %>

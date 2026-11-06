@@ -52,6 +52,7 @@
       <h2 class="footer-h"><%= t('footer.jobsHiring') %></h2>
       <a href="/jobs"><%= t('nav.findJobs') %></a>
       <a href="/categories"><%= t('nav.categories') %></a>
+      <% if (govNoticesLive() > 0) { %><a href="/government-jobs">Government job notices</a><% } %>
       <a href="/job-seekers">For job seekers</a>
       <a href="/job-seekers#resume"><%= t('footer.submitCv') %></a>
       <a href="/post-a-job"><%= t('nav.postJob') %></a>

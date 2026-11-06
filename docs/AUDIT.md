@@ -99,7 +99,7 @@ Each item keeps what exists working and adds to it. Size: S ≈ one step, M ≈ 
 | 7 | ✅ **Done in Steps 47 and 50** (hiring analytics still to come). **Client self-signup** with verification (work email + GSTIN), direct job posting held for Admin approval, and hiring analytics in the client portal | The planned employer portal | L |
 | 8 | **Phone sign-in by OTP** (SMS or WhatsApp) for candidates | Candidates without email; needs a paid provider and DLT registration for SMS in India | M |
 | 9 | **Employer packages** (job-post credits or subscriptions) with online payment, e.g. Razorpay | The plan's subscription revenue | L |
-| 10 | **Government jobs information** with source links, a verification step and a non-affiliation notice | Optional traffic driver | M |
+| 10 | ✅ **Done in Step 195** (`gov-jobs.js`, Admin → Government jobs). The section stays hidden until the team publishes a notice. **Government jobs information** with source links, a verification step and a non-affiliation notice | Optional traffic driver | M |
 | 11 | **International recruitment**, only after the Emigration Act registration | Legal requirement | L |
 | 12 | ✅ **Started in Step 48**: the jobs data (jobs, places, categories, skills, applications, saved jobs) is kept in PostgreSQL and searched there. Moving the rest only if a trigger in section 1 happens | Not needed yet | L |
 
@@ -821,4 +821,12 @@ Suggested order: 2 → 1 → 3 → 4, which makes Hireriv usable for skilled and
 - **Rules.** Only the opt-in list; consent and past bounces checked again just before each email; one-click unsubscribe whose link holds no address; addresses leave the queue as they are used, so a finished campaign keeps only its counts. Job alerts and application updates are separate.
 - **Not done here.** Opens and clicks are not tracked, on purpose (no tracking pixels). Campaigns go to the job-seeker list only; CRM contacts have their own consent and proposals. Whether promotional email needs anything more under the DPDP Rules is part of the legal review (docs/SECURITY.md section 7).
 - **Tests.** `test/campaigns.test.js`.
+
+## Step 195: Government job notices
+
+- **Built.** Admin → Government jobs: write a notice with its official link, read the source, tick that the details match it, publish. Public pages `/government-jobs` and `/government-jobs/:id`.
+- **Rules.** Nothing is public until someone has checked it. The source must be https, and an address outside the usual government ones needs a second tick. A change takes the notice down until it is checked again, and it leaves the list after its last date (the address answers 410). Every page says Hireriv is not part of the government, takes no applications or money for these posts, and warns about paying for jobs. No job data for search engines, because these are not vacancies Hireriv handles. Nothing is fetched or copied automatically.
+- **While empty.** Not in the footer or sitemap, and `/government-jobs` is out of search.
+- **Not done here.** Notices are entered by hand. The wording of the notice should be part of the legal review (docs/SECURITY.md section 7).
+- **Tests.** `test/gov-jobs.test.js`.
 

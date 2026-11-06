@@ -568,6 +568,7 @@ function teamSideOf(req, user) {
     user.role === 'Admin' ? ['/admin/notifications', 'Email delivery'] : null,
     user.role === 'Admin' ? ['/admin/export-requests', 'Export approvals'] : null,
     user.role === 'Admin' ? ['/admin/campaigns', 'Email campaigns'] : null,
+    user.role === 'Admin' ? ['/admin/government-jobs', 'Government jobs'] : null,
     can('analytics.view') ? ['/admin/analytics', 'Analytics'] : null,
     can('site.analytics') ? ['/admin/site-analytics', 'Website analytics'] : null,
     can('subscriptions.view') ? ['/admin/billing', 'Plans & payments'] : null,
@@ -981,7 +982,7 @@ app.locals.stateJobsLink = (city) => {
 };
 const cityPagesWithJobs = () => { const live = openJobs().filter((j) => !isSample(j)); return geo.CITY_PAGES.filter((c) => live.some((j) => c.locations.includes(j.location))); };
 app.get('/sitemap.xml', (req, res) =>
-  res.type('application/xml').send(seo.sitemap(BASE_URL, { jobs: openJobs().filter((j) => !isSample(j)), posts: livePosts(), staticPaths: ['/', '/jobs', ...catalog.WORK_PAGES.map((x) => `/jobs/${x.slug}`), ...catalog.JOB_INDUSTRIES.map((x) => `/jobs/industry/${x.slug}`), ...cityPagesWithJobs().map((c) => `/jobs/in/${c.slug}`), ...(statePagesWithJobs().length ? ['/jobs/states'] : []), ...statePagesWithJobs().map(statePath), ...areaPagesWithJobs(), ...rolePagesWithJobs(), ...needPagesWithJobs(), ...salaryPagesWithData(), ...(trustHooks.companyPaths().length ? ['/companies'] : []), ...trustHooks.companyPaths(), '/salary-calculator', '/interview-tips', ...ROLE_PAGES.filter((r) => interviewTips.forRole(r.key)).map((r) => tipsPath(r)), '/categories', '/job-seekers', '/employers', ...app.locals.hireRoles.map((r) => r.href), ...recruitCities().map((c) => `/recruitment-agency/${c.slug}`), '/hire', '/services', ...catalog.SERVICES.map((x) => `/services/${x.slug}`), '/industries', ...catalog.INDUSTRIES.map((x) => `/industries/${x.slug}`), '/about', '/blog', '/contact', '/privacy', '/terms', '/service-terms', '/pricing', '/company-profile', '/job-posting-policy', '/help/job-terms', '/accessibility'] }))
+  res.type('application/xml').send(seo.sitemap(BASE_URL, { jobs: openJobs().filter((j) => !isSample(j)), posts: livePosts(), staticPaths: ['/', '/jobs', ...govJobs.sitemapPaths(), ...catalog.WORK_PAGES.map((x) => `/jobs/${x.slug}`), ...catalog.JOB_INDUSTRIES.map((x) => `/jobs/industry/${x.slug}`), ...cityPagesWithJobs().map((c) => `/jobs/in/${c.slug}`), ...(statePagesWithJobs().length ? ['/jobs/states'] : []), ...statePagesWithJobs().map(statePath), ...areaPagesWithJobs(), ...rolePagesWithJobs(), ...needPagesWithJobs(), ...salaryPagesWithData(), ...(trustHooks.companyPaths().length ? ['/companies'] : []), ...trustHooks.companyPaths(), '/salary-calculator', '/interview-tips', ...ROLE_PAGES.filter((r) => interviewTips.forRole(r.key)).map((r) => tipsPath(r)), '/categories', '/job-seekers', '/employers', ...app.locals.hireRoles.map((r) => r.href), ...recruitCities().map((c) => `/recruitment-agency/${c.slug}`), '/hire', '/services', ...catalog.SERVICES.map((x) => `/services/${x.slug}`), '/industries', ...catalog.INDUSTRIES.map((x) => `/industries/${x.slug}`), '/about', '/blog', '/contact', '/privacy', '/terms', '/service-terms', '/pricing', '/company-profile', '/job-posting-policy', '/help/job-terms', '/accessibility'] }))
 );
 
 // Things a new install still needs before it is ready for visitors, shown to
@@ -3351,6 +3352,8 @@ app.post('/admin/:type/:id/delete', adminAuth, requireAdmin, sameOrigin, (req, r
 
 // Full database snapshot (VACUUM INTO) for backups; safe while the site runs.
 // A second Admin approves bulk exports when the owner turns it on (export-approval.js).
+const govJobs = require('./gov-jobs').register(app, { db, team, adminAuth, requireAdmin, sameOrigin, limit, site });
+app.locals.govNoticesLive = () => govJobs.live().length;
 require('./campaigns').register(app, { db, team, adminAuth, requireAdmin, requireConfirmed, sameOrigin, limit, privacy, notify, mailer, site, baseUrl: BASE_URL, readSubmissions, realContact: app.locals.realContact, ops });
 const exportApproval = require('./export-approval').register(app, { db, team, adminAuth, requireAdmin, requireConfirmed, sameOrigin, limit, events: () => events, security });
 app.get('/admin/backup', adminAuth, requireAdmin, requireConfirmed, exportApproval.requireApproval('Full database'), security.bulkExport('Full database'), (req, res) => {

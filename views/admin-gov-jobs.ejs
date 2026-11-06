@@ -1,0 +1,93 @@
+<%- include('partials/head') %>
+<%
+  const STATUS = { draft: ['Draft', ''], published: ['On the site', 'st-hired'], withdrawn: ['Taken down', 'st-rejected'] };
+  const statusOf = function (n) { if (n.status === 'published' && n.lastDate < today) return ['Last date passed', 'st-rejected']; return STATUS[n.status] || [n.status, '']; };
+  const pill = function (n) { const s = statusOf(n); return '<span class="pill ' + s[1] + '">' + s[0] + '</span>'; };
+  const v = values || {};
+%>
+<section class="section admin admin-console">
+  <div class="container">
+    <%- include('partials/team-side') %>
+    <div class="admin-head">
+      <div class="admin-title">
+        <span class="admin-crumb">Admin · Content</span>
+        <h1><%= section === 'new' ? 'New government job notice' : section === 'one' ? notice.title : 'Government jobs' %></h1>
+      </div>
+      <div class="admin-head-actions">
+        <% if (section === 'list') { %><a class="btn btn-primary btn-sm" href="/admin/government-jobs/new">New notice</a><% } else { %><a class="btn btn-outline btn-sm" href="/admin/government-jobs">All notices</a><% } %>
+      </div>
+    </div>
+    <% if (msg) { %><p class="notice" role="status"><%= msg %></p><% } %>
+    <% if (errors.length) { %><div class="notice notice-err" role="alert"><% errors.forEach(function (e) { %><p><%= e %></p><% }) %></div><% } %>
+
+    <% if (section === 'list') { %>
+      <p class="muted">Information about government recruitment, with a link to the official notice. Nothing shows on the site until someone has read the notice. With nothing published, the public section isn't linked anywhere.</p>
+      <% if (!list.length) { %>
+        <p class="muted dash-empty">No notices yet.</p>
+      <% } else { %>
+        <div class="table-wrap"><table class="cards-on-phone">
+          <thead><tr><th scope="col">Notice</th><th scope="col">Body</th><th scope="col">Last date</th><th scope="col">Status</th></tr></thead>
+          <tbody>
+            <% list.forEach(function (n) { %>
+              <tr><td><a href="/admin/government-jobs/<%= n.id %>"><%= n.title %></a></td><td><%= n.organisation %></td><td><%= formatDate(n.lastDate) %></td><td><%- pill(n) %></td></tr>
+            <% }) %>
+          </tbody>
+        </table></div>
+      <% } %>
+    <% } else { %>
+      <div class="dash-grid">
+        <section class="dash-card" aria-labelledby="g-form">
+          <h2 id="g-form">The notice</h2>
+          <form class="form" method="post" action="<%= section === 'new' ? '/admin/government-jobs' : '/admin/government-jobs/' + notice.id %>">
+            <label for="g-title">Post or exam*</label>
+            <input id="g-title" name="title" maxlength="140" required value="<%= v.title || '' %>">
+            <label for="g-org">Government body*</label>
+            <input id="g-org" name="organisation" maxlength="120" required value="<%= v.organisation || '' %>">
+            <label for="g-last">Last date to apply*</label>
+            <input id="g-last" type="date" name="lastDate" required value="<%= v.lastDate || '' %>">
+            <label for="g-source">Official notice link*</label>
+            <input id="g-source" type="url" name="sourceUrl" maxlength="500" required value="<%= v.sourceUrl || '' %>" placeholder="https://" aria-describedby="g-source-help">
+            <p class="small muted" id="g-source-help">The body's own site, not a job portal or a news site.</p>
+            <label for="g-posts">Number of posts</label>
+            <input id="g-posts" name="posts" maxlength="60" value="<%= v.posts || '' %>">
+            <label for="g-qual">Qualification</label>
+            <input id="g-qual" name="qualification" maxlength="200" value="<%= v.qualification || '' %>">
+            <label for="g-loc">Location</label>
+            <input id="g-loc" name="location" maxlength="120" value="<%= v.location || '' %>">
+            <label for="g-sum">Short summary</label>
+            <textarea id="g-sum" name="summary" rows="4" maxlength="2000" aria-describedby="g-sum-help"><%= v.summary || '' %></textarea>
+            <p class="small muted" id="g-sum-help">Your own words, taken only from the official notice.</p>
+            <button class="btn btn-primary" type="submit"><%= section === 'new' ? 'Save draft' : 'Save changes' %></button>
+            <% if (notice && notice.status === 'published') { %><p class="small muted">Saving a change takes the notice off the site until it is checked again.</p><% } %>
+          </form>
+        </section>
+
+        <% if (section === 'one') { %>
+          <section class="dash-card" aria-labelledby="g-pub">
+            <h2 id="g-pub">On the site</h2>
+            <p><%- pill(notice) %></p>
+            <% if (notice.checkedAt) { %><p class="small muted">Checked by <%= notice.checkedBy %> on <%= formatDate(notice.checkedAt) %>.</p><% } %>
+            <% if (notice.status !== 'published') { %>
+              <p><a href="<%= notice.sourceUrl %>" target="_blank" rel="noopener noreferrer nofollow">Open the official notice</a></p>
+              <form class="form" method="post" action="/admin/government-jobs/<%= notice.id %>/publish">
+                <label class="check"><input type="checkbox" name="checked" value="1"> I read the official notice, and the details above match it</label>
+                <% if (!official) { %>
+                  <p class="small notice notice-err">This address is not a usual government one (.gov.in, .nic.in, .ac.in, .res.in, .edu.in or .mil.in). Some bodies do use others, so check carefully.</p>
+                  <label class="check"><input type="checkbox" name="otherSource" value="1"> I'm sure this is the body's own official site</label>
+                <% } %>
+                <button class="btn btn-primary btn-sm" type="submit">Publish</button>
+              </form>
+              <form method="post" action="/admin/government-jobs/<%= notice.id %>/delete" data-confirm="Delete this notice?"><button class="btn btn-danger btn-sm gov-delete" type="submit">Delete</button></form>
+            <% } else { %>
+              <div class="row-actions-wrap">
+                <a class="btn btn-outline btn-sm" href="/government-jobs/<%= notice.id %>">See it on the site</a>
+                <form method="post" action="/admin/government-jobs/<%= notice.id %>/withdraw" data-confirm="Take this notice off the site?"><button class="btn btn-danger btn-sm" type="submit">Take it down</button></form>
+              </div>
+            <% } %>
+          </section>
+        <% } %>
+      </div>
+    <% } %>
+  </div>
+</section>
+<%- include('partials/foot') %>

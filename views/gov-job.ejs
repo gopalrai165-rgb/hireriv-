@@ -1,0 +1,23 @@
+<%- include('partials/head') %>
+<section class="section">
+  <div class="container narrow">
+    <p><a href="/government-jobs">All government job notices</a></p>
+    <h1><%= notice.title %></h1>
+    <p class="lead"><%= notice.organisation %></p>
+    <% if (!isOpen) { %><p class="notice notice-err" role="status">This notice is no longer open on <%= site.name %>. Check the official site for the latest.</p><% } %>
+    <div class="dash-card">
+      <dl class="gov-facts">
+        <dt>Last date</dt><dd><b><%= formatDate(notice.lastDate) %></b></dd>
+        <% if (notice.posts) { %><dt>Posts</dt><dd><%= notice.posts %></dd><% } %>
+        <% if (notice.qualification) { %><dt>Qualification</dt><dd><%= notice.qualification %></dd><% } %>
+        <% if (notice.location) { %><dt>Location</dt><dd><%= notice.location %></dd><% } %>
+        <dt>Official source</dt><dd><%= notice.host %></dd>
+        <% if (notice.checkedAt) { %><dt>Checked by our team</dt><dd><%= formatDate(notice.checkedAt) %></dd><% } %>
+      </dl>
+      <% if (notice.summary) { notice.summary.split(/\n\s*\n/).forEach(function (t) { %><p><%= t %></p><% }) } %>
+      <p><a class="btn btn-primary" href="<%= notice.sourceUrl %>" target="_blank" rel="noopener noreferrer nofollow">Read the official notice<span class="sr-only"> (opens the official site in a new tab)</span></a></p>
+    </div>
+    <%- include('partials/gov-notice') %>
+  </div>
+</section>
+<%- include('partials/foot') %>

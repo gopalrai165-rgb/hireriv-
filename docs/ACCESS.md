@@ -52,6 +52,21 @@ Total: 727 routes.
 | GET | `/admin/ai` | team | ai.view (Admins, Operations Admins); counts and costs only, never what people wrote; no-store |
 | POST | `/admin/ai/settings` | admin | Admins; switches and limits with a reason, in the hash-chained audit history |
 
+## Government job notices: information with a link to the official notice
+
+| Method | Path | Policy | Notes |
+| --- | --- | --- | --- |
+| GET | `/government-jobs` | public | Published notices before their last date; out of search while empty |
+| GET | `/government-jobs/:id` | public | 404 for drafts; 410, out of search, when taken down or past its last date |
+| GET | `/admin/government-jobs` | admin | Admins only |
+| GET | `/admin/government-jobs/new` | admin | Admins only |
+| POST | `/admin/government-jobs` | admin | Admins only; same-origin; saves a draft; recorded |
+| GET | `/admin/government-jobs/:id` | admin | Admins only |
+| POST | `/admin/government-jobs/:id` | admin | Admins only; same-origin; a change takes a published notice down until checked again; recorded |
+| POST | `/admin/government-jobs/:id/publish` | admin | Admins only; same-origin; needs the tick that the official notice was read; recorded |
+| POST | `/admin/government-jobs/:id/withdraw` | admin | Admins only; same-origin; recorded |
+| POST | `/admin/government-jobs/:id/delete` | admin | Admins only; same-origin; not while published; recorded |
+
 ## Email campaigns: news and job round-ups to the people who asked for them
 
 | Method | Path | Policy | Notes |

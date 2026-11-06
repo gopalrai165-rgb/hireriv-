@@ -1732,6 +1732,15 @@ form.inline { display: inline; }
 .list-row { border-top: 1px solid var(--line, #e5e7eb); padding: 12px 0; }
 .list-row:first-of-type { border-top: 0; }
 .list-row .row-actions { display: flex; flex-wrap: wrap; gap: 8px; white-space: normal; }
+.gov-note { margin: 16px 0; }
+.gov-note p { margin: 0 0 6px; }
+.gov-list { display: grid; gap: 12px; margin: 16px 0 0; padding: 0; list-style: none; }
+.gov-title { font-size: 1.1rem; margin: 0 0 4px; }
+.gov-list .dash-card p { margin: 0 0 4px; }
+.gov-facts { display: grid; grid-template-columns: minmax(110px, auto) 1fr; gap: 6px 14px; margin: 0 0 14px; }
+.gov-facts dt { color: var(--muted); }
+.gov-facts dd { margin: 0; overflow-wrap: anywhere; }
+.gov-delete { margin-top: 10px; }
 .campaign-preview { border: 1px solid var(--line); border-radius: 10px; padding: 16px; overflow-wrap: anywhere; }
 .row-actions-wrap { display: flex; flex-wrap: wrap; gap: 8px; }
 .int-addresses, .int-usage { margin: 8px 0 12px; }
