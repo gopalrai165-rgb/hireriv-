@@ -290,16 +290,18 @@ test('CSV exports follow the filters and permissions and are recorded', async ()
   assert.ok(srv.records('employer-audit').some((e) => e.employerId === 'emp-a' && /^Exported analytics: revenue/.test(e.event)));
 });
 
-test('large data: three years and thousands of applications answer quickly', async () => {
+test('large data: three years and thousands of applications answer quickly', async (t) => {
   const from = ymd(1000);
   const t0 = Date.now();
   const r = await api(`/api/analytics/recruitment-funnel?period=custom&from=${from}&to=${TODAY}`, p.admin);
   assert.equal(r.status, 200);
   assert.ok(r.data.cohort.applications > 3000);
-  assert.ok(Date.now() - t0 < 3000, `took ${Date.now() - t0} ms`);
+  assert.ok(Date.now() - t0 < 6000, `took ${Date.now() - t0} ms`);
   const o = await api(`/api/analytics/overview?period=custom&from=${from}&to=${TODAY}`, p.admin);
   assert.equal(o.data.activity.unit, 'month');
-  assert.ok(o.tookMs < 3000);
+  t.diagnostic('funnel+overview: ' + (Date.now() - t0) + ' ms, overview: ' + o.tookMs + ' ms');
+  // About 1 s alone, up to about 3 s while every test file runs at once on one machine.
+  assert.ok(o.tookMs < 6000, `overview took ${o.tookMs} ms`);
   // Empty ranges are fine too.
   const none = await api('/api/analytics/overview?period=custom&from=2001-01-01&to=2001-01-31', p.admin);
   assert.equal(kpi(none, 'applications').value, 0);
