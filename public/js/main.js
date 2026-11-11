@@ -31,8 +31,15 @@ const setMenu = (open) => {
   nav.classList.toggle('open', open);
   toggle.setAttribute('aria-expanded', String(open));
   toggle.setAttribute('aria-label', open ? say('menuClose', 'Close menu') : say('menuOpen', 'Open menu'));
+  // The page behind an open menu stays still (see .menu-open in style.css).
+  document.documentElement.classList.toggle('menu-open', open);
 };
 toggle.addEventListener('click', () => setMenu(!nav.classList.contains('open')));
+// Growing past the phone layout hides the button, so close the menu then.
+const wideNav = window.matchMedia('(min-width: 961px)');
+const onWide = () => { if (wideNav.matches && nav.classList.contains('open')) setMenu(false); };
+if (wideNav.addEventListener) wideNav.addEventListener('change', onWide);
+else if (wideNav.addListener) wideNav.addListener(onWide);
 nav.addEventListener('click', (e) => {
   if (e.target.closest('a')) setMenu(false);
 });

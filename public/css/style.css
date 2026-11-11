@@ -212,6 +212,9 @@ img { max-width: 100%; display: block; }
     transform: translateY(-8px); opacity: 0; visibility: hidden; transition: .2s;
   }
   .main-nav.open { transform: none; opacity: 1; visibility: visible; }
+  /* An open menu scrolls on its own; the page behind it does not move. */
+  .main-nav { max-height: calc(100vh - 76px); max-height: calc(100dvh - 76px); overflow-y: auto; overscroll-behavior: contain; }
+  html.menu-open, html.menu-open body { overflow: hidden; }
   .main-nav a:not(.btn) { padding: .85em 1em; border-radius: var(--radius-sm); }
   .main-nav a:not(.btn)::after { display: none; }
   .main-nav a.active { background: var(--primary-50); }
