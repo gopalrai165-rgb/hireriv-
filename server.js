@@ -2917,7 +2917,7 @@ app.get('/admin', adminAuth, (req, res) => {
   // Long tables are shown 50 rows at a time; CSV exports still include everything.
   const pageOf = (list) => paginate(list, { page: req.query.page, size: ADMIN_PAGE_SIZE, query: req.query, path: '/admin' });
 
-  if (tab === 'dashboard') return res.render('admin', { ...locals, rows: [], dash: buildDashboard(applications, req.admin, totals), setupTodo: req.admin.role === 'Admin' ? setupTodo() : [], todo: teamTodo.build({ user: req.admin, apps: applications, jobs, ownerOf: appOwner, tabs, enquiries: readSubmissions('hire-requests').filter(hireOverdue), placed: new Set(billing.read().map((p) => p.appId)) }) });
+  if (tab === 'dashboard') return res.render('admin', { ...locals, rows: [], dash: buildDashboard(applications, req.admin, totals), setupTodo: req.admin.role === 'Admin' ? setupTodo() : [], todo: teamTodo.build({ user: req.admin, apps: applications, jobs, ownerOf: appOwner, tabs, enquiries: readSubmissions('hire-requests').filter(hireOverdue), placed: new Set(billing.read().map((p) => p.appId)), placements: billing.read() }) });
   if (tab === 'team') return res.render('admin', { ...locals, rows: team.list(), roles: team.ROLES, roleInfo: agencyRoles.ROLE_INFO, requires2fa: team.requires2fa(), my2fa: team.has2fa(req.admin.id) });
   if (tab === 'templates') return res.render('admin', { ...locals, rows: templates.read(), placeholders: bulk.PLACEHOLDERS });
   if (tab === 'reports') return res.render('admin', { ...locals, rows: [], report: reports.build({ period: String(req.query.period || ''), isAdmin: agencyRoles.can(req.admin, 'money.view') }), inr: billing.inr });
@@ -2979,18 +2979,21 @@ app.get('/admin', adminAuth, (req, res) => {
   }
   if (tab === 'placements') {
     const all = billing.read().map(billing.describe);
-    const view = ['awaiting', 'guarantee', 'to-invoice', 'contracts', 'unpaid', 'overdue'].includes(req.query.view) ? req.query.view : '';
+    const view = ['awaiting', 'joining', 'guarantee', 'to-invoice', 'contracts', 'unpaid', 'overdue'].includes(req.query.view) ? req.query.view : '';
+    const mineOrOpen = teamTodo.placementScopeFor(req.admin);
     const test = {
       awaiting: (p) => p.status === 'Awaiting joining',
+      // From "What needs you": the same placements it counted.
+      joining: (p) => teamTodo.joiningUnconfirmed(p) && mineOrOpen(p),
       guarantee: (p) => p.inGuarantee,
       'to-invoice': billing.needsInvoice,
       unpaid: (p) => p.invoices.some((x) => ['Unpaid', 'Part paid'].includes(x.inv.status)),
       overdue: (p) => p.invoices.some((x) => x.overdue),
       contracts: (p) => p.feeMode === 'monthly',
     }[view];
-    const hired = applications.filter((a) => a.status === 'Hired' && !all.some((p) => p.appId === a.id));
+    const hired = unplacedHires(applications, new Set(all.map((p) => p.appId)));
     const { rows, pager } = pageOf(test ? all.filter(test) : all);
-    return res.render('admin', { ...locals, rows, pager, view, sum: billing.summary(all), statuses: billing.STATUSES, inr: billing.inr, formatYmd: placements.formatYmd, unrecorded: hired, clientById: Object.fromEntries(clients.read().map((c) => [c.id, c])), nameById: Object.fromEntries(all.map((p) => [p.id, p.candidateName])), monthLabel: billing.monthLabel });
+    return res.render('admin', { ...locals, rows, pager, view, sum: billing.summary(all), statuses: billing.STATUSES, inr: billing.inr, formatYmd: placements.formatYmd, unrecorded: hired, joiningLabel: view === 'joining' ? teamTodo.JOINING_LABEL : '', everyoneJoining: agencyRoles.can(req.admin, 'workload.view'), clientById: Object.fromEntries(clients.read().map((c) => [c.id, c])), nameById: Object.fromEntries(all.map((p) => [p.id, p.candidateName])), monthLabel: billing.monthLabel });
   }
   if (tab === 'settings') return res.render('admin', { ...locals, rows: [], form: { ...site, jobCategories: jobCategories(), jobLocations: site.jobLocations || DEFAULT_JOB_LOCATIONS }, errors: [], social: SOCIAL, billingForm: placements.billingOf(site), retentionPreview: retentionPreviews(), backups: { status: backups.status(), drill: backups.drillStatus(), list: backups.list(), dir: backups.dir, keep: backups.keep } });
   if (tab === 'hire-requests') {
@@ -3030,11 +3033,14 @@ const dayKey = (d) => istDay(d);
 // Jobs a company runs itself, and the applications with interviews on the jobs the team runs.
 const companyJobIdSet = () => new Set(jobs.filter((j) => hiring.selfManaged(j)).map((j) => j.id));
 const teamInterviewApps = (totals, ids = companyJobIdSet()) => totals.withInterviews.filter((a) => !ids.has(a.jobId));
-// Hires on jobs the team runs with no placement recorded are never invoiced, so the tile says so.
-function hiredNote(applications) {
-  const placed = new Set(billing.read().map((p) => p.appId));
+// Hires on jobs the team runs with no placement recorded are never invoiced:
+// the Hired tile and the Placements tab say so (the same people "What needs you" counts).
+function unplacedHires(applications, placed = new Set(billing.read().map((p) => p.appId))) {
   const companyIds = companyJobIdSet();
-  const n = applications.filter((a) => a.status === 'Hired' && !a.duplicateOf && !a.withdrawnAt && !companyIds.has(a.jobId) && !placed.has(a.id)).length;
+  return applications.filter((a) => a.status === 'Hired' && !a.duplicateOf && !a.withdrawnAt && !companyIds.has(a.jobId) && !placed.has(a.id));
+}
+function hiredNote(applications) {
+  const n = unplacedHires(applications).length;
   return n ? `${n} without a placement` : 'placements';
 }
 function buildDashboard(applications, user, totals = appTotals(applications)) {

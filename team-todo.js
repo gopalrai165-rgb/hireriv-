@@ -1,7 +1,7 @@
 // What needs someone on the Hireriv team today, on the team dashboard: replies
 // nobody has read, candidates left waiting, interviews with no feedback and
 // enquiries nobody has called, and hires with no placement recorded (so no
-// invoice). Only jobs the team runs; a company's own hiring
+// invoice), and joinings whose date passed with nobody confirming them. Only jobs the team runs; a company's own hiring
 // is on its own dashboard (employer-todo.js). People who manage others see
 // everything; everyone else sees their own work and work nobody owns yet.
 // It only points: nobody is moved or sent anything from here.
@@ -35,9 +35,15 @@ function scopeFor(user, jobs, ownerOf) {
   return (a) => !a.duplicateOf && !a.withdrawnAt && !companyRuns.has(a.jobId) && (everyone || [user.id, ''].includes(ownerOf(a) || ''));
 }
 // placed: the ids of applications that already have a placement.
+// A placement still "Awaiting joining" after its joining date: did they join?
+const istToday = (now) => new Date(now + 5.5 * 36e5).toISOString().slice(0, 10);
+const joiningUnconfirmed = (p, now = Date.now()) => p.status === 'Awaiting joining' && Boolean(p.joiningDate) && p.joiningDate < istToday(now);
+// Whose placements someone answers for: their own and unassigned ones, or all for managers.
+const placementScopeFor = (user) => (p) => agencyRoles.can(user, 'workload.view') || [user.id, ''].includes(p.recruiterId || '');
+const JOINING_LABEL = 'Joining date passed, joining not confirmed';
 const matches = (key, a, inScope, now = Date.now(), placed = new Set()) => Object.hasOwn(CHECKS, key) && inScope(a) && CHECKS[key](a, now, placed);
 
-function build({ user, apps, jobs, ownerOf, tabs, enquiries = [], placed = new Set(), now = Date.now() }) {
+function build({ user, apps, jobs, ownerOf, tabs, enquiries = [], placed = new Set(), placements = [], now = Date.now() }) {
   const canWrite = agencyRoles.can(user, 'candidates.message');
   const canEnquire = tabs.includes('hire-requests');
   const items = [];
@@ -55,6 +61,8 @@ function build({ user, apps, jobs, ownerOf, tabs, enquiries = [], placed = new S
     add('feedback', due.length, plural(due.length, 'interview finished with no feedback yet', 'interviews finished with no feedback yet'), due.length === 1 ? `/admin/interviews/${due[0].app.id}/${due[0].id}/feedback` : '/admin?tab=interviews&todo=feedback');
     const unplaced = of('unplaced');
     add('unplaced', unplaced.length, `${plural(unplaced.length, 'hire has', 'hires have')} no placement recorded, so the fee can’t be invoiced`, unplaced.length === 1 ? `/admin/applications/${unplaced[0].id}/placement` : '/admin?tab=applications&todo=unplaced');
+    const joining = placements.filter((p) => joiningUnconfirmed(p, now) && placementScopeFor(user)(p));
+    add('joining', joining.length, `${plural(joining.length, 'joining date has', 'joining dates have')} passed with nobody confirming they joined`, joining.length === 1 ? `/admin/placements/${joining[0].id}/edit` : '/admin?tab=placements&view=joining');
     const waiting = of('waiting');
     add('waiting', waiting.length, `${plural(waiting.length, 'candidate has', 'candidates have')} waited over ${WAITING_DAYS} days without moving on`, hrefFor(waiting, 'waiting'));
   }
@@ -67,4 +75,4 @@ function build({ user, apps, jobs, ownerOf, tabs, enquiries = [], placed = new S
   return { show: canWrite || canEnquire, items };
 }
 
-module.exports = { build, matches, scopeFor, LABELS, FEEDBACK_LABEL, IV_TODO, ivTodoKey, todoKey };
+module.exports = { build, matches, scopeFor, joiningUnconfirmed, placementScopeFor, JOINING_LABEL, LABELS, FEEDBACK_LABEL, IV_TODO, ivTodoKey, todoKey };

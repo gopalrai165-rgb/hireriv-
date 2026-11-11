@@ -18,13 +18,15 @@
 <% } %>
 
 <div class="pipeline">
-  <% [['', 'All'], ['awaiting', 'Awaiting joining'], ['guarantee', 'In guarantee'], ['to-invoice', 'To invoice'], ['contracts', 'Contracts (' + sum.contracts + ' active)'], ['unpaid', 'Unpaid'], ['overdue', 'Overdue']].forEach(function (v) { %>
+  <% [['', 'All'], ['awaiting', 'Awaiting joining'], ['joining', 'Joining to confirm'], ['guarantee', 'In guarantee'], ['to-invoice', 'To invoice'], ['contracts', 'Contracts (' + sum.contracts + ' active)'], ['unpaid', 'Unpaid'], ['overdue', 'Overdue']].forEach(function (v) { %>
     <a class="pill<%= v[0] === view ? ' active' : '' %><%= v[0] === 'overdue' ? ' st-rejected' : '' %>" href="/admin?tab=placements<%= v[0] ? '&view=' + v[0] : '' %>"><%= v[1] %></a>
   <% }) %>
 </div>
 
+<% if (joiningLabel) { %><p class="small">Showing: <b><%= joiningLabel %></b><%= everyoneJoining ? '' : ' (yours and unassigned)' %>. Call the candidate or client, then set Joined or Did not join. · <a href="/admin?tab=placements">Show all placements</a></p><% } %>
+
 <% if (!rows.length) { %>
-  <div class="empty"><p><%= view ? 'Nothing here right now.' : 'No placements yet. When a candidate accepts an offer, use “Record placement” on their application.' %></p></div>
+  <div class="empty"><p><%= view === 'joining' ? 'No joining is waiting to be confirmed.' : view ? 'Nothing here right now.' : 'No placements yet. When a candidate accepts an offer, use “Record placement” on their application.' %></p></div>
 <% } else { %>
   <div class="table-wrap">
     <table>
