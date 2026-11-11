@@ -21,6 +21,7 @@
           <% if (live && !started && CONFIRM[iv.confirmation]) { %><span class="pill <%= iv.confirmation === 'confirmed' ? 'st-hired' : 'st-screening' %>"><%= CONFIRM[iv.confirmation] %></span><% } %>
         </span>
       </div>
+      <% if (!employerRuns && live && !started && iv.confirmation === 'reschedule-requested') { %><p class="cand-note"><b>Asked for another time:</b> <%= iv.candidateNote ? '“' + iv.candidateNote + '”' : 'no days given' %>. Choose a new time below; they’ll be asked to confirm it.</p><% } %>
       <% if (!employerRuns) { %>
         <% (iv.feedback || []).forEach(function (fb) { %><p class="cand-note"><b><%= fb.by %>:</b> <%= fb.recommendation %>, <%= fb.rating %>/5<%= fb.strengths ? ' · Strengths: ' + fb.strengths : '' %><%= fb.concerns ? ' · Concerns: ' + fb.concerns : '' %></p><% }) %>
         <% if (live && started) { %>

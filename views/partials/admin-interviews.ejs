@@ -1,5 +1,6 @@
-<% if (ivTodo) { %><p class="small">Showing: <b><%= ivTodo %></b> ·<a href="/admin?tab=interviews">Show all interviews</a></p>
-  <% if (!due.length) { %><div class="empty"><p>Nothing waiting for your feedback.</p></div><% } %>
+<% if (ivTodo) { %><p class="small">Showing: <b><%= ivTodo %></b> · <a href="/admin?tab=interviews">Show all interviews</a></p>
+  <% if (ivTodoKey === 'feedback' && !due.length) { %><div class="empty"><p>Nothing waiting for your feedback.</p></div><% } %>
+  <% if (ivTodoKey === 'reschedule' && !rows.length) { %><div class="empty"><p>No candidate is waiting for a new time.</p></div><% } %>
 <% } %>
 <% if (due.length) { %>
   <h2 class="iv-heading">Feedback due <span class="muted">(<%= due.length %>)</span></h2>
@@ -20,7 +21,7 @@
   </div>
 <% } %>
 
-<% if (!ivTodo) { %>
+<% if (!ivTodo || (ivTodoKey === 'reschedule' && rows.length)) { %>
 <h2 class="iv-heading">Upcoming <span class="muted">(<%= rows.length %>)</span></h2>
 <% if (companyUpcoming) { %><p class="muted small">Only jobs the team runs are listed. <%= companyUpcoming %> more upcoming interview<%= companyUpcoming === 1 ? ' is' : 's are' %> on jobs companies run themselves; their teams manage <%= companyUpcoming === 1 ? 'it' : 'them' %>, and each shows on the candidate's application page.</p><% } %>
 <% if (!rows.length) { %>
@@ -28,7 +29,7 @@
 <% } else { %>
   <div class="table-wrap">
     <table>
-      <thead><tr><th>When</th><th>Candidate</th><th>Job</th><th>Format</th><th>Interviewer</th><th></th></tr></thead>
+      <thead><tr><th>When</th><th>Candidate</th><th>Job</th><th>Format</th><th>Interviewer</th><th>Candidate's answer</th><th></th></tr></thead>
       <tbody>
         <% rows.forEach(function (iv) { %>
           <tr>
@@ -37,6 +38,7 @@
             <td><%= iv.app.jobTitle %></td>
             <td><%= iv.mode %><br><% if (/^https?:\/\//.test(iv.where)) { %><a href="<%= iv.where %>" target="_blank" rel="noopener noreferrer">Join link</a><% } else { %><span class="muted small"><%= iv.where %></span><% } %></td>
             <td><%= iv.interviewer || '—' %><% if (iv.interviewerEmail) { %><br><span class="muted small"><%= iv.interviewerEmail %></span><% } %></td>
+            <td><% if (iv.confirmation === 'reschedule-requested') { %><span class="pill st-on-hold">Asked for another time</span><% if (iv.candidateNote) { %><br><span class="small">“<%= iv.candidateNote %>”</span><% } %><% } else if (iv.confirmation === 'confirmed') { %><span class="pill st-hired">Confirmed</span><% } else if (iv.confirmation === 'awaiting') { %><span class="muted small">Not answered yet</span><% } %></td>
             <td class="row-actions">
               <a class="btn btn-outline btn-sm" href="/admin/interviews/<%= iv.app.id %>/<%= iv.id %>.ics">.ics</a>
               <form class="iv-move" method="post" action="/admin/interviews/<%= iv.app.id %>/<%= iv.id %>/reschedule">

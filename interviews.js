@@ -69,6 +69,13 @@ function remindersDue(applications, now = Date.now()) {
   return due;
 }
 
+// Upcoming interviews whose candidate asked for another time (from their
+// account), still waiting for someone to choose a new one. Moving it sets it
+// back to "awaiting".
+function rescheduleAsked(applications) {
+  return upcoming(applications).filter((iv) => iv.confirmation === 'reschedule-requested' && !iv.app.withdrawnAt && !iv.app.duplicateOf);
+}
+
 function upcoming(applications, limit = Infinity) {
   const now = Date.now();
   return allInterviews(applications)
@@ -348,4 +355,4 @@ function parseNewTime(body) {
   return { at };
 }
 
-module.exports = { register, parseInterview, parseScorecard, parseNewTime, MODES, DURATIONS, allInterviews, upcoming, formatIst, feedbackSummary, feedbackDue, remindersDue, REMINDERS, RECOMMENDATIONS };
+module.exports = { register, parseInterview, parseScorecard, parseNewTime, MODES, DURATIONS, allInterviews, upcoming, rescheduleAsked, formatIst, feedbackSummary, feedbackDue, remindersDue, REMINDERS, RECOMMENDATIONS };

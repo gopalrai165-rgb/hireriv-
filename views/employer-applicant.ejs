@@ -104,6 +104,7 @@
                 <% if (iv.confirmation) { %><span class="pill <%= iv.confirmation === 'confirmed' ? 'st-hired' : 'st-screening' %>"><%= { awaiting: 'Awaiting candidate', confirmed: 'Confirmed by candidate', 'reschedule-requested': 'Asked for another time' }[iv.confirmation] %></span><% } %>
               </span>
             </div>
+            <% if (iv.status === 'scheduled' && !started && iv.confirmation === 'reschedule-requested' && can('interviews.manage', job)) { %><p class="cand-note"><b>Asked for another time:</b> <%= iv.candidateNote ? '“' + iv.candidateNote + '”' : 'no days given' %>. Choose a new time below; they’ll be asked to confirm it.</p><% } %>
             <% if (iv.feedback) { %>
               <% iv.feedback.forEach(function (fb) { %><p class="cand-note"><b><%= fb.by %>:</b> <%= fb.recommendation %>, <%= fb.rating %>/5<%= fb.strengths ? ' · Strengths: ' + fb.strengths : '' %><%= fb.concerns ? ' · Concerns: ' + fb.concerns : '' %></p><% }) %>
             <% } %>

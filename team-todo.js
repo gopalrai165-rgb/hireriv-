@@ -12,8 +12,10 @@ const { lastMove, WAITING_DAYS } = require('./employer-todo');
 
 const DAY = 864e5;
 const LABELS = { unread: 'New replies from candidates', waiting: `Waiting over ${WAITING_DAYS} days with no move` };
-// The Interviews tab's own filter (?tab=interviews&todo=feedback), not an Applications one.
+// The Interviews tab's own filters (?tab=interviews&todo=feedback|reschedule), not Applications ones.
 const FEEDBACK_LABEL = 'Finished interviews with no feedback yet';
+const IV_TODO = { feedback: FEEDBACK_LABEL, reschedule: 'Candidates who asked for another interview time' };
+const ivTodoKey = (value) => (Object.hasOwn(IV_TODO, String(value)) ? String(value) : '');
 const CHECKS = {
   unread: (a) => messages.unreadFor(a, 'hiring') > 0,
   // A general resume isn't for a job yet, so it isn't waiting on anyone.
@@ -41,6 +43,8 @@ function build({ user, apps, jobs, ownerOf, tabs, enquiries = [], now = Date.now
     const hrefFor = (found, key, hash = '') => (found.length === 1 ? `/admin/applications/${found[0].id}${hash}` : `/admin?tab=applications&todo=${key}`);
     const unread = of('unread');
     add('unread', unread.length, plural(unread.length, 'candidate wrote back and is waiting for a reply', 'candidates wrote back and are waiting for a reply'), hrefFor(unread, 'unread', '#messages'));
+    const asked = interviews.rescheduleAsked(mine);
+    add('reschedule', asked.length, plural(asked.length, 'candidate asked for another interview time', 'candidates asked for another interview time'), asked.length === 1 ? `/admin/applications/${asked[0].app.id}#interviews` : '/admin?tab=interviews&todo=reschedule');
     const due = interviews.feedbackDue(mine);
     add('feedback', due.length, plural(due.length, 'interview finished with no feedback yet', 'interviews finished with no feedback yet'), due.length === 1 ? `/admin/interviews/${due[0].app.id}/${due[0].id}/feedback` : '/admin?tab=interviews&todo=feedback');
     const waiting = of('waiting');
@@ -55,4 +59,4 @@ function build({ user, apps, jobs, ownerOf, tabs, enquiries = [], now = Date.now
   return { show: canWrite || canEnquire, items };
 }
 
-module.exports = { build, matches, scopeFor, LABELS, FEEDBACK_LABEL };
+module.exports = { build, matches, scopeFor, LABELS, FEEDBACK_LABEL, IV_TODO, ivTodoKey };

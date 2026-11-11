@@ -6,7 +6,8 @@
 
     <% if (todo) { %>
       <p class="small">Showing: <b><%= todo %></b> · <a href="/employer/interviews">Show all interviews</a></p>
-      <% if (!due.length) { %><p class="muted dash-empty">Nothing waiting for your feedback.</p><% } %>
+      <% if (todoKey === 'feedback' && !due.length) { %><p class="muted dash-empty">Nothing waiting for your feedback.</p><% } %>
+      <% if (todoKey === 'reschedule' && !upcoming.length) { %><p class="muted dash-empty">No candidate is waiting for a new time.</p><% } %>
     <% } %>
     <% if (due.length) { %>
       <section class="dash-card" id="feedback-due">
@@ -17,17 +18,17 @@
       </section>
     <% } %>
 
-    <% if (!todo) { %>
+    <% if (!todo || (todoKey === 'reschedule' && upcoming.length)) { %>
     <section class="dash-card">
-      <div class="dash-head"><h2>Upcoming</h2><span class="muted small">Schedule interviews from an applicant's page</span></div>
+      <div class="dash-head"><h2>Upcoming</h2><span class="muted small"><%= todoKey === 'reschedule' ? "Open the applicant to choose a new time; they'll be asked to confirm it" : "Schedule interviews from an applicant's page" %></span></div>
       <% if (!upcoming.length) { %><p class="muted dash-empty">No interviews booked.</p>
       <% } else { %>
         <div class="table-wrap">
           <table class="cards-on-phone">
-            <thead><tr><th>When (India time)</th><th>Candidate</th><th>Job</th><th>Format</th><th>Interviewer</th></tr></thead>
+            <thead><tr><th>When (India time)</th><th>Candidate</th><th>Job</th><th>Format</th><th>Interviewer</th><th>Candidate's answer</th></tr></thead>
             <tbody>
               <% upcoming.forEach(function (iv) { %>
-                <tr><td><b><%= formatIst(iv.at) %></b><br><span class="muted small"><%= iv.duration %> minutes</span></td><td><a href="/employer/applicants/<%= iv.appId %>"><%= iv.candidate %></a></td><td><%= iv.jobTitle %></td><td><%= iv.mode %></td><td><%= iv.interviewer || '—' %></td></tr>
+                <tr><td><b><%= formatIst(iv.at) %></b><br><span class="muted small"><%= iv.duration %> minutes</span></td><td><a href="/employer/applicants/<%= iv.appId %>#interviews"><%= iv.candidate %></a></td><td><%= iv.jobTitle %></td><td><%= iv.mode %></td><td><%= iv.interviewer || '—' %></td><td><% if (iv.confirmation === 'reschedule-requested') { %><span class="pill st-on-hold">Asked for another time</span><% if (iv.candidateNote) { %><br><span class="small">“<%= iv.candidateNote %>”</span><% } %><% } else if (iv.confirmation === 'confirmed') { %><span class="pill st-hired">Confirmed</span><% } else if (iv.confirmation === 'awaiting') { %><span class="muted small">Not answered yet</span><% } %></td></tr>
               <% }) %>
             </tbody>
           </table>

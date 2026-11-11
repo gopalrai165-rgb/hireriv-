@@ -378,6 +378,8 @@ function register(app, deps) {
       unreadMessages: messages.unreadFor(a, 'hiring'),
       interviews: (a.interviews || []).map((iv) => ({
         id: iv.id, at: iv.at, duration: iv.duration, mode: iv.mode, status: iv.status, interviewer: iv.interviewer || '', confirmation: iv.status === 'scheduled' ? iv.confirmation || 'confirmed' : null,
+        // Which days suit the candidate, when they asked for another time: for people who can move it.
+        candidateNote: iv.status === 'scheduled' && iv.confirmation === 'reschedule-requested' && may('interviews.manage') ? iv.candidateNote || '' : '',
         ...(may('feedback.view') ? { feedback: (iv.feedback || []).map((f) => ({ by: f.by, at: f.at, rating: f.rating, recommendation: f.recommendation, strengths: f.strengths || '', concerns: f.concerns || '' })) } : {}),
       })),
       allowedMoves: may('applicants.manage') ? ats.allowedMoves(a) : [],
@@ -814,15 +816,23 @@ function register(app, deps) {
   app.get('/employer/interviews', requireEmployer, (req, res) => {
     const { jobs, apps } = applicationsFor(req);
     const nowMs = Date.now();
-    const all = apps.flatMap((a) => (a.interviews || []).map((iv) => ({ ...iv, appId: a.id, candidate: a.name, jobTitle: jobs.get(a.jobId).title })));
+    // The candidate's note on asking for another time goes only to people who can move the interview.
+    const view = (a, iv) => ({ ...iv, appId: a.id, candidate: a.name, jobTitle: jobs.get(a.jobId).title, candidateNote: can(req.member, 'interviews.manage', jobs.get(a.jobId)) ? iv.candidateNote || '' : '' });
+    const all = apps.flatMap((a) => (a.interviews || []).map((iv) => view(a, iv)));
     const upcoming = all.filter((iv) => iv.status === 'scheduled' && new Date(iv.at).getTime() + iv.duration * 60000 > nowMs).sort((x, y) => x.at.localeCompare(y.at));
     const past = all.filter((iv) => !upcoming.includes(iv)).sort((x, y) => y.at.localeCompare(x.at)).slice(0, 50);
     // Finished interviews this person can score and nobody has yet: the same
     // ones the dashboard's "What needs you" counts (employer-todo.js).
     const due = apps.flatMap((a) => employerTodo.feedbackDue(a, jobs.get(a.jobId), req.member, nowMs).map((iv) => ({ ...iv, appId: a.id, candidate: a.name, jobTitle: jobs.get(a.jobId).title })))
       .sort((x, y) => x.at.localeCompare(y.at));
-    const todo = req.query.todo === 'feedback' ? employerTodo.FEEDBACK_LABEL : '';
-    page(res, 'employer-interviews', { title: 'Interviews', tab: 'interviews', upcoming: todo ? [] : upcoming, past: todo ? [] : past, due, todo, nowMs, feedbackSummary });
+    const todoKey = employerTodo.ivTodoKey(req.query.todo);
+    const asked = apps.flatMap((a) => employerTodo.rescheduleAsked(a, jobs.get(a.jobId), req.member, nowMs).map((iv) => view(a, iv))).sort((x, y) => x.at.localeCompare(y.at));
+    page(res, 'employer-interviews', {
+      title: 'Interviews', tab: 'interviews', todo: todoKey ? employerTodo.IV_TODO[todoKey] : '', todoKey, nowMs, feedbackSummary,
+      upcoming: todoKey === 'reschedule' ? asked : todoKey ? [] : upcoming,
+      past: todoKey ? [] : past,
+      due: todoKey === 'reschedule' ? [] : due,
+    });
   });
 
 

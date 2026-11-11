@@ -28,14 +28,19 @@ const CHECKS = {
   offers: (a, job, m) => can(m, 'offers.approve', job) && (a.offers || []).some((o) => !o.withdrawnAt && o.approval && o.approval.status === 'pending' && (o.createdByUserId !== m.userId || m.role === 'owner')),
 };
 const LABELS = { unread: 'New replies from applicants', waiting: `Waiting over ${WAITING_DAYS} days with no move`, offers: 'Offers to approve' };
-// The Interviews page's own filter (/employer/interviews?todo=feedback).
+// The Interviews page's own filters (/employer/interviews?todo=feedback|reschedule).
 const FEEDBACK_LABEL = 'Finished interviews with no feedback yet';
+const IV_TODO = { feedback: FEEDBACK_LABEL, reschedule: 'Candidates who asked for another interview time' };
+const ivTodoKey = (value) => (Object.hasOwn(IV_TODO, String(value)) ? String(value) : '');
 const matches = (key, a, job, member, now = Date.now()) => Boolean(CHECKS[key]) && live(a) && CHECKS[key](a, job, member, now);
 
 const feedbackDue = (a, job, m, now) => (live(a) && can(m, 'feedback.submit', job) ? (a.interviews || []).filter((iv) => {
   const end = Date.parse(iv.at) + (iv.duration || 0) * 60000;
   return iv.status === 'scheduled' && !(iv.feedback || []).length && now - end >= FEEDBACK_DUE_HOURS * 36e5 && now - end <= FEEDBACK_WINDOW_DAYS * DAY;
 }) : []);
+
+// Upcoming interviews whose candidate asked for another time, for people who can move them.
+const rescheduleAsked = (a, job, m, now) => (live(a) && can(m, 'interviews.manage', job) ? (a.interviews || []).filter((iv) => iv.status === 'scheduled' && iv.confirmation === 'reschedule-requested' && Date.parse(iv.at) > now) : []);
 
 const plural = (n, one, many) => (n === 1 ? one : many);
 
@@ -53,6 +58,9 @@ function build({ member, jobs, apps, now = Date.now() }) {
   add('unread', unread.length, plural(unread.length, 'applicant wrote to you and is waiting for a reply', 'applicants wrote to you and are waiting for a reply'), hrefFor(unread, 'unread', '#messages'));
   const offers = of('offers');
   add('offers', offers.length, plural(offers.length, 'offer needs your approval before the candidate sees it', 'offers need your approval before the candidates see them'), hrefFor(offers, 'offers', '#offers'));
+  const asked = mine.filter((a) => rescheduleAsked(a, own.get(a.jobId), member, now).length);
+  const askedCount = asked.reduce((n, a) => n + rescheduleAsked(a, own.get(a.jobId), member, now).length, 0);
+  add('reschedule', askedCount, plural(askedCount, 'candidate asked for another interview time', 'candidates asked for another interview time'), asked.length === 1 ? `/employer/applicants/${asked[0].id}#interviews` : '/employer/interviews?todo=reschedule');
   const due = mine.filter((a) => feedbackDue(a, own.get(a.jobId), member, now).length);
   const dueCount = due.reduce((n, a) => n + feedbackDue(a, own.get(a.jobId), member, now).length, 0);
   add('feedback', dueCount, plural(dueCount, 'interview finished with no feedback yet', 'interviews finished with no feedback yet'), due.length === 1 ? `/employer/applicants/${due[0].id}#interviews` : '/employer/interviews?todo=feedback');
@@ -68,4 +76,4 @@ function build({ member, jobs, apps, now = Date.now() }) {
   return { show: acts, items };
 }
 
-module.exports = { build, matches, lastMove, feedbackDue, LABELS, FEEDBACK_LABEL, WAITING_DAYS };
+module.exports = { build, matches, lastMove, feedbackDue, rescheduleAsked, LABELS, FEEDBACK_LABEL, IV_TODO, ivTodoKey, WAITING_DAYS };

@@ -2968,11 +2968,14 @@ app.get('/admin', adminAuth, (req, res) => {
     const past = interviews.allInterviews(teamIvApps).filter((iv) => !upIds.has(iv.id)).sort((a, b) => b.at.localeCompare(a.at));
     const companyUpcoming = interviews.upcoming(totals.withInterviews.filter((a) => companyJobIds.has(a.jobId))).length;
     // From "What needs you": only the feedback it counted (this person's and nobody's, unless they manage others).
-    if (req.query.todo === 'feedback' && agencyRoles.can(req.admin, 'candidates.message')) {
-      const due = interviews.feedbackDue(teamIvApps.filter(teamTodo.scopeFor(req.admin, jobs, appOwner)));
-      return res.render('admin', { ...locals, rows: [], past: [], due, companyUpcoming: 0, ivTodo: teamTodo.FEEDBACK_LABEL, formatIst: interviews.formatIst });
+    const ivKey = agencyRoles.can(req.admin, 'candidates.message') ? teamTodo.ivTodoKey(req.query.todo) : '';
+    if (ivKey) {
+      const scoped = teamIvApps.filter(teamTodo.scopeFor(req.admin, jobs, appOwner));
+      const due = ivKey === 'feedback' ? interviews.feedbackDue(scoped) : [];
+      const asked = ivKey === 'reschedule' ? interviews.rescheduleAsked(scoped) : [];
+      return res.render('admin', { ...locals, rows: asked, past: [], due, companyUpcoming: 0, ivTodo: teamTodo.IV_TODO[ivKey], ivTodoKey: ivKey, formatIst: interviews.formatIst });
     }
-    return res.render('admin', { ...locals, rows: up, past, due: interviews.feedbackDue(teamIvApps), companyUpcoming, ivTodo: '', formatIst: interviews.formatIst });
+    return res.render('admin', { ...locals, rows: up, past, due: interviews.feedbackDue(teamIvApps), companyUpcoming, ivTodo: '', ivTodoKey: '', formatIst: interviews.formatIst });
   }
   if (tab === 'placements') {
     const all = billing.read().map(billing.describe);
