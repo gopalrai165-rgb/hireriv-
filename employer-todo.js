@@ -28,6 +28,8 @@ const CHECKS = {
   offers: (a, job, m) => can(m, 'offers.approve', job) && (a.offers || []).some((o) => !o.withdrawnAt && o.approval && o.approval.status === 'pending' && (o.createdByUserId !== m.userId || m.role === 'owner')),
 };
 const LABELS = { unread: 'New replies from applicants', waiting: `Waiting over ${WAITING_DAYS} days with no move`, offers: 'Offers to approve' };
+// The Interviews page's own filter (/employer/interviews?todo=feedback).
+const FEEDBACK_LABEL = 'Finished interviews with no feedback yet';
 const matches = (key, a, job, member, now = Date.now()) => Boolean(CHECKS[key]) && live(a) && CHECKS[key](a, job, member, now);
 
 const feedbackDue = (a, job, m, now) => (live(a) && can(m, 'feedback.submit', job) ? (a.interviews || []).filter((iv) => {
@@ -53,7 +55,7 @@ function build({ member, jobs, apps, now = Date.now() }) {
   add('offers', offers.length, plural(offers.length, 'offer needs your approval before the candidate sees it', 'offers need your approval before the candidates see them'), hrefFor(offers, 'offers', '#offers'));
   const due = mine.filter((a) => feedbackDue(a, own.get(a.jobId), member, now).length);
   const dueCount = due.reduce((n, a) => n + feedbackDue(a, own.get(a.jobId), member, now).length, 0);
-  add('feedback', dueCount, plural(dueCount, 'interview finished with no feedback yet', 'interviews finished with no feedback yet'), due.length === 1 ? `/employer/applicants/${due[0].id}#interviews` : '/employer/interviews');
+  add('feedback', dueCount, plural(dueCount, 'interview finished with no feedback yet', 'interviews finished with no feedback yet'), due.length === 1 ? `/employer/applicants/${due[0].id}#interviews` : '/employer/interviews?todo=feedback');
   const waiting = of('waiting');
   add('waiting', waiting.length, `${plural(waiting.length, 'applicant has', 'applicants have')} waited over ${WAITING_DAYS} days without moving on`, hrefFor(waiting, 'waiting'));
   const today = new Date(now + 5.5 * 36e5).toISOString().slice(0, 10);
@@ -66,4 +68,4 @@ function build({ member, jobs, apps, now = Date.now() }) {
   return { show: acts, items };
 }
 
-module.exports = { build, matches, lastMove, LABELS, WAITING_DAYS };
+module.exports = { build, matches, lastMove, feedbackDue, LABELS, FEEDBACK_LABEL, WAITING_DAYS };

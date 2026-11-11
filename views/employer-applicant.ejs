@@ -100,7 +100,7 @@
             <div class="cand-top">
               <div><h3><%= formatIst(iv.at) %></h3><p class="muted small"><%= iv.duration %> minutes · <%= iv.mode %><%= iv.interviewer ? ' · ' + iv.interviewer : '' %></p></div>
               <span>
-                <span class="pill <%= iv.status === 'scheduled' ? 'st-interview' : 'st-rejected' %>"><%= iv.status %></span>
+                <span class="pill <%= iv.status === 'scheduled' ? 'st-interview' : 'st-rejected' %>"><%= iv.status === 'cancelled' ? 'Cancelled' : started ? 'Finished' : 'Scheduled' %></span>
                 <% if (iv.confirmation) { %><span class="pill <%= iv.confirmation === 'confirmed' ? 'st-hired' : 'st-screening' %>"><%= { awaiting: 'Awaiting candidate', confirmed: 'Confirmed by candidate', 'reschedule-requested': 'Asked for another time' }[iv.confirmation] %></span><% } %>
               </span>
             </div>

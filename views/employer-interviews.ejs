@@ -4,6 +4,20 @@
   <div class="container">
     <%- include('partials/employer-nav', { heading: 'Interviews', tab: 'interviews' }) %>
 
+    <% if (todo) { %>
+      <p class="small">Showing: <b><%= todo %></b> · <a href="/employer/interviews">Show all interviews</a></p>
+      <% if (!due.length) { %><p class="muted dash-empty">Nothing waiting for your feedback.</p><% } %>
+    <% } %>
+    <% if (due.length) { %>
+      <section class="dash-card" id="feedback-due">
+        <div class="dash-head"><h2>Feedback due <span class="muted">(<%= due.length %>)</span></h2><span class="muted small">Write it while the interview is fresh</span></div>
+        <ul class="activity">
+          <% due.forEach(function (iv) { %><li><a class="activity-row" href="/employer/applicants/<%= iv.appId %>#interviews"><span class="pill st-screening">Feedback due</span><span class="activity-text"><b><%= iv.candidate %></b> · <%= iv.jobTitle %><%= iv.interviewer ? ' · ' + iv.interviewer : '' %></span><span class="muted small"><%= formatIst(iv.at) %></span></a></li><% }) %>
+        </ul>
+      </section>
+    <% } %>
+
+    <% if (!todo) { %>
     <section class="dash-card">
       <div class="dash-head"><h2>Upcoming</h2><span class="muted small">Schedule interviews from an applicant's page</span></div>
       <% if (!upcoming.length) { %><p class="muted dash-empty">No interviews booked.</p>
@@ -25,9 +39,10 @@
       <section class="dash-card">
         <div class="dash-head"><h2>Past and cancelled</h2></div>
         <ul class="activity">
-          <% past.forEach(function (iv) { %><li><span class="activity-row"><span class="pill"><%= iv.status %></span><span class="activity-text"><a href="/employer/applicants/<%= iv.appId %>"><%= iv.candidate %></a> · <%= iv.jobTitle %></span><span class="muted small"><%= formatIst(iv.at) %></span></span></li><% }) %>
+          <% past.forEach(function (iv) { const fs = iv.status === 'cancelled' ? null : feedbackSummary(iv); %><li><span class="activity-row"><span class="pill <%= iv.status === 'cancelled' ? 'st-rejected' : 'st-hired' %>"><%= iv.status === 'cancelled' ? 'Cancelled' : 'Finished' %></span><span class="activity-text"><a href="/employer/applicants/<%= iv.appId %>#interviews"><%= iv.candidate %></a><br><span class="small"><%= iv.jobTitle %><% if (fs) { %> · <b><%= fs.recommendation %></b>, <%= fs.avg %>/5<%= fs.count > 1 ? ' (' + fs.count + ' scorecards)' : '' %><% } else if (iv.status !== 'cancelled') { %> · <span class="muted">no feedback yet</span><% } %></span></span><span class="muted small"><%= formatIst(iv.at) %></span></span></li><% }) %>
         </ul>
       </section>
+    <% } %>
     <% } %>
   </div>
 </section>

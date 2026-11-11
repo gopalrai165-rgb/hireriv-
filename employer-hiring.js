@@ -17,7 +17,7 @@ const crypto = require('crypto');
 const vault = require('./vault');
 const { can } = require('./employer-team');
 const ats = require('./ats');
-const { RECOMMENDATIONS } = require('./interviews');
+const { RECOMMENDATIONS, feedbackSummary } = require('./interviews');
 const { SHIFTS } = require('./candidate-profile');
 const { workOf } = require('./content');
 const multer = require('multer');
@@ -817,7 +817,12 @@ function register(app, deps) {
     const all = apps.flatMap((a) => (a.interviews || []).map((iv) => ({ ...iv, appId: a.id, candidate: a.name, jobTitle: jobs.get(a.jobId).title })));
     const upcoming = all.filter((iv) => iv.status === 'scheduled' && new Date(iv.at).getTime() + iv.duration * 60000 > nowMs).sort((x, y) => x.at.localeCompare(y.at));
     const past = all.filter((iv) => !upcoming.includes(iv)).sort((x, y) => y.at.localeCompare(x.at)).slice(0, 50);
-    page(res, 'employer-interviews', { title: 'Interviews', tab: 'interviews', upcoming, past });
+    // Finished interviews this person can score and nobody has yet: the same
+    // ones the dashboard's "What needs you" counts (employer-todo.js).
+    const due = apps.flatMap((a) => employerTodo.feedbackDue(a, jobs.get(a.jobId), req.member, nowMs).map((iv) => ({ ...iv, appId: a.id, candidate: a.name, jobTitle: jobs.get(a.jobId).title })))
+      .sort((x, y) => x.at.localeCompare(y.at));
+    const todo = req.query.todo === 'feedback' ? employerTodo.FEEDBACK_LABEL : '';
+    page(res, 'employer-interviews', { title: 'Interviews', tab: 'interviews', upcoming: todo ? [] : upcoming, past: todo ? [] : past, due, todo, nowMs, feedbackSummary });
   });
 
 
