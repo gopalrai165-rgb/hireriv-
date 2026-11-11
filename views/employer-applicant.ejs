@@ -157,6 +157,8 @@
                 </span>
               </div>
               <% if (o.notes) { %><p class="small"><%= o.notes %></p><% } %>
+              <% if (!o.withdrawnAt && o.approval.status === 'approved' && o.response.status === 'awaiting' && o.respondBy) { %><p class="small<%= o.respondBy < today ? ' cand-note' : ' muted' %>"><%= o.respondBy < today ? 'The answer was due by ' + formatDate(o.respondBy) + ' and hasn’t come. Call the candidate, then record their answer or withdraw the offer.' : 'Answer asked for by ' + formatDate(o.respondBy) + '.' %></p><% } %>
+              <% if (!o.withdrawnAt && o.response.status === 'accepted' && !['Hired', 'Rejected'].includes(v.status)) { %><p class="small cand-note">Accepted. When they have confirmed their joining, move them to Hired under Stage.</p><% } %>
               <% if (o.approval.by) { %><p class="muted small"><%= o.approval.status === 'approved' ? 'Approved' : 'Not approved' %> by <%= o.approval.by %> on <%= formatDate(o.approval.at) %><%= o.approval.note ? ': ' + o.approval.note : '' %></p><% } %>
               <% if (o.response.byCandidate) { %><p class="muted small">The candidate <%= o.response.status %> in their <%= site.name %> account on <%= formatDate(o.response.at) %><%= o.response.note ? ': ' + o.response.note : '' %></p><% } else if (o.response.recordedBy) { %><p class="muted small">Candidate's answer recorded by <%= o.response.recordedBy %> on <%= formatDate(o.response.at) %><%= o.response.note ? ': ' + o.response.note : '' %></p><% } %>
               <% if (!o.withdrawnAt) { %>
