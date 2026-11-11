@@ -18,6 +18,7 @@
 <% } %>
 
 <h2 class="iv-heading">Upcoming <span class="muted">(<%= rows.length %>)</span></h2>
+<% if (companyUpcoming) { %><p class="muted small">Only jobs the team runs are listed. <%= companyUpcoming %> more upcoming interview<%= companyUpcoming === 1 ? ' is' : 's are' %> on jobs companies run themselves; their teams manage <%= companyUpcoming === 1 ? 'it' : 'them' %>, and each shows on the candidate's application page.</p><% } %>
 <% if (!rows.length) { %>
   <div class="empty"><p>No interviews booked. Open an application and choose <b>+ Schedule interview</b>.</p></div>
 <% } else { %>

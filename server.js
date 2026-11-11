@@ -2563,7 +2563,9 @@ const ownerFilter = (req) => (['me', 'none'].includes(req.query.owner) ? req.que
 const matchesOwner = (ownerId, filter, user) => (filter === 'me' ? ownerId === user.id : filter === 'none' ? !ownerId : ownerId === filter);
 const validOwner = (id) => (team.members().some((u) => u.id === id) ? id : '');
 
-const interviewDesk = interviews.register(app, { adminAuth, sameOrigin, readSubmissions, writeSubmissions, mailer, site, adminUrl, baseUrl: BASE_URL, limit, db, events });
+// Called per request, by which time `hiring` (below) is set up.
+const companyRunsApp = (a) => hiring.selfManaged(jobs.find((j) => j.id === a.jobId));
+const interviewDesk = interviews.register(app, { adminAuth, sameOrigin, readSubmissions, writeSubmissions, mailer, site, adminUrl, baseUrl: BASE_URL, limit, db, events, companyRuns: companyRunsApp });
 const clients = employers.register(app, {
   db, site, mailer, baseUrl: BASE_URL, adminAuth, sameOrigin, adminUrl, limit, downloadLinks, linkExpired,
   readSubmissions, saveSubmission, getJobs: () => jobs, appStatuses: APP_STATUSES,
@@ -2903,7 +2905,11 @@ app.get('/admin', adminAuth, (req, res) => {
   // Counts kept until the applications change (app-totals.js); the tab counts
   // come from SQLite instead of reading every submission.
   const totals = appTotals(applications);
-  const counts = { dashboard: '', reports: '', settings: '', activity: '', templates: templates.read().length, team: team.members().length, blog: posts.length, interviews: interviews.upcoming(totals.withInterviews).length, placements: billing.read().length, clients: clients.read().length, jobs: jobs.length, talent: totals.people, ...Object.fromEntries(FORM_TYPES.map((t) => [t, db.count(t)])) };
+  // The Interviews tab and dashboard list only jobs the team runs; a company
+  // running its own job manages its interviews (counted, not listed).
+  const companyJobIds = companyJobIdSet();
+  const teamIvApps = teamInterviewApps(totals, companyJobIds);
+  const counts = { dashboard: '', reports: '', settings: '', activity: '', templates: templates.read().length, team: team.members().length, blog: posts.length, interviews: interviews.upcoming(teamIvApps).length, placements: billing.read().length, clients: clients.read().length, jobs: jobs.length, talent: totals.people, ...Object.fromEntries(FORM_TYPES.map((t) => [t, db.count(t)])) };
   const members = team.members();
   const memberName = Object.fromEntries(members.map((u) => [u.id, u.name]));
   const tabGroups = TAB_GROUPS.map(([label, list]) => [label, list.filter((t) => tabs.includes(t))]).filter(([, list]) => list.length);
@@ -2946,7 +2952,7 @@ app.get('/admin', adminAuth, (req, res) => {
       .filter((a) => !todo || teamTodo.matches(todo, a, inTodoScope));
     if (sort) all = all.map((a) => ({ ...a, match: matchOf(a) })).sort((a, b) => (b.match?.score ?? -1) - (a.match?.score ?? -1));
     const { rows: page, pager } = pageOf(all);
-    const rows = page.map((a) => ({ ...a, owner: appOwner(a), match: sort ? a.match : matchOf(a) }));
+    const rows = page.map((a) => ({ ...a, owner: appOwner(a), match: sort ? a.match : matchOf(a), employerRuns: hiring.selfManaged(jobById.get(a.jobId)) }));
     for (const a of rows) a.timeline = history.timeline(a); // only for the rows on screen
     return res.render('admin', { ...locals, rows, pager, owner, todoLabel: teamTodo.LABELS[todo] || '', statuses: APP_STATUSES, statusCounts, status, sort, clientOptions: clients.read().filter((c) => c.active), placedApps, templates: templates.read(), backUrl: req.originalUrl.replace(/&msg=[^&]*/, ''), jobClient: Object.fromEntries(jobs.map((j) => [j.id, j.employerId || ''])) });
   }
@@ -2957,10 +2963,11 @@ app.get('/admin', adminAuth, (req, res) => {
     return res.render('admin', { ...locals, rows, inr: billing.inr });
   }
   if (tab === 'interviews') {
-    const withIv = totals.withInterviews;
-    const up = interviews.upcoming(withIv);
-    const past = interviews.allInterviews(withIv).filter((iv) => !up.some((u) => u.id === iv.id)).sort((a, b) => b.at.localeCompare(a.at));
-    return res.render('admin', { ...locals, rows: up, past, due: interviews.feedbackDue(withIv), formatIst: interviews.formatIst });
+    const up = interviews.upcoming(teamIvApps);
+    const upIds = new Set(up.map((u) => u.id));
+    const past = interviews.allInterviews(teamIvApps).filter((iv) => !upIds.has(iv.id)).sort((a, b) => b.at.localeCompare(a.at));
+    const companyUpcoming = interviews.upcoming(totals.withInterviews.filter((a) => companyJobIds.has(a.jobId))).length;
+    return res.render('admin', { ...locals, rows: up, past, due: interviews.feedbackDue(teamIvApps), companyUpcoming, formatIst: interviews.formatIst });
   }
   if (tab === 'placements') {
     const all = billing.read().map(billing.describe);
@@ -3012,6 +3019,9 @@ const DAY_MS = 86400000;
 // Day buckets follow India time so "today" matches the recruiters' calendar.
 const dayKey = (d) => istDay(d);
 
+// Jobs a company runs itself, and the applications with interviews on the jobs the team runs.
+const companyJobIdSet = () => new Set(jobs.filter((j) => hiring.selfManaged(j)).map((j) => j.id));
+const teamInterviewApps = (totals, ids = companyJobIdSet()) => totals.withInterviews.filter((a) => !ids.has(a.jobId));
 function buildDashboard(applications, user, totals = appTotals(applications)) {
   const hires = readSubmissions('hire-requests');
   const contacts = readSubmissions('contacts');
@@ -3064,8 +3074,8 @@ function buildDashboard(applications, user, totals = appTotals(applications)) {
     funnel: APP_STATUSES.map((s) => ({ status: s, count: totals.count(s) })),
     topJobs,
     recent,
-    interviews: interviews.upcoming(totals.withInterviews, 5),
-    feedbackDue: interviews.feedbackDue(totals.withInterviews).slice(0, 5),
+    interviews: interviews.upcoming(teamInterviewApps(totals), 5),
+    feedbackDue: interviews.feedbackDue(teamInterviewApps(totals)).slice(0, 5),
   };
 }
 

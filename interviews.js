@@ -104,7 +104,7 @@ function parseInterview(body, candidate) {
   return { f, at, errors };
 }
 
-function register(app, { adminAuth, sameOrigin, readSubmissions, writeSubmissions, mailer, site, adminUrl, baseUrl, limit, db, events }) {
+function register(app, { adminAuth, sameOrigin, readSubmissions, writeSubmissions, mailer, site, adminUrl, baseUrl, limit, db, events, companyRuns = () => false }) {
   const icsFor = (method, iv, a) => interviewIcs({ method, interview: iv, candidate: a, jobTitle: a.jobTitle, site });
 
   // ---------- reminders ----------
@@ -198,6 +198,14 @@ function register(app, { adminAuth, sameOrigin, readSubmissions, writeSubmission
   // Actions started from a candidate's own page go back there, not to the Interviews tab.
   const fromApplication = (req) => req.query.from === 'application';
   const backFrom = (req, a, m) => (fromApplication(req) ? `/admin/applications/${a.id}?msg=${encodeURIComponent(m)}#interviews` : adminUrl('interviews', m));
+  // On a job a company runs, its own team books, moves and scores interviews:
+  // the Hireriv team can see that they exist and when, and can change nothing.
+  const COMPANY_RUNS = 'this company runs its own hiring for this job, so its team manages the interviews.';
+  const refused = (req, res, a, what) => {
+    if (!companyRuns(a)) return false;
+    res.redirect(backFrom(req, a, `${what}: ${COMPANY_RUNS}`));
+    return true;
+  };
 
   const formPage = (res, a, f, errors, status = 200) =>
     res.status(status).render('admin-interview', { title: 'Schedule interview', page: 'admin', a, f, errors, modes: MODES, durations: DURATIONS, noindex: true, fromApplication: fromApplication(res.req) });
@@ -205,6 +213,7 @@ function register(app, { adminAuth, sameOrigin, readSubmissions, writeSubmission
   app.get('/admin/applications/:id/interview', adminAuth, (req, res, next) => {
     const a = readSubmissions('applications').find((x) => x.id === req.params.id);
     if (!a) return next();
+    if (refused(req, res, a, 'Not booked')) return;
     if (a.withdrawnAt) return res.redirect(backFrom(req, a, 'Not booked: the candidate withdrew this application.'));
     // Default: tomorrow at 11:00 India time.
     const tomorrow = new Date(Date.now() + 86400000).toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
@@ -215,6 +224,7 @@ function register(app, { adminAuth, sameOrigin, readSubmissions, writeSubmission
     const list = readSubmissions('applications');
     const a = list.find((x) => x.id === req.params.id);
     if (!a) return next();
+    if (refused(req, res, a, 'Not booked')) return;
     if (a.withdrawnAt) return res.redirect(backFrom(req, a, 'Not booked: the candidate withdrew this application.'));
     const { f, at, errors } = parseInterview(req.body, a);
     if (errors.length) return formPage(res, a, f, errors, 400);
@@ -243,6 +253,7 @@ function register(app, { adminAuth, sameOrigin, readSubmissions, writeSubmission
   app.get('/admin/interviews/:appId/:ivId/feedback', adminAuth, (req, res, next) => {
     const { a, iv } = findIv(readSubmissions('applications'), req.params.appId, req.params.ivId);
     if (!iv) return next();
+    if (refused(req, res, a, 'Feedback not open')) return;
     const mine = (iv.feedback || []).find((x) => x.by === req.admin.name) || {};
     scorecardPage(res, { title: 'Interview feedback', page: 'admin', a, iv, external: false, f: mine, action: `/admin/interviews/${a.id}/${iv.id}/feedback${fromApplication(req) ? '?from=application' : ''}`, others: (iv.feedback || []) });
   });
@@ -251,6 +262,7 @@ function register(app, { adminAuth, sameOrigin, readSubmissions, writeSubmission
     const list = readSubmissions('applications');
     const { a, iv } = findIv(list, req.params.appId, req.params.ivId);
     if (!iv) return next();
+    if (refused(req, res, a, 'Feedback not saved')) return;
     const { fb, errors } = parseScorecard(req.body);
     if (errors.length) return scorecardPage(res, { title: 'Interview feedback', page: 'admin', a, iv, external: false, f: fb, action: req.originalUrl, others: iv.feedback || [], errors }, 400);
     saveScorecard(iv, fb, req.admin.name, 'team');
@@ -295,6 +307,7 @@ function register(app, { adminAuth, sameOrigin, readSubmissions, writeSubmission
     const a = list.find((x) => x.id === req.params.appId);
     const iv = a && (a.interviews || []).find((x) => x.id === req.params.ivId);
     if (!iv) return next();
+    if (refused(req, res, a, 'Not cancelled')) return;
     cancel(list, a, iv);
     res.redirect(backFrom(req, a, `Cancelled the interview with ${a.name} · candidate notified`));
   });
@@ -305,6 +318,7 @@ function register(app, { adminAuth, sameOrigin, readSubmissions, writeSubmission
     const a = list.find((x) => x.id === req.params.appId);
     const iv = a && (a.interviews || []).find((x) => x.id === req.params.ivId);
     if (!iv) return next();
+    if (refused(req, res, a, 'Not moved')) return;
     const r = parseNewTime(req.body);
     if (r.error) return res.redirect(backFrom(req, a, `Not moved: ${r.error}`));
     if (!reschedule(list, a, iv, r.at)) return res.redirect(backFrom(req, a, 'Not moved: that interview is not scheduled'));
@@ -316,6 +330,7 @@ function register(app, { adminAuth, sameOrigin, readSubmissions, writeSubmission
     const a = readSubmissions('applications').find((x) => x.id === req.params.appId);
     const iv = a && (a.interviews || []).find((x) => x.id === req.params.ivId);
     if (!iv) return next();
+    if (refused(req, res, a, 'No calendar file')) return;
     res.type('text/calendar').attachment(`interview-${a.name.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}.ics`).send(icsFor(iv.status === 'cancelled' ? 'CANCEL' : 'REQUEST', iv, a));
   });
 
