@@ -1,3 +1,6 @@
+<% if (ivTodo) { %><p class="small">Showing: <b><%= ivTodo %></b> ·<a href="/admin?tab=interviews">Show all interviews</a></p>
+  <% if (!due.length) { %><div class="empty"><p>Nothing waiting for your feedback.</p></div><% } %>
+<% } %>
 <% if (due.length) { %>
   <h2 class="iv-heading">Feedback due <span class="muted">(<%= due.length %>)</span></h2>
   <div class="table-wrap iv-due">
@@ -17,6 +20,7 @@
   </div>
 <% } %>
 
+<% if (!ivTodo) { %>
 <h2 class="iv-heading">Upcoming <span class="muted">(<%= rows.length %>)</span></h2>
 <% if (companyUpcoming) { %><p class="muted small">Only jobs the team runs are listed. <%= companyUpcoming %> more upcoming interview<%= companyUpcoming === 1 ? ' is' : 's are' %> on jobs companies run themselves; their teams manage <%= companyUpcoming === 1 ? 'it' : 'them' %>, and each shows on the candidate's application page.</p><% } %>
 <% if (!rows.length) { %>
@@ -72,4 +76,5 @@
       </tbody>
     </table>
   </div>
+<% } %>
 <% } %>

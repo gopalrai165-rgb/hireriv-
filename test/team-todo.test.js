@@ -61,7 +61,7 @@ test('an Admin sees every kind, on the jobs the team runs', async () => {
   assert.match(b, line(2, 'candidates wrote back'), 'not withdrawn people or a company\'s applicants');
   assert.match(b, line(3, 'candidates have waited over 7 days'), 'not general resumes or newer applications');
   assert.match(b, line(2, 'interviews finished with no feedback'), "not the one on a company's job");
-  assert.match(b, /href="\/admin\?tab=interviews"/);
+  assert.match(b, /href="\/admin\?tab=interviews&amp;todo=feedback"/);
   assert.match(b, line(2, 'company enquiries'));
   assert.match(b, /href="\/admin\?tab=hire-requests&amp;waiting=1"/);
 });
@@ -73,6 +73,8 @@ test('a recruiter sees their own work and work nobody owns', async () => {
   assert.match(b, line(2, 'candidates have waited'), 'j1 and the unowned j3, not Omar\'s j2');
   assert.match(b, line(2, 'interviews finished'));
   assert.match(b, line(1, 'company enquiry'), 'Nia, not the one Omar owns');
+  assert.match(b, /href="\/admin\?tab=hire-requests&amp;waiting=1&amp;owner=open"/, 'the link opens the same enquiries');
+  assert.match(b, /href="\/admin\?tab=interviews&amp;todo=feedback"/);
   const other = block(await text('/admin', omar));
   assert.match(other, /href="\/admin\/applications\/a2#messages"/);
   assert.match(other, line(1, 'interview finished'), 'the unowned one, not the one on the job Rita owns');
@@ -91,6 +93,28 @@ test('the lists behind the links show the same people', async () => {
   assert.deepEqual(names(await text('/admin?tab=applications&todo=waiting', rita)), ['a3', 'a4']);
   assert.deepEqual(names(await text('/admin?tab=applications&todo=unread', boss)), ['a1', 'a2']);
   assert.ok(names(await text('/admin?tab=applications&todo=nonsense', boss)).length > 3, 'unknown values are ignored');
+});
+
+// Step 218: the Interviews and enquiries lists behind the links show what was counted.
+const ivBlock = (page) => { const i = page.indexOf('<main'); return page.slice(i, page.indexOf('</main>', i)); };
+test('the feedback link opens just the interviews that were counted', async () => {
+  const mine = ivBlock(await text('/admin?tab=interviews&todo=feedback', rita));
+  assert.match(mine, /Showing: <b>Finished interviews with no feedback yet<\/b>/);
+  assert.deepEqual(names(mine), ['a10', 'a12']);
+  assert.doesNotMatch(mine, /Upcoming <span/);
+  assert.deepEqual(names(ivBlock(await text('/admin?tab=interviews&todo=feedback', omar))), ['a12'], 'not the one on the job Rita owns');
+  assert.deepEqual(names(ivBlock(await text('/admin?tab=interviews&todo=feedback', boss))), ['a10', 'a12'], "a manager sees all, still not a company's");
+  assert.match(ivBlock(await text('/admin?tab=interviews', omar)), /Person a10/, 'the plain tab is unchanged');
+});
+
+test('the enquiries link opens mine and those nobody owns', async () => {
+  const page = await text('/admin?tab=hire-requests&waiting=1&owner=open', rita);
+  assert.match(page, /New Co/);
+  assert.doesNotMatch(page, /Next Co/);
+  assert.match(page, /<option value="open" selected>Mine and no owner yet<\/option>/);
+  const omars = await text('/admin?tab=hire-requests&waiting=1&owner=open', omar);
+  assert.match(omars, /New Co/);
+  assert.match(omars, /Next Co/);
 });
 
 test('reading a reply clears it, and opening the dashboard changes nothing', async () => {

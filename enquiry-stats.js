@@ -25,7 +25,8 @@ const hoursToContact = (h) => (h.contactedAt ? Math.max(0, (Date.parse(h.contact
 function parseFilters(query, ownerIds = []) {
   const q = String(query.q || '').trim().slice(0, 80);
   const status = STATUSES.includes(query.status) ? query.status : '';
-  const owner = query.owner === 'me' || query.owner === 'none' || ownerIds.includes(query.owner) ? query.owner : '';
+  // 'open': mine and those nobody owns yet, what the dashboard's "What needs you" counts.
+  const owner = ['me', 'none', 'open'].includes(query.owner) || ownerIds.includes(query.owner) ? query.owner : '';
   const period = Object.keys(PERIODS).includes(String(query.period)) ? String(query.period) : 'all';
   return { q, status, owner, period, waiting: query.waiting === '1' };
 }
@@ -43,7 +44,8 @@ function filter(list, f, { isOverdue, me, now = Date.now() }) {
     if (f.status && statusOf(h) !== f.status) return false;
     if (f.owner === 'me' && h.ownerId !== me) return false;
     if (f.owner === 'none' && h.ownerId) return false;
-    if (f.owner && !['me', 'none'].includes(f.owner) && h.ownerId !== f.owner) return false;
+    if (f.owner === 'open' && h.ownerId && h.ownerId !== me) return false;
+    if (f.owner && !['me', 'none', 'open'].includes(f.owner) && h.ownerId !== f.owner) return false;
     if (f.waiting && !isOverdue(h)) return false;
     if (!words.length) return true;
     const text = [h.company, h.name, h.email, h.roles, h.location, h.industry].join(' ').toLowerCase();
