@@ -2917,7 +2917,7 @@ app.get('/admin', adminAuth, (req, res) => {
   // Long tables are shown 50 rows at a time; CSV exports still include everything.
   const pageOf = (list) => paginate(list, { page: req.query.page, size: ADMIN_PAGE_SIZE, query: req.query, path: '/admin' });
 
-  if (tab === 'dashboard') return res.render('admin', { ...locals, rows: [], dash: buildDashboard(applications, req.admin, totals), setupTodo: req.admin.role === 'Admin' ? setupTodo() : [], todo: teamTodo.build({ user: req.admin, apps: applications, jobs, ownerOf: appOwner, tabs, enquiries: readSubmissions('hire-requests').filter(hireOverdue) }) });
+  if (tab === 'dashboard') return res.render('admin', { ...locals, rows: [], dash: buildDashboard(applications, req.admin, totals), setupTodo: req.admin.role === 'Admin' ? setupTodo() : [], todo: teamTodo.build({ user: req.admin, apps: applications, jobs, ownerOf: appOwner, tabs, enquiries: readSubmissions('hire-requests').filter(hireOverdue), placed: new Set(billing.read().map((p) => p.appId)) }) });
   if (tab === 'team') return res.render('admin', { ...locals, rows: team.list(), roles: team.ROLES, roleInfo: agencyRoles.ROLE_INFO, requires2fa: team.requires2fa(), my2fa: team.has2fa(req.admin.id) });
   if (tab === 'templates') return res.render('admin', { ...locals, rows: templates.read(), placeholders: bulk.PLACEHOLDERS });
   if (tab === 'reports') return res.render('admin', { ...locals, rows: [], report: reports.build({ period: String(req.query.period || ''), isAdmin: agencyRoles.can(req.admin, 'money.view') }), inr: billing.inr });
@@ -2949,7 +2949,7 @@ app.get('/admin', adminAuth, (req, res) => {
     const inTodoScope = todo ? teamTodo.scopeFor(req.admin, jobs, appOwner) : null;
     let all = (status ? applications.filter((a) => statusOf(a) === status) : applications)
       .filter((a) => !owner || matchesOwner(appOwner(a), owner, req.admin))
-      .filter((a) => !todo || teamTodo.matches(todo, a, inTodoScope));
+      .filter((a) => !todo || teamTodo.matches(todo, a, inTodoScope, Date.now(), placedApps));
     if (sort) all = all.map((a) => ({ ...a, match: matchOf(a) })).sort((a, b) => (b.match?.score ?? -1) - (a.match?.score ?? -1));
     const { rows: page, pager } = pageOf(all);
     const rows = page.map((a) => ({ ...a, owner: appOwner(a), match: sort ? a.match : matchOf(a), employerRuns: hiring.selfManaged(jobById.get(a.jobId)) }));
@@ -3030,6 +3030,13 @@ const dayKey = (d) => istDay(d);
 // Jobs a company runs itself, and the applications with interviews on the jobs the team runs.
 const companyJobIdSet = () => new Set(jobs.filter((j) => hiring.selfManaged(j)).map((j) => j.id));
 const teamInterviewApps = (totals, ids = companyJobIdSet()) => totals.withInterviews.filter((a) => !ids.has(a.jobId));
+// Hires on jobs the team runs with no placement recorded are never invoiced, so the tile says so.
+function hiredNote(applications) {
+  const placed = new Set(billing.read().map((p) => p.appId));
+  const companyIds = companyJobIdSet();
+  const n = applications.filter((a) => a.status === 'Hired' && !a.duplicateOf && !a.withdrawnAt && !companyIds.has(a.jobId) && !placed.has(a.id)).length;
+  return n ? `${n} without a placement` : 'placements';
+}
 function buildDashboard(applications, user, totals = appTotals(applications)) {
   const hires = readSubmissions('hire-requests');
   const contacts = readSubmissions('contacts');
@@ -3070,7 +3077,7 @@ function buildDashboard(applications, user, totals = appTotals(applications)) {
       { label: 'Open jobs', value: openJobs().length, note: jobs.some(isStaleJob) ? `${jobs.filter(isStaleJob).length} open ${STALE_JOB_DAYS}+ days` : `${jobs.length - openJobs().length} closed`, tab: 'jobs', alert: jobs.some(isStaleJob) },
       { label: 'Applications', value: totals.total, note: `+${totals.since(weekAgo)} this week`, tab: 'applications' },
       { label: 'In progress', value: ['Screening', 'Shortlisted', 'Interview', 'Offered', 'On hold'].reduce((n, s) => n + totals.count(s), 0), note: `${totals.count('New')} new to review`, tab: 'applications' },
-      { label: 'Hired', value: totals.count('Hired'), note: 'placements', tab: 'applications' },
+      { label: 'Hired', value: totals.count('Hired'), note: hiredNote(applications), tab: 'applications' },
       { label: 'Hiring requests', value: hires.length, note: `+${lastWeek(hires)} this week`, tab: 'hire-requests' },
       { label: 'Alert subscribers', value: alerts.filter((a) => a.confirmed).length, note: `${alerts.filter((a) => !a.confirmed).length} unconfirmed`, tab: 'job-alerts' },
       ...(!isAdmin ? [] : [{ label: `Billed FY ${money.fy}`, value: money.billedFy, display: billing.inr(money.billedFy), note: `${money.toInvoice} placement${money.toInvoice === 1 ? '' : 's'} to invoice`, tab: 'placements' },
@@ -3348,6 +3355,7 @@ app.get('/admin/applications/:id', adminAuth, (req, res, next) => {
     replies, used: used ? used.id : '', prefill: used && !t.a.withdrawnAt ? messageTemplates.fill(used.text, { name: t.a.name, job: t.a.jobTitle, company: site.name }) : '',
     title: `${t.a.name} · Application`, page: 'admin', a: t.a, job: t.job, employerRuns: t.employerRuns, timeline: history.timeline(t.a),
     canMessage: agencyRoles.can(req.admin, 'candidates.message'), otherJobs: teamInviteState(req, t), msg: String(req.query.msg || ''), nowMs: Date.now(), today: todayIst(),
+    placement: t.employerRuns ? null : billing.read().find((p) => p.appId === t.a.id) || null,
   });
 });
 // Invite someone who applied to apply for another job the team runs. They decide.

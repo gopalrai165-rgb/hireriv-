@@ -1,6 +1,7 @@
 // What needs someone on the Hireriv team today, on the team dashboard: replies
 // nobody has read, candidates left waiting, interviews with no feedback and
-// enquiries nobody has called. Only jobs the team runs; a company's own hiring
+// enquiries nobody has called, and hires with no placement recorded (so no
+// invoice). Only jobs the team runs; a company's own hiring
 // is on its own dashboard (employer-todo.js). People who manage others see
 // everything; everyone else sees their own work and work nobody owns yet.
 // It only points: nobody is moved or sent anything from here.
@@ -11,7 +12,7 @@ const interviews = require('./interviews');
 const { lastMove, WAITING_DAYS } = require('./employer-todo');
 
 const DAY = 864e5;
-const LABELS = { unread: 'New replies from candidates', waiting: `Waiting over ${WAITING_DAYS} days with no move` };
+const LABELS = { unread: 'New replies from candidates', waiting: `Waiting over ${WAITING_DAYS} days with no move`, unplaced: 'Hired with no placement recorded' };
 // The Interviews tab's own filters (?tab=interviews&todo=feedback|reschedule), not Applications ones.
 const FEEDBACK_LABEL = 'Finished interviews with no feedback yet';
 const IV_TODO = { feedback: FEEDBACK_LABEL, reschedule: 'Candidates who asked for another interview time' };
@@ -22,6 +23,8 @@ const CHECKS = {
   unread: (a) => messages.unreadFor(a, 'hiring') > 0,
   // A general resume isn't for a job yet, so it isn't waiting on anyone.
   waiting: (a, now) => a.jobId !== 'general' && ['New', 'Screening'].includes(ats.stageOf(a)) && now - Date.parse(lastMove(a)) >= WAITING_DAYS * DAY,
+  // Marked Hired, but nobody recorded the placement, so the fee is never invoiced.
+  unplaced: (a, now, placed) => a.status === 'Hired' && !placed.has(a.id),
 };
 const plural = (n, one, many) => (n === 1 ? one : many);
 
@@ -31,9 +34,10 @@ function scopeFor(user, jobs, ownerOf) {
   const everyone = agencyRoles.can(user, 'workload.view');
   return (a) => !a.duplicateOf && !a.withdrawnAt && !companyRuns.has(a.jobId) && (everyone || [user.id, ''].includes(ownerOf(a) || ''));
 }
-const matches = (key, a, inScope, now = Date.now()) => Object.hasOwn(CHECKS, key) && inScope(a) && CHECKS[key](a, now);
+// placed: the ids of applications that already have a placement.
+const matches = (key, a, inScope, now = Date.now(), placed = new Set()) => Object.hasOwn(CHECKS, key) && inScope(a) && CHECKS[key](a, now, placed);
 
-function build({ user, apps, jobs, ownerOf, tabs, enquiries = [], now = Date.now() }) {
+function build({ user, apps, jobs, ownerOf, tabs, enquiries = [], placed = new Set(), now = Date.now() }) {
   const canWrite = agencyRoles.can(user, 'candidates.message');
   const canEnquire = tabs.includes('hire-requests');
   const items = [];
@@ -41,7 +45,7 @@ function build({ user, apps, jobs, ownerOf, tabs, enquiries = [], now = Date.now
   if (canWrite) {
     const inScope = scopeFor(user, jobs, ownerOf);
     const mine = apps.filter(inScope);
-    const of = (key) => mine.filter((a) => CHECKS[key](a, now));
+    const of = (key) => mine.filter((a) => CHECKS[key](a, now, placed));
     const hrefFor = (found, key, hash = '') => (found.length === 1 ? `/admin/applications/${found[0].id}${hash}` : `/admin?tab=applications&todo=${key}`);
     const unread = of('unread');
     add('unread', unread.length, plural(unread.length, 'candidate wrote back and is waiting for a reply', 'candidates wrote back and are waiting for a reply'), hrefFor(unread, 'unread', '#messages'));
@@ -49,6 +53,8 @@ function build({ user, apps, jobs, ownerOf, tabs, enquiries = [], now = Date.now
     add('reschedule', asked.length, plural(asked.length, 'candidate asked for another interview time', 'candidates asked for another interview time'), asked.length === 1 ? `/admin/applications/${asked[0].app.id}#interviews` : '/admin?tab=interviews&todo=reschedule');
     const due = interviews.feedbackDue(mine);
     add('feedback', due.length, plural(due.length, 'interview finished with no feedback yet', 'interviews finished with no feedback yet'), due.length === 1 ? `/admin/interviews/${due[0].app.id}/${due[0].id}/feedback` : '/admin?tab=interviews&todo=feedback');
+    const unplaced = of('unplaced');
+    add('unplaced', unplaced.length, `${plural(unplaced.length, 'hire has', 'hires have')} no placement recorded, so the fee can’t be invoiced`, unplaced.length === 1 ? `/admin/applications/${unplaced[0].id}/placement` : '/admin?tab=applications&todo=unplaced');
     const waiting = of('waiting');
     add('waiting', waiting.length, `${plural(waiting.length, 'candidate has', 'candidates have')} waited over ${WAITING_DAYS} days without moving on`, hrefFor(waiting, 'waiting'));
   }

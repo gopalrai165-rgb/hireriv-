@@ -49,6 +49,13 @@
           <% }) %>
         </ol>
         <p class="small"><a href="/admin?tab=applications">Change the stage on the Applications tab</a></p>
+        <% if (placement) { %>
+          <p class="small" id="placement">✓ Placement recorded: <%= placement.status %>, joining <%= formatDate(placement.joiningDate) %>. <a href="/admin/placements/<%= placement.id %>/edit">Open the placement</a></p>
+        <% } else if (!employerRuns && a.status === 'Hired') { %>
+          <p class="small cand-note" id="placement"><b>No placement recorded yet.</b> Record the joining date, CTC and fee so the client can be invoiced. <a href="/admin/applications/<%= a.id %>/placement">Record placement</a></p>
+        <% } else if (!employerRuns && a.status === 'Offered') { %>
+          <p class="small" id="placement"><a href="/admin/applications/<%= a.id %>/placement">+ Record placement</a> when the offer is accepted.</p>
+        <% } %>
       </section>
 
       <%- include('partials/team-interviews') %>
