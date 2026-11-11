@@ -390,7 +390,12 @@ function register(app, deps) {
       // Someone on the job may record answers the person gave another way, never over their own.
       canRecordAnswers: may('applicants.manage') && !a.withdrawnAt && screening.hasQuestions(job) && (!screening.answersOf(a).length || Boolean(a.screeningRecordedBy)),
       answersForm: may('applicants.manage') && screening.hasQuestions(job) ? { questions: screening.questionsOf(job), current: screening.answersOf(a) } : null,
-      interviewOptions: a.interviewOptions && a.interviewOptions.status === 'open' ? { slots: a.interviewOptions.slots.map((s) => s.at), createdAt: a.interviewOptions.createdAt } : null,
+      // Only the times still to come; when none are left, the page says so instead of "waiting".
+      interviewOptions: a.interviewOptions && a.interviewOptions.status === 'open' ? (() => {
+        const all = a.interviewOptions.slots.map((s) => s.at);
+        const slots = all.filter((at) => Date.parse(at) > Date.now());
+        return { slots, passed: all.length - slots.length, ranOut: !slots.length, createdAt: a.interviewOptions.createdAt };
+      })() : null,
     };
     if (may('applicants.contact')) v.messages = messages.listOf(a).map((m) => ({ id: m.id, at: m.at, from: m.from, by: m.by, text: m.text, readAt: m.readAt }));
     if (may('applicants.contact')) Object.assign(v, { email: require('./identity').realEmail(a.email), phone: a.phone || '', linkedin: a.linkedin || '', message: a.message || '', hasResume: Boolean(a.resume) });
@@ -426,7 +431,7 @@ function register(app, deps) {
     const answers = ['meets', 'misses'].includes(req.query.answers) ? req.query.answers : '';
     const newest = (x, y) => String(y.appliedAt).localeCompare(String(x.appliedAt));
     // From the dashboard's list of what needs attention.
-    const todo = employerTodo.LABELS[req.query.todo] ? req.query.todo : '';
+    const todo = employerTodo.todoKey(req.query.todo);
     const rows = apps.filter((a) => (!jobId || a.jobId === jobId) && (!todo || employerTodo.matches(todo, a, jobs.get(a.jobId), req.member)))
       .map((a) => applicantView(req, a, jobs.get(a.jobId)))
       .filter((v) => (!status || v.status === status) && (!answers || v.screeningOutcome === answers))

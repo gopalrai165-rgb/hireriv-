@@ -15,6 +15,8 @@ const LABELS = { unread: 'New replies from candidates', waiting: `Waiting over $
 // The Interviews tab's own filters (?tab=interviews&todo=feedback|reschedule), not Applications ones.
 const FEEDBACK_LABEL = 'Finished interviews with no feedback yet';
 const IV_TODO = { feedback: FEEDBACK_LABEL, reschedule: 'Candidates who asked for another interview time' };
+// Only the Applications filters above: ?todo=constructor and the like are ignored.
+const todoKey = (value) => (Object.hasOwn(LABELS, String(value)) ? String(value) : '');
 const ivTodoKey = (value) => (Object.hasOwn(IV_TODO, String(value)) ? String(value) : '');
 const CHECKS = {
   unread: (a) => messages.unreadFor(a, 'hiring') > 0,
@@ -29,7 +31,7 @@ function scopeFor(user, jobs, ownerOf) {
   const everyone = agencyRoles.can(user, 'workload.view');
   return (a) => !a.duplicateOf && !a.withdrawnAt && !companyRuns.has(a.jobId) && (everyone || [user.id, ''].includes(ownerOf(a) || ''));
 }
-const matches = (key, a, inScope, now = Date.now()) => Boolean(CHECKS[key]) && inScope(a) && CHECKS[key](a, now);
+const matches = (key, a, inScope, now = Date.now()) => Object.hasOwn(CHECKS, key) && inScope(a) && CHECKS[key](a, now);
 
 function build({ user, apps, jobs, ownerOf, tabs, enquiries = [], now = Date.now() }) {
   const canWrite = agencyRoles.can(user, 'candidates.message');
@@ -59,4 +61,4 @@ function build({ user, apps, jobs, ownerOf, tabs, enquiries = [], now = Date.now
   return { show: canWrite || canEnquire, items };
 }
 
-module.exports = { build, matches, scopeFor, LABELS, FEEDBACK_LABEL, IV_TODO, ivTodoKey };
+module.exports = { build, matches, scopeFor, LABELS, FEEDBACK_LABEL, IV_TODO, ivTodoKey, todoKey };

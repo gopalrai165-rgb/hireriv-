@@ -2945,7 +2945,7 @@ app.get('/admin', adminAuth, (req, res) => {
     const jobById = new Map(jobs.map((j) => [j.id, j]));
     const matchOf = (a) => skillMatch(a, jobById.get(a.jobId));
     // From the dashboard's list of what needs attention.
-    const todo = teamTodo.LABELS[req.query.todo] && agencyRoles.can(req.admin, 'candidates.message') ? req.query.todo : '';
+    const todo = agencyRoles.can(req.admin, 'candidates.message') ? teamTodo.todoKey(req.query.todo) : '';
     const inTodoScope = todo ? teamTodo.scopeFor(req.admin, jobs, appOwner) : null;
     let all = (status ? applications.filter((a) => statusOf(a) === status) : applications)
       .filter((a) => !owner || matchesOwner(appOwner(a), owner, req.admin))

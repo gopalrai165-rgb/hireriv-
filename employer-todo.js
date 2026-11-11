@@ -19,20 +19,25 @@ const lastMove = (a) => {
   return (h.length && h[h.length - 1].at) || a.createdAt;
 };
 const live = (a) => !a.withdrawnAt && !a.duplicateOf;
+// Interview times offered for the candidate to choose from, none chosen, and every one now past.
+const timesRanOut = (a, now = Date.now()) => Boolean(a.interviewOptions) && a.interviewOptions.status === 'open' && (a.interviewOptions.slots || []).every((s) => Date.parse(s.at) <= now);
 
 // Each one decides whether an application belongs under that heading for this person.
 const CHECKS = {
   unread: (a, job, m) => can(m, 'applicants.contact', job) && messages.unreadFor(a, 'hiring') > 0,
   waiting: (a, job, m, now) => can(m, 'applicants.manage', job) && ['New', 'Screening'].includes(ats.stageOf(a)) && now - Date.parse(lastMove(a)) >= WAITING_DAYS * DAY,
   // Someone else approves an offer a person made, unless they own the company (ats.decideOffer).
+  unpicked: (a, job, m, now) => can(m, 'interviews.manage', job) && timesRanOut(a, now),
   offers: (a, job, m) => can(m, 'offers.approve', job) && (a.offers || []).some((o) => !o.withdrawnAt && o.approval && o.approval.status === 'pending' && (o.createdByUserId !== m.userId || m.role === 'owner')),
 };
-const LABELS = { unread: 'New replies from applicants', waiting: `Waiting over ${WAITING_DAYS} days with no move`, offers: 'Offers to approve' };
+const LABELS = { unread: 'New replies from applicants', waiting: `Waiting over ${WAITING_DAYS} days with no move`, offers: 'Offers to approve', unpicked: 'Interview times offered that all passed unpicked' };
+// Only the filters above: ?todo=constructor and the like are ignored.
+const todoKey = (value) => (Object.hasOwn(LABELS, String(value)) ? String(value) : '');
 // The Interviews page's own filters (/employer/interviews?todo=feedback|reschedule).
 const FEEDBACK_LABEL = 'Finished interviews with no feedback yet';
 const IV_TODO = { feedback: FEEDBACK_LABEL, reschedule: 'Candidates who asked for another interview time' };
 const ivTodoKey = (value) => (Object.hasOwn(IV_TODO, String(value)) ? String(value) : '');
-const matches = (key, a, job, member, now = Date.now()) => Boolean(CHECKS[key]) && live(a) && CHECKS[key](a, job, member, now);
+const matches = (key, a, job, member, now = Date.now()) => Object.hasOwn(CHECKS, key) && live(a) && CHECKS[key](a, job, member, now);
 
 const feedbackDue = (a, job, m, now) => (live(a) && can(m, 'feedback.submit', job) ? (a.interviews || []).filter((iv) => {
   const end = Date.parse(iv.at) + (iv.duration || 0) * 60000;
@@ -61,6 +66,8 @@ function build({ member, jobs, apps, now = Date.now() }) {
   const asked = mine.filter((a) => rescheduleAsked(a, own.get(a.jobId), member, now).length);
   const askedCount = asked.reduce((n, a) => n + rescheduleAsked(a, own.get(a.jobId), member, now).length, 0);
   add('reschedule', askedCount, plural(askedCount, 'candidate asked for another interview time', 'candidates asked for another interview time'), asked.length === 1 ? `/employer/applicants/${asked[0].id}#interviews` : '/employer/interviews?todo=reschedule');
+  const unpicked = of('unpicked');
+  add('unpicked', unpicked.length, `${plural(unpicked.length, 'candidate', 'candidates')} didn’t pick any of the interview times offered, and they have all passed`, hrefFor(unpicked, 'unpicked'));
   const due = mine.filter((a) => feedbackDue(a, own.get(a.jobId), member, now).length);
   const dueCount = due.reduce((n, a) => n + feedbackDue(a, own.get(a.jobId), member, now).length, 0);
   add('feedback', dueCount, plural(dueCount, 'interview finished with no feedback yet', 'interviews finished with no feedback yet'), due.length === 1 ? `/employer/applicants/${due[0].id}#interviews` : '/employer/interviews?todo=feedback');
@@ -76,4 +83,4 @@ function build({ member, jobs, apps, now = Date.now() }) {
   return { show: acts, items };
 }
 
-module.exports = { build, matches, lastMove, feedbackDue, rescheduleAsked, LABELS, FEEDBACK_LABEL, IV_TODO, ivTodoKey, WAITING_DAYS };
+module.exports = { build, matches, lastMove, feedbackDue, rescheduleAsked, timesRanOut, todoKey, LABELS, FEEDBACK_LABEL, IV_TODO, ivTodoKey, WAITING_DAYS };
